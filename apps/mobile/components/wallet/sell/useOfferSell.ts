@@ -8,7 +8,12 @@ import {
 import { api } from '@/api/client'
 import { ApiClientError, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import {
+  declaredSignerFor,
+  resolveSignersForChain,
+  settleSignerFor,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { InsufficientBalanceError } from '@tenda/shared'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import {
@@ -69,6 +74,11 @@ export function useOfferSell() {
         owners: resolveSignersForChain(a.option.chainId),
       })
 
+      // Declared signer (signer contract): what the create BAKES is the wallet
+      // the seller will actually sign with, not the server's primary guess.
+      // Settled first, or on EVM the slot is still empty after a restart.
+      await settleSignerFor(a.option.chainId)
+      const signer = declaredSignerFor(a.option.chainId)
       const created = await api.escrows.create({
         creation_operation_id: operationId,
         kind: 'exchange',
@@ -77,6 +87,7 @@ export function useOfferSell() {
         amount_raw: a.amountRaw,
         accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: a.paymentWindowSeconds,
+        ...(signer !== undefined ? { signer_address: signer } : {}),
       })
       escrow_id = created.escrow_id
       creationAttempt.current = null

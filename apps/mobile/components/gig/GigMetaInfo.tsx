@@ -1,43 +1,16 @@
 import { View, StyleSheet } from 'react-native'
-import { MapPin, Clock, Calendar, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatDuration, LOCATIONS, ASSET_META, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
+import { ASSET_META, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import type { GigDetail, CountryCode, EscrowStatus } from '@tenda/shared'
-import type { LucideIcon } from 'lucide-react-native'
-
-/**
- * Status-specific label for the single deadline row. The value itself comes
- * from computeRelevantDeadline upstream, which already picks the right
- * underlying deadline per status; this just names it so we never show both a
- * stale "Accept by" and a generic "Deadline". Statuses with no live deadline
- * are omitted (computeRelevantDeadline returns null → no row).
- */
-const DEADLINE_LABEL: Partial<Record<EscrowStatus, string>> = {
-  open: 'Accept by',
-  accepted: 'Deliver by',
-  submitted: 'Review by',
-}
+import { gigMetaRows, type GigMetaSource } from './gigMetaRows'
 
 interface Props {
-  gig: Pick<
-    GigDetail,
-    | 'city' | 'country' | 'remote'
-    | 'completion_duration_seconds'
-    | 'amount_raw' | 'asset' | 'status' | 'is_seeker'
-  >
+  gig: GigMetaSource
   deadlineLbl: string | null
-}
-
-interface Row {
-  Icon: LucideIcon
-  label: string
-  value: string
-  iconTint?: string
 }
 
 export function GigMetaInfo({ gig, deadlineLbl }: Props) {
@@ -68,38 +41,7 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   // what flips draft → open).
   const escrowFunded = gig.status !== 'draft'
 
-  const rows: Row[] = []
-
-  if (gig.completion_duration_seconds !== null) {
-    rows.push({
-      Icon: Calendar,
-      label: 'Deliver within',
-      value: formatDuration(gig.completion_duration_seconds),
-    })
-  }
-
-  // Remote gigs carry no location (country/city are null); physical gigs always
-  // have both. So: "Remote" or the work location, "City, Country".
-  const workCountry = gig.country ? (LOCATIONS[gig.country as CountryCode]?.name ?? gig.country) : null
-  rows.push({
-    Icon: gig.remote ? Globe : MapPin,
-    label: 'Location',
-    value: gig.remote ? 'Remote' : ([gig.city, workCountry].filter(Boolean).join(', ') || '—'),
-    iconTint: gig.remote ? theme.colors.brand.primary : undefined,
-  })
-
-  // One status-aware deadline row (open → "Accept by", accepted → "Deliver by",
-  // submitted → "Review by"); replaces the old duplicate "Accept by" + generic
-  // "Deadline" pair, which showed the same moment on open and a stale accept
-  // deadline once the gig moved on.
-  const deadlineRowLabel = DEADLINE_LABEL[gig.status]
-  if (deadlineLbl && deadlineRowLabel) {
-    rows.push({
-      Icon: Clock,
-      label: deadlineRowLabel,
-      value: deadlineLbl,
-    })
-  }
+  const rows = gigMetaRows(gig, deadlineLbl, theme.colors.brand.primary)
 
   return (
     <View

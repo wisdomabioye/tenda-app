@@ -12,7 +12,12 @@
  * advisory UI only, the server re-checks.
  */
 import { useState } from 'react'
-import { missingProofTypes, type ProofType } from '@tenda/shared'
+import {
+  missingProofTypes,
+  PROOF_COPY,
+  proofRequirementLine,
+  type ProofType,
+} from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
 import { uploadProofs, type PersistableProof, type PickedProofFile } from '@/lib/uploads/escrow-proofs'
 import { FilePicker } from '@/components/form/FilePicker'
@@ -105,15 +110,12 @@ export function ProofUploadDialog({
     <Modal open={open} title={title} onClose={onClose}>
       {requirements.length > 0 && (
         <p className="text-xs text-content-secondary">
-          {PROOF_DIALOG_COPY.required(requirements)}
-          {missing.length > 0
-            ? PROOF_DIALOG_COPY.stillNeeded(missing)
-            : PROOF_DIALOG_COPY.allCovered}
+          {proofRequirementLine(requirements, missing)}
         </p>
       )}
       {alreadyAttached.length > 0 && (
         <p className="text-xs text-content-secondary">
-          {PROOF_DIALOG_COPY.alreadyAttached(alreadyAttached.map((proof) => proof.type))}
+          {PROOF_COPY.alreadyAttached(alreadyAttached.map((proof) => proof.type))}
         </p>
       )}
       <FilePicker files={files} onChange={setFiles} max={5} />

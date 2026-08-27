@@ -110,6 +110,10 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
 
       <TxConfirmDialog
         action={pending !== null ? 'assign_accept' : null}
+        chainId={gig.chain_id}
+        // The POSTER signs an assign, so the binding previewed is theirs — the
+        // wire is viewer-relative, so this is never the applicant's wallet.
+        boundSigner={gig.my_signer_address}
         ctx={{
           amount: formatAssetAmount(gig.amount_raw, gig.asset),
           kind: 'gig',

@@ -22,7 +22,12 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
   resolveSignersForChain: () => ['0xabc'],
 }))
@@ -134,5 +139,36 @@ test('a takedown refusal with a BLANK message still explains itself', () => {
     expect(message).toBe(TAKEDOWN_REFUSED_MESSAGE)
     expect(message).not.toMatch(/try again/i)
     expect(onStale).toHaveBeenCalledTimes(1)
+  })
+})
+
+test('a thrown NON-error still reaches the user rather than crashing the handler', () => {
+  // `throw null` is legal, and a rejected promise can carry anything — an
+  // `as Error` cast on the way to `.message` would throw INSIDE the failure
+  // handler, replacing a toast with a red box. Read through a type guard so
+  // the value simply has no message of its own and the fallback speaks.
+  mockRequestAccept.mockRejectedValue(null)
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  return act(async () => {
+    await result.current.accept()
+    const [tone, message] = mockShowToast.mock.calls[0]
+    expect(tone).toBe('error')
+    expect(message).toBe('Transaction failed, please try again')
+  })
+})
+
+test('an ORDINARY failure with a blank message still says something', () => {
+  // The last resort in `surfaceTransitionFailure`: not a gate, not a guard
+  // exit, not a takedown, and the envelope carried no words. An empty toast is
+  // indistinguishable from nothing happening at all.
+  mockRequestAccept.mockRejectedValue(new Error(''))
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  return act(async () => {
+    await result.current.accept()
+    const [tone, message] = mockShowToast.mock.calls[0]
+    expect(tone).toBe('error')
+    expect(message).toBe('Transaction failed, please try again')
   })
 })

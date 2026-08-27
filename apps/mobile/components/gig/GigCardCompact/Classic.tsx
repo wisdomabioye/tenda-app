@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MapPin, Clock, Check, Globe, ArrowLeftRight } from 'lucide-react-native'
+import { MapPin, Clock, Globe, ArrowLeftRight } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
@@ -35,6 +35,8 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
   const deadlineMeta = gigDeadlineMeta(gig)
+  // No success arm — see the NO SUCCESS CHIP note in ./shared for why a card
+  // never renders `gigDeadlineMeta`'s completed/resolved tone.
 
   return (
     <Pressable
@@ -90,13 +92,12 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
         )}
         {deadlineMeta.label ? (
           <View style={s.metaItem}>
-            {/* Three arms, not two: `gigDeadlineMeta` returns `glyph: null` to
-                mean NO icon (cancelled is the live case), and a two-way
-                ternary drew a clock for it — which both sibling variants
-                already got right. */}
-            {deadlineMeta.glyph === 'check' ? (
-              <Check size={14} color={theme.colors.feedback.success.base} strokeWidth={2.5} />
-            ) : deadlineMeta.glyph === 'clock' ? (
+            {/* Two arms, and the null one is load-bearing: `gigDeadlineMeta`
+                returns `glyph: null` to mean NO icon (cancelled is the live
+                case), and an unguarded clock drew one for it. The 'check'
+                glyph pairs with the success tone, which a card never renders
+                — see the NO SUCCESS CHIP note in ./shared. */}
+            {deadlineMeta.glyph === 'clock' ? (
               <Clock
                 size={14}
                 color={
@@ -111,9 +112,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
               color={
                 deadlineMeta.tone === 'urgent'
                   ? theme.colors.feedback.warning.base
-                  : deadlineMeta.tone === 'success'
-                    ? theme.colors.feedback.success.base
-                    : theme.colors.content.secondary
+                  : theme.colors.content.secondary
               }
             >
               {deadlineMeta.label}

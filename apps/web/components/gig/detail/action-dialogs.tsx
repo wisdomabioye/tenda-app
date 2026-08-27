@@ -9,7 +9,13 @@
  */
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatAssetAmount, type ActiveSheet, type ProofType, type ReviewInput } from '@tenda/shared'
+import {
+  errorMessage,
+  formatAssetAmount,
+  type ActiveSheet,
+  type ProofType,
+  type ReviewInput,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/overlay/ConfirmDialog'
@@ -148,7 +154,7 @@ export function ReviewDialog({
       onReviewSubmitted()
       showToast('success', 'Review submitted!')
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to submit review')
+      showToast('error', errorMessage(e) || 'Failed to submit review')
     }
   }
 
@@ -215,7 +221,7 @@ export function GigActionDialogs({
       showToast('success', 'Draft deleted')
       router.push('/my-gigs')
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to delete draft')
+      showToast('error', errorMessage(e) || 'Failed to delete draft')
     }
   }
 

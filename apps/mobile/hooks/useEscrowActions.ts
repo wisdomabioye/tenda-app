@@ -15,7 +15,6 @@
  */
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
 import type {
   EscrowTxType,
   ProofType,
@@ -23,18 +22,18 @@ import type {
   UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { WalletError } from '@tenda/shared'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { errorMessage, WalletError } from '@tenda/shared'
+import {
+  declaredSignerFor,
+  resolveSignersForChain,
+  settleSignerFor,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
-import {
-  classifyTransactionGateError,
-  TRANSACTION_GATE_MESSAGE,
-  transactionGateRoute,
-} from '@tenda/shared'
-import { isTakedownRefusal } from '@tenda/shared'
+import { surfaceTransitionFailure } from '@/features/escrow/transition-failure'
 import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProofs'
 import { attachedProofUrls } from '@/features/escrow-proofs/attachedProofUrls'
 import { proofHashFor } from '@/hooks/escrow/proof-hash'
@@ -108,8 +107,21 @@ export function useEscrowActions({
   function failPreparation(error: unknown, fallback: string): false {
     setBusyAction(null)
     setPhase('idle')
-    showToast('error', (error as Error).message || fallback)
+    showToast('error', errorMessage(error) || fallback)
     return false
+  }
+
+  /**
+   * Run a build that carries the SIGNER DECLARATION (publish, accept,
+   * dispute). The session is settled first so the address declared is the one
+   * that will actually sign — see `settleSignerFor`; declaring before
+   * connecting names the primary and then signs with someone else.
+   */
+  async function withDeclaredSigner(
+    build: (signer?: string) => Promise<UnsignedTx>,
+  ): Promise<UnsignedTx> {
+    await settleSignerFor(chainId)
+    return build(declaredSignerFor(chainId))
   }
 
   /**
@@ -151,37 +163,7 @@ export function useEscrowActions({
       return true
     } catch (e) {
       setPhase('idle')
-      // First-transaction gate (9D): route to link-wallet / verify-contact
-      // instead of a dead-end toast. The 403 surfaces from request() (the
-      // server build-tx call), before any wallet signing.
-      const gate = classifyTransactionGateError(e)
-      if (gate !== null) {
-        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
-        return false
-      }
-      // Guard exits (Cancel button / lost wallet response) are expected paths,
-      // not failures — the message already says whether the tx may still sync.
-      if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
-        showToast('info', e.message)
-        return false
-      }
-      // Taken down (CO1) while this screen was open: the refusal is the FIRST
-      // the client hears of it, so a toast alone would leave the same button
-      // sitting there to be pressed again. Re-read instead — the party lands on
-      // the takedown notice with the entry actions gone, everyone else on "not
-      // available". The server's message is preferred — it is written for a
-      // stranger whose screen simply went stale — but it falls back to the
-      // SHARED constant the server itself sends, not to the generic "please try
-      // again" below: a blank envelope must not turn "this listing is gone"
-      // into advice to retry something that will be refused every time.
-      if (isTakedownRefusal(e)) {
-        showToast('error', (e as Error).message || TAKEDOWN_REFUSED_MESSAGE)
-        onStale?.()
-        return false
-      }
-      showToast('error', (e as Error).message || 'Transaction failed, please try again')
-      return false
+      return surfaceTransitionFailure(e, { navigate: (route) => router.push(route), onStale })
     } finally {
       setBusyAction(null)
     }
@@ -200,8 +182,14 @@ export function useEscrowActions({
     /** Publish a draft: rebuild + sign the create tx (offramp drafts /
      *  signing-declined retries, the escrow id is preserved). Funds the escrow,
      *  so it debits the full amount. */
-    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId), amountRaw),
-    accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
+    publish: () =>
+      dispatch(
+        'create',
+        () => withDeclaredSigner((signer) => store.requestBuildCreate(escrowId, signer)),
+        amountRaw,
+      ),
+    accept: () =>
+      dispatch('accept', () => withDeclaredSigner((signer) => store.requestAccept(escrowId, signer))),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
     /**
      * Approval mode, poster-signed. No `debitRaw`: the escrow is already
@@ -262,7 +250,7 @@ export function useEscrowActions({
         showToast('success', 'Proof added!')
         return true
       } catch (e) {
-        showToast('error', (e as Error).message || 'Failed to add proof, please try again')
+        showToast('error', errorMessage(e) || 'Failed to add proof, please try again')
         return false
       }
     },
@@ -275,13 +263,14 @@ export function useEscrowActions({
     dispute: (reason: string, bondRaw: string) =>
       dispatch(
         'dispute',
-        async () => {
-          const permit =
-            bondRaw !== '0'
-              ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
-              : undefined
-          return store.requestDispute(escrowId, bondRaw, reason, permit)
-        },
+        () =>
+          withDeclaredSigner(async (signer) => {
+            const permit =
+              bondRaw !== '0'
+                ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
+                : undefined
+            return store.requestDispute(escrowId, bondRaw, reason, permit, signer)
+          }),
         bondRaw,
       ),
   }

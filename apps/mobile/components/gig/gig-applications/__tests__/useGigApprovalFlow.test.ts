@@ -54,6 +54,21 @@ test('apply opens its sheet, not a confirm dialog', () => {
   expect(result.current.confirmDialog.visible).toBe(false)
 })
 
+test('closing the sheet lets it be opened again', () => {
+  // The sheet's dismissal is the hook's, not the sheet's: if closeApply does
+  // not put `applyOpen` back, a cancelled apply leaves the flag latched true
+  // and the SECOND handleAction('apply') is a no-op against a sheet the user
+  // already dismissed.
+  const { result } = setup()
+  act(() => result.current.handleAction('apply'))
+  act(() => result.current.closeApply())
+
+  expect(result.current.applyOpen).toBe(false)
+
+  act(() => result.current.handleAction('apply'))
+  expect(result.current.applyOpen).toBe(true)
+})
+
 test('viewApplicants navigates and performs nothing', () => {
   const { result, onRequestUnassign } = setup()
   act(() => result.current.handleAction('viewApplicants'))
@@ -99,10 +114,10 @@ test('cancelling the dialog performs nothing', () => {
   expect(mockWithdraw).not.toHaveBeenCalled()
 })
 
-test('the apply sheet submits against this gig', async () => {
+test('the apply sheet submits against this gig, with the wallet it chose', async () => {
   const { result } = setup()
   await act(async () => {
-    await result.current.apply('pick me')
+    await result.current.apply('pick me', '0xChosen')
   })
-  expect(mockApply).toHaveBeenCalledWith(ESCROW, 'pick me')
+  expect(mockApply).toHaveBeenCalledWith(ESCROW, 'pick me', '0xChosen')
 })

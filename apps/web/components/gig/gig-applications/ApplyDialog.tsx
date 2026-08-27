@@ -29,25 +29,15 @@ import {
   APPLY_WALLET_RETRY,
   chainLabel,
   findChain,
-  sameWalletAddress,
+  preferredWalletAddress,
   transactionGateRoute,
   truncateWallet,
-  type LinkedWallet,
+  verifiedWalletsOn,
 } from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
 import { controlClassName } from '@/components/ui/TextField'
 import { Modal } from '@/components/ui/overlay/Modal'
 import { useAuthStore } from '@/stores/auth.store'
-
-/** The wallet the picker starts on: last application's choice, else primary,
- *  else the first linked — mirroring the server's absent-choice fallback. */
-function defaultWallet(options: LinkedWallet[], initial: string | null): string | null {
-  if (initial !== null) {
-    const kept = options.find((w) => sameWalletAddress(w.chain_ns, w.address, initial))
-    if (kept !== undefined) return kept.address
-  }
-  return (options.find((w) => w.is_primary) ?? options[0])?.address ?? null
-}
 
 export function ApplyDialog({
   open,
@@ -81,13 +71,13 @@ export function ApplyDialog({
   }, [open, ensureWallets])
 
   const ns = findChain(chainId)?.namespace ?? null
-  const options = wallets.filter((w) => w.chain_ns === ns && w.verified_at !== null)
+  const options = ns === null ? [] : verifiedWalletsOn(ns, wallets)
   const selected =
     picked !== null && options.some((w) => w.address === picked)
       ? picked
       : ns === null
         ? null
-        : defaultWallet(options, initialWallet)
+        : preferredWalletAddress(ns, initialWallet, wallets)
 
   async function handleSubmit() {
     if (selected === null) return

@@ -248,3 +248,22 @@ test('the wallet hint is shown when the caller supplies one', () => {
 
   expect(screen.getByText('Opens your wallet')).toBeTruthy()
 })
+
+// ── the injected signer preview ────────────────────────────────────────────
+
+test('the sheet renders the signer preview it is handed', () => {
+  // Submit opens a wallet and the escrow has already bound WHICH one, so the
+  // worker has to be told before they pick files rather than after the chain
+  // refuses. The row is injected — the sheet has no business knowing about
+  // wallets — but it has to actually mount it.
+  //
+  // There is deliberately no negative twin HERE: omitting the prop renders
+  // `{undefined}`, which is indistinguishable from rendering it, so such a
+  // test could not fail for its stated reason. The contract that matters —
+  // that the OFF-CHAIN add-more sheet is handed no row at all — is asserted
+  // where the decision is made, in GigActionSheets.test.
+  const { Text } = require('react-native')
+  setup({ signerRow: <Text>signer-preview</Text> })
+
+  expect(screen.getByText('signer-preview')).toBeTruthy()
+})

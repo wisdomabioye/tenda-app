@@ -111,6 +111,7 @@ export { withRetry, type RetryOptions } from './with-retry'
 export * from './escrow'
 export * from './disputes'
 export { randomUuid } from './random-uuid'
+export { errorMessage } from './error-message'
 export {
   classifyVerifyError,
   verifyErrorMessage,

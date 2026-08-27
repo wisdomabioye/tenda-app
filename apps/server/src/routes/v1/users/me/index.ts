@@ -19,7 +19,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { ErrorCode, NAME_MAX_LENGTH, hasCompleteName } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
@@ -69,6 +69,15 @@ const route: FastifyPluginAsync = async (fastify) => {
       })
       .from(user_wallets)
       .where(eq(user_wallets.user_id, request.user.id))
+      // ORDERED, and both clients depend on it. `pickWalletAddress` /
+      // `preferredWalletAddress` fall back to the FIRST verified wallet on a
+      // namespace when none is primary — which is the ordinary case, because
+      // the one-primary index is per USER, not per namespace. That first row
+      // is what a picker preselects and what a create BAKES on chain, so an
+      // unordered select left "which wallet is my default" to postgres heap
+      // order: stable until any row on the table is updated. Primary first,
+      // then oldest link, then address as a total tiebreak.
+      .orderBy(desc(user_wallets.is_primary), user_wallets.verified_at, user_wallets.address)
 
     return {
       user: { ...user, phone_verified_at: await phoneVerifiedAt(fastify.db, request.user.id) },

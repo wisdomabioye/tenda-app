@@ -246,6 +246,21 @@ describe('dispatch lifecycle', () => {
     expect(result.current.phase).toBe('idle')
   })
 
+  test('a thrown NON-error still reaches the user rather than crashing the handler', async () => {
+    // `throw null` is legal, and a rejected promise can carry anything — an
+    // `as Error` cast on the way to `.message` throws INSIDE the failure
+    // handler, replacing the toast with an unhandled rejection. Read through
+    // `errorMessage` so the value simply has no words of its own and the
+    // fallback speaks. Mobile's twin lives in useEscrowActions.takedown.test.
+    storeMocks.requestCancel.mockRejectedValue(null)
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.cancel()).toBe(false)
+    })
+    expect(mockToast).toHaveBeenCalledWith('error', 'Transaction failed, please try again')
+    expect(result.current.phase).toBe('idle')
+  })
+
   test('refund passes the exact recovery kind through as the PING action', async () => {
     const { result } = renderHook(() => useEscrowActions(ARGS))
     await act(async () => {

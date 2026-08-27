@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Clock, Check, ArrowLeftRight } from 'lucide-react-native'
+import { Clock, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
@@ -40,14 +40,8 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
 
   const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'
-  const isSuccess = deadlineMeta.tone === 'success'
-  // NOTE: `isSuccess` (and the Check glyph it pairs with) cannot fire from a
-  // card. `gigDeadlineMeta` returns the success tone only for
-  // completed/resolved, and builds that chip's label from `updated_at` — a
-  // field `GigSummary` does not carry, so the label is empty and the chip is
-  // hidden. Kept because the branch becomes live the moment the summary gains
-  // the field; see display-branches.test.tsx, "a CLOSED gig shows no deadline
-  // chip at all".
+  // No success arm — see the NO SUCCESS CHIP note in ./shared for why a card
+  // never renders `gigDeadlineMeta`'s completed/resolved tone.
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
   const fiatAlt = price.fiat !== null ? `≈ ${formatFiat(price.fiat, currency)}` : ''
@@ -98,15 +92,11 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
                   {
                     backgroundColor: isUrgent
                       ? theme.colors.feedback.warning.surface
-                      : isSuccess
-                        ? theme.colors.feedback.success.surface
-                        : theme.colors.surface.inset,
+                      : theme.colors.surface.inset,
                   },
                 ]}
               >
-                {deadlineMeta.glyph === 'check' ? (
-                  <Check size={10} color={theme.colors.feedback.success.base} strokeWidth={3} />
-                ) : deadlineMeta.glyph === 'clock' ? (
+                {deadlineMeta.glyph === 'clock' ? (
                   <Clock
                     size={10}
                     color={
@@ -122,10 +112,8 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
                     {
                       color: isUrgent
                         ? theme.colors.feedback.warning.base
-                        : isSuccess
-                          ? theme.colors.feedback.success.base
-                          : theme.colors.content.secondary,
-                      fontWeight: isUrgent || isSuccess ? '600' : '500',
+                        : theme.colors.content.secondary,
+                      fontWeight: isUrgent ? '600' : '500',
                     },
                   ]}
                   numberOfLines={1}

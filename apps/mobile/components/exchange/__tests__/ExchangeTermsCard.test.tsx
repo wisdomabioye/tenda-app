@@ -45,6 +45,7 @@ jest.mock('@/stores/platform-config.store', () => ({
     }),
 }))
 
+import { BOUND_WALLET_LABEL } from '@tenda/shared'
 import { ExchangeTermsCard } from '../ExchangeTermsCard'
 
 const iso = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3_600_000).toISOString()
@@ -76,6 +77,29 @@ test('always shows rate and the payment-window duration', () => {
 test('names the network the escrow lives on (from the chain manifest)', () => {
   render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
   expect(screen.getByText('Network')).toBeTruthy()
+})
+
+test('names the wallet THIS escrow bound the reader to', () => {
+  // The party never necessarily chose it — an accept bakes whatever wallet
+  // signed — so the first they hear of it must not be a refused signature.
+  render(
+    <ExchangeTermsCard
+      offer={makeOffer('accepted', { completion_deadline: iso(3) }, { my_signer_address: '0xBound111' })}
+    />,
+  )
+  expect(screen.getByText(BOUND_WALLET_LABEL)).toBeTruthy()
+  expect(screen.getByText('0xBo…d111')).toBeTruthy()
+})
+
+test('shows no wallet row to a reader the escrow binds to nothing', () => {
+  // The wire is viewer-relative: a non-party (or a still-open offer) gets
+  // null, and a row labelled "Your escrow wallet" with no wallet is a lie.
+  render(
+    <ExchangeTermsCard
+      offer={makeOffer('open', { accept_deadline: iso(5) }, { my_signer_address: null })}
+    />,
+  )
+  expect(screen.queryByText(BOUND_WALLET_LABEL)).toBeNull()
 })
 
 test('buyer net = amount − platform fee at the regular tier (100 − 1% = 99)', () => {

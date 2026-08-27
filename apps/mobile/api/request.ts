@@ -104,7 +104,20 @@ export async function request<TResponse>(
 
     if (!response.ok) {
       const error: ApiError = await response.json()
-      throw new ApiClientError(error.statusCode, error.error, error.message, error.code)
+      // `details` rides through. The server sends it (http-errors serializes
+      // it whenever an AppError carries one) and the SHARED `ApiClientError`
+      // declares it, so dropping it here was this transport quietly discarding
+      // contract data that web's transport keeps. What reads it today is
+      // `requiredWalletOf` — the ESCROW_WRONG_WALLET `required_address` that
+      // names the wallet an escrow is bound to; a refusal without it is a
+      // message the reader cannot act on.
+      throw new ApiClientError(
+        error.statusCode,
+        error.error,
+        error.message,
+        error.code,
+        error.details,
+      )
     }
 
     return (await response.json()) as TResponse

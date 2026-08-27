@@ -3,10 +3,10 @@
 The on-chain programs, in the monorepo so they version with the code that
 consumes them.
 
-| dir       | chain family | toolchain        | source of truth for           |
-| --------- | ------------ | ---------------- | ----------------------------- |
-| `evm/`    | EVM (Base/Celo) | Foundry (forge) | `packages/shared/src/abi/`    |
-| `solana/` | Solana       | Anchor           | `packages/shared/src/idl/`    |
+| dir       | chain family | toolchain       | source of truth for        |
+| --------- | ------------ | --------------- | -------------------------- |
+| `evm/`    | EVM chains   | Foundry (forge) | `packages/shared/src/abi/` |
+| `solana/` | Solana       | Anchor          | `packages/shared/src/idl/` |
 
 ## The anti-drift contract
 
@@ -50,6 +50,6 @@ rebuild and only refresh `src/{abi,idl}`.
   are gitignored and are **not** needed to build, test, or generate the
   ABI/IDL (the IDL address comes from `declare_id!`).
 - **Deployed contract addresses are config, not artifacts.** The live
-  per-chain escrow addresses are server env secrets (`CHAIN_<id>_ESCROW`),
+  per-chain escrow addresses are server env secrets (`CHAIN_<ID>_ESCROW_ADDR`),
   outside this guard. They are validated at runtime by the chain adapters, not
   here.
