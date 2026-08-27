@@ -13,16 +13,28 @@ import { FOOTER_NAV_LINKS } from '@/components/sections/footer/content/sitemap'
  */
 const html = renderToStaticMarkup(<LandingPage />)
 
-/** Every `<section id>` in document order, with the surface class it rendered. */
+/**
+ * Every `<section>` in document order, with the surface it rendered.
+ *
+ * The id is OPTIONAL. An earlier version of this matcher required `id="..."`,
+ * which silently excluded the hero — SectionShell renders an id only when one
+ * is passed — so a test claiming no two adjacent sections share a surface was
+ * in fact not looking at the first pair on the page. Sections without an id are
+ * labelled by position so the failure message still says which pair collided.
+ */
 function sections(): { id: string; surface: 'base' | 'alt' }[] {
   const out: { id: string; surface: 'base' | 'alt' }[] = []
-  for (const match of html.matchAll(/<section id="([^"]+)"[^>]*class="([^"]*)"/g)) {
+  let index = 0
+  for (const match of html.matchAll(/<section(?: id="([^"]*)")?[^>]*class="([^"]*)"/g)) {
     const [, id, className] = match
-    // SectionShell renders exactly one of these two background tokens.
-    const alt = className.includes('--surface-bg-alt')
+    index += 1
+    // SectionShell renders exactly one of these two background tokens. The
+    // closing paren on `--surface-bg)` is what keeps it from also matching
+    // `--surface-bg-alt)`.
+    const alt = className.includes('--surface-bg-alt)')
     const base = className.includes('--surface-bg)')
     if (!alt && !base) continue
-    out.push({ id, surface: alt ? 'alt' : 'base' })
+    out.push({ id: id ?? `section#${index}`, surface: alt ? 'alt' : 'base' })
   }
   return out
 }
