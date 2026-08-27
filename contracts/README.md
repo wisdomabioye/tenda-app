@@ -53,3 +53,13 @@ rebuild and only refresh `src/{abi,idl}`.
   per-chain escrow addresses are server env secrets (`CHAIN_<ID>_ESCROW_ADDR`),
   outside this guard. They are validated at runtime by the chain adapters, not
   here.
+
+## Licence
+
+Everything under `contracts/` is **Apache-2.0** ([`LICENSE`](LICENSE),
+[`NOTICE`](NOTICE)) — deliberately, and unlike the rest of the repository,
+which is BUSL-1.1. The settlement rules hold user funds, so they have to be
+verifiable and reusable by anyone, forever, with no strings. See
+[`../LICENSING.md`](../LICENSING.md).
+
+Vendored dependencies under `evm/lib/` keep their own licences.

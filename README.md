@@ -77,3 +77,17 @@ another package's test suite is running.
 In-repo under [`contracts/`](contracts/README.md) — the shared ABI/IDL in
 `packages/shared` are generated artifacts guarded against drift by CI and
 pre-commit hooks. EVM deploy runbook: `contracts/evm/DEPLOY.md`.
+
+## Licence
+
+Two licences, split by directory:
+
+| Path | Licence |
+|---|---|
+| [`contracts/`](contracts/LICENSE) | Apache-2.0 — open source, no strings |
+| Everything else | [BUSL-1.1](LICENSE) — source-available; each version becomes Apache-2.0 two years after release |
+
+BUSL permits reading, auditing, modifying and running the code, including
+inside your own organisation; it does not permit offering it to third parties
+as a hosted escrow, payments or dispute-resolution service. Full explanation in
+[LICENSING.md](LICENSING.md); trademark terms in [TRADEMARK.md](TRADEMARK.md).

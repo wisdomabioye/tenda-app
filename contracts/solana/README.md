@@ -115,4 +115,5 @@ required only for deploys under the same program id. Keep it in a vault.
 
 ## License
 
-MIT
+Apache-2.0, with the rest of the repository under BUSL-1.1. See
+[`../LICENSE`](../LICENSE) and [`../../LICENSING.md`](../../LICENSING.md).
