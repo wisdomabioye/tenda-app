@@ -17,14 +17,27 @@ import { FEE_PCT, SEEKER_FEE_PCT } from './fees'
 
 export interface EcosystemPanel {
   /** Manifest family — joins to LANDING_CHAINS for name/glyph/colour. */
-  chainFamily: 'solana' | 'base' | 'celo'
+  chainFamily: '0g' | 'solana' | 'base' | 'celo'
   /** Why Tenda builds here — one sentence. */
   why: string
   /** Shipped integration proof points, most impressive first. */
   proofs: readonly { label: string; roadmap?: true }[]
 }
 
+// Panel order mirrors LANDING_CHAINS: 0G leads (launch positioning, 2026-08-27).
 export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
+  {
+    chainFamily: '0g',
+    why: 'The AI-native chain — Tenda is building the rails for AI agents to hire humans, and 0G is where they live.',
+    proofs: [
+      // No network qualifier on purpose (the Base panel's precedent): true of
+      // the Galileo deployment today and stays true when the mainnet contract
+      // lands — a "Galileo" here would go stale the hour that happens.
+      { label: 'TendaEscrow deployed, with the full escrow lifecycle verified end to end' },
+      { label: 'Bridged USDC (USDC.e over Chainlink CCIP) verified for settlement — permit support checked on-chain' },
+      { label: 'Agent-to-human hiring API settling on 0G', roadmap: true },
+    ],
+  },
   {
     chainFamily: 'solana',
     why: 'Where Tenda started — settlement fast enough to feel like handing over cash.',

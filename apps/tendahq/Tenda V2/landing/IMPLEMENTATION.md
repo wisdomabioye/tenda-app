@@ -141,7 +141,7 @@ These are the strings shipped in the wireframe. Keep them as-is unless a section
 - Tag: "Built in **Lagos** · running across **14 countries** · settled on-chain since day one."
 - Sitemap: `00 About · 01 Product · 02 Workers · 03 Posters · 04 Resources`
 - Live volume (24h): `$3.42M · ↑ 11.3% vs. 7d avg · 8,407 settlements`
-- Legal foot: "© 2026 Tenda Labs Ltd. RC 1847299. Tenda is a software interface; payments are routed via licensed partners. Crypto products may not be available in all regions."
+- Legal foot: "© 2026 Tenda Ltd. RC 1847299. Tenda is a software interface; payments are routed via licensed partners. Crypto products may not be available in all regions."
 
 > **Numbers strategy.** The `1.7s` / `1.5%` / `0.4%` triple is the hero proof. It appears in **§01 hero trust line, §02 trust strip, §06 pillars, §10 final CTA receipts, §11 footer status**. Repetition is conviction — do not vary the numbers across sections; if one moves, all move.
 

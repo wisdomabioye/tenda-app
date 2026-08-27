@@ -15,7 +15,7 @@
 import { APP_INFO, CHAIN_NAMES_PROSE } from '@/content'
 
 export const FOOTER_LEGAL = {
-  copyright: `© ${new Date().getFullYear()} Tenda Labs.`,
+  copyright: `© ${new Date().getFullYear()} Tenda.`,
   // The stage is parenthesised rather than sentence-initial on purpose: it
   // renders lowercase ("testnet release" / "mainnet"), so a position that
   // demands a capital would read as a typo in one of the two states.

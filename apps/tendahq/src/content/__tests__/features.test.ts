@@ -20,10 +20,15 @@ describe('onboarding features', () => {
     }
   })
 
-  it('gives every card a unique id, title, body and fact', () => {
+  it('gives every card a unique id, tab, title, body and fact', () => {
     const ids = ONBOARDING_FEATURES.map((f) => f.id)
     expect(new Set(ids).size).toBe(ids.length)
+    // Tabs are the selector rail — a duplicate label makes two rails
+    // indistinguishable; an empty one renders a blank pill.
+    const tabs = ONBOARDING_FEATURES.map((f) => f.tab)
+    expect(new Set(tabs).size).toBe(tabs.length)
     for (const f of ONBOARDING_FEATURES) {
+      expect(f.tab).not.toBe('')
       expect(f.title).not.toBe('')
       expect(f.body).not.toBe('')
       expect(f.fact).not.toBe('')
@@ -51,6 +56,22 @@ describe('onboarding features', () => {
     const lastLive = ONBOARDING_FEATURES.map((f) => f.status).lastIndexOf('live')
     const firstRoadmap = ONBOARDING_FEATURES.findIndex((f) => f.status === 'roadmap')
     if (firstRoadmap !== -1) expect(firstRoadmap).toBeGreaterThan(lastLive)
+  })
+
+  /**
+   * Onboarding's 0G presence (decided 2026-08-27): the agent card leads the
+   * roadmap group, rides the 0G chain, and stays honest — `roadmap`, because
+   * sign-only funding is designed but not shipped. The structural tests above
+   * already bind its chains to chainsByGasPolicy('none') and its body to the
+   * chain name; this is the existence pin they cannot provide.
+   */
+  it('leads the roadmap group with the 0G agent card', () => {
+    const agent = ONBOARDING_FEATURES.find((f) => f.id === 'agent-signature-funding')
+    expect(agent).toBeDefined()
+    expect(agent?.status).toBe('roadmap')
+    expect(agent?.chains.map((c) => c.family)).toEqual(['0g'])
+    const firstRoadmap = ONBOARDING_FEATURES.findIndex((f) => f.status === 'roadmap')
+    expect(ONBOARDING_FEATURES[firstRoadmap]?.id).toBe('agent-signature-funding')
   })
 
   /**

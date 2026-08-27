@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payout'
 import { SUPPORTED_CURRENCIES } from '../currencies'
 import { EXAMPLE_TRADES } from '../trades'
+import { LANDING_CHAINS } from '../chains'
 import { TradeDeck } from '@/components/sections/two-products/TradeDeck'
 import { TRADE_DECK_CAPTION } from '@/components/sections/two-products/content'
 import {
@@ -59,6 +60,18 @@ describe('fiat markets', () => {
     expect(TRADE_COUNTRIES_PROSE).toContain(TRADE_COUNTRY_NAMES[0])
     expect(TRADE_COUNTRIES_PROSE).toContain(' and ')
     expect(TRADE_CURRENCIES_PROSE).toContain(TRADE_CURRENCIES[0])
+  })
+
+  /**
+   * Every shipped chain gets a sample row — the deck is the Exchange's shop
+   * window, and a chain missing from it reads as a chain the Exchange skips.
+   * 0G leads the deck (launch positioning, 2026-08-27), mirroring
+   * LANDING_CHAINS' order contract.
+   */
+  it('shows at least one trade per landing chain, with 0G leading the deck', () => {
+    const sampled = new Set(EXAMPLE_TRADES.map((t) => t.asset.chainFamily))
+    for (const chain of LANDING_CHAINS) expect(sampled).toContain(chain.family)
+    expect(EXAMPLE_TRADES[0]?.asset.chainFamily).toBe('0g')
   })
 
   /**

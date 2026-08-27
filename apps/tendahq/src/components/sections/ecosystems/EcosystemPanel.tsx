@@ -8,6 +8,8 @@ import { cn } from '@/lib/cn'
 
 interface Props {
   panel: EcosystemPanelData
+  /** Full-width lead panel: proofs run horizontally at lg instead of stacking. */
+  featured?: boolean
   className?: string
 }
 
@@ -17,7 +19,7 @@ interface Props {
  * a check; roadmap ones a spinner glyph and dimmed text, so the section stays
  * honest for grant reviewers reading closely.
  */
-export function EcosystemPanel({ panel, className }: Props) {
+export function EcosystemPanel({ panel, featured = false, className }: Props) {
   const chain = chainByFamily(panel.chainFamily)
   if (!chain) return null
 
@@ -59,7 +61,7 @@ export function EcosystemPanel({ panel, className }: Props) {
 
       <p className="body text-[var(--content-secondary)]">{panel.why}</p>
 
-      <ul className="flex flex-col gap-2.5">
+      <ul className={cn('flex flex-col gap-2.5', featured && 'lg:grid lg:grid-cols-3 lg:items-start lg:gap-4')}>
         {panel.proofs.map((proof) => (
           <li key={proof.label} className="flex items-start gap-2.5">
             {proof.roadmap ? (

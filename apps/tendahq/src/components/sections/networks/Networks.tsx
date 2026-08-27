@@ -3,7 +3,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Pill } from '@/components/ui/Pill'
 import { LANDING_CHAINS, MORE_CHAINS_LABEL } from '@/content'
 import { NetworkCard } from './NetworkCard'
-import { NETWORKS_FOOTNOTE, NETWORKS_HEADER } from './content'
+import { NETWORKS_HEADER } from './content'
 
 /**
  * §07 Supported networks — one card per MAINNET chain in the shared manifest,
@@ -11,9 +11,10 @@ import { NETWORKS_FOOTNOTE, NETWORKS_HEADER } from './content'
  *
  * The grid maps LANDING_CHAINS rather than listing cards, so a chain added to
  * the manifest appears here with no edit to this file. The column count is
- * fixed at three because that is what the current chain count needs; it is
- * `md:grid-cols-2 lg:grid-cols-3`, which wraps rather than squashing when a
- * fourth arrives.
+ * fixed at four because that is what the current chain count needs — one
+ * "4 live" strip, echoing the final-CTA receipt; it is
+ * `md:grid-cols-2 lg:grid-cols-4`, which wraps rather than squashing when a
+ * fifth arrives.
  */
 export function Networks() {
   return (
@@ -29,7 +30,7 @@ export function Networks() {
         <p className="body-lg text-[var(--content-secondary)]">{NETWORKS_HEADER.sub}</p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         {LANDING_CHAINS.map((chain) => (
           <NetworkCard key={chain.id} chain={chain} />
         ))}
@@ -39,7 +40,6 @@ export function Networks() {
         <Pill tone="neutral" size="sm">
           {MORE_CHAINS_LABEL}
         </Pill>
-        <p className="body-sm text-[var(--content-tertiary)]">{NETWORKS_FOOTNOTE}</p>
       </div>
     </SectionShell>
   )

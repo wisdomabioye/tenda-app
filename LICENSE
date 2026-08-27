@@ -7,14 +7,14 @@ License text copyright (c) 2020 MariaDB Corporation Ab, All Rights Reserved.
 
 Parameters
 
-Licensor:             Tenda Labs
+Licensor:             Tenda
 
 Licensed Work:        Tenda, as contained in this repository, EXCEPT for the
                       contents of the contracts/ directory, which is licensed
                       separately under the Apache License, Version 2.0. See
                       contracts/LICENSE and LICENSING.md.
 
-                      The Licensed Work is (c) 2026 Tenda Labs
+                      The Licensed Work is (c) 2026 Tenda
 
 Additional Use Grant: You may make production use of the Licensed Work,
                       provided that you do not offer the Licensed Work, or any
@@ -36,7 +36,7 @@ Change Date:          Two years from the date the Licensed Work is published.
 Change License:       Apache License, Version 2.0
 
 For information about alternative licensing arrangements for the Licensed Work,
-please contact Tenda Labs.
+please contact Tenda.
 
 -----------------------------------------------------------------------------
 

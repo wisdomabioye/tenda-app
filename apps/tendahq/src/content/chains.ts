@@ -37,6 +37,14 @@ export interface ChainDisplay {
 
 /** Display extras per manifest family. Add a row when a new family ships. */
 const FAMILY_DISPLAY: Record<string, ChainDisplay> = {
+  '0g': {
+    name: '0G',
+    glyph: '◈',
+    // 0G's violet accent, read from 0g.ai's own palette (2026-08-27).
+    color: '#C681FF',
+    pitch: 'The AI-native L1 — where agents come to hire humans.',
+    strength: 'AI-native settlement',
+  },
   solana: {
     name: 'Solana',
     glyph: '◎',
@@ -102,20 +110,38 @@ export function displayFor(family: string, displayName: string): ChainDisplay {
 }
 
 /**
- * The chains the landing talks about: every MAINNET manifest entry, in
- * manifest order (Solana first). Testnet entries never surface in marketing.
+ * Landing-page chain ORDER: families listed here lead every chain mention on
+ * the site, in this order; everything else follows in manifest order. 0G
+ * leads — launch positioning, decided 2026-08-27 — so "0G · Solana · Base ·
+ * Celo" is what the stamps, prose and panels all derive. A family absent from
+ * this list still appears (manifest order, after the led ones), so a new
+ * chain never vanishes from marketing by being unlisted here.
  */
-export const LANDING_CHAINS: readonly LandingChain[] = CHAIN_MANIFEST.filter(
-  (entry) => entry.kind === 'mainnet',
-).map((entry) => ({
-  id: entry.id,
-  family: entry.family,
-  ...displayFor(entry.family, entry.displayName),
-  namespace: entry.namespace,
-  gasPolicy: entry.gasPolicy,
-  nativeSymbol: nativeCurrencyOf(entry).symbol,
-  explorerUrl: entry.explorerUrl,
-}))
+const LANDING_FAMILY_ORDER: readonly string[] = ['0g']
+
+function landingRank(family: string): number {
+  const at = LANDING_FAMILY_ORDER.indexOf(family)
+  return at === -1 ? LANDING_FAMILY_ORDER.length : at
+}
+
+/**
+ * The chains the landing talks about: every MAINNET manifest entry, 0G first
+ * (LANDING_FAMILY_ORDER), then manifest order — Array.prototype.sort is
+ * stable, so equal ranks keep their manifest positions. Testnet entries never
+ * surface in marketing.
+ */
+export const LANDING_CHAINS: readonly LandingChain[] = [...CHAIN_MANIFEST]
+  .filter((entry) => entry.kind === 'mainnet')
+  .sort((a, b) => landingRank(a.family) - landingRank(b.family))
+  .map((entry) => ({
+    id: entry.id,
+    family: entry.family,
+    ...displayFor(entry.family, entry.displayName),
+    namespace: entry.namespace,
+    gasPolicy: entry.gasPolicy,
+    nativeSymbol: nativeCurrencyOf(entry).symbol,
+    explorerUrl: entry.explorerUrl,
+  }))
 
 /** The mainnet chains running a given gas policy, in manifest order. */
 export function chainsByGasPolicy(policy: GasPolicy): readonly LandingChain[] {
@@ -127,11 +153,11 @@ export const ACTIVE_GAS_POLICIES: readonly GasPolicy[] = [
   ...new Set(LANDING_CHAINS.map((c) => c.gasPolicy)),
 ]
 
-/** "Solana · Base · Celo" — the recurring network line, for stamps and metas. */
+/** "0G · Solana · Base · Celo" — the recurring network line, for stamps and metas. */
 export const CHAIN_NAMES_LINE = LANDING_CHAINS.map((c) => c.name).join(' · ')
 
 /**
- * "Solana, Base and Celo" — the same list as a noun phrase, for running prose
+ * "0G, Solana, Base and Celo" — the same list as a noun phrase, for running prose
  * (the legal disclaimer, FAQ answers) where middots read as a UI stamp rather
  * than a sentence. Separate from CHAIN_NAMES_LINE so prose and stamps can both
  * be derived instead of one of them being retyped by hand every time a chain

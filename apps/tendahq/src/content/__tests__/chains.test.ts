@@ -26,8 +26,18 @@ describe('landing chain registry', () => {
    * Marketing must never name a testnet. This is the invariant that lets every
    * other derived string be printed without a second thought.
    */
-  it('surfaces mainnet entries only, in manifest order', () => {
-    expect(LANDING_CHAINS.map((c) => c.id)).toEqual(mainnet.map((c) => c.id))
+  it('surfaces mainnet entries only — 0G first, the rest in manifest order', () => {
+    // Same SET as the manifest's mainnet entries — nothing invented, nothing
+    // dropped by the ordering pass.
+    expect([...LANDING_CHAINS.map((c) => c.id)].sort()).toEqual(
+      [...mainnet.map((c) => c.id)].sort(),
+    )
+    // 0G leads every chain mention (launch positioning, 2026-08-27)…
+    expect(LANDING_CHAINS[0]?.family).toBe('0g')
+    // …and the rest keep their manifest relative order (stable sort).
+    expect(LANDING_CHAINS.slice(1).map((c) => c.id)).toEqual(
+      mainnet.filter((c) => c.family !== '0g').map((c) => c.id),
+    )
     for (const chain of LANDING_CHAINS) {
       expect(CHAIN_MANIFEST.find((c) => c.id === chain.id)?.kind).toBe('mainnet')
     }
@@ -80,8 +90,12 @@ describe('landing chain registry', () => {
     expect(ACTIVE_GAS_POLICIES).toEqual([...new Set(LANDING_CHAINS.map((c) => c.gasPolicy))])
   })
 
-  it('returns nothing for a gas policy no shipped chain uses', () => {
-    expect(chainsByGasPolicy('none')).toEqual([])
+  it("groups the pay-your-own-gas chains under 'none' (0G), and nothing for an unused policy", () => {
+    // 0G mainnet ships gasPolicy 'none' — the user pays gas in 0G. The
+    // features cards deliberately have no template for it (no onboarding
+    // story), so this grouping must exist here without producing a card.
+    expect(chainsByGasPolicy('none').map((c) => c.family)).toEqual(['0g'])
+    expect(chainsByGasPolicy('paymaster').every((c) => c.family === 'base')).toBe(true)
   })
 
   it('finds a chain by manifest family, and nothing for an unknown one', () => {

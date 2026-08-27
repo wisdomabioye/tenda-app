@@ -40,7 +40,7 @@
 
 import type { CurrencyCode } from './currencies'
 
-export type TradeAssetSymbol = 'USDC' | 'SOL' | 'ETH'
+export type TradeAssetSymbol = 'USDC' | 'SOL' | 'ETH' | '0G'
 
 /** The only rail labels that describe what actually happens. */
 export type TradeRail = 'Bank transfer' | 'Mobile money'
@@ -53,7 +53,7 @@ export interface ExampleTrade {
     /** Display amount, pre-formatted (kept as string for exact rendering). */
     amount: string
     /** Manifest family of the chain the asset moves on. */
-    chainFamily: 'solana' | 'base' | 'celo'
+    chainFamily: '0g' | 'solana' | 'base' | 'celo'
   }
   /** What the counterparty receives. */
   fiat: {
@@ -77,12 +77,18 @@ export interface ExampleTrade {
 }
 
 export const EXAMPLE_TRADES: readonly ExampleTrade[] = [
+  // 0G leads the deck (launch positioning, 2026-08-27). Implied rates sit at
+  // the same levels as the sibling rows (~146 KES/USDC; the 0G row prices the
+  // token near its market level the day it was added — marketing copy, rounded
+  // to 2 significant figures like every other row, never a quote).
+  { id: 'x-11', asset: { symbol: 'USDC', amount: '150',  chainFamily: '0g' },    fiat: { currency: 'KES', amount: 22_000,  rail: 'Bank transfer' }, trader: '@amara',    rating: 4.9 },
   { id: 'x-01', asset: { symbol: 'USDC', amount: '120',  chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 190_000, rail: 'Bank transfer' }, trader: '@chiamaka', rating: 4.9 },
   { id: 'x-02', asset: { symbol: 'SOL',  amount: '0.80', chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 18_000,  rail: 'Bank transfer' }, trader: '@kimani',   rating: 4.95 },
   { id: 'x-03', asset: { symbol: 'USDC', amount: '250',  chainFamily: 'celo' },   fiat: { currency: 'GHS', amount: 4_000,   rail: 'Mobile money' },  trader: '@kwabena',  rating: 4.7 },
   { id: 'x-04', asset: { symbol: 'ETH',  amount: '0.15', chainFamily: 'base' },   fiat: { currency: 'NGN', amount: 670_000, rail: 'Bank transfer' }, trader: '@noah',     rating: 4.8 },
   { id: 'x-05', asset: { symbol: 'USDC', amount: '400',  chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 6_300,   rail: 'Bank transfer' }, trader: '@thandi',   rating: 4.85 },
   { id: 'x-06', asset: { symbol: 'USDC', amount: '75',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 11_000,  rail: 'Bank transfer' }, trader: '@maria',    rating: 4.9 },
+  { id: 'x-12', asset: { symbol: '0G',   amount: '600',  chainFamily: '0g' },    fiat: { currency: 'NGN', amount: 150_000, rail: 'Bank transfer' }, trader: '@zuri',     rating: 4.85 },
   { id: 'x-07', asset: { symbol: 'ETH',  amount: '0.25', chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 11_000,  rail: 'Mobile money' },  trader: '@femi',     rating: 4.75 },
   { id: 'x-08', asset: { symbol: 'USDC', amount: '300',  chainFamily: 'celo' },   fiat: { currency: 'NGN', amount: 470_000, rail: 'Bank transfer' }, trader: '@ada',      rating: 5.0 },
   { id: 'x-09', asset: { symbol: 'SOL',  amount: '2.00', chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 490_000, rail: 'Bank transfer' }, trader: '@yemi',     rating: 4.9 },

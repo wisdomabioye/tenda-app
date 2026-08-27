@@ -43,16 +43,3 @@ export const NETWORK_LABELS = {
 
 /** Shown on the copy control before and after a successful copy. */
 export const COPY_LABELS = { idle: 'Copy chain id', done: 'Copied' } as const
-
-/**
- * Trailing note under the grid.
- *
- * It used to end "— no client release", which this page's own build refutes:
- * the manifest is bundled into the shipped JavaScript (`eip155:42220` and
- * `solana:mainnet` are both in dist/assets/index-*.js), so a new chain means
- * rebuilding and redeploying every client, and an app-store release on mobile.
- * What is actually true is the claim worth making — no new integration code —
- * and it is the stronger one anyway.
- */
-export const NETWORKS_FOOTNOTE =
-  'Adding a chain is a manifest entry and its secrets — no new integration code. Testnets exist for development and are never listed here.'

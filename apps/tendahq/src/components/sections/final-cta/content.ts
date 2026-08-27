@@ -13,6 +13,9 @@
  */
 
 import { APP_INFO } from '@/content'
+import { LANDING_CHAINS } from '@/content/chains'
+import { FEE_PCT, SEEKER_FEE_PCT } from '@/content/fees'
+import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
 
 export const FINAL_CTA_HEADER = {
   eyebrow: { num: '§ 10', label: 'Ship it' },
@@ -60,15 +63,22 @@ export interface Receipt {
 export const RECEIPTS: readonly Receipt[] = [
   {
     k: 'Chains',
-    v: '3',
+    // Derived, never a hand-typed count: this said '3' beside a networksLine
+    // that already listed four — the exact drift the derived subline exists
+    // to prevent.
+    v: String(LANDING_CHAINS.length),
     unit: ' live',
     b: `${APP_INFO.chains.networksLine} · more coming`,
   },
   {
     k: 'Worker keeps',
-    v: '100',
+    // 100 − fee, in exact bps math off the same platform-config default
+    // FEE_PCT displays. 'No platform cut on payouts' was simply false — the
+    // fee is real, on-chain, and proudly flat; understating it is the one
+    // thing a receipts strip must never do.
+    v: String((10_000 - PLATFORM_CONFIG_DEFAULTS.fee_bps) / 100),
     unit: '%',
-    b: 'No platform cut on payouts',
+    b: `One flat ${FEE_PCT}% fee · ${SEEKER_FEE_PCT}% for Seeker owners`,
   },
   {
     k: 'Custody',

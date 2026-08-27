@@ -21,9 +21,19 @@ export function Ecosystems() {
         <p className="body-lg text-[var(--content-secondary)]">{ECOSYSTEMS_HEADER.sub}</p>
       </div>
 
+      {/* Featured-first: the lead panel (0G — panel order is the content
+          file's contract) spans the full top row, the rest sit three-up
+          beneath. Four equal panels in a 3-col grid left the fourth alone on
+          its own row; this both fixes that and makes the lead VISUAL, not
+          just first-in-order. */}
       <div className="grid gap-5 lg:grid-cols-3">
-        {ECOSYSTEM_PANELS.map((panel) => (
-          <EcosystemPanel key={panel.chainFamily} panel={panel} />
+        {ECOSYSTEM_PANELS.map((panel, index) => (
+          <EcosystemPanel
+            key={panel.chainFamily}
+            panel={panel}
+            featured={index === 0}
+            className={index === 0 ? 'lg:col-span-3' : undefined}
+          />
         ))}
       </div>
     </SectionShell>

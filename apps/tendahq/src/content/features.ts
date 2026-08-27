@@ -18,6 +18,7 @@ import type { GasPolicy } from '@tenda/shared/chains'
 import { prose } from '@/lib/prose'
 import {
   ACTIVE_GAS_POLICIES,
+  chainByFamily,
   chainsByGasPolicy,
   EVM_CHAIN_NAMES_PROSE,
   SOLANA_CHAIN_NAMES_PROSE,
@@ -28,8 +29,11 @@ export type FeatureStatus = 'live' | 'roadmap'
 
 export interface OnboardingFeature {
   id: string
+  /** Short selector label ("USDC gas") — the tab rail the section renders;
+   *  titles are full sentences and would blow the rail's width. */
+  tab: string
   /** Lucide icon name, resolved by the section renderer. */
-  icon: 'Fuel' | 'Sparkles' | 'Wallet' | 'Zap'
+  icon: 'Bot' | 'Fuel' | 'Sparkles' | 'Wallet' | 'Zap'
   /** Chains this rail covers. Empty for cross-chain cards. */
   chains: readonly LandingChain[]
   status: FeatureStatus
@@ -49,6 +53,7 @@ interface PolicyContext {
 
 interface PolicyTemplate {
   id: string
+  tab: string
   icon: OnboardingFeature['icon']
   status: FeatureStatus
   title: (c: PolicyContext) => string
@@ -71,6 +76,7 @@ interface PolicyTemplate {
 const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
   feeCurrency: {
     id: 'gas-in-stablecoin',
+    tab: 'USDC gas',
     icon: 'Fuel',
     status: 'live',
     title: () => 'Your USDC pays its own gas',
@@ -80,6 +86,7 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
   },
   'native-seed': {
     id: 'gas-grant',
+    tab: 'Gas grant',
     icon: 'Sparkles',
     status: 'live',
     title: (c) => `Start with zero ${c.natives}`,
@@ -89,6 +96,7 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
   },
   paymaster: {
     id: 'sponsored-gas',
+    tab: 'Sponsored gas',
     icon: 'Zap',
     status: 'roadmap',
     title: (c) => `Sponsored gas on ${c.names}`,
@@ -122,6 +130,7 @@ function contextFor(chains: readonly LandingChain[]): PolicyContext {
  */
 const WALLET_FEATURE: Omit<OnboardingFeature, 'chains'> = {
   id: 'any-wallet',
+  tab: 'Any wallet',
   icon: 'Wallet',
   status: 'live',
   title: 'Bring the wallet you already have',
@@ -189,6 +198,7 @@ export function featureFor(policy: GasPolicy): OnboardingFeature | null {
 
   return {
     id: template.id,
+    tab: template.tab,
     icon: template.icon,
     chains,
     status: template.status,
@@ -199,8 +209,29 @@ export function featureFor(policy: GasPolicy): OnboardingFeature | null {
 }
 
 /**
+ * The 0G agent rail — Onboarding's 0G card. Not a gas policy (0G's manifest
+ * policy is 'none', which deliberately contributes no card), so like
+ * WALLET_FEATURE it is hand-written; unlike it, it names its chain. `roadmap`,
+ * not in-progress: the sign-only funding design (x402 — the agent signs a
+ * payment authorization, Tenda relays it on-chain) is decided but not shipped,
+ * so the copy names the mechanism only as far as it is true and promises no
+ * date. The person reading this card is the second audience Onboarding now
+ * has: someone pointing an AI agent at Tenda rather than a phone.
+ */
+const AGENT_FEATURE: Omit<OnboardingFeature, 'chains'> = {
+  id: 'agent-signature-funding',
+  tab: 'Agent pay',
+  icon: 'Bot',
+  status: 'roadmap',
+  title: 'AI agents pay with a signature',
+  body: 'On 0G, an AI agent will fund escrow by signing a payment authorization — Tenda relays it on-chain. No gas token to hold, no bridge, no custody.',
+  fact: 'sign-only funding · on the roadmap',
+}
+
+/**
  * Live rails first, roadmap last — a reader scanning the grid should meet what
- * works before what doesn't. Within each group, manifest order is preserved.
+ * works before what doesn't. Within each group, manifest order is preserved;
+ * the agent card leads the roadmap group (0G-first positioning, 2026-08-27).
  */
 export const ONBOARDING_FEATURES: readonly OnboardingFeature[] = (() => {
   const derived = ACTIVE_GAS_POLICIES.map(featureFor).filter(
@@ -208,7 +239,18 @@ export const ONBOARDING_FEATURES: readonly OnboardingFeature[] = (() => {
   )
   const live = derived.filter((f) => f.status === 'live')
   const roadmap = derived.filter((f) => f.status !== 'live')
-  return [...live, { ...WALLET_FEATURE, chains: [] }, ...roadmap]
+  // The `[]` arm is the removal path — it fires only if 0G leaves the
+  // manifest, the same deliberately-unfaked class as featureFor's
+  // zero-chains guard above: reaching it from a test would mean stubbing
+  // CHAIN_MANIFEST, which tests the stub. The card then ships chainless
+  // (like WALLET_FEATURE) rather than crashing the section.
+  const zeroG = chainByFamily('0g')
+  return [
+    ...live,
+    { ...WALLET_FEATURE, chains: [] },
+    { ...AGENT_FEATURE, chains: zeroG === undefined ? [] : [zeroG] },
+    ...roadmap,
+  ]
 })()
 
 export const ONBOARDING_HEADER = {
