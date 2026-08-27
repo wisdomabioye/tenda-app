@@ -20,3 +20,8 @@ export {
   evmManifestEntries,
   firstEvmChainIdByKind,
 } from './manifest-queries'
+export {
+  evmAppKitNetworkOf,
+  evmAppKitNetworks,
+  type EvmAppKitNetwork,
+} from './appkit-network'

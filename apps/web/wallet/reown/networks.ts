@@ -1,38 +1,50 @@
 /**
- * Reown ↔ CHAIN_MANIFEST bridge (ported from apps/admin/providers/reown/
- * networks.ts — keep the two in lockstep; the manifest-coverage test in
- * __tests__/networks.test.ts turns silent drift into a red build). The
- * manifest is the single source of which chains exist; this file maps each
- * manifest CAIP-2 id to its Reown `AppKitNetwork`. A missing mapping is a
- * deploy-time gap, so it fails loud at module init rather than silently
- * dropping a chain from the connect modal.
+ * Reown ↔ CHAIN_MANIFEST bridge (kept in lockstep with apps/admin/providers/
+ * reown/networks.ts by design — each Next app owns its wallet wiring; the
+ * manifest-coverage test in __tests__/networks.test.ts turns silent drift into
+ * a red build). The manifest is the single source of which chains exist.
+ *
+ * EVM networks are DERIVED from the manifest (shared `evmAppKitNetworkOf`) —
+ * adding an EVM chain is a manifest entry plus its secrets, with no edit here.
+ * Only Solana still maps to Reown presets: the manifest records no Solana RPC
+ * (clients derive theirs from `clusterApiUrl`), so there is nothing to derive
+ * a network from. A Solana chain missing its preset is a deploy-time gap and
+ * fails loud at module init rather than silently dropping a chain from the
+ * connect modal.
  */
-import {
-  base,
-  baseSepolia,
-  celo,
-  celoSepolia,
-  solana,
-  solanaDevnet,
-  zeroGMainnet,
-  zeroGTestnet,
-} from '@reown/appkit/networks'
+import { solana, solanaDevnet } from '@reown/appkit/networks'
 import type { AppKitNetwork } from '@reown/appkit/networks'
-import { CHAIN_MANIFEST } from '@tenda/shared'
+import { CHAIN_MANIFEST, evmAppKitNetworkOf, type ChainManifestEntry } from '@tenda/shared'
 
-const NETWORK_BY_CHAIN_ID: Record<string, AppKitNetwork> = {
+const SOLANA_NETWORK_BY_CHAIN_ID: Record<string, AppKitNetwork> = {
   'solana:mainnet': solana,
   'solana:devnet': solanaDevnet,
-  'eip155:8453': base,
-  'eip155:84532': baseSepolia,
-  'eip155:42220': celo,
-  'eip155:11142220': celoSepolia,
-  // 0G Galileo is `zeroGTestnet` (id 16602), NOT `zeroGGalileoTestnet` —
-  // that preset carries the STALE pre-reset chain id 16601 despite the name
-  // (verified against the preset objects 2026-08-27; the live chain answers
-  // 16602). `zeroG` (16600, Newton) is older still.
-  'eip155:16602': zeroGTestnet,
-  'eip155:16661': zeroGMainnet,
+}
+
+function buildNetwork(chain: ChainManifestEntry): AppKitNetwork {
+  if (chain.namespace === 'eip155') return evmAppKitNetworkOf(chain)
+  const preset = SOLANA_NETWORK_BY_CHAIN_ID[chain.id]
+  if (preset === undefined) {
+    throw new Error(`reown: no AppKitNetwork mapped for manifest chain '${chain.id}'`)
+  }
+  return preset
+}
+
+/**
+ * Built once so every consumer — the modal's registration list, the Wagmi
+ * adapter, and `switchNetwork` — hands AppKit the SAME object per chain, as
+ * the hand map this replaces did.
+ */
+const NETWORK_BY_CHAIN_ID: ReadonlyMap<string, AppKitNetwork> = new Map(
+  CHAIN_MANIFEST.map((chain) => [chain.id, buildNetwork(chain)]),
+)
+
+function networkFor(chainId: string): AppKitNetwork {
+  const network = NETWORK_BY_CHAIN_ID.get(chainId)
+  if (network === undefined) {
+    throw new Error(`reown: no AppKitNetwork mapped for manifest chain '${chainId}'`)
+  }
+  return network
 }
 
 type NonEmpty = [AppKitNetwork, ...AppKitNetwork[]]
@@ -41,15 +53,6 @@ function toNonEmpty(networks: AppKitNetwork[], label: string): NonEmpty {
   const [first, ...rest] = networks
   if (first === undefined) throw new Error(`reown: no ${label} networks configured`)
   return [first, ...rest]
-}
-
-/** Reown network for a manifest chain, or throw if the mapping is missing. */
-function networkFor(chainId: string): AppKitNetwork {
-  const network = NETWORK_BY_CHAIN_ID[chainId]
-  if (network === undefined) {
-    throw new Error(`reown: no AppKitNetwork mapped for manifest chain '${chainId}'`)
-  }
-  return network
 }
 
 /** Every manifest chain, as Reown networks — the AppKit modal's full set. */
