@@ -6,7 +6,7 @@ import {
   TRADE_CURRENCIES_PROSE,
   TRADE_MARKET_COUNT,
 } from '@/content'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
+import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import type { FaqCategory } from '../types'
 
 /**

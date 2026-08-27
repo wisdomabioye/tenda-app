@@ -1,5 +1,5 @@
 import { Clock } from 'lucide-react'
-import { CATEGORIES } from '@/data/categories'
+import { CATEGORIES } from '@/content/categories'
 import type { ExampleTask } from '@/content'
 import { cn } from '@/lib/cn'
 

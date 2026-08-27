@@ -1,4 +1,4 @@
-import { CURRENCY_LIST, type CurrencyMeta } from '@/data/currencies'
+import { CURRENCY_LIST, type CurrencyMeta } from '@/content/currencies'
 import { RATES_CAPTION } from './content'
 import { useExchangeRates } from '@/hooks/useExchangeRates'
 import { MarqueeRow } from '@/components/ui/MarqueeRow'
@@ -15,11 +15,16 @@ const FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
  *
  * THE CAPTION IS LOAD-BEARING, and it must describe THIS data. The rows show
  * the SOL price in each currency (the endpoint is `getAssetRates('solana')`),
- * and the currencies are the eight a balance can be DISPLAYED in — not markets
+ * and the currencies are the ones a balance can be DISPLAYED in — not markets
  * you can trade into. Both halves matter: the strip sits immediately below an
- * exchange panel advertising three tradable markets, so eight unlabelled flags
- * read as eight markets; and a caption that calls a SOL ticker "your balance"
- * is wrong about its own contents. Do not shorten it to save vertical space.
+ * exchange panel advertising the tradable markets, so unlabelled flags read as
+ * markets; and a caption that calls a SOL ticker "your balance" is wrong about
+ * its own contents. Do not shorten it to save vertical space.
+ *
+ * The counts are deliberately absent from this comment. It used to say "eight"
+ * three times and "three tradable markets" once; display currencies are now
+ * nine and payout markets six, so every one of those had gone stale while
+ * sitting above code that derives both.
  */
 export function CurrencyMarquee() {
   const { data, loading } = useExchangeRates()

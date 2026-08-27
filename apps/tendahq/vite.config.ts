@@ -24,16 +24,16 @@ export default defineConfig({
       '@tenda/shared/fiat/payout': fileURLToPath(
         new URL('../../packages/shared/src/fiat/payout/index.ts', import.meta.url),
       ),
-      // And for the platform-config defaults, so the fee/window figures the
-      // page prints while the live config loads are the SAME constants the
-      // server falls back to — not literals retyped into marketing copy.
-      '@tenda/shared/constants/platform': fileURLToPath(
-        new URL('../../packages/shared/src/constants/platform.ts', import.meta.url),
-      ),
-      // And for asset display metadata, so "which tokens can you trade" is
-      // read off the manifest's exchange roles instead of listed by hand.
-      '@tenda/shared/constants/assets': fileURLToPath(
-        new URL('../../packages/shared/src/constants/assets.ts', import.meta.url),
+      // And for the shared constants, as a PREFIX rather than one entry per
+      // module. They are flat files under `constants/`, so this single line
+      // covers the platform-config defaults (the fee/window figures the page
+      // prints are the same constants the server falls back to), asset display
+      // metadata, the currency vocabulary and the category registry — and the
+      // next constant needs no edit here, in tsconfig.app.json, or in
+      // vitest.config.ts. Vite appends the extension itself; `.ts` is in its
+      // default `resolve.extensions`.
+      '@tenda/shared/constants/': fileURLToPath(
+        new URL('../../packages/shared/src/constants/', import.meta.url),
       ),
     },
     dedupe: ['react', 'react-dom'],

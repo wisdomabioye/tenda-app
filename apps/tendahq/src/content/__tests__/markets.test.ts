@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payout'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
+import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import { EXAMPLE_TRADES } from '../trades'
 import {
   DISPLAY_CURRENCY_COUNT,
@@ -29,9 +29,13 @@ describe('fiat markets', () => {
 
   /**
    * The regression the copy actually shipped. If these two ever coincide the
-   * page can conflate them again without anyone noticing, so the day a payout
-   * market is added for all eight currencies, this test should be deleted
-   * deliberately rather than silently pass.
+   * page can conflate them again without anyone noticing, so the day payout
+   * reaches every display currency, this test should be deleted deliberately
+   * rather than silently pass.
+   *
+   * The gap is narrowing and that is the point of keeping it: payout was three
+   * markets when this was written and is now six, against nine display
+   * currencies. Three more markets and this assertion becomes the alarm.
    */
   it('has strictly fewer tradable markets than display currencies today', () => {
     expect(TRADE_MARKET_COUNT).toBeLessThan(DISPLAY_CURRENCY_COUNT)

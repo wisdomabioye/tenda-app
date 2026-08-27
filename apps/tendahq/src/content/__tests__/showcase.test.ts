@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GIG_CATEGORIES } from '@/data/categories'
+import { GIG_CATEGORIES } from '@/content/categories'
 import { LANDING_CHAINS } from '../chains'
 import { ECOSYSTEMS_HEADER, ECOSYSTEM_PANELS } from '../ecosystems'
 import { EXAMPLE_TASKS } from '../tasks'

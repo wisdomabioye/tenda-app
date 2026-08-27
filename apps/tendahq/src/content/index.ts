@@ -17,6 +17,20 @@ export {
   type LandingChain,
 } from './chains'
 export {
+  CURRENCIES,
+  CURRENCY_LIST,
+  SUPPORTED_CURRENCIES,
+  type CurrencyCode,
+  type CurrencyMeta,
+} from './currencies'
+export {
+  CATEGORIES,
+  CATEGORY_LABELS_LINE,
+  GIG_CATEGORIES,
+  type CategoryId,
+  type CategoryMeta,
+} from './categories'
+export {
   TRADE_CURRENCIES,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,

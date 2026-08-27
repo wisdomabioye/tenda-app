@@ -5,7 +5,7 @@
  * every supported chain). Keep titles under ~40 chars so cards never wrap.
  */
 
-import type { CategoryId } from '@/data/categories'
+import type { CategoryId } from '@/content/categories'
 
 export interface ExampleTask {
   id: string

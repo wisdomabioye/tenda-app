@@ -5,20 +5,26 @@
  *
  * THE DISTINCTION THIS FILE EXISTS TO KEEP:
  *
- *   - `SUPPORTED_CURRENCIES` (8) is a DISPLAY preference — what you can see
- *     your balance quoted in. It is not a trading capability.
- *   - `PAYOUT_CURRENCIES` (3) is what an offer can actually be denominated in.
+ *   - `SUPPORTED_CURRENCIES` is a DISPLAY preference — what you can see your
+ *     balance quoted in. It is not a trading capability.
+ *   - `PAYOUT_CURRENCIES` is what an offer can actually be denominated in.
  *     `routes/v1/exchange` requires a sell offer's `fiat_currency` to equal
- *     `payoutCurrencyForCountry(account.country)`, and the payout-country
- *     picker offers only NG, KE and GH — so those three are the whole set.
+ *     `payoutCurrencyForCountry(account.country)`, so the payout registry's
+ *     countries are the whole set.
  *
  * The landing conflated the two and advertised "8 corridors". Deriving both
  * numbers from their real sources is what stops that recurring the next time
  * a currency is added for display only.
+ *
+ * NEITHER COUNT IS WRITTEN DOWN HERE, on purpose. An earlier version of this
+ * docstring said "(8)" and "(3)". Both were true when typed and both went
+ * stale — display gained AED, and payout gained South Africa, the Philippines
+ * and the UAE — leaving the file that exists to prevent stale numbers stating
+ * two of them. The values below derive; prose about them should not compete.
  */
 
 import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payout'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
+import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import { prose } from '@/lib/prose'
 
 /** Currency codes an exchange offer can be denominated in ('NGN','KES','GHS'). */

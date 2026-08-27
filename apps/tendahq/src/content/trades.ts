@@ -19,7 +19,7 @@
  * EDIT THIS FILE to add or change showcased corridors, within those rules.
  */
 
-import type { CurrencyCode } from '@/data/currencies'
+import type { CurrencyCode } from '@/content/currencies'
 
 export type TradeAssetSymbol = 'USDC' | 'SOL' | 'ETH'
 

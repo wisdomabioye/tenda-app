@@ -1,5 +1,5 @@
 import { ENV } from '@/env'
-import type { CurrencyCode } from '@/data/currencies'
+import type { CurrencyCode } from '@/content/currencies'
 
 /**
  * Public endpoints exposed by apps/server/src/routes/v1/platform/index.ts.

@@ -6,7 +6,7 @@ import {
   TRADE_MARKET_COUNT,
 } from '@/content'
 import { FeePct } from '@/components/product/FeePct'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
+import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import type { FaqCategory } from '../types'
 
 /**
@@ -20,9 +20,10 @@ import type { FaqCategory } from '../types'
  * said it correctly ("the fee is taken from the worker's payout on
  * completion"); the landing is now the one that agrees with both.
  *
- * MARKETS vs CURRENCIES. Eight currencies are a DISPLAY preference; only the
- * payout-registry currencies can denominate an offer. Both numbers are derived
- * in content/markets.ts — see the note there.
+ * MARKETS vs CURRENCIES. The display currencies are a DISPLAY preference; only
+ * the payout-registry currencies can denominate an offer. Both numbers are
+ * derived in content/markets.ts — see the note there, and do not restate
+ * either count in prose: this comment said "Eight" until AED made it nine.
  */
 export const MONEY_CATEGORY: FaqCategory = {
   num: '02',

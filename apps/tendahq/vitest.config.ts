@@ -9,8 +9,8 @@ import { defineConfig } from 'vitest/config'
  * defaults, plus the arithmetic behind the worked fee example.
  *
  * The aliases must mirror vite.config.ts and tsconfig.app.json. Three source
- * files now agree on the same five entries; a mismatch shows up here as a
- * resolution failure rather than as a silently different bundle.
+ * files agree on the same entries; a mismatch shows up here as a resolution
+ * failure rather than as a silently different bundle.
  */
 Object.assign(process.env, { NODE_ENV: 'test' })
 
@@ -23,8 +23,12 @@ export default defineConfig({
       '@tenda/shared/chains': shared('chains/index.ts'),
       '@tenda/shared/app-info': shared('constants/app-info.ts'),
       '@tenda/shared/fiat/payout': shared('fiat/payout/index.ts'),
-      '@tenda/shared/constants/platform': shared('constants/platform.ts'),
-      '@tenda/shared/constants/assets': shared('constants/assets.ts'),
+      // Prefix alias, not one entry per constant: every shared constants module
+      // is a flat file under `constants/`, so a wildcard covers platform,
+      // assets, currencies and categories, and the next one costs no config in
+      // any of the three files. Vite resolves the missing extension itself
+      // (`.ts` is in its default `resolve.extensions`).
+      '@tenda/shared/constants/': shared('constants/'),
     },
   },
   test: {

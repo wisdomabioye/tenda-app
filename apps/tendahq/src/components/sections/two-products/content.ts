@@ -3,7 +3,7 @@
  * as siblings; only the verb-phrase italic, icon, and accent colour differ.
  */
 
-import { GIG_CATEGORIES } from '@/data/categories'
+import { CATEGORY_LABELS_LINE, GIG_CATEGORIES } from '@/content/categories'
 import {
   EXCHANGE_ASSET_SYMBOLS_PROSE,
   TRADE_COUNTRIES_PROSE,
@@ -37,7 +37,11 @@ export const PRODUCT_PANELS: readonly ProductPanel[] = [
     body: 'Post or accept tasks — delivery, photo, errands, services, digital. Funds lock when a gig is posted. Workers submit photo or video proof. Approval releases the USDC on the spot.',
     link: { label: 'Browse gigs in the app', href: '/#download' },
     statsLabel: `${GIG_CATEGORIES.length} categories`,
-    statsValue: GIG_CATEGORIES.join(' · '),
+    // Shared's LABELS, not the raw enum keys. The keys are a database
+    // vocabulary ('photo'), and one of them does not even match its own label
+    // — shared renders `photo` as "Creative" on purpose — so joining the keys
+    // printed a word the apps deliberately do not use.
+    statsValue: CATEGORY_LABELS_LINE,
     accent: 'brand',
   },
   {
@@ -68,8 +72,11 @@ export const TWO_PRODUCTS_BRIDGE = {
  * `/v1/platform/exchange-rates` is `getAssetRates('solana')`, nothing to do
  * with a wallet balance — so a caption promising "view your balance in these"
  * described a different feature than the one underneath it. And the strip sits
- * directly below an exchange panel advertising three tradable markets, so
- * eight flags need naming as display currencies or they read as eight markets.
+ * directly below an exchange panel advertising the tradable markets, so the
+ * flags need naming as display currencies or they read as markets.
+ *
+ * Counts stay out of this comment: it named two ("three tradable markets",
+ * "eight flags") and both went stale as markets and currencies were added.
  */
 export const RATES_CAPTION = 'Live SOL price · shown in the currencies your balance can display in'
 
