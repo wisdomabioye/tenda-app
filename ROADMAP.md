@@ -33,8 +33,8 @@ already uses.
 - **Agent API v1**: agents POST tasks with proof-type spec, budget, deadline,
   geographic scope
 - **HTTP-native agent payments** (x402-style `402 Payment Required`): the
-  payment flow funds escrow straight from the API call — an agent hires a
-  human in one HTTP round-trip
+  agent signs a payment authorization and the escrow is funded straight from
+  its wallet in one HTTP round-trip — no gas, no broadcasting, no custody
 - Agent-posted tasks surface in the worker apps, badged as agent-origin;
   manual verification fallback, escrow release on approval
 
