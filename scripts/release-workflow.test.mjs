@@ -102,7 +102,7 @@ test('every inputs.* the workflow reads is a declared workflow_dispatch input', 
  *
  * Covering only the block form is a blind spot rather than a simplification —
  * this workflow has 14 `run:` keys and only 9 are blocks, so a one-line
- * `run: node scripts/x.mjs ${{ inputs.suffix }}` would sail past a
+ * `run: node scripts/x.mjs ${{ inputs.target }}` would sail past a
  * block-only check. Line-walked rather than regexed as a whole so the count is
  * verifiable against the file.
  */
@@ -133,9 +133,10 @@ function runBodies(text) {
 }
 
 /**
- * Turns a one-off audit into a standing guard. `suffix` is free-form operator
- * input; interpolated into a script body it is a shell-injection vector, which
- * is why every value reaches the shell through `env:` instead.
+ * Turns a one-off audit into a standing guard. `target` is operator input (a
+ * dropdown today, but untrusted on principle); interpolated into a script body
+ * it is a shell-injection vector, which is why every value reaches the shell
+ * through `env:` instead.
  */
 test('no ${{ }} interpolation appears inside any run: body, block or single-line', () => {
   const bodies = runBodies(yaml)
@@ -209,8 +210,9 @@ test('the workflow builds a resolved profile, never a hardcoded one', () => {
  * not match its own tag — the exact failure the hardcoded `--profile testnet`
  * used to guarantee.
  *
- * Today they agree because the workflow passes `inputs.suffix` to both, and
- * bump-version's `suffix ?? current.suffix` fallback is therefore never taken.
+ * Today they agree because the workflow feeds both from the derive step's
+ * `steps.suffix.outputs.suffix`, and bump-version's `suffix ?? current.suffix`
+ * fallback is therefore never taken.
  * That is a property of how the workflow is written, not of either script, so
  * it is asserted here rather than assumed: dropping `--suffix` from the bump
  * step would silently reintroduce two sources for one fact.
@@ -236,20 +238,31 @@ test('bump-version and the profile resolver read the same suffix', () => {
 })
 
 /**
- * And the resolver must agree with eas.json for every suffix a release can be
- * cut with — the declared default, and the empty string that means mainnet.
- * That agreement is what the old literal-spelling check was really protecting.
+ * And the resolver must agree with eas.json for every target the dropdown
+ * offers, mapped through the same derivation the workflow's suffix step does
+ * (`mainnet` → empty suffix, anything else → itself). That agreement is what
+ * the old literal-spelling check was really protecting; resolveEasProfile also
+ * throws here if any option's profile does not build an apk.
  */
-test('every suffix the workflow can dispatch resolves to a declared apk profile', () => {
+test('every target the workflow can dispatch resolves to a declared apk profile', () => {
   const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
-  const declaredDefault = yaml.match(/^ {6}suffix:\n(?: {8}.*\n)*? {8}default: (\S+)$/m)
-  assert.ok(declaredDefault, 'expected the suffix input to declare a default')
+  const input = yaml.match(
+    /^ {6}target:\n(?: {8}.*\n)*? {8}default: (\S+)\n(?: {8}.*\n)*? {8}options: \[([^\]]+)\]$/m,
+  )
+  assert.ok(input, 'expected the target input to declare a default and an options list')
+  const [, declaredDefault, optionsList] = input
+  const options = optionsList.split(',').map((o) => o.trim())
+  assert.ok(
+    options.includes(declaredDefault),
+    `target default "${declaredDefault}" is not one of its options (${options.join(', ')})`,
+  )
 
-  for (const suffix of [declaredDefault[1], '']) {
+  for (const target of options) {
+    const suffix = target === 'mainnet' ? '' : target
     const profile = resolveEasProfile(suffix, eas)
     assert.ok(
       Object.keys(eas.build ?? {}).includes(profile),
-      `suffix "${suffix}" resolves to profile "${profile}", which eas.json does not declare ` +
+      `target "${target}" resolves to profile "${profile}", which eas.json does not declare ` +
         `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
     )
   }

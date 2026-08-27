@@ -9,8 +9,9 @@
 #   1. gate the CURRENT repo          — refuse to start from a drifted state
 #   2. bump + gate again              — the bump is committed locally only
 #   3. refuse a tag that already exists
-#      … resolve the EAS profile from the suffix (unnumbered: it was added after
-#        the numbering, and renumbering would churn every step comment below)
+#      … derive the suffix from the target, resolve the EAS profile from it
+#        (unnumbered: added after the numbering, and renumbering would churn
+#        every step comment below)
 #   4. verify the promised URL  — before the build spends 20 minutes
 #   5. EAS build (cloud, --wait)      — the long pole
 #   6. download + verify the artifact — a real zip, not an error page
@@ -22,9 +23,10 @@
 # publishing exactly that.
 #
 # Every `${{ }}` value reaches the shell through `env:` rather than being
-# interpolated into the script text. `suffix` is free-form operator input, and
-# an interpolated one would be a shell-injection vector; the rest follow the
-# same rule so the safe pattern is the obvious one to copy.
+# interpolated into the script text. `target` is operator input (a dropdown
+# today, but treated as untrusted anyway), and an interpolated one would be a
+# shell-injection vector; the rest follow the same rule so the safe pattern is
+# the obvious one to copy.
 #
 # SECRETS
 #   EXPO_TOKEN  — Expo access token with build permission on the project
@@ -43,11 +45,12 @@ on:
         required: true
         default: patch
         options: [patch, minor, major]
-      suffix:
-        description: 'Release qualifier — tag becomes v<version>-<suffix>. Empty for a plain v1.0.0.'
-        type: string
-        required: false
+      target:
+        description: 'Which build to release — names the EAS profile and the tag (testnet → v1.0.0-testnet, mainnet → plain v1.0.0)'
+        type: choice
+        required: true
         default: testnet
+        options: [testnet, mainnet]
       dry_run:
         description: 'Build and verify, but do not push, tag or publish'
         type: boolean
@@ -91,12 +94,30 @@ jobs:
       - name: Gate the current version state
         run: node scripts/check-app-version.mjs
 
+      # The tag suffix FOLLOWS THE TARGET: `mainnet` is the plain vX.Y.Z
+      # release (empty suffix), every other option qualifies the tag and names
+      # the EAS profile verbatim — so adding an option (e.g. `preview`) needs
+      # no change here. A shell step rather than a `${{ x && y || z }}`
+      # expression because that "ternary" silently picks the WRONG branch when
+      # the true-arm is an empty string — exactly the mainnet case.
+      - name: Derive the release suffix from the target
+        id: suffix
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET" = "mainnet" ]; then
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=$TARGET" >> "$GITHUB_OUTPUT"
+          fi
+
       # 2 — The single source of truth moves here and nowhere else.
       - name: Bump the version
         id: bump
         env:
           BUMP: ${{ inputs.bump }}
-          SUFFIX: ${{ inputs.suffix }}
+          SUFFIX: ${{ steps.suffix.outputs.suffix }}
         run: |
           set -euo pipefail
           node scripts/bump-version.mjs "$BUMP" --suffix "$SUFFIX" --json \
@@ -122,15 +143,17 @@ jobs:
           echo "✓ $TAG is free"
 
       # The EAS profile FOLLOWS THE SUFFIX. It used to be the hardcoded literal
-      # `testnet` two steps below, so a `--suffix ''` mainnet release would tag
-      # v1.0.0 while building the staging-configured testnet profile. The script
-      # also refuses a profile that does not build an apk — `production` builds
-      # an app-bundle, which would upload cleanly under a .apk name and install
-      # on nothing. Resolved BEFORE the 20-minute build, like the URL check.
+      # `testnet` two steps below, so an empty-suffix mainnet release would tag
+      # v1.0.0 while building the staging-configured testnet profile. The
+      # dropdown now constrains what an operator can pick, but the resolver
+      # stays: it is the only thing asserting the profile's effective
+      # buildType is `apk` — `production` builds an app-bundle, which would
+      # upload cleanly under a .apk name and install on nothing. Resolved
+      # BEFORE the 20-minute build, like the URL check.
       - name: Resolve the EAS build profile
         id: eas
         env:
-          SUFFIX: ${{ inputs.suffix }}
+          SUFFIX: ${{ steps.suffix.outputs.suffix }}
         run: node scripts/resolve-eas-profile.mjs "$SUFFIX" >> "$GITHUB_OUTPUT"
 
       # 4 — The landing page's promise, checked before the build spends 20
