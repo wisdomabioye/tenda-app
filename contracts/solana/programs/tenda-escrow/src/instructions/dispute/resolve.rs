@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `resolve_dispute_{sol,spl}` — `dispute_admin` distributes vault per winner.
 //!
 //! Vault holds principal + dispute_bond at this point. Distribution:

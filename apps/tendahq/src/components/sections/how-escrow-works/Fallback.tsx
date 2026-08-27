@@ -1,9 +1,10 @@
-import { Pill } from '@/components/ui/Pill'
 import { FALLBACK, type FallbackRoute } from './content'
 import { cn } from '@/lib/cn'
 
 /**
- * Fallback subsection — 4 deterministic escrow-exit routes. Closes §04 with:
+ * Fallback subsection — every deterministic escrow-exit route the programs
+ * implement (five of them; the page listed four until the contracts were read
+ * end to end). Closes §04 with:
  * funds are never stuck, every path settles. The on-chain code clause that
  * used to sit beside the routes was dropped (recommendation 1) so §05's live
  * ticker — which carries the same "on-chain and visible" proof — earns its
@@ -49,7 +50,6 @@ function RouteRow({ route }: { route: FallbackRoute }) {
       className={cn(
         'flex flex-wrap items-start gap-x-3.5 gap-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3.5',
         'sm:flex-nowrap',
-        route.aspirational && 'opacity-90',
       )}
     >
       <span className="mono inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-xs font-bold text-[var(--content-secondary)]">
@@ -66,11 +66,6 @@ function RouteRow({ route }: { route: FallbackRoute }) {
       {/* Meta cluster — full row beneath the body on mobile (so the body owns
           the full content width), inline on the right at sm+. */}
       <div className="flex w-full items-center justify-start gap-2 pl-11 sm:ml-auto sm:w-auto sm:justify-end sm:pl-0">
-        {route.aspirational && (
-          <Pill tone="warning" size="sm">
-            Planned
-          </Pill>
-        )}
         <span className="mono-sm whitespace-nowrap text-[var(--content-tertiary)]">
           {route.time}
         </span>

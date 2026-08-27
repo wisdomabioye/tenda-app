@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Shared `#[derive(Accounts)]` structs for state-machine + settlement paths.
 //!
 //! `EscrowMutation` — no funds move, signer can be either party (each handler

@@ -4,7 +4,18 @@ import { useUnistyles } from 'react-native-unistyles'
 import { radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { DeadlineCountdown } from '@/components/shared'
-import { chainLabel, formatDate, ASSET_META, computeRelevantDeadline, formatAssetAmount, formatFiat, formatPaymentWindow, formatRate } from '@tenda/shared'
+import {
+  chainLabel,
+  formatDate,
+  ASSET_META,
+  computeRelevantDeadline,
+  formatAssetAmount,
+  formatFiat,
+  formatPaymentWindow,
+  formatRate,
+  truncateWallet,
+  BOUND_WALLET_LABEL,
+} from '@tenda/shared'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { ExchangeDetail, EscrowStatus } from '@tenda/shared'
 
@@ -59,6 +70,11 @@ export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
       emphasis: true,
     },
   ]
+  // Viewer-relative on the wire: only the party this row belongs to is ever
+  // sent an address, so rendering it needs no viewer logic here.
+  if (offer.my_signer_address !== null) {
+    rows.push({ label: BOUND_WALLET_LABEL, value: truncateWallet(offer.my_signer_address) })
+  }
   if (offer.created_at !== null) {
     rows.push({ label: 'Listed', value: formatDate(offer.created_at) })
   }

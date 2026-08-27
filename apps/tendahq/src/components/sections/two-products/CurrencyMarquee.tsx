@@ -1,4 +1,5 @@
 import { CURRENCY_LIST, type CurrencyMeta } from '@/data/currencies'
+import { RATES_CAPTION } from './content'
 import { useExchangeRates } from '@/hooks/useExchangeRates'
 import { MarqueeRow } from '@/components/ui/MarqueeRow'
 
@@ -11,6 +12,14 @@ const FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
  * of whether the API returned rates (placeholder fallback handles both
  * loading + LAN-isolated dev clients; M83-flagged GHS also uses the
  * placeholder when the upstream feed omits it).
+ *
+ * THE CAPTION IS LOAD-BEARING, and it must describe THIS data. The rows show
+ * the SOL price in each currency (the endpoint is `getAssetRates('solana')`),
+ * and the currencies are the eight a balance can be DISPLAYED in — not markets
+ * you can trade into. Both halves matter: the strip sits immediately below an
+ * exchange panel advertising three tradable markets, so eight unlabelled flags
+ * read as eight markets; and a caption that calls a SOL ticker "your balance"
+ * is wrong about its own contents. Do not shorten it to save vertical space.
  */
 export function CurrencyMarquee() {
   const { data, loading } = useExchangeRates()
@@ -48,6 +57,9 @@ export function CurrencyMarquee() {
 
   return (
     <div className="flex flex-col border-y border-[var(--border-subtle)] bg-[var(--surface-bg-alt)] divide-y divide-[var(--border-subtle)]">
+      <p className="caption px-4 py-2 text-center uppercase tracking-[0.16em] text-[var(--content-tertiary)]">
+        {RATES_CAPTION}
+      </p>
       <MarqueeRow
         items={CURRENCY_LIST}
         keyOf={(c) => `r-${c.code}`}

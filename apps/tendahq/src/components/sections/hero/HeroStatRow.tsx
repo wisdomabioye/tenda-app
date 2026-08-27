@@ -1,26 +1,24 @@
 import { useFeePercents } from '@/hooks/usePlatformConfig'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
-import { HERO_STATS_FALLBACK, type HeroStat } from './content'
+import { HERO_STATS_FALLBACK, FEE_STAT_INDEX, type HeroStat } from './content'
 
 /**
- * Builds the 4 hero stat cells. The fee value reads live from /v1/platform/config
- * (and gracefully falls back to the static "2.5%" while loading); the fiat-markets
- * count comes from SUPPORTED_CURRENCIES so it stays in sync if a market is added.
+ * The hero stat cells. Exactly ONE of them is live: the fee, read from
+ * /v1/platform/config, falling back to the static value while it loads or if
+ * the call fails. The rest come from ./content already correct — including the
+ * fiat-markets count, which is derived there from the payout registry.
+ *
+ * Overriding by index rather than rebuilding the array is deliberate: the row
+ * previously restated two of the four cells here, and one of those restatements
+ * (the markets count) silently shadowed the value in ./content, so the two
+ * could disagree with nothing to notice. One cell is special; only that cell is
+ * mentioned.
  */
 function useHeroStats(): readonly HeroStat[] {
   const { posterFeePct } = useFeePercents()
-  return [
-    HERO_STATS_FALLBACK[0],
-    {
-      value: posterFeePct != null ? `${posterFeePct}%` : HERO_STATS_FALLBACK[1].value,
-      label: HERO_STATS_FALLBACK[1].label,
-    },
-    HERO_STATS_FALLBACK[2],
-    {
-      value: String(SUPPORTED_CURRENCIES.length),
-      label: HERO_STATS_FALLBACK[3].label,
-    },
-  ]
+  if (posterFeePct == null) return HERO_STATS_FALLBACK
+  return HERO_STATS_FALLBACK.map((stat, i) =>
+    i === FEE_STAT_INDEX ? { ...stat, value: `${posterFeePct}%` } : stat,
+  )
 }
 
 export function HeroStatRow() {

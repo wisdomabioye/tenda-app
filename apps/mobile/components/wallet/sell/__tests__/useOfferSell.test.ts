@@ -30,7 +30,12 @@ jest.mock('@/api/client', () => ({
   },
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (a: unknown) => mockSign(a),
   resolveSignersForChain: () => mockSigners,
 }))
@@ -71,6 +76,8 @@ beforeEach(() => {
   mockReplace.mockReset()
   mockPush.mockReset()
   mockToast.mockReset()
+  mockSettleSignerFor.mockReset().mockResolvedValue(undefined)
+  mockDeclaredSignerFor.mockReset().mockReturnValue('DECLARED')
 })
 afterEach(() => jest.restoreAllMocks())
 
@@ -83,6 +90,9 @@ test('threads the chosen windows into escrow + offer creation and signs', async 
     kind: 'exchange', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '2500000',
     accept_deadline_unix: NOW_S + 24 * 3600,
     completion_duration_seconds: 21600,
+    // The wallet the create BAKES, declared rather than left to the server's
+    // primary-wallet default.
+    signer_address: 'DECLARED',
   })
   expect(mockExchangeCreate).toHaveBeenCalledWith({
     escrow_id: 'e1', fiat_amount: 16000, fiat_currency: 'NGN', rate: 1600,
@@ -231,4 +241,35 @@ test('no linked wallet falls open to the 9D gate rather than a balance error', a
 
   expect(mockEnsureSufficientBalance).toHaveBeenCalledWith(expect.objectContaining({ owners: [] }))
   expect(mockCreate).toHaveBeenCalled()
+})
+
+test('the signer is settled before it is declared, not after', async () => {
+  // On EVM the signer slot is empty until a session is live, so reading it
+  // first would declare the primary and then sign with whatever connects.
+  const order: string[] = []
+  mockSettleSignerFor.mockImplementation(() => { order.push('settle'); return Promise.resolve() })
+  mockDeclaredSignerFor.mockImplementation(() => { order.push('declare'); return 'DECLARED' })
+  mockCreate.mockImplementation(() => { order.push('create'); return Promise.resolve({ escrow_id: 'e1' }) })
+
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(order).toEqual(['settle', 'declare', 'create'])
+})
+
+test('a chain with no resolvable signer sends no declaration at all', async () => {
+  // Absent means "use the primary" — the behaviour that existed before the
+  // field. Sending `signer_address: undefined` would be a different request.
+  //
+  // Asserted as key PRESENCE, not with `not.objectContaining({ signer_address:
+  // expect.anything() })`: `expect.anything()` does not match undefined, so
+  // that form passes against a body that carries the key with an undefined
+  // value — the very thing this guards.
+  mockDeclaredSignerFor.mockReturnValue(undefined)
+
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  const [body] = mockCreate.mock.calls[0] as [Record<string, unknown>]
+  expect('signer_address' in body).toBe(false)
 })

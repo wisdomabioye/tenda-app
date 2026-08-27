@@ -9,7 +9,9 @@
 #   1. gate the CURRENT repo          — refuse to start from a drifted state
 #   2. bump + gate again              — the bump is committed locally only
 #   3. refuse a tag that already exists
-#   4. verify the promised URL        — before the build spends 20 minutes
+#      … resolve the EAS profile from the suffix (unnumbered: it was added after
+#        the numbering, and renumbering would churn every step comment below)
+#   4. verify the promised URL  — before the build spends 20 minutes
 #   5. EAS build (cloud, --wait)      — the long pole
 #   6. download + verify the artifact — a real zip, not an error page
 #   7. push the commit, then the tag  — first mutation of the remote
@@ -119,6 +121,18 @@ jobs:
           fi
           echo "✓ $TAG is free"
 
+      # The EAS profile FOLLOWS THE SUFFIX. It used to be the hardcoded literal
+      # `testnet` two steps below, so a `--suffix ''` mainnet release would tag
+      # v1.0.0 while building the staging-configured testnet profile. The script
+      # also refuses a profile that does not build an apk — `production` builds
+      # an app-bundle, which would upload cleanly under a .apk name and install
+      # on nothing. Resolved BEFORE the 20-minute build, like the URL check.
+      - name: Resolve the EAS build profile
+        id: eas
+        env:
+          SUFFIX: ${{ inputs.suffix }}
+        run: node scripts/resolve-eas-profile.mjs "$SUFFIX" >> "$GITHUB_OUTPUT"
+
       # 4 — The landing page's promise, checked before the build spends 20
       # minutes rather than after. This is the only step that can catch a stale
       # REPOSITORY in the apkUrl; the version gate derives the repo from that
@@ -158,11 +172,12 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROFILE: ${{ steps.eas.outputs.profile }}
         run: |
           set -euo pipefail
           npx eas-cli@latest build \
             --platform android \
-            --profile testnet \
+            --profile "$EAS_PROFILE" \
             --non-interactive \
             --wait \
             --json > "$RUNNER_TEMP/build.json"

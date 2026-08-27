@@ -3,13 +3,15 @@ import type { CurrencyCode } from '@/data/currencies'
 
 /**
  * Public endpoints exposed by apps/server/src/routes/v1/platform/index.ts.
- * Reply types mirror the live shape of the responses (verified against
- * http://127.0.0.1:3000 — fee_bps: 250, seeker_fee_bps: 100, grace_period_seconds: 86400).
+ * Reply types mirror `PlatformContract` in @tenda/shared — read that for the
+ * field semantics rather than trusting a value recorded here, which is how
+ * this comment came to assert a 86400s grace period against a 3600s default.
  */
 
 export interface PlatformConfig {
   fee_bps: number
   seeker_fee_bps: number
+  /** Reclaim slack after completion_deadline — NOT the poster review window. */
   grace_period_seconds: number
 }
 

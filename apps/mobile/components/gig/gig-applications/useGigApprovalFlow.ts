@@ -67,7 +67,8 @@ export function useGigApprovalFlow({
     busy: actions.busy,
     applyOpen,
     closeApply: () => setApplyOpen(false),
-    apply: (message: string | null) => actions.apply(escrowId, message),
+    apply: (message: string | null, walletAddress: string) =>
+      actions.apply(escrowId, message, walletAddress),
     handleAction,
     /** Spread onto the shared ConfirmDialog. */
     confirmDialog: {

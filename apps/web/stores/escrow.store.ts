@@ -23,7 +23,7 @@ import type {
   PermitSignatureBody,
   UnsignedTx,
 } from '@tenda/shared'
-import { ErrorCode, ApiClientError } from '@tenda/shared'
+import { ErrorCode, ApiClientError, errorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { accountGeneration, isSameAccount, registerAccountReset } from '@/lib/account-state'
 
@@ -95,7 +95,10 @@ export const useEscrowStore = create<EscrowState>((set) => {
       if (isSameAccount(gen)) set({ isBusy: false })
       return result
     } catch (e) {
-      if (isSameAccount(gen)) set({ isBusy: false, error: (e as Error).message })
+      // '' when the throw carried no words of its own — the caller's catch is
+      // what surfaces copy; this field is state, and inventing a sentence here
+      // would put it in two places.
+      if (isSameAccount(gen)) set({ isBusy: false, error: errorMessage(e) })
       throw e
     }
   }

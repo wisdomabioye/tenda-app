@@ -18,7 +18,7 @@
  * A dismissal is a change of mind either way, not an error.
  */
 import { useCallback, useEffect, useReducer, useState } from 'react'
-import { WalletError, findChain, pickWalletAddress } from '@tenda/shared'
+import { SIGNING_WALLET_COPY, WalletError, findChain, pickWalletAddress } from '@tenda/shared'
 import type { ChainNamespace } from '@tenda/shared'
 import { sessionAddressFor } from '@/wallet/dispatch'
 import { connectAsWallet, switchToLinkedWallet } from '@/wallet/send'
@@ -64,7 +64,7 @@ export function useSigningWallet(chainId: string, bound?: string | null): Signin
       }
     } catch (e) {
       if (!(e instanceof WalletError && e.code === 'declined')) {
-        setError(e instanceof Error ? e.message : 'Could not switch wallets')
+        setError(e instanceof Error ? e.message : SIGNING_WALLET_COPY.switchFailed)
       }
     } finally {
       setSwitching(false)

@@ -8,8 +8,15 @@
  * Structural types throughout (S3 doctrine): no AppKit type imports, the
  * real modal satisfies these interfaces, and tests fake them without casts.
  */
-import { WalletError, guardWalletRequest, isLinkedWallet, sameWalletAddress, truncateWallet } from '@tenda/shared'
-import type { ChainNamespace, LinkedWallet } from '@tenda/shared'
+import {
+  BOUND_WALLET_REFUSAL,
+  WalletError,
+  guardWalletRequest,
+  isLinkedWallet,
+  sameWalletAddress,
+  unlinkedWalletMessage,
+} from '@tenda/shared'
+import type { ChainNamespace } from '@tenda/shared'
 import type { VersionedTransaction } from '@solana/web3.js'
 import { loadWalletRuntime, peekWalletRuntime } from '../runtime'
 import {
@@ -74,16 +81,6 @@ const NAMESPACE_LABEL: Record<ChainNamespace, string> = {
   eip155: 'EVM',
 }
 
-/** The refused-stranger-wallet message, naming the wallets that WOULD work. */
-function unlinkedWalletMessage(ns: ChainNamespace, wallets: LinkedWallet[]): string {
-  const linked = wallets
-    .filter((w) => w.chain_ns === ns && w.verified_at !== null)
-    .map((w) => truncateWallet(w.address))
-  return linked.length > 0
-    ? `Connect one of your linked wallets (${linked.join(', ')}) to sign this transaction`
-    : 'Connect one of your linked wallets to sign this transaction'
-}
-
 /**
  * The trust check reads wallets[]; running it against a never-loaded registry
  * refused every linked wallet as a stranger (the "wallet needs to be
@@ -135,10 +132,7 @@ export async function connectAsWallet(ns: ChainNamespace, required: string): Pro
   await ensureWalletsReady()
   const { wallets } = useAuthStore.getState()
   if (!isLinkedWallet(ns, required, wallets)) {
-    throw new WalletError(
-      'no_wallet',
-      `This escrow is signed by ${truncateWallet(required)}, which is no longer linked to your account, re-link it in Settings to continue`,
-    )
+    throw new WalletError('no_wallet', BOUND_WALLET_REFUSAL.unlinked(required))
   }
   const modal = await requireTxModal()
   // Settle a lazily-restoring session before judging it (tri-state doctrine).
@@ -150,7 +144,7 @@ export async function connectAsWallet(ns: ChainNamespace, required: string): Pro
     return live
   }
   await modal.disconnect(ns)
-  const requiredMessage = `Connect ${truncateWallet(required)}, the wallet this escrow is signed by to continue`
+  const requiredMessage = BOUND_WALLET_REFUSAL.wrongWallet(required)
   let account: { address: string }
   try {
     account = await waitForConnection(modal, { namespace: ns, fresh: true })

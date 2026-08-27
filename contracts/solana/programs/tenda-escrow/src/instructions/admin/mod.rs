@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Platform-state admin instructions.
 //!
 //! All mutating instructions (every `set_*` here) are gated on

@@ -3,6 +3,7 @@ import {
   ASSET_META,
   gigAssetByChain,
   solanaChainId,
+  verifiedWalletsOn,
 } from '@tenda/shared'
 import type { GigCategory, ChainRegistryEntry, ProofType } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
@@ -76,7 +77,7 @@ export function useGigForm(
       .catch(() => setRegistry([])) // silent: the Solana default still works
   }, [])
 
-  const hasEvmWallet = wallets.some((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+  const hasEvmWallet = verifiedWalletsOn('eip155', wallets).length > 0
   const chainOptions: ChainOption[] = registry
     .filter((c) => {
       const gigAsset = gigAssetByChain(c.id)

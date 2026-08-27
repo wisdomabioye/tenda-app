@@ -1,8 +1,11 @@
 /**
- * `resolveSignersForChain` — which of the reader's linked wallets may sign on a
- * given chain. Split out of dispatch.test.ts to keep both files inside the
- * 300-line limit; it is a pure selector over the auth store, so it needs only
- * the mocks that let @/wallet/dispatch load, not the transports themselves.
+ * The signer selectors — which of the reader's linked wallets may sign on a
+ * given chain (`resolveSignersForChain`), which single one this client
+ * DECLARES it will sign with (`declaredSignerFor`), and the settle step that
+ * makes that declaration true (`settleSignerFor`). Split out of dispatch.test.ts
+ * to keep both files inside the 300-line limit; these are selectors over the
+ * auth store, so they need only the mocks that let @/wallet/dispatch load, not
+ * the transports themselves.
  */
 import type { LinkedWallet } from '@tenda/shared'
 
@@ -23,18 +26,19 @@ jest.mock('@tenda/shared', () => ({
 }))
 jest.mock('@/wallet/ensure-session', () => ({ ensureEvmSession: jest.fn() }))
 
-import { resolveSignersForChain } from '@/wallet/dispatch'
+import { declaredSignerFor, resolveSignersForChain, settleSignerFor } from '@/wallet/dispatch'
 import { useAuthStore } from '@/stores/auth.store'
+import { ensureEvmSession } from '@/wallet/ensure-session'
+
+const verified = (over: Partial<LinkedWallet> = {}): LinkedWallet => ({
+  chain_ns: 'solana',
+  address: 'SoLAddr1',
+  is_primary: true,
+  verified_at: '2026-08-01T00:00:00.000Z',
+  ...over,
+})
 
 describe('resolveSignersForChain', () => {
-  const verified = (over: Partial<LinkedWallet> = {}): LinkedWallet => ({
-    chain_ns: 'solana',
-    address: 'SoLAddr1',
-    is_primary: true,
-    verified_at: '2026-08-01T00:00:00.000Z',
-    ...over,
-  })
-
   it('answers [] for a chain the manifest does not know — never a guess', () => {
     // The namespace comes from the manifest, NOT from splitting the id on ':'.
     // A split would turn 'eip155:99999' into a plausible-looking namespace and
@@ -64,5 +68,60 @@ describe('resolveSignersForChain', () => {
       wallets: [verified({ chain_ns: 'eip155', address: '0xEvm1' })],
     })
     expect(resolveSignersForChain('solana:devnet')).toEqual([])
+  })
+})
+
+describe('declaredSignerFor', () => {
+  it('declares the wallet that will sign on the chain’s own namespace', () => {
+    ;(useAuthStore.getState as jest.Mock).mockReturnValue({
+      wallets: [verified(), verified({ chain_ns: 'eip155', address: '0xEvm1', is_primary: true })],
+      evmAddress: null,
+      walletAddress: null,
+    })
+    expect(declaredSignerFor('eip155:84532')).toBe('0xEvm1')
+    expect(declaredSignerFor('solana:devnet')).toBe('SoLAddr1')
+  })
+
+  it('prefers the live session wallet over the primary — that is the one that signs', () => {
+    ;(useAuthStore.getState as jest.Mock).mockReturnValue({
+      wallets: [
+        verified({ chain_ns: 'eip155', address: '0xPrimary', is_primary: true }),
+        verified({ chain_ns: 'eip155', address: '0xConnected', is_primary: false }),
+      ],
+      evmAddress: '0xConnected',
+      walletAddress: null,
+    })
+    expect(declaredSignerFor('eip155:84532')).toBe('0xConnected')
+  })
+
+  it('declares NOTHING rather than guessing, for an unknown chain or an unlinked namespace', () => {
+    // Undefined means "server default" — the behaviour that existed before the
+    // field. A guess here is baked on chain and cannot be taken back.
+    ;(useAuthStore.getState as jest.Mock).mockReturnValue({
+      wallets: [verified({ chain_ns: 'eip155', address: '0xEvm1' })],
+      evmAddress: null,
+      walletAddress: null,
+    })
+    expect(declaredSignerFor('eip155:99999')).toBeUndefined()
+    expect(declaredSignerFor('solana:devnet')).toBeUndefined()
+  })
+})
+
+describe('settleSignerFor', () => {
+  beforeEach(() => (ensureEvmSession as jest.Mock).mockClear())
+
+  it('connects the EVM session first — the slot is empty until it does', async () => {
+    await settleSignerFor('eip155:84532')
+    expect(ensureEvmSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves Solana alone: its slot is persisted and MWA owns its own session', async () => {
+    await settleSignerFor('solana:devnet')
+    expect(ensureEvmSession).not.toHaveBeenCalled()
+  })
+
+  it('does nothing for a chain the manifest does not know', async () => {
+    await settleSignerFor('eip155:99999')
+    expect(ensureEvmSession).not.toHaveBeenCalled()
   })
 })

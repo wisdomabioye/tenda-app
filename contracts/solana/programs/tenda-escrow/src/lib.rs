@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Tenda single-escrow primitive — Solana program.
 //!
 //! Rewritten in Stage 0 (foundation.md § Solana contract rewrite) to mirror

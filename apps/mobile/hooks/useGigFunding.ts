@@ -21,7 +21,12 @@ import { api } from '@/api/client'
 import { ApiClientError, checkEscrowTransitionApplied, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
 import { WalletError } from '@tenda/shared'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import {
+  declaredSignerFor,
+  resolveSignersForChain,
+  settleSignerFor,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
@@ -103,12 +108,18 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       // EIP-2612: sign the allowance BEFORE creating so it rides the create tx
       // (undefined = approve fallback via the unsigned tx's approval hint).
       const permit = await buildPermitFor({ chain_id, asset, value_raw: amount_raw })
+      // Declared signer: the wallet the create BAKES. Settled first so it is
+      // the wallet that will actually sign — and so it is the same account the
+      // permit above was signed by, which the contract requires.
+      await settleSignerFor(chain_id)
+      const signer = declaredSignerFor(chain_id)
       const created = await api.escrows.create({
         creation_operation_id: operationId,
         kind: 'gig',
         chain_id,
         asset,
         amount_raw,
+        ...(signer !== undefined ? { signer_address: signer } : {}),
         accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: values.completionDuration,
         // Only sent when true: the server treats an absent flag as instant

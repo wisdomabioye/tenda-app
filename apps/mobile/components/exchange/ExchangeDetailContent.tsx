@@ -208,6 +208,8 @@ export function ExchangeDetailContent({
 
       <TxConfirmDialog
         action={confirmAction}
+        chainId={offer.chain_id}
+        boundSigner={offer.my_signer_address}
         ctx={{
           amount: formatAssetAmount(offer.amount_raw, offer.asset),
           kind: 'exchange',

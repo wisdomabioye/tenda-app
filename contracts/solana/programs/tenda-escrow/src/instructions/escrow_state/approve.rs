@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `approve_completion_{sol,spl}` — creator releases payment to counterparty
 //! and platform fee to treasury. Status -> Completed. Callable any time
 //! during Submitted (before or after approval_deadline).

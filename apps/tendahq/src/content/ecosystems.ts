@@ -1,18 +1,27 @@
 /**
  * Ecosystems section — one panel per supported chain, written for two readers
- * at once: users deciding whether Tenda is real, and ecosystem/grant teams
- * deciding whether Tenda is worth backing. Every proof point is a shipped,
- * verifiable integration (or explicitly labelled in-progress) — no vapour.
+ * at once: users deciding whether Tenda is real, and ecosystem teams deciding
+ * whether Tenda is worth backing.
+ *
+ * EVERY proof point must be a shipped, verifiable integration, or carry
+ * `roadmap` and say plainly that it is not here yet. No "in progress" for work
+ * that has not started — the Base sponsorship rail was labelled in-progress
+ * while its build path was known-invalid, which is the failure mode this rule
+ * exists to prevent.
+ *
  * Panel identity (name, glyph, colour) comes from content/chains.ts.
  */
+
+import { CHAIN_STRENGTHS_PROSE, LANDING_CHAINS } from './chains'
+import { FEE_PCT, SEEKER_FEE_PCT } from './fees'
 
 export interface EcosystemPanel {
   /** Manifest family — joins to LANDING_CHAINS for name/glyph/colour. */
   chainFamily: 'solana' | 'base' | 'celo'
   /** Why Tenda builds here — one sentence. */
   why: string
-  /** Shipped or in-progress integration proof points, most impressive first. */
-  proofs: readonly { label: string; inProgress?: true }[]
+  /** Shipped integration proof points, most impressive first. */
+  proofs: readonly { label: string; roadmap?: true }[]
 }
 
 export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
@@ -22,17 +31,19 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     proofs: [
       { label: 'Native escrow program, written in Anchor' },
       { label: 'SOL gas grants so first-time users start at zero' },
-      { label: 'Reduced platform fee on Solana Mobile (Seeker) devices' },
-      { label: 'Phantom, Solflare + wallet-adapter ecosystem support' },
+      {
+        label: `Solana Mobile (Seeker) owners pay ${SEEKER_FEE_PCT}% instead of ${FEE_PCT}% — on every chain`,
+      },
+      { label: 'Connects through Mobile Wallet Adapter — Phantom, Solflare and the rest' },
     ],
   },
   {
     chainFamily: 'base',
     why: 'USDC-native rails and the shortest path from a Coinbase account to a Tenda gig.',
     proofs: [
-      { label: 'TendaEscrow Solidity contracts deployed and battle-tested on testnet' },
+      { label: 'TendaEscrow Solidity contracts, deployed with a full Foundry test suite' },
       { label: 'Gasless USDC approvals via EIP-2612 permit' },
-      { label: 'Sponsored transactions via Base Paymaster', inProgress: true },
+      { label: 'Sponsored gas for first-time users', roadmap: true },
     ],
   },
   {
@@ -41,20 +52,16 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     proofs: [
       { label: 'Gas paid in USDC via Celo’s feeCurrency — verified on-chain' },
       { label: 'Same escrow contracts, same USDC, zero extra tokens to hold' },
-      { label: 'cUSD supported on the exchange' },
+      { label: 'cUSD tradable on the exchange alongside USDC and CELO' },
     ],
   },
 ] as const
 
 export const ECOSYSTEMS_HEADER = {
-  eyebrow: 'Multichain · one escrow, three ecosystems',
+  // The count is derived: this line said "three ecosystems" beside a panel
+  // list built from the manifest, so a fourth chain would have contradicted
+  // the very grid underneath it.
+  eyebrow: `Multichain · one escrow, ${LANDING_CHAINS.length} ecosystems`,
   h2: { lead: 'Built deep into every chain', emphasis: 'we ship on.' },
-  sub: 'Tenda isn’t "deployed to" these chains — it uses what makes each one special: Solana’s speed, Base’s USDC rails, Celo’s stablecoin gas. Same product, same guarantees, everywhere.',
-} as const
-
-export const GRANTS_BAND = {
-  eyebrow: 'Ecosystem teams',
-  title: 'Building this with the ecosystems it lives on.',
-  body: 'Tenda is applying to the Solana, Base and Celo ecosystem grant programs to fund audits, mainnet launch and emerging-market growth. If you work on ecosystem or grants at any of these chains — we’d love to show you around the codebase.',
-  cta: { label: 'Talk to us on X', hrefKey: 'twitterUrl' as const },
+  sub: `Tenda isn’t "deployed to" these chains — it uses what makes each one special: ${CHAIN_STRENGTHS_PROSE}. Same product, same guarantees, everywhere.`,
 } as const

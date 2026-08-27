@@ -14,7 +14,12 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
   resolveSignersForChain: () => ['SIGNER'],
 }))

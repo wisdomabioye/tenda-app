@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `claim_stalled_payment_{sol,spl}` — counterparty pulls payment when the
 //! creator failed to approve within `approval_window_seconds`. Same
 //! settlement math as `approve_completion`; signer must be counterparty;

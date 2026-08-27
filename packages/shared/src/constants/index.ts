@@ -127,6 +127,13 @@ export {
 export * from './assets'
 export { TRANSACTION_RESILIENCE } from './transaction-resilience'
 export { TRANSACTION_COPY } from './transaction-copy'
+export { PROOF_COPY, proofRequirementLine } from './proof-copy'
+export {
+  SIGNING_WALLET_COPY,
+  BOUND_WALLET_LABEL,
+  BOUND_WALLET_REFUSAL,
+  unlinkedWalletMessage,
+} from './signing-wallet-copy'
 export { APP_INFO, type AppInfo } from './app-info'
 export {
   TX_PROGRESS_LABEL,

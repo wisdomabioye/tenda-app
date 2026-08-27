@@ -7,7 +7,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import type { LinkedWallet } from '../../src/api/contracts/auth.contract'
-import { pickWalletAddress, isLinkedWallet, orderedSignerAddresses } from '../../src/wallet/wallet-address'
+import {
+  pickWalletAddress,
+  isLinkedWallet,
+  orderedSignerAddresses,
+  preferredWalletAddress,
+  verifiedWalletsOn,
+} from '../../src/wallet/wallet-address'
 
 function w(over: Partial<LinkedWallet>): LinkedWallet {
   return {
@@ -109,4 +115,51 @@ test('other namespaces are excluded', () => {
 
 test('no verified wallet on the namespace yields an empty set', () => {
   assert.deepStrictEqual(orderedSignerAddresses('eip155', null, [solana, unverified]), [])
+})
+
+// ── verifiedWalletsOn / preferredWalletAddress (the chooser side) ────────────
+
+test('verifiedWalletsOn keeps only the namespace it was asked for', () => {
+  const wallets = [w({ address: '0xEvm' }), w({ chain_ns: 'solana', address: 'Sol1' })]
+  assert.deepStrictEqual(
+    verifiedWalletsOn('solana', wallets).map((x) => x.address),
+    ['Sol1'],
+  )
+})
+
+test('verifiedWalletsOn drops an unverified wallet — an option list is a trust list', () => {
+  const wallets = [w({ address: '0xPending', verified_at: null }), w({ address: '0xGood' })]
+  assert.deepStrictEqual(
+    verifiedWalletsOn('eip155', wallets).map((x) => x.address),
+    ['0xGood'],
+  )
+})
+
+test('preferredWalletAddress keeps a remembered choice that is still linked', () => {
+  const wallets = [w({ address: '0xPrimary', is_primary: true }), w({ address: '0xChosen' })]
+  assert.strictEqual(preferredWalletAddress('eip155', '0xChosen', wallets), '0xChosen')
+})
+
+test('preferredWalletAddress answers with the ROW spelling, not the caller\'s', () => {
+  // The picker compares its selection against the rows it renders, so echoing
+  // a differently-cased EVM address back would leave every row unselected.
+  const wallets = [w({ address: '0xAbCdEf' })]
+  assert.strictEqual(preferredWalletAddress('eip155', '0xabcdef', wallets), '0xAbCdEf')
+})
+
+test('preferredWalletAddress falls back to the primary once the remembered wallet is unlinked', () => {
+  const wallets = [w({ address: '0xFirst' }), w({ address: '0xPrimary', is_primary: true })]
+  assert.strictEqual(preferredWalletAddress('eip155', '0xGone', wallets), '0xPrimary')
+})
+
+test('preferredWalletAddress falls back to the first when none is primary, and to null with none at all', () => {
+  const wallets = [w({ address: '0xFirst' }), w({ address: '0xSecond' })]
+  assert.strictEqual(preferredWalletAddress('eip155', null, wallets), '0xFirst')
+  assert.strictEqual(preferredWalletAddress('eip155', null, []), null)
+  assert.strictEqual(preferredWalletAddress('eip155', '0xAnything', []), null)
+})
+
+test('preferredWalletAddress will not offer an unverified wallet even when it is the remembered one', () => {
+  const wallets = [w({ address: '0xRemembered', verified_at: null }), w({ address: '0xGood' })]
+  assert.strictEqual(preferredWalletAddress('eip155', '0xRemembered', wallets), '0xGood')
 })

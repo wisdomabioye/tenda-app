@@ -19,6 +19,22 @@ export default defineConfig({
       '@tenda/shared/app-info': fileURLToPath(
         new URL('../../packages/shared/src/constants/app-info.ts', import.meta.url),
       ),
+      // And for the payout registry, so "which markets can trade fiat" is read
+      // from the same specs the server validates against rather than retyped.
+      '@tenda/shared/fiat/payout': fileURLToPath(
+        new URL('../../packages/shared/src/fiat/payout/index.ts', import.meta.url),
+      ),
+      // And for the platform-config defaults, so the fee/window figures the
+      // page prints while the live config loads are the SAME constants the
+      // server falls back to — not literals retyped into marketing copy.
+      '@tenda/shared/constants/platform': fileURLToPath(
+        new URL('../../packages/shared/src/constants/platform.ts', import.meta.url),
+      ),
+      // And for asset display metadata, so "which tokens can you trade" is
+      // read off the manifest's exchange roles instead of listed by hand.
+      '@tenda/shared/constants/assets': fileURLToPath(
+        new URL('../../packages/shared/src/constants/assets.ts', import.meta.url),
+      ),
     },
     dedupe: ['react', 'react-dom'],
   },

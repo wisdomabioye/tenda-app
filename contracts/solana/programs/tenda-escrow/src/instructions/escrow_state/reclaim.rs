@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `reclaim_abandoned_{sol,spl}` — creator pulls refund when counterparty
 //! accepted but never submitted within `completion_deadline + grace`. Full
 //! refund (no fee). Emits standing-signal event the listener uses to apply

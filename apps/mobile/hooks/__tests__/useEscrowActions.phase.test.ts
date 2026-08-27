@@ -13,7 +13,12 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
   resolveSignersForChain: () => ['SIGNER'],
 }))
@@ -70,6 +75,8 @@ beforeEach(() => {
   mockRequestDispute.mockReset()
   mockAddProofs.mockReset()
   mockBuildPermitFor.mockReset()
+  mockSettleSignerFor.mockReset().mockResolvedValue(undefined)
+  mockDeclaredSignerFor.mockReset().mockReturnValue('DECLARED')
 })
 
 test('starts idle', () => {
@@ -197,7 +204,7 @@ test('dispute: a zero bond skips the permit and still confirms', async () => {
   await act(async () => { await result.current.dispute('bad work', '0') })
 
   expect(mockBuildPermitFor).not.toHaveBeenCalled()
-  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '0', 'bad work', undefined)
+  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '0', 'bad work', undefined, 'DECLARED')
   expect(result.current.phase).toBe('confirming')
 })
 
@@ -216,7 +223,15 @@ test('dispute: a non-zero ERC-20 bond builds the permit first', async () => {
     asset: 'USDC_SOL',
     value_raw: '5000000',
   })
-  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '5000000', 'bad work', { signature: '0xpermit' })
+  // Signer LAST, and it is the same account the permit was signed by: the
+  // contract requires the permit's owner to be the eventual sender.
+  expect(mockRequestDispute).toHaveBeenCalledWith(
+    'e1',
+    '5000000',
+    'bad work',
+    { signature: '0xpermit' },
+    'DECLARED',
+  )
 })
 
 test('addProofs (supplementary, off-chain) toasts success and never signs', async () => {

@@ -19,6 +19,7 @@ import {
   TRANSACTION_GATE_MESSAGE,
   WalletError,
   classifyTransactionGateError,
+  errorMessage,
   findChain,
   isTakedownRefusal,
   requiredWalletOf,
@@ -107,7 +108,7 @@ export function useEscrowActions({
   function failPreparation(error: unknown, fallback: string): false {
     setBusyAction(null)
     setPhase('idle')
-    showToast('error', (error as Error).message || fallback)
+    showToast('error', errorMessage(error) || fallback)
     return false
   }
 
@@ -183,11 +184,11 @@ export function useEscrowActions({
       // the user just pressed stops being offered. The server's message is
       // preferred; the fallback is the SHARED constant the server sends.
       if (isTakedownRefusal(e)) {
-        showToast('error', (e as Error).message || TAKEDOWN_REFUSED_MESSAGE)
+        showToast('error', errorMessage(e) || TAKEDOWN_REFUSED_MESSAGE)
         onStale?.()
         return false
       }
-      showToast('error', (e as Error).message || 'Transaction failed, please try again')
+      showToast('error', errorMessage(e) || 'Transaction failed, please try again')
       return false
     } finally {
       setBusyAction(null)
@@ -267,7 +268,7 @@ export function useEscrowActions({
         showToast('success', 'Proof added!')
         return true
       } catch (e) {
-        showToast('error', (e as Error).message || 'Failed to add proof, please try again')
+        showToast('error', errorMessage(e) || 'Failed to add proof, please try again')
         return false
       }
     },

@@ -214,6 +214,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         <TxConfirmDialog
           action={confirmAction}
+          chainId={gig.chain_id}
+          boundSigner={gig.my_signer_address}
           ctx={{
             amount: formatAssetAmount(gig.amount_raw, gig.asset),
             kind: 'gig',
@@ -248,6 +250,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <ApplySheet
           visible={approval.applyOpen}
           busy={approval.busy}
+          chainId={gig.chain_id}
+          initialWallet={gig.viewer?.application?.wallet_address ?? null}
           onClose={approval.closeApply}
           onSubmit={approval.apply}
         />

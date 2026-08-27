@@ -28,7 +28,10 @@
     "paths": {
       "@/*": ["./src/*"],
       "@tenda/shared/chains": ["../../packages/shared/src/chains/index.ts"],
-      "@tenda/shared/app-info": ["../../packages/shared/src/constants/app-info.ts"]
+      "@tenda/shared/app-info": ["../../packages/shared/src/constants/app-info.ts"],
+      "@tenda/shared/fiat/payout": ["../../packages/shared/src/fiat/payout/index.ts"],
+      "@tenda/shared/constants/platform": ["../../packages/shared/src/constants/platform.ts"],
+      "@tenda/shared/constants/assets": ["../../packages/shared/src/constants/assets.ts"]
     }
   },
   "include": ["src"]

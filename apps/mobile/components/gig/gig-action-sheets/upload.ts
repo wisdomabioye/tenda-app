@@ -1,7 +1,7 @@
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
-import type { ProofType } from '@tenda/shared'
+import { errorMessage, type ProofType } from '@tenda/shared'
 
 export type Proof = { url: string; type: ProofType }
 
@@ -17,7 +17,10 @@ export async function uploadProofs(files: PickedFile[]): Promise<Proof[] | null>
       const url = await uploadToCloudinary(file, 'proof')
       proofs.push({ url, type: file.type })
     } catch (e) {
-      showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
+      // The detail is appended only when the throw carried one — a bare
+      // trailing colon reads as a message that got cut off.
+      const detail = errorMessage(e)
+      showToast('error', `Failed to upload "${file.name}"${detail === '' ? '' : `: ${detail}`}`)
       return null
     }
   }

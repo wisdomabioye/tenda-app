@@ -122,6 +122,10 @@ export default function PostGigScreen() {
 
       <TxConfirmDialog
         action={pendingValues !== null ? 'create' : null}
+        // No `boundSigner`: nothing is bound until this create lands, so the
+        // row previews the free resolution — which is also what the create
+        // declares, so the preview and the bake cannot disagree.
+        chainId={pendingValues?.chainId}
         ctx={{
           amount:
             pendingValues !== null

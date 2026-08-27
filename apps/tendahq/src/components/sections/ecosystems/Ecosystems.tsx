@@ -2,11 +2,10 @@ import { SectionShell } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { ECOSYSTEM_PANELS, ECOSYSTEMS_HEADER } from '@/content'
 import { EcosystemPanel } from './EcosystemPanel'
-import { GrantsBand } from './GrantsBand'
 
 /**
- * §06 Ecosystems — one panel per supported chain (identity derived from the
- * shared chain manifest) + the grants call-out band.
+ * §06 Ecosystems — one panel per supported chain, identity derived from the
+ * shared chain manifest.
  */
 export function Ecosystems() {
   return (
@@ -27,8 +26,6 @@ export function Ecosystems() {
           <EcosystemPanel key={panel.chainFamily} panel={panel} />
         ))}
       </div>
-
-      <GrantsBand />
     </SectionShell>
   )
 }
