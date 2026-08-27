@@ -61,6 +61,30 @@ describe('supported networks section', () => {
     expect(html).toContain('noopener')
   })
 
+  /**
+   * `truncate` is `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`
+   * — a TEXT affordance. An overflowing flex child is not ellipsised, it is
+   * cut, so an interactive control inside a truncating box can be silently
+   * clipped into being unclickable with nothing on screen to say so. The copy
+   * button used to live inside one.
+   *
+   * Asserted on structure rather than on pixels because the browser needed to
+   * measure the exact width was unavailable in this environment — but the
+   * structure is wrong regardless of the width at which it first bites.
+   */
+  it('never puts the copy button inside a truncating container', () => {
+    const cells = [...html.matchAll(/<dd class="([^"]*)"[^>]*>([\s\S]*?)<\/dd>/g)]
+    expect(cells.length).toBeGreaterThan(0)
+    for (const [, className, inner] of cells) {
+      if (!inner.includes('<button')) continue
+      expect(className).not.toContain('truncate')
+    }
+  })
+
+  it('still truncates the chain id itself, which is what can overflow', () => {
+    expect(html).toMatch(/<span class="truncate">eip155:/)
+  })
+
   it('renders its own header copy', () => {
     expect(html).toContain(NETWORKS_HEADER.eyebrow)
     expect(html).toContain(NETWORKS_HEADER.h2.emphasis)

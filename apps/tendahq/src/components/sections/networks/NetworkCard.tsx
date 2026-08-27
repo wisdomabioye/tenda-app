@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { explorerHost, transportFor, type LandingChain } from '@/content'
 import { CopyChainId } from './CopyChainId'
@@ -7,14 +8,23 @@ interface Props {
   chain: LandingChain
 }
 
-/** One label/value line. Rendered as a definition list so it reads as data. */
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * One label/value line. Rendered as a definition list so it reads as data.
+ *
+ * The value cell does NOT truncate. It used to carry `truncate`
+ * (`overflow:hidden; text-overflow:ellipsis; white-space:nowrap`), which is a
+ * TEXT affordance: an overflowing flex child — the copy button — is simply cut,
+ * with no ellipsis and no hint that anything was lost, leaving an interactive
+ * control partly or wholly unclickable at narrow widths. Truncation now belongs
+ * to the one value long enough to need it, applied to the text alone.
+ */
+function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-[var(--border-default)] py-2.5">
-      <dt className="caption font-bold uppercase tracking-[0.06em] text-[var(--content-tertiary)]">
+      <dt className="caption shrink-0 font-bold uppercase tracking-[0.06em] text-[var(--content-tertiary)]">
         {label}
       </dt>
-      <dd className="mono-sm min-w-0 truncate text-right text-[var(--content-primary)]">
+      <dd className="mono-sm flex min-w-0 items-center justify-end gap-1 text-right text-[var(--content-primary)]">
         {children}
       </dd>
     </div>
@@ -65,10 +75,9 @@ export function NetworkCard({ chain }: Props) {
 
       <dl className="mt-4 flex flex-col">
         <Fact label={NETWORK_LABELS.chainId}>
-          <span className="inline-flex items-center gap-1">
-            {chain.id}
-            <CopyChainId chainId={chain.id} />
-          </span>
+          {/* Only the id truncates; the button is its sibling and never clips. */}
+          <span className="truncate">{chain.id}</span>
+          <CopyChainId chainId={chain.id} />
         </Fact>
         <Fact label={NETWORK_LABELS.gasToken}>{chain.nativeSymbol}</Fact>
         {transport !== '' && <Fact label={NETWORK_LABELS.transport}>{transport}</Fact>}
