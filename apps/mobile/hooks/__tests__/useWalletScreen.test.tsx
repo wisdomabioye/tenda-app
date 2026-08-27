@@ -19,6 +19,7 @@ let mockChainsStatus = 'ready'
 // "fires once per focus" assertions would be meaningless.
 const mockRefreshMe = jest.fn(() => Promise.resolve())
 const mockEnsureChains = jest.fn(() => Promise.resolve())
+const mockFetchChains = jest.fn(() => Promise.resolve())
 // Both stores are mocked WITH `getState`, as zustand really exposes it: the
 // refresh path reads the just-settled values that way, and a selector-only
 // stand-in would silently hand it `undefined`.
@@ -41,6 +42,7 @@ jest.mock('@/stores/chain-registry.store', () => {
     chains: mockChains,
     status: mockChainsStatus,
     ensureLoaded: mockEnsureChains,
+    fetch: mockFetchChains,
   })
   return {
     // The REAL predicate, not a re-implementation: "usable" is the rule that
@@ -100,7 +102,8 @@ beforeEach(() => {
   mockChains = CHAINS
   mockChainsStatus = 'ready'
   mockRefreshMe.mockClear()
-  mockEnsureChains.mockClear()
+  mockEnsureChains.mockReset().mockResolvedValue(undefined)
+  mockFetchChains.mockReset().mockResolvedValue(undefined)
   mockRead.mockReset().mockResolvedValue([])
   mockTxns.mockReset().mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 })
   mockSummary.mockReset().mockResolvedValue({ earned_raw: '0', spent_raw: '0', asset: 'USDC_SOL' })
@@ -508,7 +511,7 @@ test('pull-to-refresh recovers a failed registry and re-reads against the new ch
 
   // The gesture the user actually reaches for: it must drive the recovery,
   // not just re-read balances against the same broken inputs.
-  mockEnsureChains.mockImplementation(() => {
+  mockFetchChains.mockImplementation(() => {
     mockChains = CHAINS
     mockChainsStatus = 'ready'
     return Promise.resolve()
@@ -516,10 +519,53 @@ test('pull-to-refresh recovers a failed registry and re-reads against the new ch
   await act(async () => { await result.current.handleRefresh() })
   await act(async () => { rerender({}) })
 
-  expect(mockEnsureChains).toHaveBeenCalled()
+  expect(mockFetchChains).toHaveBeenCalled()
   expect(mockRefreshMe).toHaveBeenCalled()
   await waitFor(() => expect(result.current.section).toBe('ready'))
   expect(mockRead).toHaveBeenLastCalledWith(mockWallets, CHAINS)
+})
+
+test('pull-to-refresh refetches a registry that is STALE but usable (the reinstall bug)', async () => {
+  // The field failure: a pre-0G snapshot listed three chains, so the registry
+  // was "usable" and `ensureLoaded` (rightly) no-oped on it — leaving
+  // uninstall/reinstall as the only way to see the new chain. The gesture must
+  // call the store's REAL fetch, which refetches unconditionally.
+  const STALE: Chain[] = CHAINS
+  const FRESH: Chain[] = [
+    ...CHAINS,
+    { id: 'eip155:16602', namespace: 'eip155', display_name: '0G Galileo', assets: [] },
+  ]
+  mockWallets = [{ chain_ns: 'solana', address: 'SoL' }]
+  mockChains = STALE
+  mockChainsStatus = 'ready'
+
+  const { result, rerender } = renderHook(() => useWalletScreen())
+  await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+  mockFetchChains.mockImplementation(() => {
+    mockChains = FRESH
+    return Promise.resolve()
+  })
+  await act(async () => { await result.current.handleRefresh() })
+  await act(async () => { rerender({}) })
+
+  // The refetch fired despite the usable snapshot, and the balance re-read ran
+  // against the chains it just settled — not the closure's stale copy.
+  expect(mockFetchChains).toHaveBeenCalledTimes(1)
+  expect(mockRead).toHaveBeenLastCalledWith(mockWallets, FRESH)
+})
+
+test('focus keeps the cheap ensureLoaded — it must NOT hard-refetch per visit', async () => {
+  // The split this pins: `fetch` belongs to the deliberate gesture only.
+  // Attached to focus it would hit the API on every tab visit for data that
+  // rarely changes.
+  renderHook(() => useWalletScreen())
+  await waitFor(() => expect(mockEnsureChains).toHaveBeenCalledTimes(1))
+
+  await act(async () => { refocus() })
+
+  expect(mockEnsureChains).toHaveBeenCalledTimes(2)
+  expect(mockFetchChains).not.toHaveBeenCalled()
 })
 
 test('exposes the registry retry so the error card can recover in place', async () => {

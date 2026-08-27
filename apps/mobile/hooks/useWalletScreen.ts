@@ -46,6 +46,7 @@ export function useWalletScreen() {
   const chains        = useChainRegistryStore((s) => s.chains)
   const chainsStatus  = useChainRegistryStore((s) => s.status)
   const ensureChains  = useChainRegistryStore((s) => s.ensureLoaded)
+  const fetchChains   = useChainRegistryStore((s) => s.fetch)
 
   const [balances, setBalances]   = useState<WalletChainBalance[]>([])
   const [summary, setSummary]     = useState<UserTransactionsSummary>(EMPTY_SUMMARY)
@@ -182,19 +183,27 @@ export function useWalletScreen() {
     // to re-read balances against the same stale wallet list and the same
     // unloaded registry that caused the wrong screen — visibly doing nothing.
     //
+    // The registry gets the store's REAL `fetch`, not `ensureLoaded`: this is
+    // the one user gesture that must refresh a registry that is stale but
+    // usable (a pre-0G snapshot listing three chains is "usable"), and
+    // ensureLoaded no-ops on exactly that — which left reinstalling the app as
+    // the only way to pick up a newly enabled chain after a failed launch
+    // fetch. `fetch` is self-de-duping and keeps the last good registry on
+    // failure, so the worst a broken network does here is nothing.
+    //
     // The balance read then uses what they just SETTLED, read from the stores
     // rather than from this callback's closure: a closure built before the
     // refresh still holds the stale wallet list and the unloaded registry, and
     // waiting for a re-render to fire the effect above would make the recovery
     // depend on render timing (a refresh whose state round-trips to where it
     // started does not reliably produce one).
-    await Promise.all([refreshMe(), ensureChains()])
+    await Promise.all([refreshMe(), fetchChains()])
     const { wallets: freshWallets } = useAuthStore.getState()
     const { chains: freshChains } = useChainRegistryStore.getState()
     await Promise.all([transactions.refresh(), load(freshWallets, freshChains, true)])
     // `transactions.refresh` is stable (see usePaginatedList).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load, refreshMe, ensureChains])
+  }, [load, refreshMe, fetchChains])
 
   // Headline: USDC summed across every wallet×chain (one unit, exact base-units).
   const totalUsdcRaw = sumUsdcRaw(balances)
