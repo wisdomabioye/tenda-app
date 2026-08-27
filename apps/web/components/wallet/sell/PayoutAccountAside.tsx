@@ -84,9 +84,14 @@ export function PayoutAccountAside({ payout }: { payout: PayoutAccountsState }) 
                       {railName(account)} · {account.account_number_masked}
                     </span>
                   </span>
-                  <span className="shrink-0 font-numeric text-xs font-bold text-content-secondary">
-                    {CURRENCY_META[currency].symbol} {currency}
-                  </span>
+                  {/* A retired market's saved account has no currency to
+                      name — the row still lists (the user must see and manage
+                      it) but the chip is omitted rather than guessed. */}
+                  {currency !== null && (
+                    <span className="shrink-0 font-numeric text-xs font-bold text-content-secondary">
+                      {CURRENCY_META[currency].symbol} {currency}
+                    </span>
+                  )}
                 </button>
               )
             })}

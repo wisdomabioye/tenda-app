@@ -41,12 +41,16 @@ export function useInstantSell({
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
+  // `null` until a payout account is chosen — no default currency, because
+  // under one-country-one-currency the account IS the answer (mobile's
+  // useInstantSell carries the same rule; a quote priced in a guessed
+  // currency is worse than no quote).
   const currency = payoutCurrencyForCountry(account?.country ?? null)
-  const currencySymbol = CURRENCY_META[currency].symbol
+  const currencySymbol = currency === null ? '' : CURRENCY_META[currency].symbol
   const amountValid = amountRaw !== null && amountRaw !== '0' && amountRaw !== ''
 
   const { quote, expiresIn, loading, error, refetch } = useFiatQuote(
-    option !== null && amountValid && account !== null
+    option !== null && amountValid && account !== null && currency !== null
       ? {
           direction: 'offramp',
           asset: option.assetId,

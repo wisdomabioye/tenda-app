@@ -74,7 +74,10 @@ export function InstantSellPanel({
         />
       )}
 
-      {amountValid && account !== null && error === null && (
+      {/* `currency !== null` rides the same gate the hook quotes under: an
+          account whose country resolves to no currency gets no quote and so
+          no quote UI — never a summary in a guessed currency. */}
+      {amountValid && account !== null && currency !== null && error === null && (
         <>
           {quote !== null ? (
             <QuoteSummary

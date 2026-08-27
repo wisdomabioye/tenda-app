@@ -1,4 +1,4 @@
-import { LOCATIONS, SUPPORTED_PAYOUT_COUNTRIES, isCountryCode } from '@tenda/shared'
+import { LOCATIONS, SUPPORTED_PAYOUT_COUNTRIES, countryDisplayName, isCountryCode } from '@tenda/shared'
 
 /**
  * ISO country codes → the names people read.
@@ -17,11 +17,16 @@ export function marketNames(codes: readonly string[]): string[] {
  * Two different country vocabularies exist and they are NOT the same list:
  * `LOCATIONS` is where a gig may be POSTED (ten markets — what the feed's
  * country filter offers and what the server validates against), while the
- * payout registry is where a worker can CASH OUT (three). Copy that names
+ * payout registry is where a worker can CASH OUT (a shorter list). Copy that names
  * countries almost always means the second one, and saying "we operate in
  * Nigeria, Kenya and Ghana" while accepting gigs in seven more would be wrong
  * in the direction that costs someone a wasted signup.
  */
 export function payoutMarketNames(): string[] {
-  return marketNames(SUPPORTED_PAYOUT_COUNTRIES)
+  // Named by the payout specs THEMSELVES, not LOCATIONS: the two country
+  // vocabularies are independent (the doc above), and the UAE is a payout
+  // market that is not a posting market — resolving through LOCATIONS
+  // degraded it to the bare "AE". countryDisplayName falls back to the code
+  // for a spec with no name, the same degrade marketNames uses.
+  return SUPPORTED_PAYOUT_COUNTRIES.map((code) => countryDisplayName(code) ?? code)
 }

@@ -74,7 +74,10 @@ export function OfferSellPanel({
     amountRaw,
     rate: rateNum,
     fiatTotal,
-    hasPayoutAccount: account !== null,
+    // An account whose country resolves to no currency is not a usable payout
+    // account (a retired market's saved account) — same fold as mobile's
+    // OfferSellTab, so the CTA stays disabled with the existing reason.
+    hasPayoutAccount: account !== null && currency !== null,
   })
 
   function handleSubmit(): void {
@@ -82,7 +85,7 @@ export function OfferSellPanel({
     // `missing` is null — and kept anyway: this function is the only thing
     // standing between a caller and a real escrow, and the next caller may not
     // be a disabled button. The narrowing also earns its keep for TypeScript.
-    if (missing !== null || option === null || amountRaw === null || account === null) return
+    if (missing !== null || option === null || amountRaw === null || account === null || currency === null) return
     void submit({
       option,
       amountRaw,
@@ -104,7 +107,7 @@ export function OfferSellPanel({
         label={OFFER_SELL_COPY.rateLabel}
         value={rate}
         onChange={setRate}
-        prefix={CURRENCY_META[currency].symbol}
+        prefix={currency === null ? '' : CURRENCY_META[currency].symbol}
         suffix={`/ ${option?.symbol ?? ''}`}
         note={OFFER_SELL_COPY.rateNote}
       />
@@ -116,7 +119,10 @@ export function OfferSellPanel({
         onPaymentWindowChange={setPaymentWindowSeconds}
       />
 
-      {fiatTotal > 0 && Number.isFinite(fiatTotal) && (
+      {/* No currency (no account yet, or a retired market's account) → no
+          total: a figure in a guessed currency is worse than none (mobile's
+          OfferSellTab rule). */}
+      {fiatTotal > 0 && Number.isFinite(fiatTotal) && currency !== null && (
         <div className="flex items-baseline justify-between gap-4 rounded-card border border-border-subtle bg-surface-inset px-5 py-4">
           <span className="text-[13px] leading-[18px] text-content-secondary">
             {OFFER_SELL_COPY.total}
