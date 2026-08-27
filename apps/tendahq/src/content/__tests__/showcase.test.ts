@@ -4,6 +4,7 @@ import { LANDING_CHAINS } from '../chains'
 import { ECOSYSTEMS_HEADER, ECOSYSTEM_PANELS } from '../ecosystems'
 import {
   EXAMPLE_TASKS,
+  MAX_TITLE_LENGTH,
   PAYOUT_MARKET_CODES,
   REMOTE_CITY,
   REMOTE_FLAG,
@@ -201,13 +202,15 @@ describe('showcased gigs name markets we settle in', () => {
   })
 
   /**
-   * Titles are sized for the card. The bound is the one tasks.ts DOCUMENTS —
-   * "under ~40 chars so cards never wrap". It was 45 here, which let a title
-   * break the stated rule and still pass the guard meant to enforce it.
+   * Titles are sized for the card, against the SAME constant the data file
+   * documents. The literal was 45 here while tasks.ts said "~40", so a
+   * 44-character title broke the documented rule and passed the guard meant to
+   * enforce it. Importing the bound makes that impossible.
    */
   it('keeps every title within the documented card width', () => {
+    expect(MAX_TITLE_LENGTH).toBeGreaterThan(0)
     for (const task of EXAMPLE_TASKS) {
-      expect(task.title.length).toBeLessThanOrEqual(40)
+      expect(task.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH)
     }
   })
 })

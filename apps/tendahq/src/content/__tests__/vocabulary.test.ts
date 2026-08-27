@@ -30,6 +30,9 @@ import { LandingPage } from '../../App'
  * landing ever reintroduces a local list, and they are the reason deleting the
  * copies is safe rather than merely tidy.
  */
+/** Rendered once: three `it` blocks read it, and it is the whole page. */
+const html = renderToStaticMarkup(createElement(LandingPage))
+
 describe('display currencies', () => {
   it('is exactly shared’s vocabulary, in shared’s order', () => {
     expect([...SUPPORTED_CURRENCIES]).toEqual([...SHARED_CURRENCIES])
@@ -134,7 +137,6 @@ describe('gig categories', () => {
    * correct; only the page was wrong, so only reading the page catches it.
    */
   it('enumerates its categories from the shared labels, on the page', () => {
-    const html = renderToStaticMarkup(createElement(LandingPage))
     expect(html).toContain(CATEGORY_LABELS_PROSE)
     expect(html).toContain(CATEGORY_LABELS_LINE)
     expect(CATEGORY_LABELS_PROSE).toContain('creative')
@@ -155,7 +157,6 @@ describe('gig categories', () => {
    * list, and cannot fire on unrelated prose.
    */
   it('leaves ordinary uses of the word alone', () => {
-    const html = renderToStaticMarkup(createElement(LandingPage))
     expect(html).toContain('photo or video proof')
   })
 })

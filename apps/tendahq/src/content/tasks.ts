@@ -2,7 +2,8 @@
  * Example gigs surfaced by the hero TaskDeck and the tasks-wall marquee.
  * EDIT THE SEEDS BELOW to add or change showcased tasks — they are the single
  * source for every example gig on the landing. Amounts are USDC (the gig asset
- * on every supported chain). Keep titles under ~40 chars so cards never wrap.
+ * on every supported chain). Titles are bounded by MAX_TITLE_LENGTH below, so
+ * cards never wrap.
  *
  * EVERY LOCATION IS A MARKET WE ACTUALLY SETTLE IN. A seed names a country by
  * ISO code, and the code must exist in the shared payout registry — the same
@@ -50,6 +51,16 @@ const COUNTRY_FLAG: Readonly<Record<string, string>> = {
   PH: '🇵🇭',
   AE: '🇦🇪',
 }
+
+/**
+ * The widest a title can be before the deck's cards wrap and break the grid.
+ *
+ * Named here rather than left as prose plus a literal in the test: the rule was
+ * stated as "under ~40 chars" in this docstring while showcase.test.ts asserted
+ * 45, so a 44-character title broke the documented rule and passed the guard
+ * meant to enforce it. One value, imported by the test.
+ */
+export const MAX_TITLE_LENGTH = 40
 
 /** Shown for `country: null`. Remote work names no market. */
 export const REMOTE_FLAG = '🌍'
