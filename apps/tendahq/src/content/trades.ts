@@ -4,7 +4,7 @@
  * which chain) and the fiat side (what the counterparty receives, over which
  * payout rail).
  *
- * TWO RULES, both learned the hard way:
+ * THREE RULES, each learned the hard way:
  *
  *   1. Only currencies an offer can actually be denominated in may appear —
  *      the payout registry's. These rows read as product screenshots, so a row
@@ -20,7 +20,6 @@
  *      Wise or SEPA implies an integration that does not exist, and only some
  *      markets declare a mobile-money rail at all — read the specs, do not
  *      assume.
- *
  *   3. FIAT AMOUNTS ARE ROUNDED, to at most two significant figures, and the
  *      card prefixes them with "≈". These rows divide out to an exchange rate
  *      — 120 USDC for 187,200 NGN was publishing 1,560 NGN/USDC — and a

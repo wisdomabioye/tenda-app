@@ -29,8 +29,6 @@ export {
   CATEGORY_LABELS_LINE,
   CATEGORY_LABELS_PROSE,
   GIG_CATEGORIES,
-  type CategoryId,
-  type CategoryMeta,
 } from './categories'
 export {
   TRADE_CURRENCIES,

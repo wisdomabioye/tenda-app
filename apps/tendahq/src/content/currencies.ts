@@ -34,7 +34,6 @@ export interface CurrencyMeta {
   symbol: string
   name: string
   flag: string
-  locale: string
 }
 
 /**
@@ -47,10 +46,17 @@ export interface CurrencyMeta {
  * `coingeckoKey`, which is a server pricing detail with no business on a
  * marketing page; a spread would have quietly attached it to every object
  * while the interface above claimed otherwise.
+ *
+ * `locale` is NOT projected. Shared carries one, and this file used to copy it,
+ * but nothing on the landing has ever read it — not even the currency marquee
+ * that was the obvious candidate, which formatted with a hardcoded 'en-US'.
+ * Proved by deleting the field and the typechecker staying silent. `name` IS
+ * kept: it is what the AED assertion checks identity against, so removing it
+ * would leave that regression guarded by key membership alone.
  */
 export const CURRENCIES: Record<CurrencyCode, CurrencyMeta> = Object.fromEntries(
   SUPPORTED_CURRENCIES.map((code) => {
-    const { symbol, name, flag, locale } = CURRENCY_META[code]
-    return [code, { code, symbol, name, flag, locale }]
+    const { symbol, name, flag } = CURRENCY_META[code]
+    return [code, { code, symbol, name, flag }]
   }),
 ) as Record<CurrencyCode, CurrencyMeta>

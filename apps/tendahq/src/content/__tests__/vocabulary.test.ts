@@ -48,7 +48,7 @@ describe('display currencies', () => {
     expect(CURRENCIES.AED.name).toBe('UAE Dirham')
   })
 
-  it('carries shared’s symbol, name, flag and locale for every currency', () => {
+  it('carries shared’s symbol, name and flag for every currency', () => {
     for (const code of SHARED_CURRENCIES) {
       const shared = CURRENCY_META[code]
       expect(CURRENCIES[code]).toEqual({
@@ -56,21 +56,22 @@ describe('display currencies', () => {
         symbol: shared.symbol,
         name: shared.name,
         flag: shared.flag,
-        locale: shared.locale,
       })
     }
   })
 
   /**
-   * `coingeckoKey` is a server pricing detail. It rides on shared's row, and a
-   * spread would have carried it onto every object the marketing page holds
-   * while the local interface claimed five fields.
+   * `coingeckoKey` is a server pricing detail, and `locale` is a field nothing
+   * on this site reads. Both ride on shared's row, and a spread would have
+   * carried them onto every object the marketing page holds while the local
+   * interface claimed otherwise. Asserting the EXACT key set is what catches a
+   * spread being reintroduced, whichever extra field it drags in.
    */
-  it('does not leak shared’s server-side pricing key onto the display rows', () => {
+  it('projects exactly the fields the site renders, and nothing else', () => {
     const rows = Object.values(CURRENCIES)
     expect(rows).toHaveLength(SHARED_CURRENCIES.length)
     for (const row of rows) {
-      expect(Object.keys(row).sort()).toEqual(['code', 'flag', 'locale', 'name', 'symbol'])
+      expect(Object.keys(row).sort()).toEqual(['code', 'flag', 'name', 'symbol'])
     }
   })
 })

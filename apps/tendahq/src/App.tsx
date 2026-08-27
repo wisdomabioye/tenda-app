@@ -22,9 +22,16 @@ import { Privacy } from './components/sections/Privacy'
  * drift from the page it claims to check.
  */
 export function LandingPage() {
-  // Spine: dark hero → light task wall → dark products → dark escrow
-  // explainer → light onboarding rails → dark ecosystems → networks → FAQ →
-  // final CTA.
+  // Spine, in the vocabulary the code actually uses: hero → tasks(alt) →
+  // products(base) → how-it-works(alt) → onboarding(base) → ecosystems(alt) →
+  // networks(base) → faq(alt) → download(base).
+  //
+  // It used to be written as "dark … light … dark", which was left over from
+  // before SectionShell settled on one theme per page with sections differing
+  // only in surface tint. That vocabulary had gone wrong as well as stale: it
+  // called products and the escrow explainer both "dark" when they render base
+  // and alt — two sections it described as identical are the pair the rule
+  // below requires to differ.
   //
   // Networks follows Ecosystems deliberately: Ecosystems argues WHY these
   // chains, so the reference table answering WHAT exactly am I connecting to
