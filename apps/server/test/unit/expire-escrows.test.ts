@@ -169,6 +169,24 @@ test('full batch → overflow warning (no silent cap)', async () => {
   assert.match(warns[0], /batch limit/)
 })
 
+test("notice job ids satisfy BullMQ's custom-id rule (zero or exactly two colons)", () => {
+  // A HARD BullMQ constraint, not a style choice (bullmq classes/job.js
+  // 1047-1049, read from the installed copy): a custom jobId containing ':'
+  // throws 'Custom Id cannot contain :' unless split(':').length === 3.
+  // `expire-notice:<uuid>` carried ONE colon, so every notice enqueue threw
+  // and took the whole expire-escrows tick with it — observed live
+  // 2026-08-27, expiry notices dying platform-wide 3 retries per tick.
+  // Same guard verify-tx.test.ts and alerts-enqueue.test.ts pin for their
+  // own factories; this file was the one producer without it.
+  for (const id of [expireNoticeJobId('e-1'), stalledNoticeJobId('e-1')]) {
+    const parts = id.split(':').length
+    assert.ok(
+      parts === 1 || parts === 3,
+      `job id "${id}" would be rejected by BullMQ (${parts - 1} colon(s))`,
+    )
+  }
+})
+
 test('expireNoticeJobId is stable per escrow (dedup key)', () => {
   assert.strictEqual(expireNoticeJobId('abc'), expireNoticeJobId('abc'))
   assert.notStrictEqual(expireNoticeJobId('abc'), expireNoticeJobId('def'))

@@ -126,9 +126,20 @@ export const EXPIRE_BATCH_LIMIT = 200
  */
 export const EXPIRE_LOOKBACK_MS = 5 * 60_000
 
-/** Deterministic notification job id, the idempotency guarantee. */
+/**
+ * Deterministic notification job id, the idempotency guarantee.
+ *
+ * Dot-joined, NOT colon-joined — BullMQ rejects a custom jobId containing
+ * ':' unless it has exactly three ':'-separated parts (classes/job.js
+ * validateOptions; the rule verify-tx's dedup key already documents). The
+ * colon spelling shipped and failed EVERY notice enqueue — and the whole
+ * tick with it — the first time an escrow expired against real BullMQ
+ * (2026-08-27); the queue double in tests never ran the validator, which is
+ * why the id test beside the stable-id pins now encodes the rule itself.
+ * A UUID contains no '.', so the join cannot collide.
+ */
 export function expireNoticeJobId(escrow_id: string): string {
-  return `expire-notice:${escrow_id}`
+  return `expire-notice.${escrow_id}`
 }
 
 /**
@@ -137,7 +148,7 @@ export function expireNoticeJobId(escrow_id: string): string {
  * ids must not collide if the state machine ever allows it).
  */
 export function stalledNoticeJobId(escrow_id: string): string {
-  return `stalled-notice:${escrow_id}`
+  return `stalled-notice.${escrow_id}`
 }
 
 export interface ExpireEscrowsLogger {
