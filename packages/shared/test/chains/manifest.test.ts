@@ -129,14 +129,17 @@ test('gigAssetByChain resolves a USDC stablecoin wherever a chain carries gigs, 
 
 test('gig coverage is pinned per chain — gig-less chains are named, never accidental', () => {
   // The loop above skips null, so THIS is what notices a chain silently losing
-  // its gig asset: every chain must appear in exactly one of these two lists.
+  // its gig asset: the gig-less list is pinned exactly (empty since
+  // 2026-08-27, when 0G mainnet gained USDC.e — XSwap/CCIP Bridged USDC,
+  // domain + EIP-3009 verified on-chain). A chain that must ship
+  // exchange-only again gets NAMED here, never silently skipped.
   const gigless = CHAIN_MANIFEST.filter((c) => gigAssetByChain(c.id) === null).map((c) => c.id)
-  // 0G mainnet is exchange-only BY DESIGN until a verified stablecoin exists
-  // on it (we do not mint our own). Galileo carries the deployed mock, so the
-  // testnet IS gig-capable — the pair proves gig-lessness is per-chain fact,
-  // not a family default.
-  assert.deepEqual(gigless, ['eip155:16661'])
+  assert.deepEqual(gigless, [])
+  // Both 0G chains resolve the same registry id to DIFFERENT tokens (mock on
+  // Galileo, USDC.e on mainnet) — the Base pattern, safe under
+  // one-active-chain-per-family.
   assert.equal(gigAssetByChain('eip155:16602'), 'USDC_0G')
+  assert.equal(gigAssetByChain('eip155:16661'), 'USDC_0G')
 })
 
 test('exchangeAssetsByChain returns USDC + the native token per chain; empty for unknown', () => {

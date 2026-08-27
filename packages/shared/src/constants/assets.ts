@@ -29,9 +29,11 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
   CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo', name: 'Celo' },
   OG: { symbol: '0G', decimals: 18, is_stable: false, coingeckoId: 'zero-gravity', name: '0G' },
-  // Galileo's USDC is the repo's own MockUSDCPermitV2 (no canonical Circle
-  // USDC exists on 0G) — USDC-shaped on purpose: 6 decimals keeps the
-  // USDC_DECIMALS shared-decimals guard below satisfied.
+  // One id, two tokens (Base pattern): Galileo runs the repo's own
+  // MockUSDCPermitV2; mainnet runs USDC.e (XSwap/CCIP Bridged USDC, Circle's
+  // Bridged USDC Standard — on-chain symbol "USDC.e"). Displayed as USDC on
+  // purpose: the symbol also keys USDC_ASSET_IDS membership and the
+  // USDC_DECIMALS guard below, and both tokens are 6-decimal dollar pegs.
   USDC_0G: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
 }
 

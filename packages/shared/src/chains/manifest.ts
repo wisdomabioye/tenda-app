@@ -318,12 +318,30 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     explorerUrl: 'https://chainscan.0g.ai',
     gasPolicy: 'none',
     assets: [
-      // Exchange-only ON PURPOSE: no verified stablecoin exists on 0G mainnet
-      // (2026-08-27), and minting our own is out of the question. With no
-      // gig-role asset here, the server's assertGigAsset 422s gig creates on
-      // this chain and the composers' chain pickers skip it — both by design.
-      // When a verified stable arrives it is a one-asset edit (gig role +
-      // permit after the live domain checks, like every other chain).
+      // USDC.e — XSwap Bridged USDC (Chainlink CCIP; XSwap is 0G's official
+      // bridge), built on Circle's Bridged USDC Standard. Verified on-chain
+      // 2026-08-27: 6 decimals, version() "2", DOMAIN_SEPARATOR recomputes
+      // with name "Bridged USDC" / "2" / 16661 / this address (the server
+      // reads name() live, so the differing domain NAME just works), and
+      // EIP-3009 present (RECEIVE_WITH_AUTHORIZATION_TYPEHASH responds) —
+      // agent-funding (option B) capable, unlike the Galileo mock.
+      //
+      // NATIVE-USDC MIGRATION, when Circle arrives on 0G — two shapes:
+      //  1. In-place upgrade (the Bridged USDC Standard's purpose): SAME
+      //     address, so nothing here changes; if the EIP-712 domain name
+      //     changes ("Bridged USDC" → "USDC"), the server's live name() read
+      //     self-adjusts and permit keeps working. Re-verify version() == the
+      //     permit declaration below after the upgrade.
+      //  2. New address (separate native launch): swap `token` here + re-run
+      //     the live domain checks — new ESCROWS then fund in native USDC,
+      //     while in-flight escrows hold and settle the old token recorded in
+      //     their on-chain escrow (per-escrow pinning; no fund migration).
+      {
+        id: 'USDC_0G',
+        roles: ['gig', 'exchange'],
+        token: '0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E',
+        permit: { version: '2' },
+      },
       { id: 'OG', roles: ['exchange'], token: null },
     ],
   },
