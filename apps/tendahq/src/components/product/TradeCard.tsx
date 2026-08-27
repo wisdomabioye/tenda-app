@@ -62,8 +62,14 @@ export function TradeCard({ trade, className }: Props) {
         </div>
 
         <div className="flex flex-col items-end gap-1.5">
+          {/*
+            "≈" is load-bearing. The pair of numbers on this card divides out to
+            an exchange rate, and a bare figure reads as the rate you will be
+            offered. The seller sets that, not this page — see rule 3 in
+            content/trades.ts.
+          */}
           <p className="mono-mid text-[var(--content-primary)]">
-            {fiat.symbol}
+            ≈{fiat.symbol}
             {FIAT.format(trade.fiat.amount)}
           </p>
           <span className="mono-sm inline-flex items-center gap-1.5 text-[var(--content-tertiary)]">

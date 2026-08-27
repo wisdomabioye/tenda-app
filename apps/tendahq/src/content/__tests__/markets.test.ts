@@ -1,7 +1,11 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payout'
-import { SUPPORTED_CURRENCIES } from '@/content/currencies'
+import { SUPPORTED_CURRENCIES } from '../currencies'
 import { EXAMPLE_TRADES } from '../trades'
+import { TradeDeck } from '@/components/sections/two-products/TradeDeck'
+import { TRADE_DECK_CAPTION } from '@/components/sections/two-products/content'
 import {
   DISPLAY_CURRENCY_COUNT,
   TRADE_COUNTRIES_PROSE,
@@ -66,6 +70,42 @@ describe('fiat markets', () => {
     for (const trade of EXAMPLE_TRADES) {
       expect(PAYOUT_CURRENCIES).toContain(trade.fiat.currency)
     }
+  })
+
+  /**
+   * THE CARDS PUBLISH AN EXCHANGE RATE WHETHER THEY MEAN TO OR NOT: each row's
+   * two amounts divide out to one. 120 USDC for 187,200 NGN was stating 1,560
+   * NGN/USDC on a marketplace page, where a precise figure reads as the rate
+   * you will be offered — which Tenda does not set and cannot honour. The file
+   * has no live source either, so that implied rate ages with the naira and
+   * nothing here notices.
+   *
+   * Rounding to two significant figures is what makes the numbers read as
+   * illustrative; this is what keeps them that way, so the next hand-added
+   * corridor cannot quietly reintroduce ₦187,200.
+   */
+  it('quotes fiat amounts too roundly to read as a rate', () => {
+    const significantFigures = (n: number): number =>
+      n.toExponential().replace(/e[+-]\d+$/, '').replace('.', '').replace(/0+$/, '').length
+
+    expect(EXAMPLE_TRADES.length).toBeGreaterThan(0)
+    for (const trade of EXAMPLE_TRADES) {
+      expect(Number.isInteger(trade.fiat.amount)).toBe(true)
+      expect(trade.fiat.amount).toBeGreaterThan(0)
+      expect(significantFigures(trade.fiat.amount)).toBeLessThanOrEqual(2)
+    }
+  })
+
+  /**
+   * The other half of the same claim, read off the RENDERED deck rather than
+   * the constants: the card marks the figure approximate, and the caption says
+   * who prices the offer. A constant nobody renders proves nothing.
+   */
+  it('renders the amounts as approximate and names who prices the offer', () => {
+    const html = renderToStaticMarkup(createElement(TradeDeck))
+    expect(html).toContain('≈')
+    expect(html).toContain(TRADE_DECK_CAPTION)
+    expect(TRADE_DECK_CAPTION.toLowerCase()).toContain('seller sets the rate')
   })
 
   /**

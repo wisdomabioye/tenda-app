@@ -71,8 +71,17 @@ export const TWO_PRODUCTS_BRIDGE = {
   emphasis: 'One app',
 } as const
 
-/** Caption under the exchange panel's trade deck. */
-export const TRADE_DECK_CAPTION = 'Example corridors · crypto in escrow, cash out local'
+/**
+ * Caption under the exchange panel's trade deck.
+ *
+ * It used to read "Example corridors · crypto in escrow, cash out local",
+ * which described the mechanic but left the most misreadable thing unsaid: the
+ * amounts on those cards divide out to an exchange rate, and a visitor reads
+ * that as Tenda's rate. Tenda sets no rate and takes no spread on FX (see the
+ * fee answer in the FAQ) — the seller prices their own offer. Saying so is the
+ * half that was missing.
+ */
+export const TRADE_DECK_CAPTION = 'Example corridors · the seller sets the rate, not Tenda'
 
 /** How many example gigs the gigs panel lists. */
 export const GIG_PANEL_ROWS = 3

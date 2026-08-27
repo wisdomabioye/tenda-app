@@ -21,6 +21,21 @@
  *      markets declare a mobile-money rail at all — read the specs, do not
  *      assume.
  *
+ *   3. FIAT AMOUNTS ARE ROUNDED, to at most two significant figures, and the
+ *      card prefixes them with "≈". These rows divide out to an exchange rate
+ *      — 120 USDC for 187,200 NGN was publishing 1,560 NGN/USDC — and a
+ *      precise-looking number on a marketplace page reads as the rate you will
+ *      get. It is not: the seller prices their own offer, Tenda takes no
+ *      spread, and this file has no live source, so the implied rate ages with
+ *      the naira and nothing here notices. Rounding removes the false
+ *      precision; `markets.test.ts` keeps it removed.
+ *
+ *      THE RATE LEVEL WAS DELIBERATELY NOT CHANGED. Rounding is not a refresh:
+ *      the implied rates still sit roughly where they were, because nothing in
+ *      this repo can verify today's true rate. Treat the levels as marketing
+ *      copy that someone owns refreshing, and the roundness as the guard that
+ *      stops them being read as a quote in the meantime.
+ *
  * EDIT THIS FILE to add or change showcased corridors, within those rules.
  */
 
@@ -63,14 +78,14 @@ export interface ExampleTrade {
 }
 
 export const EXAMPLE_TRADES: readonly ExampleTrade[] = [
-  { id: 'x-01', asset: { symbol: 'USDC', amount: '120',  chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 187_200, rail: 'Bank transfer' }, trader: '@chiamaka', rating: 4.9 },
-  { id: 'x-02', asset: { symbol: 'SOL',  amount: '0.80', chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 18_300,  rail: 'Bank transfer' }, trader: '@kimani',   rating: 4.95 },
-  { id: 'x-03', asset: { symbol: 'USDC', amount: '250',  chainFamily: 'celo' },   fiat: { currency: 'GHS', amount: 3_950,   rail: 'Mobile money' },  trader: '@kwabena',  rating: 4.7 },
-  { id: 'x-04', asset: { symbol: 'ETH',  amount: '0.15', chainFamily: 'base' },   fiat: { currency: 'NGN', amount: 673_900, rail: 'Bank transfer' }, trader: '@noah',     rating: 4.8 },
-  { id: 'x-05', asset: { symbol: 'USDC', amount: '400',  chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 6_320,   rail: 'Bank transfer' }, trader: '@thandi',   rating: 4.85 },
-  { id: 'x-06', asset: { symbol: 'USDC', amount: '75',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 10_900,  rail: 'Bank transfer' }, trader: '@maria',    rating: 4.9 },
-  { id: 'x-07', asset: { symbol: 'ETH',  amount: '0.25', chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 11_400,  rail: 'Mobile money' },  trader: '@femi',     rating: 4.75 },
-  { id: 'x-08', asset: { symbol: 'USDC', amount: '300',  chainFamily: 'celo' },   fiat: { currency: 'NGN', amount: 468_000, rail: 'Bank transfer' }, trader: '@ada',      rating: 5.0 },
+  { id: 'x-01', asset: { symbol: 'USDC', amount: '120',  chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 190_000, rail: 'Bank transfer' }, trader: '@chiamaka', rating: 4.9 },
+  { id: 'x-02', asset: { symbol: 'SOL',  amount: '0.80', chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 18_000,  rail: 'Bank transfer' }, trader: '@kimani',   rating: 4.95 },
+  { id: 'x-03', asset: { symbol: 'USDC', amount: '250',  chainFamily: 'celo' },   fiat: { currency: 'GHS', amount: 4_000,   rail: 'Mobile money' },  trader: '@kwabena',  rating: 4.7 },
+  { id: 'x-04', asset: { symbol: 'ETH',  amount: '0.15', chainFamily: 'base' },   fiat: { currency: 'NGN', amount: 670_000, rail: 'Bank transfer' }, trader: '@noah',     rating: 4.8 },
+  { id: 'x-05', asset: { symbol: 'USDC', amount: '400',  chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 6_300,   rail: 'Bank transfer' }, trader: '@thandi',   rating: 4.85 },
+  { id: 'x-06', asset: { symbol: 'USDC', amount: '75',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 11_000,  rail: 'Bank transfer' }, trader: '@maria',    rating: 4.9 },
+  { id: 'x-07', asset: { symbol: 'ETH',  amount: '0.25', chainFamily: 'base' },   fiat: { currency: 'GHS', amount: 11_000,  rail: 'Mobile money' },  trader: '@femi',     rating: 4.75 },
+  { id: 'x-08', asset: { symbol: 'USDC', amount: '300',  chainFamily: 'celo' },   fiat: { currency: 'NGN', amount: 470_000, rail: 'Bank transfer' }, trader: '@ada',      rating: 5.0 },
   { id: 'x-09', asset: { symbol: 'SOL',  amount: '2.00', chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 490_000, rail: 'Bank transfer' }, trader: '@yemi',     rating: 4.9 },
-  { id: 'x-10', asset: { symbol: 'USDC', amount: '90',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 13_100,  rail: 'Bank transfer' }, trader: '@maina',    rating: 4.8 },
+  { id: 'x-10', asset: { symbol: 'USDC', amount: '90',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 13_000,  rail: 'Bank transfer' }, trader: '@maina',    rating: 4.8 },
 ] as const
