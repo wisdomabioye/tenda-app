@@ -1,6 +1,9 @@
 import { Check, ExternalLink, Loader } from 'lucide-react'
-import { chainByFamily, type EcosystemPanel as EcosystemPanelData } from '@/content'
-import { explorerHost } from '@/content/chains'
+import {
+  chainByFamily,
+  explorerHost,
+  type EcosystemPanel as EcosystemPanelData,
+} from '@/content'
 import { cn } from '@/lib/cn'
 
 interface Props {

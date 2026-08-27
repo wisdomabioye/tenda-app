@@ -1,6 +1,5 @@
 import { ExternalLink } from 'lucide-react'
-import type { LandingChain } from '@/content'
-import { explorerHost, transportFor } from '@/content/chains'
+import { explorerHost, transportFor, type LandingChain } from '@/content'
 import { CopyChainId } from './CopyChainId'
 import { NETWORK_LABELS } from './content'
 

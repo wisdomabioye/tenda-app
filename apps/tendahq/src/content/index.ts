@@ -14,6 +14,9 @@ export {
   EVM_CHAIN_NAMES_PROSE,
   MORE_CHAINS_LABEL,
   chainByFamily,
+  displayFor,
+  explorerHost,
+  transportFor,
   type LandingChain,
 } from './chains'
 export {
@@ -26,6 +29,7 @@ export {
 export {
   CATEGORIES,
   CATEGORY_LABELS_LINE,
+  CATEGORY_LABELS_PROSE,
   GIG_CATEGORIES,
   type CategoryId,
   type CategoryMeta,

@@ -1,4 +1,4 @@
-import { CURRENCY_LIST, type CurrencyMeta } from '@/content/currencies'
+import { CURRENCY_LIST, type CurrencyMeta } from '@/content'
 import { RATES_CAPTION } from './content'
 import { useExchangeRates } from '@/hooks/useExchangeRates'
 import { MarqueeRow } from '@/components/ui/MarqueeRow'

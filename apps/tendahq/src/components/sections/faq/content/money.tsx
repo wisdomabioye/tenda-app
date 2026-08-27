@@ -3,10 +3,10 @@ import {
   FEE_EXAMPLE,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
+  SUPPORTED_CURRENCIES,
   TRADE_MARKET_COUNT,
 } from '@/content'
 import { FeePct } from '@/components/product/FeePct'
-import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import type { FaqCategory } from '../types'
 
 /**

@@ -1,8 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CHAIN_MANIFEST } from '@tenda/shared/chains'
-import { LANDING_CHAINS, type LandingChain } from '@/content'
-import { displayFor, explorerHost, transportFor } from '@/content/chains'
+import {
+  LANDING_CHAINS,
+  displayFor,
+  explorerHost,
+  transportFor,
+  type LandingChain,
+} from '@/content'
 import { NetworkCard } from '../NetworkCard'
 import { SupportedNetworks } from '../SupportedNetworks'
 import { NETWORKS_HEADER, NETWORK_LABELS } from '../content'

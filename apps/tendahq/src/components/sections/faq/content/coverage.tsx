@@ -4,9 +4,9 @@ import {
   DISPLAY_CURRENCY_COUNT,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
+  SUPPORTED_CURRENCIES,
   TRADE_MARKET_COUNT,
 } from '@/content'
-import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import type { FaqCategory } from '../types'
 
 /**

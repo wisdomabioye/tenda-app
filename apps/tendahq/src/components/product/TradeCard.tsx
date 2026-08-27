@@ -1,7 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import { Pill } from '@/components/ui/Pill'
-import { CURRENCIES } from '@/content/currencies'
-import { chainByFamily, type ExampleTrade } from '@/content'
+import { CURRENCIES, chainByFamily, type ExampleTrade } from '@/content'
 import { cn } from '@/lib/cn'
 
 interface Props {

@@ -1,7 +1,6 @@
 import { Clock } from 'lucide-react'
 import { Pill } from '@/components/ui/Pill'
-import { CATEGORIES } from '@/content/categories'
-import type { ExampleTask } from '@/content'
+import { CATEGORIES, type ExampleTask } from '@/content'
 import { cn } from '@/lib/cn'
 
 interface Props {
