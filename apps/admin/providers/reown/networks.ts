@@ -6,7 +6,16 @@
  * so `collectNetworks` fails loud at module init rather than silently dropping
  * a chain from the connect modal.
  */
-import { base, baseSepolia, celo, celoSepolia, solana, solanaDevnet } from '@reown/appkit/networks'
+import {
+  base,
+  baseSepolia,
+  celo,
+  celoSepolia,
+  solana,
+  solanaDevnet,
+  zeroGMainnet,
+  zeroGTestnet,
+} from '@reown/appkit/networks'
 import type { AppKitNetwork } from '@reown/appkit/networks'
 import { CHAIN_MANIFEST } from '@tenda/shared'
 
@@ -16,7 +25,13 @@ const NETWORK_BY_CHAIN_ID: Record<string, AppKitNetwork> = {
   'eip155:8453': base,
   'eip155:84532': baseSepolia,
   'eip155:42220': celo,
-  'eip155:11142220': celoSepolia
+  'eip155:11142220': celoSepolia,
+  // 0G Galileo is `zeroGTestnet` (id 16602), NOT `zeroGGalileoTestnet` —
+  // that preset carries the STALE pre-reset chain id 16601 despite the name
+  // (verified against the preset objects 2026-08-27; the live chain answers
+  // 16602). `zeroG` (16600, Newton) is older still.
+  'eip155:16602': zeroGTestnet,
+  'eip155:16661': zeroGMainnet,
 }
 
 type NonEmpty = [AppKitNetwork, ...AppKitNetwork[]]
