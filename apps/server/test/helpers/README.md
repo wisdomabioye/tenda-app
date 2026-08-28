@@ -25,6 +25,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `fetch-stub.ts` | `stubFetch()`, `stubFetchRejecting()`, `restoreFetch()`, `stubExpoPush()` — the outbound-HTTP double; returns a REAL `Response`, so no fixture can describe an impossible one like `{ ok: true, status: 500 }` |
 | `fiat-intents.ts` | `seedFiatIntent()`, `TEST_FIAT_PROVIDER` — insert one intent in a chosen status. No public route creates an intent in an arbitrary status, and the cases that need one are about the status a read or an override FINDS it in |
 | `route-table.ts` | `servedPaths(app)` — every URL the server actually serves, parsed back out of `printRoutes`. Split out of the drift suite in #121; the format is read from find-my-way's own pretty-printer, not guessed from a sample |
+| `agent-api-validator.ts` | `strictAjv()`, `agentApiAjv()`, `COMPONENT_REF_PREFIX` — the ONE strict-validator configuration the Agent API suites share (no coercion, no unknown-key stripping), with every component schema registered under its `$ref`; pinned here so a loosened copy cannot quietly weaken one suite |
 | `source-scan.ts` | `stripComments()` — for the few invariants only a source read can catch; blanks comment bodies while preserving line numbers, so a scan cannot match the prose ABOUT the pattern it hunts |
 | `redis.ts` / `chain.ts` | Type surfaces only — concrete impls live in the suites that need them |
 

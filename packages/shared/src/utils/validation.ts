@@ -131,6 +131,13 @@ export function isValidCompletionDuration(seconds: number): boolean {
 // Maximum records per page — prevents runaway queries on all paginated endpoints
 export const MAX_PAGINATION_LIMIT = 100
 
+/**
+ * Widest proximity search the feed accepts, in km (half the planet's
+ * circumference: anything larger is "no filter" wearing a radius). The server
+ * refuses a larger — or a non-positive — radius with 400.
+ */
+export const MAX_PROXIMITY_RADIUS_KM = 20_000
+
 // Cloudinary CDN URLs always start with this prefix.
 // Validate on receipt to prevent arbitrary URLs being stored in the DB.
 export function isCloudinaryUrl(url: string): boolean {

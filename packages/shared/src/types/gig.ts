@@ -6,6 +6,7 @@
  * them served from escrows ⨝ gig_details.
  */
 import type { GigCategory } from '../constants/categories'
+import type { GigListSort } from '../constants/gig-list'
 import type { CountryCode } from '../constants/locations'
 import type { ProofType } from '../constants/proofs'
 import type { ProofParams } from '../constants/proof-params'
@@ -216,7 +217,7 @@ export type GigListQuery = {
   status?: EscrowStatus[]
   min_amount_raw?: string
   max_amount_raw?: string
-  sort?: 'created_at' | 'amount_asc' | 'amount_desc'
+  sort?: GigListSort
   lat?: number // proximity search centre
   lng?: number
   radius_km?: number

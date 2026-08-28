@@ -50,6 +50,7 @@ export {
   MIN_COMPLETION_DURATION_SECONDS,
   MAX_COMPLETION_DURATION_SECONDS,
   MAX_PAGINATION_LIMIT,
+  MAX_PROXIMITY_RADIUS_KM,
   MAX_REVIEW_COMMENT_LENGTH,
   gigAmountBounds,
   isValidGigAmountRaw,
@@ -77,7 +78,7 @@ export {
 export { resolveHttpRpcEndpoints, type HttpRpcEndpointOptions } from './rpc-endpoints'
 export { withTimeout, createRefreshCoordinator, type RefreshCoordinator } from './async'
 export { notifyListeners } from './notify-listeners'
-export { isAmountRaw } from './amount-raw'
+export { AMOUNT_RAW_PATTERN, isAmountRaw } from './amount-raw'
 export {
   formatRelativeDay,
   formatRelativeShort,

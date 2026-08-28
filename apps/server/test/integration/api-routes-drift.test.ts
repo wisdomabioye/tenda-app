@@ -204,6 +204,11 @@ const NON_CONTRACT_PATHS = [
   // web and mobile actually call.
   '/v1/announcements',
   '/v1/escrows/:id/transactions',
+
+  // The Agent API v0 document (#16). Served for agents, not for web or mobile,
+  // so it belongs to no client route map; its own drift suite
+  // (agent-api-drift.test.ts) holds it to the path it declares for itself.
+  '/v1/openapi.json',
 ] as const
 
 test('every path no route MAP declares is served too — webhooks and ops', { skip }, async () => {

@@ -9,6 +9,7 @@ export {
   type SupportedCurrency,
 } from './currencies'
 export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, isCountryCode, localeCountryOrNull, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
+export { GIG_LIST_SORTS, type GigListSort } from './gig-list'
 export { MESSAGE_MAX_LENGTH } from './chat'
 export { NAME_MAX_LENGTH } from './users'
 export { ErrorCode } from './errors'

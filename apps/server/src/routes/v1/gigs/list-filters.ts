@@ -29,6 +29,7 @@ import {
   isValidLongitude,
   GIG_CATEGORIES,
   LOCATIONS,
+  MAX_PROXIMITY_RADIUS_KM,
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, GigCategory, EscrowStatus } from '@tenda/shared'
@@ -128,12 +129,12 @@ export function proximityCondition(query: ListQuery): SQL | null {
     !isValidLongitude(lngN) ||
     isNaN(rN) ||
     rN <= 0 ||
-    rN > 20_000
+    rN > MAX_PROXIMITY_RADIUS_KM
   ) {
     throw new AppError(
       400,
       ErrorCode.VALIDATION_ERROR,
-      'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid',
+      `lat (−90–90), lng (−180–180), and radius_km (0–${MAX_PROXIMITY_RADIUS_KM}) must all be provided and valid`,
     )
   }
   // @todo Migrate to PostGIS ST_DWithin when query volume grows
