@@ -31,6 +31,16 @@ export function normalizeEmail(raw: string): string | null {
 
 export const MAX_REVIEW_COMMENT_LENGTH = 1000
 
+/**
+ * The one character Postgres jsonb cannot store: a NUL anywhere in a string
+ * fails the cast ("unsupported Unicode escape sequence" — measured), so any
+ * user text headed for a jsonb column must refuse it at validation or the
+ * request dies as a driver error (500) instead of a 400.
+ */
+export function hasNulChar(text: string): boolean {
+  return text.includes('\u0000')
+}
+
 export function isValidLatitude(lat: number): boolean {
   return Number.isFinite(lat) && lat >= -90 && lat <= 90
 }

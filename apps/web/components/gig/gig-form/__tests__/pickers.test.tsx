@@ -5,7 +5,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
-import type { ProofType } from '@tenda/shared'
+import { DATA_PROOF_TYPES, FILE_PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
 import { AcceptDeadlinePicker } from '@/components/gig/gig-form/AcceptDeadlinePicker'
 import { AcceptanceModePicker } from '@/components/gig/gig-form/AcceptanceModePicker'
 import { NetworkPicker } from '@/components/gig/gig-form/NetworkPicker'
@@ -51,6 +51,20 @@ test('AcceptanceModePicker states both consequences and reports the mode', () =>
   expect(approval.textContent).toMatch(/extra transaction/)
   fireEvent.click(approval)
   expect(onChange).toHaveBeenCalledWith(true)
+})
+
+test('ProofRequirementPicker offers FILE types only — data types wait for the #15 params/capture UI', () => {
+  // A data-type requirement made here would be refused by the server
+  // (geotag/structured demand params this form cannot supply) or strand the
+  // worker (the upload dialog attaches FILES, so a required `text` could
+  // never be satisfied).
+  render(<ProofRequirementPicker value={[]} onChange={vi.fn()} />)
+  for (const type of FILE_PROOF_TYPES) {
+    expect(screen.getByRole('button', { name: PROOF_TYPE_LABEL[type] })).toBeInTheDocument()
+  }
+  for (const type of DATA_PROOF_TYPES) {
+    expect(screen.queryByRole('button', { name: PROOF_TYPE_LABEL[type] })).toBeNull()
+  }
 })
 
 test('ProofRequirementPicker toggles through the REAL normaliser (order is canonical)', () => {

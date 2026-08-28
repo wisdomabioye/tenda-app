@@ -21,6 +21,7 @@ const gig = {
   remote: false,
   cross_border: false,
   proof_requirements: [],
+  proof_params: null,
   requires_approval: false,
   creator: {
     id: 'user-1', first_name: 'Ada', last_name: 'Lovelace', avatar_url: null,
@@ -53,6 +54,8 @@ test('rejects malformed, private-looking, and incomplete feed frames', () => {
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, status: 'accepted' } }), null)
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, created_at: '2026-08-13' } }), null)
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, proof_requirements: ['invented'] } }), null)
+  assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, proof_params: undefined } }), null)
+  assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, proof_params: 'radius' } }), null)
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, creator: { id: 'user-1' } } }), null)
   assert.equal(parseWsServerFrame({ ...available, escrow_id: 'another-gig' }), null)
   assert.equal(parseWsServerFrame({ ...available, gig_revision: '3' }), null)

@@ -108,6 +108,14 @@ export const ErrorCode = {
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
   /** Submit refused: the gig requires proof types the worker has not attached. */
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
+  /**
+   * Proof-add refused: the payload failed its check against the gig's declared
+   * params — a geotag outside radius_m (verification), or structured values
+   * not matching the declared fields (conformance). Distinct from
+   * VALIDATION_ERROR (malformed payload) so a client can say "your evidence
+   * is well-formed but does not satisfy this gig" precisely.
+   */
+  PROOF_CHECK_FAILED:            'PROOF_CHECK_FAILED',
   /** Accept refused: the worker already holds the maximum concurrent gigs. */
   GIG_CAPACITY_REACHED:          'GIG_CAPACITY_REACHED',
   /** Apply refused: the worker already holds the maximum open applications. */

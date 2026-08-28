@@ -103,6 +103,8 @@ module.exports = [
   'hooks/useAttachmentUpload.ts',
   'components/shared/AttachSheet.tsx',
   'components/shared/media/AttachmentPreview.tsx',
+  // Proof→media boundary (#14): filters data proofs off the media surfaces.
+  'components/shared/media/file-proofs.ts',
   // Notification permission flow (primer tiers + throttled nudge).
   'lib/notifications/*.ts',
   // Pure re-export barrel, nothing to exercise.

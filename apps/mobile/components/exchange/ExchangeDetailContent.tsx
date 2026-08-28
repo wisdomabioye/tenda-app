@@ -10,7 +10,7 @@ import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, EscrowTransactionMonitor, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
 import { txSuccessCopy } from '@tenda/shared'
-import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { ReviewsSection, ProofsGrid, fileProofMediaItems, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
@@ -43,6 +43,9 @@ export function ExchangeDetailContent({
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
+  // Media surfaces render FILE proofs only; data proofs get their own
+  // rendering with #15 (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(offer.proofs)
 
   const actions = useEscrowActions({
     escrowId: offer.escrow_id,
@@ -142,17 +145,17 @@ export function ExchangeDetailContent({
 
         <ExchangeOfferOverview offer={offer} userId={userId} fiat={fiat} contextTitle={contextTitle} />
 
-        {offer.proofs.length > 0 && (
+        {fileProofs.length > 0 && (
           <>
             <Divider />
             <View style={s.sectionHead}>
               <Text style={s.sectionTitle}>Payment proof</Text>
               <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-                {offer.proofs.length} {offer.proofs.length === 1 ? 'file' : 'files'}
+                {fileProofs.length} {fileProofs.length === 1 ? 'file' : 'files'}
               </Text>
             </View>
             <Spacer size={spacing.sm} />
-            <ProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
+            <ProofsGrid proofs={fileProofs} onProofPress={setSelectedProof} />
           </>
         )}
 

@@ -1,7 +1,8 @@
 /** Gig satellite: the human-facing listing fields + full-text search vector. */
 
 import { sql, type SQL } from 'drizzle-orm'
-import { boolean, customType, doublePrecision, index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
+import { boolean, customType, doublePrecision, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core'
+import type { ProofParams } from '../../../constants/proof-params'
 import { escrows } from './escrows'
 import { proofTypeEnum } from './enums'
 
@@ -39,6 +40,13 @@ export const gig_details = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::proof_type[]`),
+    /**
+     * Per-type params for the requirements above (geotag radius, structured
+     * fields) — mandatory for those types, refused for others; see
+     * `parseProofParams`. Null = no param-bearing type is required, which is
+     * every pre-existing row.
+     */
+    proof_params: jsonb('proof_params').$type<ProofParams>(),
     // Weighted: title (A) outranks description (B) in ts_rank ordering.
     search_vector: tsvector('search_vector').generatedAlwaysAs(
       (): SQL =>

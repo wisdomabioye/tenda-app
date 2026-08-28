@@ -25,6 +25,9 @@ export const GIG_DETAIL_COPY = {
     image: 'A clear photo, taken at the place the work happened.',
     video: 'A short clip. Long uploads fail more often than they help.',
     document: 'A receipt, invoice or signed note as a file.',
+    geotag: "A location check-in from the work site — it must fall within this gig's radius.",
+    text: 'A written answer, typed straight into the proof form.',
+    structured: 'The exact fields this gig asks for, filled in as data.',
   },
   postedBy: 'Posted by',
   /** The counterparty card's role line to the CREATOR (party-view.ts pairs it

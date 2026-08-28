@@ -18,7 +18,9 @@ export interface DossierProofInput {
   id: string
   type: ProofType
   uploaded_at: Date | string | null
-  url: string
+  /** Null on data proofs (geotag/text/structured) — the row renders its label
+   *  unlinked; payload rendering is #15's surface. */
+  url: string | null
 }
 
 /**

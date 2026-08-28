@@ -42,6 +42,7 @@ function gig(id: string, revision = '1'): GigSummary {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     creator: {
       id: 'creator', first_name: 'Ada', last_name: 'Lovelace', avatar_url: null,

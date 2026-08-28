@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { MAX_GIG_TITLE_LENGTH, MAX_GIG_DESCRIPTION_LENGTH } from '@tenda/shared'
+import { MAX_GIG_TITLE_LENGTH, MAX_GIG_DESCRIPTION_LENGTH, MAX_PROOF_REQUIREMENTS } from '@tenda/shared'
 import type { CreateGigDetailsBody } from '@tenda/shared'
 import { validateGigDetails } from '@server/lib/gig-details'
 import { AppError } from '@server/lib/errors'
@@ -169,10 +169,13 @@ test('proof_requirements rejects a non-string entry', () => {
 })
 
 test('proof_requirements rejects an over-long array before inspecting entries', () => {
+  // The cap is the vocabulary size (a deduplicated subset can never usefully
+  // be longer), so the fixture derives from it rather than pinning a count
+  // that grows with every added proof type.
   expect400(
-    withProofRequirements(['image', 'video', 'document', 'image']),
+    withProofRequirements(Array.from({ length: MAX_PROOF_REQUIREMENTS + 1 }, () => 'image')),
     'NG',
-    /at most 3 entries/,
+    new RegExp(`at most ${MAX_PROOF_REQUIREMENTS} entries`),
   )
 })
 
@@ -182,4 +185,63 @@ test('proof_requirements rejects a nested array entry', () => {
 
 test('proof_requirements rejects a null entry', () => {
   expect400(withProofRequirements([null]), 'NG', /must be one of/)
+})
+
+// ---------- proof_params + the geotag-needs-a-pin rule ----------------------
+
+test('proof_params flow through validated and normalised', () => {
+  const v = validateGigDetails(
+    body({
+      latitude: 6.5244,
+      longitude: 3.3792,
+      proof_requirements: ['geotag', 'structured', 'image'],
+      proof_params: {
+        geotag: { radius_m: 500 },
+        structured: { fields: [{ name: ' count ', kind: 'number', required: true }] },
+      },
+    }),
+    'NG',
+  )
+  assert.deepEqual(v.proof_requirements, ['image', 'geotag', 'structured'])
+  assert.deepEqual(v.proof_params, {
+    geotag: { radius_m: 500 },
+    structured: { fields: [{ name: 'count', kind: 'number', required: true }] },
+  })
+})
+
+test('no param-bearing requirement stores null params', () => {
+  const v = validateGigDetails(body({ proof_requirements: ['image', 'text'] }), 'NG')
+  assert.strictEqual(v.proof_params, null)
+})
+
+test('a geotag requirement without coordinates is refused — nothing to verify against', () => {
+  expect400(
+    body({ proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 100 } } }),
+    'NG',
+    /latitude and longitude/,
+  )
+})
+
+test('a geotag requirement without its radius is refused', () => {
+  expect400(
+    body({ latitude: 6.5, longitude: 3.4, proof_requirements: ['geotag'] }),
+    'NG',
+    /proof_params\.geotag is required/,
+  )
+})
+
+test('a structured requirement without declared fields is refused', () => {
+  expect400(
+    body({ proof_requirements: ['structured'] }),
+    'NG',
+    /proof_params\.structured is required/,
+  )
+})
+
+test('params for a type the gig does not require are refused', () => {
+  expect400(
+    body({ proof_requirements: ['image'], proof_params: { geotag: { radius_m: 100 } } }),
+    'NG',
+    /only valid when geotag proof is required/,
+  )
 })

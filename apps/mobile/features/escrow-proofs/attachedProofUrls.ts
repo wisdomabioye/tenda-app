@@ -1,3 +1,4 @@
+import { canonicalJson } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /**
@@ -23,5 +24,9 @@ import { api } from '@/api/client'
  */
 export async function attachedProofUrls(escrowId: string): Promise<string[]> {
   const stored = await api.escrows.proofs({ id: escrowId })
-  return stored.map((proof) => proof.url).sort()
+  // A data proof (geotag/text/structured) has no url — its substance is the
+  // payload, sealed as canonical JSON so the digest still covers ALL the
+  // evidence. File-only escrows produce the exact list they always did, so
+  // every existing digest stays reproducible.
+  return stored.map((proof) => proof.url ?? canonicalJson(proof.payload)).sort()
 }

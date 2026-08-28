@@ -85,6 +85,7 @@ function row(
       remote: false,
       cross_border: false,
       proof_requirements: [],
+      proof_params: null,
       // Every row on this list is an approval-mode gig by construction: the
       // apply route refuses an instant one.
       requires_approval: true,

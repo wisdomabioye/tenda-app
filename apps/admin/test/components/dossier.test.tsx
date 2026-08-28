@@ -21,6 +21,7 @@ function gigDetails(over: Partial<DossierGigDetails> = {}): DossierGigDetails {
     city: 'Lagos',
     remote: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     assigned_from_application: false,
     applicant_count: 0,
@@ -71,7 +72,7 @@ test('PartyCard uses Maker/Taker labels for exchanges and falls back on null nam
 // ─── ProofsGallery ────────────────────────────────────────────────────────────
 
 const proof = (over: Partial<DossierProof> = {}): DossierProof => ({
-  id: 'pr1', url: 'https://res.cloudinary.com/x.jpg', type: 'image', uploaded_at: '2026-06-10T00:00:00.000Z', ...over,
+  id: 'pr1', url: 'https://res.cloudinary.com/x.jpg', payload: null, type: 'image', uploaded_at: '2026-06-10T00:00:00.000Z', ...over,
 })
 
 test('ProofsGallery renders images, video/document tiles, and the fiat payment proof', () => {

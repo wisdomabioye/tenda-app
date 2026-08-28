@@ -19,7 +19,7 @@ import {
   exchange_details,
 } from '@tenda/shared/db/schema'
 import { bank_accounts } from '@tenda/shared/db/schema/fiat'
-import type { ProofType } from '@tenda/shared'
+import type { ProofParams, ProofType } from '@tenda/shared'
 import { userFixture, escrowFixture, type UserRow, type EscrowRow } from '../fixtures'
 import { TEST_ASSET, TEST_CHAIN_ID } from './fake-chain'
 
@@ -151,6 +151,10 @@ export interface GigDetailsOverrides {
   cross_border?: boolean
   /** Poster-declared evidence gate; empty (the default) accepts anything. */
   proof_requirements?: ProofType[]
+  /** Per-type params (geotag radius, structured fields). */
+  proof_params?: ProofParams | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export async function attachGigDetails(

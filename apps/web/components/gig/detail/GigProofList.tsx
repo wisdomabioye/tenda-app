@@ -8,7 +8,7 @@
  * that rather than rendering an empty section.
  */
 import { PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
-import { FileText, Image, Video } from 'lucide-react'
+import { AlignLeft, Braces, FileText, Image, MapPin, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { GIG_DETAIL_COPY } from './copy'
 
@@ -16,6 +16,9 @@ const PROOF_ICONS: Record<ProofType, LucideIcon> = {
   image: Image,
   video: Video,
   document: FileText,
+  geotag: MapPin,
+  text: AlignLeft,
+  structured: Braces,
 }
 
 export function GigProofList({ requirements }: { requirements: readonly ProofType[] }) {

@@ -43,6 +43,7 @@ function gigRow(overrides: Partial<GigSummaryRow> = {}): GigSummaryRow {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     creator,
     ...overrides,

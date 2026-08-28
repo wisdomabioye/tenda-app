@@ -29,6 +29,7 @@ export const GIG_SUMMARY_COLS = {
   remote: gig_details.remote,
   cross_border: gig_details.cross_border,
   proof_requirements: gig_details.proof_requirements,
+  proof_params: gig_details.proof_params,
   requires_approval: escrows.requires_approval,
   creator: USER_COLS,
 }

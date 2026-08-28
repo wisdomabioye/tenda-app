@@ -268,7 +268,7 @@ test('the retry submits on the STORED proofs alone, with no file re-picked', asy
   // itself.
   actionsState.submit.mockResolvedValue(true)
   renderAsWorkerOnAcceptedGig([
-    { id: 'p1', escrow_id: 'escrow-1', url: 'https://cdn/a.jpg', type: 'image', uploaded_at: new Date(0) },
+    { id: 'p1', escrow_id: 'escrow-1', url: 'https://cdn/a.jpg', payload: null, type: 'image', uploaded_at: new Date(0) },
   ])
 
   fireEvent.click(await screen.findByRole('button', { name: 'Submit Proof' }))

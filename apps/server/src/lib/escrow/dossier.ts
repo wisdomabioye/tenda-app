@@ -89,6 +89,7 @@ export async function buildEscrowDossier(
           city: gigRow[0].city,
           remote: gigRow[0].remote,
           proof_requirements: gigRow[0].proof_requirements,
+          proof_params: gigRow[0].proof_params,
           requires_approval: escrow.requires_approval,
           assigned_from_application: escrow.assigned_from_application,
           applicant_count: applicantRows[0]?.n ?? 0,
@@ -120,6 +121,7 @@ export async function buildEscrowDossier(
     proofs: proofRows.map((p) => ({
       id: p.id,
       url: p.url,
+      payload: p.payload,
       type: p.type,
       uploaded_at: iso(p.uploaded_at),
     })),

@@ -9,6 +9,7 @@ import {
   isCrossBorder,
   isProofType,
   normaliseProofRequirements,
+  parseProofParams,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   LOCATIONS,
@@ -21,6 +22,7 @@ import type {
   CreateGigDetailsBody,
   GigCategory,
   CountryCode,
+  ProofParams,
   ProofType,
 } from '@tenda/shared'
 import { AppError } from './errors'
@@ -37,6 +39,7 @@ export interface ValidatedGigDetails {
   remote: boolean
   cross_border: boolean
   proof_requirements: ProofType[]
+  proof_params: ProofParams | null
 }
 
 function fail(message: string): never {
@@ -88,6 +91,7 @@ export function validateGigDetails(
     latitude,
     longitude,
     proof_requirements,
+    proof_params,
   } = body
 
   if (typeof title !== 'string' || title.trim() === '') fail('title is required')
@@ -119,6 +123,16 @@ export function validateGigDetails(
     }
   }
 
+  const requirements = validateProofRequirements(proof_requirements)
+  // A geotag proof is verified against the gig's own pin — a gig without one
+  // has nothing to verify against, so the requirement is refused at the door
+  // rather than stored uncheckable.
+  if (requirements.includes('geotag') && (latitude == null || longitude == null)) {
+    fail('geotag proof requires the gig to have latitude and longitude')
+  }
+  const parsedParams = parseProofParams(requirements, proof_params)
+  if (parsedParams.error !== undefined) fail(parsedParams.error)
+
   return {
     title: title.trim(),
     description: description?.trim() || null,
@@ -129,6 +143,7 @@ export function validateGigDetails(
     longitude: longitude ?? null,
     remote,
     cross_border: isCrossBorder(remote, resolvedCountry, creatorCountry),
-    proof_requirements: validateProofRequirements(proof_requirements),
+    proof_requirements: requirements,
+    proof_params: parsedParams.params,
   }
 }

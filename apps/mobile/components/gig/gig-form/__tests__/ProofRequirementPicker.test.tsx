@@ -6,7 +6,7 @@
  * indistinguishable.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import { PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
+import { DATA_PROOF_TYPES, FILE_PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
 
 interface Captured {
   label: string
@@ -53,10 +53,17 @@ function setup(value: ProofType[] = []) {
   return { onChange, view }
 }
 
-test('offers every declared proof type, labelled', () => {
+test('offers the FILE proof types, labelled — and NOT the data types', () => {
   setup()
-  for (const type of PROOF_TYPES) {
+  for (const type of FILE_PROOF_TYPES) {
     expect(screen.getByText(PROOF_TYPE_LABEL[type])).toBeTruthy()
+  }
+  // Until #15 ships the params + capture UI, a data-type requirement made
+  // here would either be refused by the server (geotag/structured demand
+  // params this form cannot supply) or strand the worker (the submit sheet
+  // attaches FILES, so a required `text` could never be satisfied).
+  for (const type of DATA_PROOF_TYPES) {
+    expect(screen.queryByText(PROOF_TYPE_LABEL[type])).toBeNull()
   }
 })
 

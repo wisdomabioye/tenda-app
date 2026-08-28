@@ -92,6 +92,22 @@ test('attachedProofUrls answers an empty list for an escrow with no evidence', a
   await expect(attachedProofUrls('e1')).resolves.toEqual([])
 })
 
+test('attachedProofUrls seals data proofs as canonical JSON, key order blind', async () => {
+  // A data proof has no url — the digest covers its PAYLOAD, canonicalised so
+  // the same evidence seals identically whatever key order it was stored with.
+  proofsMock.mockResolvedValue([
+    { url: 'https://cdn/a.jpg', type: 'image', payload: null },
+    { url: null, type: 'geotag', payload: { longitude: 3.3792, latitude: 6.5244 } },
+    { url: null, type: 'text', payload: { text: 'done' } },
+  ])
+  await expect(attachedProofUrls('e1')).resolves.toEqual([
+    // Code-unit sort: 'h' (0x68) precedes '{' (0x7B), so urls lead.
+    'https://cdn/a.jpg',
+    '{"latitude":6.5244,"longitude":3.3792}',
+    '{"text":"done"}',
+  ])
+})
+
 test('uploadProofs uploads in order and returns the proof list', async () => {
   uploadMock.mockResolvedValueOnce('https://cdn/1.jpg').mockResolvedValueOnce('https://cdn/2.pdf')
   const files = [

@@ -74,7 +74,8 @@ test('the party half is rendered from what the SERVER sent, never synthesised', 
           {
             id: 'proof-1',
             escrow_id: 'exch-1',
-            // A REAL proof type: `PROOF_TYPES` is image | video | document,
+            payload: null,
+            // A REAL proof type from `PROOF_TYPES`,
             // so the row this asserts on is one the server can actually send.
             type: 'image',
             url: 'https://cdn.test/receipt.png',

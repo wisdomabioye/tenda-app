@@ -45,6 +45,7 @@ function gig(escrow_id: string, created_at: string, overrides: Partial<GigSummar
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     creator,
     ...overrides,

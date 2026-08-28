@@ -84,6 +84,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     // Visible by default; takedown tests opt in with `{ hidden: true }`, which
     // keeps the moderation state readable at the call site rather than in a

@@ -46,6 +46,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     hidden: false,
     creator: userRef(CREATOR_ID),

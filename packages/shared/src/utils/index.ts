@@ -67,6 +67,8 @@ export {
   normalizeEmail,
 } from './validation'
 export type { ValidationResult } from './validation'
+export { hasNulChar } from './validation'
+export { haversineDistanceMeters } from './geo'
 export { buildAuthMessage, type AuthMessageInput } from './auth-message'
 export {
   resolveSolanaTransactionStatus,

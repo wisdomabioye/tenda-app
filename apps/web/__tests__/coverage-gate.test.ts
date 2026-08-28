@@ -67,16 +67,17 @@ const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
  * half that is a real blind spot, so each entry names the subject it misses
  * rather than giving a prose excuse.
  *
- * EMPTY here, and that is a fact about web rather than an omission. Mobile's
- * equivalent register carries one entry because its resolver suite sits at the
- * APP ROOT, where the owner is '.' and nothing can resolve. Web's resolver has
- * a dedicated suite too since #84 — two, in test-support/__tests__/ — but they
- * sit beside the module they test, so they resolve BY NAME through the same
- * suffix-stripping walk they exercise, and need no entry here. The group exists
- * anyway so the next unresolved suite has to be classified as one kind or the
- * other, and so a blind spot cannot be filed under "no subject" by default.
+ * Mobile's equivalent register carries its resolver suite (it sits at the APP
+ * ROOT, where the owner is '.' and nothing can resolve). Web's resolver suites
+ * (test-support/__tests__/, #84) sit beside the module they test and resolve
+ * BY NAME, so they need no entry — the register held only suites whose NAME
+ * deliberately differs from their subject's.
  */
-const SUBJECT_NOT_RESOLVABLE: Record<string, string> = {}
+const SUBJECT_NOT_RESOLVABLE: Record<string, string> = {
+  // #24 follow-up: asserts networks.ts's module-INIT contract, so it needs its
+  // own file (fresh import per case) — the resolver cannot walk "-init" back.
+  'wallet/reown/__tests__/networks-init.test.ts': 'wallet/reown/networks.ts',
+}
 
 describe('coverage gate scope', () => {
   it('resolves a scope that is not empty — the check must not pass vacuously', () => {
@@ -231,7 +232,8 @@ describe('coverage gate scope', () => {
     // otherwise undo it in silence: no pattern goes dead, the thresholds barely
     // move, and the gate quietly stops measuring the code that defines the gate.
     // Mobile is held to this by its SUBJECT_NOT_RESOLVABLE entry naming the
-    // resolver; web's register is empty, so the lock has to be its own case.
+    // resolver; web's register carries no test-support entry (its resolver
+    // suites resolve by name), so the lock has to be its own case.
     //
     // Derived from the tree rather than a hand-listed trio, so a fourth module
     // added beside them is covered the day it appears. `.d.ts` is excluded

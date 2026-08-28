@@ -54,6 +54,7 @@ export const deliveryGig: GigSummary = {
   remote: false,
   cross_border: false,
   proof_requirements: ['image'],
+  proof_params: null,
   requires_approval: false,
   creator: poster,
 }

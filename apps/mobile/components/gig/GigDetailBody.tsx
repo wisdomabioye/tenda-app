@@ -6,7 +6,7 @@ import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
 import { ProofRequirementsNote } from './ProofRequirementsNote'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel, CATEGORY_META, computeRelevantDeadline } from '@tenda/shared'
-import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, fileProofMediaItems, type MediaItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge, TakedownNotice } from '@/components/escrow'
 import type { GigDetail } from '@tenda/shared'
 
@@ -29,6 +29,9 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
     isCreator || userId === gig.counterparty?.id || userId === gig.assigned_counterparty_id
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const deadlineLbl = deadlineLabel(computeRelevantDeadline(gig))
+  // Media surfaces render FILE proofs only; data proofs get their own
+  // rendering with #15 (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(gig.proofs)
 
   return (
     <>
@@ -121,17 +124,17 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
         </>
       )}
 
-      {gig.proofs.length > 0 && (
+      {fileProofs.length > 0 && (
         <>
           <Divider />
           <View style={s.sectionHead}>
             <Text style={s.sectionTitle}>Proof of work</Text>
             <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-              {gig.proofs.length} {gig.proofs.length === 1 ? 'file' : 'files'}
+              {fileProofs.length} {fileProofs.length === 1 ? 'file' : 'files'}
             </Text>
           </View>
           <Spacer size={spacing.sm} />
-          <ProofsGrid proofs={gig.proofs} onProofPress={onProofPress} />
+          <ProofsGrid proofs={fileProofs} onProofPress={onProofPress} />
         </>
       )}
 

@@ -8,6 +8,7 @@
 import type { GigCategory } from '../constants/categories'
 import type { CountryCode } from '../constants/locations'
 import type { ProofType } from '../constants/proofs'
+import type { ProofParams } from '../constants/proof-params'
 // Type-only, so nothing is emitted and the gig ↔ application pairing stays a
 // compile-time relationship rather than a runtime import cycle.
 import type { GigViewerContext } from './application'
@@ -46,6 +47,13 @@ export interface GigSummary {
    * they accept, or discovering it afterwards is a bait-and-switch.
    */
   proof_requirements: ProofType[]
+  /**
+   * Per-type params for the requirements (geotag radius, structured fields);
+   * null when no required type carries params. On the SUMMARY for the same
+   * reason `proof_requirements` is: "within 500 m of the pin" and which fields
+   * must be reported are part of what accepting commits a worker to.
+   */
+  proof_params: ProofParams | null
   /**
    * Approval mode: this gig is assigned by the poster from applications, so a
    * worker APPLIES rather than accepting.
@@ -167,6 +175,11 @@ export interface CreateGigDetailsBody {
    * how every gig behaved before this field existed.
    */
   proof_requirements?: ProofType[]
+  /**
+   * Required iff `proof_requirements` includes a param-bearing type (geotag,
+   * structured); refused otherwise. See `parseProofParams`.
+   */
+  proof_params?: ProofParams | null
 }
 
 // ── Query types ───────────────────────────────────────────────────────
