@@ -104,8 +104,10 @@ export {
 export {
   PARAM_PROOF_TYPES,
   STRUCTURED_FIELD_KINDS,
+  STRUCTURED_FIELD_KIND_LABEL,
   MIN_GEOTAG_RADIUS_M,
   MAX_GEOTAG_RADIUS_M,
+  DEFAULT_GEOTAG_RADIUS_M,
   MAX_STRUCTURED_FIELDS,
   MAX_STRUCTURED_FIELD_NAME_LENGTH,
   parseProofParams,
@@ -161,7 +163,16 @@ export {
 export * from './assets'
 export { TRANSACTION_RESILIENCE } from './transaction-resilience'
 export { TRANSACTION_COPY } from './transaction-copy'
-export { PROOF_COPY, proofRequirementLine } from './proof-copy'
+export {
+  PROOF_COPY,
+  proofRequirementLine,
+  proofParamDetail,
+  proofPayloadLines,
+  formatCoords,
+  formatMetres,
+  checkInVerdict,
+  type ProofPayloadLine,
+} from './proof-copy'
 export {
   SIGNING_WALLET_COPY,
   BOUND_WALLET_LABEL,
@@ -194,6 +205,17 @@ export {
   type GigRequirementCheck,
   type GigValidationValues,
 } from './gig-composer'
+export {
+  emptyProofParamsDraft,
+  emptyStructuredFieldDraft,
+  draftFromProofParams,
+  draftRadiusM,
+  buildProofParams,
+  composerProofSubmission,
+  proofSetupProblem,
+  type ProofParamsDraft,
+  type StructuredFieldDraft,
+} from './gig-composer-proofs'
 export {
   APPLY_OBLIGATION,
   APPLY_TITLE,

@@ -8,7 +8,8 @@
 import type { Endpoint } from '../endpoint'
 import type { AssignWorkerBody, ReleaseAssignmentResponse } from '../../types/application'
 import type { EscrowTxType } from '../../constants/escrow'
-import type { ProofType } from '../../constants/proofs'
+import type { DataProofType, FileProofType, ProofType } from '../../constants/proofs'
+import type { ProofPayload } from '../../constants/proof-payloads'
 import type { EscrowProof } from '../../types/escrow'
 import type { Review, ReviewInput } from '../../types/review'
 import type { DisputeMessage, DisputeThreadResponse, SendDisputeMessageBody } from '../../types/dispute'
@@ -153,9 +154,19 @@ export interface SubmitEscrowProofBody {
   proof_hash: string
 }
 
-/** Off-chain evidence files (Cloudinary URLs under the uploader's folder). */
+/**
+ * One proof in an upload batch, by class: a FILE proof is a Cloudinary url
+ * under the uploader's folder, a DATA proof (geotag/text/structured) is a
+ * payload the server shape-checks and — where the gig declared params —
+ * verifies. Exactly one of the two per proof; the server refuses a mix.
+ */
+export type EscrowProofUpload =
+  | { type: FileProofType; url: string }
+  | { type: DataProofType; payload: ProofPayload }
+
+/** Off-chain evidence batch — see EscrowProofUpload for the per-class shape. */
 export interface AddEscrowProofsBody {
-  proofs: Array<{ url: string; type: ProofType }>
+  proofs: EscrowProofUpload[]
 }
 
 export interface DisputeEscrowApiBody {

@@ -32,7 +32,7 @@ import { useGigsStore } from '@/stores'
 import { apiConfig, canAccept, formatAssetAmount, formatDuration } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { api } from '@/api/client'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
@@ -143,7 +143,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   // Sheet-confirmed handlers (sheets collect input; the hook signs).
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
     const submitted = await actions.submit(proofs)
     // A failed submit is HALF done: the files uploaded, the transaction did
     // not. Re-read so the sheet's "already attached" is the truth when the
@@ -154,7 +154,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) {
       void fetchGigDetail(gig.escrow_id)
     }

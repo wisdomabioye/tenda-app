@@ -72,8 +72,9 @@ export const WIZARD_STEPS: readonly WizardStep[] = [
     title: 'What proof settles it?',
     blurb:
       'Proof is what turns finished work into released money. Pick what you would genuinely check.',
-    // Both fields on this step have valid unset values — see GIG_REQUIREMENTS.
-    requirements: [],
+    // An empty selection stays valid ("any evidence") — but a param-bearing
+    // requirement (geotag, structured) blocks until its params are complete.
+    requirements: [GIG_REQUIREMENTS.proof],
   },
   {
     key: 'money',

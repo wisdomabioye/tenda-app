@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { ModerationPreviewResponse } from '@tenda/shared'
+import { emptyProofParamsDraft } from '@tenda/shared'
 import { useGigForm } from '../gig-form/useGigForm'
 import { GigForm } from '../GigForm'
 import { SEGMENT_SWEEP_MS } from '../gig-form/GigComposerProgress'
@@ -80,6 +81,7 @@ function controller() {
     selectedCity: 'Lagos', setSelectedCity: setter,
     acceptDeadlineHours: 168, setAcceptDeadlineHours: setter,
     proofRequirements: [], setProofRequirements: setter,
+    proofDraft: emptyProofParamsDraft(), setProofDraft: setter,
     requiresApproval: false, setRequiresApproval: setter,
     warnSheetOpen: false, setWarnSheetOpen,
     homeCountry: 'NG',

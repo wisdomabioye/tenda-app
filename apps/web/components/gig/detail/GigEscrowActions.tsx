@@ -30,7 +30,7 @@ import {
 import { api } from '@/api/client'
 import { useGigsStore } from '@/stores/gigs.store'
 import { ROUTES } from '@/lib/routes'
-import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/escrow/useEscrowActions'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { useGigApprovalFlow } from '@/hooks/gig/useGigApprovalFlow'
 import { showToast } from '@/components/ui/Toast'
@@ -98,7 +98,7 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
   }
 
   // Sheet-confirmed handlers (dialogs collect input; the hook signs).
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
     const submitted = await actions.submit(proofs)
     // A failed submit is HALF done: the files uploaded, the transaction did
     // not. Re-read so the dialog's "already attached" is the truth when the
@@ -109,7 +109,7 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
     return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) {
       void fetchGigDetail(gig.escrow_id)
     }

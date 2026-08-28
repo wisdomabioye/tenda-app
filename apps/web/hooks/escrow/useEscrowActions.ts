@@ -8,13 +8,15 @@
  *   request unsigned tx (escrow.store) → sign + broadcast + client-ping
  *   (wallet/dispatch) → TransactionMonitor/WS confirms → screen refreshes.
  *
- * Proof submission is two-phase: the proof FILES go to the off-chain
- * satellite first, then the on-chain submit commits a digest over the
- * escrow's whole stored evidence set (`attachedProofUrls` → `proofHashFor`).
+ * Proof submission is two-phase: the proofs — file urls AND data payloads
+ * (geotag/text/structured) — go to the off-chain satellite first, then the
+ * on-chain submit commits a digest over the escrow's whole stored evidence
+ * set (`attachedProofUrls` → `proofHashFor`).
  */
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  PROOF_COPY,
   TAKEDOWN_REFUSED_MESSAGE,
   TRANSACTION_GATE_MESSAGE,
   WalletError,
@@ -25,7 +27,7 @@ import {
   requiredWalletOf,
   transactionGateRoute,
   type EscrowTxType,
-  type ProofType,
+  type EscrowProofUpload,
   type TransactionProgressPhase,
   type UnsignedTx,
 } from '@tenda/shared'
@@ -43,10 +45,11 @@ import { showToast } from '@/components/ui/Toast'
 import { attachedProofUrls, persistEscrowProofs } from '@/lib/uploads/escrow-proofs'
 import { proofHashFor } from './proof-hash'
 
-export interface ProofFile {
-  url: string
-  type: ProofType
-}
+/**
+ * One proof handed to submit/addProofs — the shared wire union (file url OR
+ * data payload). The old `ProofFile` name died with the files-only era.
+ */
+export type EscrowProofInput = EscrowProofUpload
 
 export type TxPhase = TransactionProgressPhase
 
@@ -238,7 +241,7 @@ export function useEscrowActions({
      * after the upload — see `attachedProofUrls` for why that and not the
      * batch.
      */
-    submit: async (proofs: ProofFile[]): Promise<boolean> => {
+    submit: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       setBusyAction('submit')
       setPhase('preparing')
       // Two legs, two fallbacks. Sharing one message told a worker their files
@@ -250,7 +253,7 @@ export function useEscrowActions({
       try {
         if (proofs.length > 0) await persistEscrowProofs(escrowId, proofs)
       } catch (e) {
-        return failPreparation(e, 'Failed to save proof files')
+        return failPreparation(e, PROOF_COPY.saveFailed)
       }
       try {
         urls = await attachedProofUrls(escrowId)
@@ -262,7 +265,7 @@ export function useEscrowActions({
     },
 
     /** Supplementary evidence while submitted, off-chain only. */
-    addProofs: async (proofs: ProofFile[]): Promise<boolean> => {
+    addProofs: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       try {
         await persistEscrowProofs(escrowId, proofs)
         showToast('success', 'Proof added!')

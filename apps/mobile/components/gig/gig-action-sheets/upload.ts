@@ -1,9 +1,14 @@
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
-import { errorMessage, type ProofType } from '@tenda/shared'
+import { errorMessage, type EscrowProofUpload } from '@tenda/shared'
 
-export type Proof = { url: string; type: ProofType }
+/**
+ * One proof headed for POST /escrows/:id/proofs — the shared wire union:
+ * a FILE proof (uploaded url) or a DATA proof (geotag/text/structured
+ * payload, captured by DataProofInputs, never uploaded anywhere).
+ */
+export type Proof = EscrowProofUpload
 
 /**
  * Upload picked proof files to Cloudinary in order. Returns the proof list on

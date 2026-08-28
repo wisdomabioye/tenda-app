@@ -205,3 +205,14 @@ test('an undeclared value is refused — the payload must match the declared sha
     /"extra" is not a declared field/,
   )
 })
+
+test('a field named "__proto__" is judged by its OWN value, never by the prototype', () => {
+  // `values[name]` on a plain object answers Object.prototype for that name
+  // when no own key exists, so the check would say "must be a number" for a
+  // field the worker never answered — and, worse, would pass an inherited
+  // object off as an answer. Own-property lookups only.
+  const fields: StructuredProofField[] = [{ name: '__proto__', kind: 'number', required: true }]
+  assert.match(structuredValuesProblem(fields, {}) ?? '', /"__proto__" is required/)
+  const answered = Object.fromEntries([['__proto__', 3]]) as Record<string, number>
+  assert.equal(structuredValuesProblem(fields, answered), null)
+})

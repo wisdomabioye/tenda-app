@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { CATEGORY_META } from '@tenda/shared'
+import { CATEGORY_META, emptyProofParamsDraft } from '@tenda/shared'
 
 const { configMock, authState } = vi.hoisted(() => ({
   configMock: vi.fn(),
@@ -41,6 +41,8 @@ const BLANK_VALUES: GigValidationValues = {
   asset: 'USDC_SOL',
   paymentRaw: '',
   completionDuration: 86_400,
+  proofRequirements: [],
+  proofDraft: emptyProofParamsDraft(),
 }
 
 const FILLED_VALUES: GigValidationValues = {

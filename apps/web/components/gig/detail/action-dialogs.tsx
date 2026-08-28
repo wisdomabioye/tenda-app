@@ -13,6 +13,7 @@ import {
   errorMessage,
   formatAssetAmount,
   type ActiveSheet,
+  type ProofParams,
   type ProofType,
   type ReviewInput,
 } from '@tenda/shared'
@@ -42,6 +43,11 @@ interface EscrowActionTarget {
   /** The viewer's chain-bound wallet, when the escrow recorded one. */
   my_signer_address: string | null
   proof_requirements?: readonly ProofType[]
+  /** Gig-only: per-type params behind the requirements (geotag/structured). */
+  proof_params?: ProofParams | null
+  /** Gig-only: the declared check-in point, for the geotag distance note. */
+  latitude?: number | null
+  longitude?: number | null
   proofs?: readonly { type: ProofType }[]
 }
 
@@ -239,6 +245,12 @@ export function GigActionDialogs({
         chainId={gig.chain_id}
         boundSigner={gig.my_signer_address}
         requirements={gig.proof_requirements ?? []}
+        proofParams={gig.proof_params ?? null}
+        gigPin={
+          gig.latitude != null && gig.longitude != null
+            ? { latitude: gig.latitude, longitude: gig.longitude }
+            : null
+        }
         alreadyAttached={gig.proofs ?? []}
         onSubmit={onProofsReady}
       />

@@ -172,6 +172,9 @@ module.exports = [
   'components/gig/gigMetaRows.ts',
   'components/gig/GigActionSheets.tsx',
   'components/gig/gig-action-sheets/{ProofUploadSheet.tsx,upload.ts}',
+  // #15 data proofs: worker capture UI, composer param editors, payload list.
+  'components/gig/{gig-action-sheets/data-proofs,gig-form/proof-params}/*.tsx',
+  '{components/shared/DataProofList.tsx,hooks/useDeviceCoords.ts}',
   // The read-back the on-chain digest is taken over. Measured before listing.
   'features/escrow-proofs/attachedProofUrls.ts',
   'components/ui/Input.tsx',

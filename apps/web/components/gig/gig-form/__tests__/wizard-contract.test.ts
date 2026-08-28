@@ -8,7 +8,7 @@
  * render perfectly.
  */
 import { describe, expect, test } from 'vitest'
-import { GIG_REQUIREMENTS, type GigValidationValues } from '@tenda/shared'
+import { GIG_REQUIREMENTS, emptyProofParamsDraft, type GigValidationValues } from '@tenda/shared'
 import {
   WIZARD_STEPS,
   firstUnsatisfiedStep,
@@ -28,6 +28,8 @@ const BLANK: GigValidationValues = {
   asset: 'USDC_SOL',
   paymentRaw: '',
   completionDuration: 86_400,
+  proofRequirements: [],
+  proofDraft: emptyProofParamsDraft(),
 }
 
 const FILLED: GigValidationValues = {

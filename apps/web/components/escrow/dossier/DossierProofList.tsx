@@ -4,7 +4,13 @@
  * SAME way the workspace dossier does — one escrow's evidence must not dress
  * differently per surface.
  */
-import { PROOF_TYPE_LABEL, formatRelativeDayWithTime, type ProofType } from '@tenda/shared'
+import {
+  PROOF_TYPE_LABEL,
+  formatRelativeDayWithTime,
+  proofPayloadLines,
+  type ProofPayload,
+  type ProofType,
+} from '@tenda/shared'
 import type { DossierProof } from './PartyScopedSection'
 import { DOSSIER_COPY } from './copy'
 
@@ -19,8 +25,10 @@ export interface DossierProofInput {
   type: ProofType
   uploaded_at: Date | string | null
   /** Null on data proofs (geotag/text/structured) — the row renders its label
-   *  unlinked; payload rendering is #15's surface. */
+   *  unlinked and the payload below it. */
   url: string | null
+  /** The data-proof payload; null/absent on file proofs. */
+  payload?: ProofPayload | null
 }
 
 /**
@@ -38,6 +46,9 @@ export function dossierProofsFor(
     id: proof.id,
     label: PROOF_TYPE_LABEL[proof.type],
     href: proof.url,
+    // The shared formatter, so one payload reads the same on every surface
+    // (mobile detail, admin gallery).
+    payloadLines: proof.payload != null ? proofPayloadLines(proof.payload) : null,
     // Both forms, because the declared type and the runtime value disagree.
     uploadedAt:
       proof.uploaded_at instanceof Date ? proof.uploaded_at.toISOString() : proof.uploaded_at,
@@ -82,6 +93,19 @@ export function DossierProofList({
             <span className="ml-2 font-numeric text-[11px] text-content-tertiary">
               {formatStamp(proof.uploadedAt)}
             </span>
+          )}
+          {/* A data proof's substance IS its payload — rendered, not linked. */}
+          {proof.payloadLines != null && proof.payloadLines.length > 0 && (
+            <div className="mt-1 flex flex-col gap-0.5">
+              {proof.payloadLines.map((line, index) => (
+                <p key={index} className="break-words text-[13px] text-content-secondary">
+                  {line.label !== null && (
+                    <span className="text-content-tertiary">{line.label}: </span>
+                  )}
+                  {line.value}
+                </p>
+              ))}
+            </div>
           )}
         </li>
       ))}

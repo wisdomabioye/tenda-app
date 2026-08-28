@@ -11,6 +11,8 @@ import {
   getGigMissingRequirement,
   getGigStepMissingRequirement,
 } from '../../src/constants/gig-composer'
+import { emptyProofParamsDraft } from '../../src/constants/gig-composer-proofs'
+import type { ProofType } from '../../src/constants/proofs'
 
 const VALID = {
   title: 'Deliver a package',
@@ -22,6 +24,8 @@ const VALID = {
   asset: 'USDC_SOL',
   paymentRaw: '10000000',
   completionDuration: 86_400,
+  proofRequirements: [] as ProofType[],
+  proofDraft: emptyProofParamsDraft(),
 }
 
 test('reports the first actionable details requirement', () => {
@@ -77,6 +81,29 @@ test('the duration requirement distinguishes "none yet" from "out of range"', ()
       completionDuration: MAX_COMPLETION_DURATION_SECONDS + 1,
     }),
     `Delivery time must be ${durationRangeLabel()}`,
+  )
+})
+
+test('the delivery step blocks on incomplete proof params and no other field', () => {
+  // File-type requirements take no params: nothing on this step can be missing.
+  assert.strictEqual(
+    getGigStepMissingRequirement('delivery', { ...VALID, proofRequirements: ['image', 'text'] }),
+    null,
+  )
+  // A geotag requirement without its pin blocks the step — and the whole form.
+  const geotag = { ...VALID, proofRequirements: ['geotag'] as ProofType[] }
+  assert.strictEqual(
+    getGigStepMissingRequirement('delivery', geotag),
+    'Set the check-in point for the location proof',
+  )
+  assert.strictEqual(getGigMissingRequirement(geotag), 'Set the check-in point for the location proof')
+  // Satisfied once the pin exists (radius is seeded valid by the empty draft).
+  assert.strictEqual(
+    getGigStepMissingRequirement('delivery', {
+      ...geotag,
+      proofDraft: { ...emptyProofParamsDraft(), pin: { latitude: 6.5, longitude: 3.4 } },
+    }),
+    null,
   )
 })
 

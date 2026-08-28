@@ -143,6 +143,12 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
           ...(values.proofRequirements.length > 0
             ? { proof_requirements: values.proofRequirements }
             : {}),
+          // The check-in pin + per-type params, already scoped to the selected
+          // requirement types by composerProofSubmission in the form.
+          ...(values.latitude !== null && values.longitude !== null
+            ? { latitude: values.latitude, longitude: values.longitude }
+            : {}),
+          ...(values.proofParams !== null ? { proof_params: values.proofParams } : {}),
         })
       } catch (e) {
         // Stage-6 block (or validation failure): the chain-agnostic draft

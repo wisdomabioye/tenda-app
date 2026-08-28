@@ -6,7 +6,7 @@
  */
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { ApiClientError, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
+import { ApiClientError, PROOF_COPY, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
 import { proofHashFor } from '@/hooks/escrow/proof-hash'
 import { useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
@@ -352,7 +352,8 @@ describe('proof submit (two-phase)', () => {
       expect(await result.current.submit(PROOFS)).toBe(false)
     })
     expect(attachedMock).not.toHaveBeenCalled()
-    expect(mockToast).toHaveBeenCalledWith('error', expect.stringMatching(/save/i))
+    // The SHARED sentence, never a local restatement — a check-in was never a file.
+    expect(mockToast).toHaveBeenCalledWith('error', PROOF_COPY.saveFailed)
   })
 
   test('a failed READ-BACK never reaches the chain either', async () => {

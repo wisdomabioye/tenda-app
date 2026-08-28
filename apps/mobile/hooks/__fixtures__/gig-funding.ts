@@ -29,6 +29,9 @@ export const FUNDING_VALUES: GigFormValues = {
   remote: true,
   city: null,
   proofRequirements: [],
+  latitude: null,
+  longitude: null,
+  proofParams: null,
   // Instant mode: the approval-mode create body is asserted separately.
   requiresApproval: false,
 }

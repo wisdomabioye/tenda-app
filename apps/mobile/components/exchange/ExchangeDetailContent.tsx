@@ -10,10 +10,10 @@ import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, EscrowTransactionMonitor, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
 import { txSuccessCopy } from '@tenda/shared'
-import { ReviewsSection, ProofsGrid, fileProofMediaItems, type MediaItem } from '@/components/shared'
+import { ReviewsSection, ProofsGrid, DataProofList, fileProofMediaItems, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import { formatAssetAmount, formatFiat } from '@tenda/shared'
@@ -43,8 +43,8 @@ export function ExchangeDetailContent({
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
-  // Media surfaces render FILE proofs only; data proofs get their own
-  // rendering with #15 (see fileProofMediaItems).
+  // Media surfaces render FILE proofs only; data proofs render as their
+  // payload in DataProofList below (see fileProofMediaItems).
   const fileProofs = fileProofMediaItems(offer.proofs)
 
   const actions = useEscrowActions({
@@ -111,7 +111,7 @@ export function ExchangeDetailContent({
   }
 
   // Buyer's fiat-payment evidence → off-chain proof rows + on-chain submit.
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
     const submitted = await actions.submit(proofs)
     // A failed submit is HALF done: the files uploaded, the transaction did
     // not. Re-read so the sheet's "already attached" is the truth when the
@@ -122,7 +122,7 @@ export function ExchangeDetailContent({
     return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) void refresh()
   }
 
@@ -145,17 +145,21 @@ export function ExchangeDetailContent({
 
         <ExchangeOfferOverview offer={offer} userId={userId} fiat={fiat} contextTitle={contextTitle} />
 
-        {fileProofs.length > 0 && (
+        {offer.proofs.length > 0 && (
           <>
             <Divider />
             <View style={s.sectionHead}>
               <Text style={s.sectionTitle}>Payment proof</Text>
               <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-                {fileProofs.length} {fileProofs.length === 1 ? 'file' : 'files'}
+                {offer.proofs.length} {offer.proofs.length === 1 ? 'proof' : 'proofs'}
               </Text>
             </View>
             <Spacer size={spacing.sm} />
-            <ProofsGrid proofs={fileProofs} onProofPress={setSelectedProof} />
+            {fileProofs.length > 0 && (
+              <ProofsGrid proofs={fileProofs} onProofPress={setSelectedProof} />
+            )}
+            {/* Data proofs (API-attached — no exchange capture UI) still render. */}
+            <DataProofList proofs={offer.proofs} />
           </>
         )}
 

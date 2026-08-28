@@ -67,6 +67,9 @@ export default function PostGigScreen() {
           remote: draft.remote,
           city: draft.city,
           proofRequirements: draft.proof_requirements,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          proofParams: draft.proof_params,
           requiresApproval: draft.requires_approval,
         })
       } catch {

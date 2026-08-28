@@ -110,3 +110,58 @@ it('opens the warning gate before submission and submits after it is acknowledge
   await act(async () => { await result.current.submitValues() })
   expect(onSubmit).toHaveBeenCalledTimes(1)
 })
+
+it('rebuilds the proof-param draft from a reposted draft gig — pin, radius and fields', () => {
+  const { result } = renderHook(() =>
+    useGigForm(
+      {
+        proofRequirements: ['geotag', 'structured'],
+        latitude: 6.5244,
+        longitude: 3.3792,
+        proofParams: {
+          geotag: { radius_m: 120 },
+          structured: { fields: [{ name: 'count', kind: 'number', required: true }] },
+        },
+      },
+      jest.fn(),
+    ),
+  )
+  expect(result.current.proofDraft).toEqual({
+    pin: { latitude: 6.5244, longitude: 3.3792 },
+    radiusText: '120',
+    fields: [{ name: 'count', kind: 'number', required: true }],
+  })
+  // Complete params → the delivery step (and the form) is publishable.
+  expect(result.current.missingRequirement).not.toMatch(/check-in|field/i)
+})
+
+it('submits the pin + params for the SELECTED types only — and nothing when none is selected', async () => {
+  const onSubmit = jest.fn().mockResolvedValue(undefined)
+  const { result } = renderHook(() =>
+    useGigForm(
+      { category: 'delivery', title: 'Deliver', description: 'x', remote: true, paymentRaw: '10000000' },
+      onSubmit,
+    ),
+  )
+  // Editor residue with no param-bearing type selected leaves the wire clean.
+  act(() => result.current.setProofDraft({ ...result.current.proofDraft, pin: { latitude: 1, longitude: 2 } }))
+  await act(async () => { await result.current.submitValues() })
+  expect(onSubmit).toHaveBeenLastCalledWith(
+    expect.objectContaining({ latitude: null, longitude: null, proofParams: null }),
+  )
+
+  // Selecting geotag (on a physical gig) carries the pin and its radius.
+  act(() => {
+    result.current.setIsRemote(false)
+    result.current.setSelectedCity('Lagos')
+    result.current.setProofRequirements(['geotag'])
+  })
+  await act(async () => { await result.current.submitValues() })
+  expect(onSubmit).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      latitude: 1,
+      longitude: 2,
+      proofParams: { geotag: { radius_m: 500 } },
+    }),
+  )
+})

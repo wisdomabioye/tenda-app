@@ -178,6 +178,27 @@ describe('PartyScopedSection — the half outsiders never receive', () => {
     expect(screen.queryByRole('link')).toBeNull()
   })
 
+  it('renders a data proof as its payload lines — the substance, since there is no file', () => {
+    render(
+      <PartyScopedSection
+        proofs={[
+          {
+            id: 'p2',
+            label: 'Structured data',
+            href: null,
+            payloadLines: [
+              { label: 'count', value: '3' },
+              { label: null, value: 'Left at the gate' },
+            ],
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByText('count:')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('Left at the gate')).toBeInTheDocument()
+  })
+
   it('formats the upload stamp rather than printing the ISO at a reader', () => {
     render(
       <PartyScopedSection

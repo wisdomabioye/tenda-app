@@ -3,30 +3,31 @@
 /**
  * Proof types the worker must attach before they can submit — web twin of
  * mobile's gig-form/ProofRequirementPicker. Optional — no selection keeps
- * the pre-existing behaviour where any evidence is accepted. The selection
+ * the pre-existing behaviour where any evidence is accepted. The full
+ * vocabulary since #15: the data types (geotag/text/structured) have their
+ * params + capture UI, so requiring one no longer strands the worker.
+ *
+ * Geotag is place-bound, so on a REMOTE gig its chip is disabled — unless it
+ * is already selected, because a disabled chip cannot be DESELECTED either,
+ * and the poster needs a way out of the refused combination. The selection
  * is normalised on every change so the stored order matches the server's.
  */
 import {
-  FILE_PROOF_TYPES,
+  PROOF_TYPES,
   PROOF_TYPE_LABEL,
   normaliseProofRequirements,
   type ProofType,
 } from '@tenda/shared'
 import { Chip } from '@/components/ui/Chip'
 
-// FILE types only, deliberately not the whole PROOF_TYPES vocabulary — same
-// rule and reason as mobile's twin: the data types (geotag/text/structured)
-// need the #15 params + capture UI; geotag/structured are refused by the
-// server without params this form cannot supply, and a required `text` could
-// never be satisfied by the file-only upload dialog, stranding the worker.
-const PROOF_OPTIONS = FILE_PROOF_TYPES.map((type) => ({ label: PROOF_TYPE_LABEL[type], value: type }))
-
 export function ProofRequirementPicker({
   value,
   onChange,
+  remote = false,
 }: {
   value: ProofType[]
   onChange: (value: ProofType[]) => void
+  remote?: boolean
 }) {
   function toggle(type: ProofType) {
     const next = value.includes(type) ? value.filter((t) => t !== type) : [...value, type]
@@ -40,8 +41,14 @@ export function ProofRequirementPicker({
         Optional. The worker can&apos;t submit until they attach every type you pick.
       </p>
       <div className="flex flex-wrap gap-2">
-        {PROOF_OPTIONS.map((o) => (
-          <Chip key={o.value} label={o.label} selected={value.includes(o.value)} onClick={() => toggle(o.value)} />
+        {PROOF_TYPES.map((type) => (
+          <Chip
+            key={type}
+            label={PROOF_TYPE_LABEL[type]}
+            selected={value.includes(type)}
+            disabled={type === 'geotag' && remote && !value.includes('geotag')}
+            onClick={() => toggle(type)}
+          />
         ))}
       </div>
     </div>

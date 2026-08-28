@@ -13,9 +13,11 @@
  */
 import { useState } from 'react'
 import {
+  isDataProofType,
   missingProofTypes,
   PROOF_COPY,
   proofRequirementLine,
+  type ProofParams,
   type ProofType,
 } from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
@@ -23,6 +25,7 @@ import { uploadProofs, type PersistableProof, type PickedProofFile } from '@/lib
 import { FilePicker } from '@/components/form/FilePicker'
 import { Modal } from '@/components/ui/overlay/Modal'
 import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
+import { DataProofInputs, type DataProofEntry } from './data-proofs/DataProofInputs'
 import { PROOF_DIALOG_COPY } from './copy'
 
 export function ProofUploadDialog({
@@ -35,6 +38,8 @@ export function ProofUploadDialog({
   chainId,
   boundSigner,
   requirements = [],
+  proofParams = null,
+  gigPin = null,
   alreadyAttached = [],
   onSubmit,
 }: {
@@ -56,6 +61,11 @@ export function ProofUploadDialog({
   boundSigner?: string | null
   /** Proof types the poster requires; empty for the add-more-evidence path. */
   requirements?: readonly ProofType[]
+  /** The gig's declared per-type params — drives the structured form and the
+   *  geotag distance note. Null/absent for gigs (and exchanges) without any. */
+  proofParams?: ProofParams | null
+  /** The gig's check-in point, for the pre-submit distance note only. */
+  gigPin?: { latitude: number; longitude: number } | null
   /**
    * Proofs already stored against the escrow. The server counts these, so
    * the dialog must too — otherwise a worker whose upload succeeded but
@@ -65,11 +75,19 @@ export function ProofUploadDialog({
   onSubmit: (proofs: PersistableProof[]) => Promise<boolean>
 }) {
   const [files, setFiles] = useState<PickedProofFile[]>([])
+  // Data proofs captured in the dialog (geotag/text/structured), wire-shaped.
+  const [dataEntries, setDataEntries] = useState<DataProofEntry[]>([])
+  // The capture inputs hold their own text state, so clearing the batch
+  // remounts them via this key.
+  const [dataGeneration, setDataGeneration] = useState(0)
   const [uploading, setUploading] = useState(false)
 
+  const requiredDataTypes = requirements.filter(isDataProofType)
+
   // Mirrors the server gate exactly: it reads every proof row on the escrow,
-  // so the checklist counts what is already stored plus what is picked now.
-  const covered = [...alreadyAttached, ...files]
+  // so the checklist counts what is already stored plus what is picked or
+  // captured now.
+  const covered = [...alreadyAttached, ...files, ...dataEntries]
   const missing = missingProofTypes(requirements, covered)
 
   /**
@@ -82,8 +100,16 @@ export function ProofUploadDialog({
    * Only the submit path can reach this: "Add more proof" is handed no
    * `alreadyAttached`, and uploading nothing there would mean nothing at all.
    */
-  const reusesAttached = files.length === 0 && alreadyAttached.length > 0
-  const canSubmit = !uploading && missing.length === 0 && (files.length > 0 || reusesAttached)
+  const reusesAttached =
+    files.length === 0 && dataEntries.length === 0 && alreadyAttached.length > 0
+  const canSubmit =
+    !uploading && missing.length === 0 && (files.length + dataEntries.length > 0 || reusesAttached)
+
+  function clearBatch() {
+    setFiles([])
+    setDataEntries([])
+    setDataGeneration((generation) => generation + 1)
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -91,15 +117,16 @@ export function ProofUploadDialog({
     try {
       // Nothing new picked is the RETRY path (see `reusesAttached`): there is
       // nothing to upload, only a transaction to sign again.
-      const proofs = files.length === 0 ? [] : await uploadProofs(files)
-      if (proofs === null) return // failure already toasted
+      const uploaded = files.length === 0 ? [] : await uploadProofs(files)
+      if (uploaded === null) return // failure already toasted
+      const proofs: PersistableProof[] = [...uploaded, ...dataEntries]
       if (closeMode === 'before-submit') {
         onClose()
-        setFiles([])
+        clearBatch()
         await onSubmit(proofs)
       } else if (await onSubmit(proofs)) {
         onClose()
-        setFiles([])
+        clearBatch()
       }
     } finally {
       setUploading(false)
@@ -119,6 +146,15 @@ export function ProofUploadDialog({
         </p>
       )}
       <FilePicker files={files} onChange={setFiles} max={5} />
+      {requiredDataTypes.length > 0 && (
+        <DataProofInputs
+          key={dataGeneration}
+          requirements={requirements}
+          proofParams={proofParams}
+          gigPin={gigPin}
+          onChange={setDataEntries}
+        />
+      )}
       {chainId !== undefined && (
         <SigningWalletRow
           chainId={chainId}

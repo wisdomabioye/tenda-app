@@ -8,18 +8,20 @@ import {
   ErrorCode,
   errorMessage,
   proofIdentity,
-  type ProofType,
+  type EscrowProofUpload,
+  type FileProofType,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/uploads/upload'
 
-export interface PersistableProof {
-  url: string
-  type: ProofType
-}
+/**
+ * One proof headed for POST /escrows/:id/proofs — the shared wire union: a
+ * FILE proof (uploaded url) or a DATA proof (geotag/text/structured payload).
+ */
+export type PersistableProof = EscrowProofUpload
 
-/** Save uploaded proof identities, resolving a lost response by reading them back. */
+/** Save proof identities (urls AND data payloads), resolving a lost response by reading them back. */
 export async function persistEscrowProofs(
   escrowId: string,
   proofs: PersistableProof[],
@@ -63,10 +65,11 @@ export async function attachedProofUrls(escrowId: string): Promise<string[]> {
   return stored.map((proof) => proof.url ?? canonicalJson(proof.payload)).sort()
 }
 
-/** A picked browser file with the proof type the user assigned it. */
+/** A picked browser file with the FILE proof type derived for it — the
+ *  picker only ever produces files, never data proofs. */
 export interface PickedProofFile {
   file: File
-  type: ProofType
+  type: FileProofType
 }
 
 /**

@@ -272,7 +272,7 @@ test('the retry submits on the STORED proofs alone, with no file re-picked', asy
   ])
 
   fireEvent.click(await screen.findByRole('button', { name: 'Submit Proof' }))
-  expect(screen.getByText(/Already uploaded to this escrow: 1 file \(photo\)/)).toBeInTheDocument()
+  expect(screen.getByText(/Already attached to this escrow: 1 proof \(photo\)/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
   await waitFor(() => expect(actionsState.submit).toHaveBeenCalledWith([]))
 })

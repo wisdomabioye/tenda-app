@@ -69,6 +69,14 @@ module.exports = {
    * ~100x headroom — raising it would only hide a test that genuinely got slow.
    */
   maxWorkers: '50%',
+  /**
+   * Restart a worker that grows past this between test files. jest-expo
+   * workers leak module registries across suites; without a limit six of
+   * them climbed past the box's free memory and took the machine down
+   * (2026-08-28). The scripts also run under a systemd memory scope so a
+   * runaway run is killed inside the scope instead of by the kernel OOM.
+   */
+  workerIdleMemoryLimit: '768MB',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

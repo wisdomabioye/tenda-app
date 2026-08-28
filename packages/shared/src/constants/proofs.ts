@@ -49,7 +49,8 @@ export function isDataProofType(type: ProofType): type is DataProofType {
  */
 export function proofIdentity(proof: {
   type: ProofType
-  url: string | null
+  /** Absent and null mean the same thing: a data proof, identified by payload. */
+  url?: string | null
   payload?: unknown
 }): string {
   return `${proof.type}\0${proof.url ?? canonicalJson(proof.payload ?? null)}`

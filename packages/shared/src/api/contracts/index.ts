@@ -64,6 +64,7 @@ export type {
   EscrowActionResponse,
   SubmitEscrowProofBody,
   AddEscrowProofsBody,
+  EscrowProofUpload,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
   SignerPreferenceBody,

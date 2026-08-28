@@ -92,8 +92,40 @@ describe('dossierProofsFor', () => {
         // The file itself: a party approving or disputing has to be able to
         // OPEN the evidence, not just be told one exists.
         href: 'https://media/1',
+        // File proofs carry no payload — nothing to render below the link.
+        payloadLines: null,
       },
     ])
+  })
+
+  it('renders a data proof as its payload lines, through the SHARED formatter', () => {
+    const rows = dossierProofsFor([
+      { id: 'p3', type: 'text', uploaded_at: null, url: null, payload: { text: 'Left at the gate' } },
+      {
+        id: 'p4',
+        type: 'structured',
+        uploaded_at: null,
+        url: null,
+        payload: { values: { count: 3, sealed: true } },
+      },
+      {
+        id: 'p5',
+        type: 'geotag',
+        uploaded_at: null,
+        url: null,
+        payload: { latitude: 6.52443891, longitude: 3.37921234 },
+      },
+    ])
+    expect(rows?.[0]).toMatchObject({
+      label: PROOF_TYPE_LABEL.text,
+      href: null,
+      payloadLines: [{ label: null, value: 'Left at the gate' }],
+    })
+    expect(rows?.[1].payloadLines).toEqual([
+      { label: 'count', value: '3' },
+      { label: 'sealed', value: 'Yes' },
+    ])
+    expect(rows?.[2].payloadLines).toEqual([{ label: null, value: '6.52444, 3.37921' }])
   })
 
   it('takes the stamp in EITHER form the type and the wire disagree about', () => {

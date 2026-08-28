@@ -9,6 +9,8 @@ import {
   sanitizeGigBudgetText,
 } from '../../src/utils/gig-budget'
 import { getGigStepMissingRequirement } from '../../src/constants/gig-composer'
+import { emptyProofParamsDraft } from '../../src/constants/gig-composer-proofs'
+import type { ProofType } from '../../src/constants/proofs'
 
 test('sanitizeGigBudgetText: keeps a plain decimal the asset can represent', () => {
   assert.equal(sanitizeGigBudgetText('12.5', 'USDC_SOL'), '12.5')
@@ -119,6 +121,8 @@ test('the budget requirement tells an EMPTY field apart from an out-of-rail one'
     city: null,
     asset: 'USDC_SOL',
     completionDuration: 86_400,
+    proofRequirements: [] as ProofType[],
+    proofDraft: emptyProofParamsDraft(),
   }
   assert.equal(getGigStepMissingRequirement('payment', { ...base, paymentRaw: '' }), 'Set a budget')
   assert.equal(

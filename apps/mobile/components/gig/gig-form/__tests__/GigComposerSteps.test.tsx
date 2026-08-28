@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { emptyProofParamsDraft } from '@tenda/shared'
 import { GigDeliveryStep } from '../steps/GigDeliveryStep'
 import { GigDetailsStep } from '../steps/GigDetailsStep'
 import { GigPaymentStep } from '../steps/GigPaymentStep'
@@ -84,6 +85,9 @@ it('renders a concise final review for remote and local gigs', () => {
     onApprovalChange: jest.fn(),
     proofRequirements: [],
     onProofRequirementsChange: jest.fn(),
+    remote: false,
+    proofDraft: emptyProofParamsDraft(),
+    onProofDraftChange: jest.fn(),
     title: 'Deliver parcel',
     location: 'Lagos, NG',
     budget: '10 USDC',

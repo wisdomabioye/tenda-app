@@ -13,6 +13,7 @@
  * what the two legs do when they are NOT symmetric.
  */
 import { renderHook, act } from '@testing-library/react-native'
+import { PROOF_COPY } from '@tenda/shared'
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
 
@@ -138,7 +139,7 @@ test('a failed UPLOAD still blames the upload, and never reads back', async () =
   const { ok } = await submit([{ url: 'u1', type: 'image' }])
 
   expect(ok).toBe(false)
-  expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to save proof files')
+  expect(mockShowToast).toHaveBeenCalledWith('error', PROOF_COPY.saveFailed)
   expect(mockGetProofs).not.toHaveBeenCalled()
 })
 

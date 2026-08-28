@@ -6,9 +6,16 @@ import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
-import { missingProofTypes, PROOF_COPY, type ProofType } from '@tenda/shared'
+import {
+  isDataProofType,
+  missingProofTypes,
+  PROOF_COPY,
+  type ProofParams,
+  type ProofType,
+} from '@tenda/shared'
 import { ProofRequirementsNote } from '../ProofRequirementsNote'
 import { uploadProofs, type Proof } from './upload'
+import { DataProofInputs, type DataProofEntry } from './data-proofs/DataProofInputs'
 
 /**
  * Shared proof-upload sheet (submit-proof and add-more-proof). Owns its file
@@ -34,6 +41,8 @@ export function ProofUploadSheet({
   closeMode,
   hint,
   requirements = [],
+  proofParams = null,
+  gigPin = null,
   alreadyAttached = [],
   signerRow,
   onSubmit,
@@ -47,6 +56,11 @@ export function ProofUploadSheet({
   hint?: string
   /** Proof types the poster requires; empty for the add-more-evidence path. */
   requirements?: readonly ProofType[]
+  /** The gig's declared per-type params — drives the structured form and the
+   *  geotag distance note. Null/absent for gigs (and exchanges) without any. */
+  proofParams?: ProofParams | null
+  /** The gig's check-in point, for the pre-submit distance note only. */
+  gigPin?: { latitude: number; longitude: number } | null
   /**
    * Proofs already stored against the escrow. The server counts these, so the
    * sheet must too — otherwise a worker whose upload succeeded but whose
@@ -65,11 +79,20 @@ export function ProofUploadSheet({
 }) {
   const { theme } = useUnistyles()
   const [files, setFiles] = useState<PickedFile[]>([])
+  // Data proofs captured in the sheet (geotag/text/structured), wire-shaped.
+  const [dataEntries, setDataEntries] = useState<DataProofEntry[]>([])
+  // RN's Modal keeps children mounted while hidden, so the capture inputs'
+  // internal text state survives a close on its own — this key is what
+  // actually resets them when the batch is cleared.
+  const [dataGeneration, setDataGeneration] = useState(0)
   const [uploading, setUploading] = useState(false)
 
+  const requiredDataTypes = requirements.filter(isDataProofType)
+
   // Mirrors the server gate exactly: it reads every proof row on the escrow,
-  // so the checklist counts what is already stored plus what is picked now.
-  const covered = [...alreadyAttached, ...files]
+  // so the checklist counts what is already stored plus what is picked or
+  // captured now.
+  const covered = [...alreadyAttached, ...files, ...dataEntries]
   const unmet = missingProofTypes(requirements, covered).length > 0
 
   /**
@@ -82,8 +105,14 @@ export function ProofUploadSheet({
    * Only the submit path can reach this: "Add more proof" is handed no
    * `alreadyAttached`, and uploading nothing there would mean nothing at all.
    */
-  const reusesAttached = files.length === 0 && alreadyAttached.length > 0
-  const canSubmit = !unmet && (files.length > 0 || reusesAttached)
+  const reusesAttached = files.length === 0 && dataEntries.length === 0 && alreadyAttached.length > 0
+  const canSubmit = !unmet && (files.length + dataEntries.length > 0 || reusesAttached)
+
+  function clearBatch() {
+    setFiles([])
+    setDataEntries([])
+    setDataGeneration((generation) => generation + 1)
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -91,15 +120,16 @@ export function ProofUploadSheet({
     try {
       // Nothing new picked is the RETRY path (see `reusesAttached`): there is
       // nothing to upload, only a transaction to sign again.
-      const proofs = files.length === 0 ? [] : await uploadProofs(files)
-      if (proofs === null) return // failure already toasted
+      const uploaded = files.length === 0 ? [] : await uploadProofs(files)
+      if (uploaded === null) return // failure already toasted
+      const proofs: Proof[] = [...uploaded, ...dataEntries]
       if (closeMode === 'before-submit') {
         onClose()
-        setFiles([])
+        clearBatch()
         await onSubmit(proofs)
       } else if (await onSubmit(proofs)) {
         onClose()
-        setFiles([])
+        clearBatch()
       }
     } finally {
       setUploading(false)
@@ -110,7 +140,7 @@ export function ProofUploadSheet({
     <BottomSheet visible={visible} onClose={onClose} title={title}>
       {requirements.length > 0 && (
         <>
-          <ProofRequirementsNote required={requirements} attached={covered} />
+          <ProofRequirementsNote required={requirements} params={proofParams} attached={covered} />
           <Spacer size={spacing.sm} />
         </>
       )}
@@ -123,6 +153,18 @@ export function ProofUploadSheet({
         </>
       )}
       <FilePicker files={files} onChange={setFiles} accept="any" max={5} />
+      {requiredDataTypes.length > 0 && (
+        <>
+          <Spacer size={spacing.sm} />
+          <DataProofInputs
+            key={dataGeneration}
+            requirements={requirements}
+            proofParams={proofParams}
+            gigPin={gigPin}
+            onChange={setDataEntries}
+          />
+        </>
+      )}
       {hint !== undefined && (
         <>
           <Spacer size={spacing.sm} />

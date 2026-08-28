@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { showToast } from '@/components/ui/Toast'
 import { api } from '@/api/client'
-import { errorMessage, formatAssetAmount, type ProofType } from '@tenda/shared'
+import { errorMessage, formatAssetAmount, type ProofParams, type ProofType } from '@tenda/shared'
 import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 import type { ActiveSheet } from './GigCTABar'
 import { ProofUploadSheet } from './gig-action-sheets/ProofUploadSheet'
@@ -31,6 +31,11 @@ interface EscrowActionTarget {
   asset: string
   /** Gig-only: exchange offers declare no proof requirements. */
   proof_requirements?: readonly ProofType[]
+  /** Gig-only: per-type params behind the requirements (geotag/structured). */
+  proof_params?: ProofParams | null
+  /** Gig-only: the declared check-in point, for the geotag distance note. */
+  latitude?: number | null
+  longitude?: number | null
   /** Proofs already stored on the escrow — counted by the server's submit gate. */
   proofs?: readonly { type: ProofType }[]
 }
@@ -92,6 +97,12 @@ export function GigActionSheets({
         closeMode="before-submit"
         hint={PROOF_ONCHAIN_HINT}
         requirements={gig.proof_requirements ?? []}
+        proofParams={gig.proof_params ?? null}
+        gigPin={
+          gig.latitude != null && gig.longitude != null
+            ? { latitude: gig.latitude, longitude: gig.longitude }
+            : null
+        }
         alreadyAttached={gig.proofs ?? []}
         signerRow={signerRow}
         onSubmit={onProofsReady}

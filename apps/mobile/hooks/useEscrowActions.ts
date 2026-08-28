@@ -5,24 +5,25 @@
  *   request unsigned tx (escrow.store) → sign + broadcast + client-ping
  *   (wallet/dispatch) → TransactionMonitor/WS confirms → screen refreshes.
  *
- * Proof submission is two-phase: the proof FILES go to the off-chain
- * satellite (POST /v1/escrows/:id/proofs) first, then the on-chain submit
- * commits a digest over the escrow's whole stored set, read back from the
- * server (see `attachedProofUrls`) rather than taken from the batch just
- * picked. The digest is sha256 over the '\n'-joined URLs, encoded base58 for
- * Solana chains, 0x-hex for EVM (matching SubmitEscrowProofBody's per-chain
- * format).
+ * Proof submission is two-phase: the proofs — file urls AND data payloads
+ * (geotag/text/structured) — go to the off-chain satellite
+ * (POST /v1/escrows/:id/proofs) first, then the on-chain submit commits a
+ * digest over the escrow's whole stored set, read back from the server (see
+ * `attachedProofUrls`) rather than taken from the batch just picked. The
+ * digest is sha256 over the '\n'-joined identities (a file's url, a data
+ * proof's canonical JSON), encoded base58 for Solana chains, 0x-hex for EVM
+ * (matching SubmitEscrowProofBody's per-chain format).
  */
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import type {
+  EscrowProofUpload,
   EscrowTxType,
-  ProofType,
   TransactionProgressPhase,
   UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { errorMessage, WalletError } from '@tenda/shared'
+import { errorMessage, PROOF_COPY, WalletError } from '@tenda/shared'
 import {
   declaredSignerFor,
   resolveSignersForChain,
@@ -38,10 +39,11 @@ import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProof
 import { attachedProofUrls } from '@/features/escrow-proofs/attachedProofUrls'
 import { proofHashFor } from '@/hooks/escrow/proof-hash'
 
-export interface ProofFile {
-  url: string
-  type: ProofType
-}
+/**
+ * One proof handed to submit/addProofs — the shared wire union (file url OR
+ * data payload). The old `ProofFile` name died with the files-only era.
+ */
+export type EscrowProofInput = EscrowProofUpload
 
 /**
  * Lifecycle of a single transition, drives the progress modal:
@@ -225,13 +227,13 @@ export function useEscrowActions({
      * had failed to save when it was the READ-BACK that failed — i.e. at the
      * one moment the upload is the thing that did succeed.
      */
-    submit: async (proofs: ProofFile[]): Promise<boolean> => {
+    submit: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       setBusyAction('submit')
       setPhase('preparing')
       try {
         if (proofs.length > 0) await persistEscrowProofs(escrowId, proofs)
       } catch (e) {
-        return failPreparation(e, 'Failed to save proof files')
+        return failPreparation(e, PROOF_COPY.saveFailed)
       }
       let urls: string[]
       try {
@@ -244,7 +246,7 @@ export function useEscrowActions({
     },
 
     /** Supplementary evidence while submitted, off-chain only. */
-    addProofs: async (proofs: ProofFile[]): Promise<boolean> => {
+    addProofs: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       try {
         await persistEscrowProofs(escrowId, proofs)
         showToast('success', 'Proof added!')

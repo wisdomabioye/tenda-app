@@ -138,6 +138,9 @@ function GigStep({ step, form }: { step: GigComposerStep; form: GigFormControlle
       onApprovalChange={form.setRequiresApproval}
       proofRequirements={form.proofRequirements}
       onProofRequirementsChange={form.setProofRequirements}
+      remote={form.isRemote}
+      proofDraft={form.proofDraft}
+      onProofDraftChange={form.setProofDraft}
       title={form.title}
       location={location}
       budget={formatAssetAmount(form.paymentRaw, form.asset)}

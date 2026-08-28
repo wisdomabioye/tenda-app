@@ -41,7 +41,7 @@ export function GigListingArticle({
       </GigDetailSection>
 
       <GigDetailSection title={GIG_DETAIL_COPY.proof}>
-        <GigProofList requirements={gig.proof_requirements} />
+        <GigProofList requirements={gig.proof_requirements} params={gig.proof_params} />
       </GigDetailSection>
 
       <GigDetailSection title={GIG_DETAIL_COPY.postedBy}>

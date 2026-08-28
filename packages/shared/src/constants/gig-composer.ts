@@ -7,6 +7,8 @@
  */
 import type { GigCategory } from './categories'
 import type { ProofType } from './proofs'
+import type { ProofParams } from './proof-params'
+import { proofSetupProblem, type ProofParamsDraft } from './gig-composer-proofs'
 import { isValidGigAmountRaw } from '../utils/validation'
 import { completionDurationProblem } from '../utils/gig-duration'
 import { gigBudgetRangeLabel } from '../utils/gig-budget'
@@ -55,6 +57,15 @@ export interface GigFormValues {
   /** Empty = any evidence accepted (the pre-existing behaviour). */
   proofRequirements: ProofType[]
   /**
+   * Where a geotag check-in is verified against. Only non-null when a geotag
+   * proof is required (composerProofSubmission derives all three fields from
+   * the editor draft) — the pin has no other consumer today.
+   */
+  latitude: number | null
+  longitude: number | null
+  /** Params for the param-bearing requirements; null when none is selected. */
+  proofParams: ProofParams | null
+  /**
    * Approval mode: the poster assigns from applications instead of the gig
    * being first-come. Baked on-chain at create and never editable afterwards,
    * which is why it belongs on the create form and nowhere else.
@@ -81,6 +92,9 @@ export interface GigValidationValues {
   /** Base-unit string; see GigFormValues.paymentRaw. */
   paymentRaw: string
   completionDuration: number
+  proofRequirements: ProofType[]
+  /** The proof-param editors' live state — see gig-composer-proofs. */
+  proofDraft: ProofParamsDraft
 }
 
 /** What one field still needs, phrased as the action the poster must take. */
@@ -127,6 +141,12 @@ export const GIG_REQUIREMENTS = {
   // to enter one — the same undifferentiated message the budget rule carried
   // before #32, fixed the same way.
   duration: (v) => completionDurationProblem(v.completionDuration),
+  /**
+   * The proof step. Only the param-bearing requirements can be "missing" —
+   * an empty requirement list stays a valid gig — so the whole rule lives in
+   * proofSetupProblem beside the editor contract it validates.
+   */
+  proof: (v) => proofSetupProblem(v.proofRequirements, v.remote, v.proofDraft),
 } satisfies Record<string, GigRequirementCheck>
 
 /** The first requirement not yet met, in the order the reader meets them. */
@@ -149,10 +169,10 @@ const STEP_REQUIREMENTS: Record<GigComposerStep, readonly GigRequirementCheck[]>
     GIG_REQUIREMENTS.place,
   ],
   payment: [GIG_REQUIREMENTS.budget, GIG_REQUIREMENTS.duration],
-  // Proof and acceptance mode both have valid "unset" values: an empty
-  // proofRequirements means any evidence is accepted, and instant acceptance
-  // is the default. Nothing here can be missing.
-  delivery: [],
+  // An empty proofRequirements stays valid ("any evidence"), and instant
+  // acceptance is the default — but a PARAM-BEARING requirement (geotag,
+  // structured) is only publishable once its params are complete.
+  delivery: [GIG_REQUIREMENTS.proof],
 }
 
 export function getGigStepMissingRequirement(

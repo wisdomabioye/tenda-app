@@ -122,7 +122,7 @@ describe('ProofUploadDialog', () => {
     )
     // Says what the escrow already holds, or the enabled button on an empty
     // form reads as a bug.
-    expect(screen.getByText(/Already uploaded to this escrow: 1 file \(photo\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Already attached to this escrow: 1 proof \(photo\)/)).toBeInTheDocument()
     const submit = screen.getByRole('button', { name: 'Submit' })
     expect(submit).toBeEnabled()
     fireEvent.click(submit)
@@ -131,7 +131,7 @@ describe('ProofUploadDialog', () => {
     expect(uploadProofsMock).not.toHaveBeenCalled()
   })
 
-  test('names a repeated proof type ONCE, and counts the files', () => {
+  test('names a repeated proof type ONCE, and counts the rows', () => {
     // Three photos is an ordinary batch (the picker allows five), and the
     // per-ROW list printed "Photo, Photo, Photo" — on the retry screen this
     // whole change exists to serve.
@@ -146,12 +146,13 @@ describe('ProofUploadDialog', () => {
         onSubmit={vi.fn()}
       />,
     )
-    const note = screen.getByText(/Already uploaded/)
+    const note = screen.getByText(/Already attached/)
     expect(note.textContent).not.toMatch(/photo,\s*photo/i)
-    // The file COUNT is what a worker checks against what they picked, and it
-    // is the only number the type list cannot carry.
-    expect(note).toHaveTextContent('3 files')
-    // Plural follows the files, not the distinct types — one type, three files.
+    // The row COUNT is what a worker checks against what they picked, and it
+    // is the only number the type list cannot carry. "Proofs", not "files" —
+    // a stored check-in or written answer was never a file.
+    expect(note).toHaveTextContent('3 proofs')
+    // Plural follows the rows, not the distinct types — one type, three rows.
     expect(note).toHaveTextContent(/reuses them/)
   })
 
@@ -167,9 +168,9 @@ describe('ProofUploadDialog', () => {
         onSubmit={vi.fn()}
       />,
     )
-    const note = screen.getByText(/Already uploaded/)
-    expect(note).toHaveTextContent('1 file')
-    expect(note).not.toHaveTextContent('1 files')
+    const note = screen.getByText(/Already attached/)
+    expect(note).toHaveTextContent('1 proof')
+    expect(note).not.toHaveTextContent('1 proofs')
     expect(note).toHaveTextContent(/reuses it/)
   })
 

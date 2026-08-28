@@ -7,7 +7,7 @@
  * evidence" — the state every gig had before the field existed — so it says
  * that rather than rendering an empty section.
  */
-import { PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
+import { PROOF_TYPE_LABEL, proofParamDetail, type ProofParams, type ProofType } from '@tenda/shared'
 import { AlignLeft, Braces, FileText, Image, MapPin, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { GIG_DETAIL_COPY } from './copy'
@@ -21,7 +21,14 @@ const PROOF_ICONS: Record<ProofType, LucideIcon> = {
   structured: Braces,
 }
 
-export function GigProofList({ requirements }: { requirements: readonly ProofType[] }) {
+export function GigProofList({
+  requirements,
+  params = null,
+}: {
+  requirements: readonly ProofType[]
+  /** The gig's per-type params — the bar each requirement sets (radius, fields). */
+  params?: ProofParams | null
+}) {
   return (
     <ul className="flex max-w-[60ch] list-none flex-col gap-3 p-0">
       {requirements.length === 0 ? (
@@ -39,6 +46,7 @@ export function GigProofList({ requirements }: { requirements: readonly ProofTyp
             Icon={PROOF_ICONS[type]}
             title={PROOF_TYPE_LABEL[type]}
             hint={GIG_DETAIL_COPY.proofHint[type]}
+            detail={proofParamDetail(type, params)}
           />
         ))
       )}
@@ -50,17 +58,25 @@ function ProofItem({
   Icon,
   title,
   hint,
+  detail = null,
 }: {
   Icon: LucideIcon
   title: string
   hint: string
+  /** The declared bar (check-in radius, fields to report), when one exists. */
+  detail?: string | null
 }) {
   return (
     <li className="flex list-none items-start gap-3.5 rounded-md border border-border-subtle bg-surface-card p-4">
       <Icon size={18} aria-hidden className="mt-0.5 shrink-0 text-content-secondary" />
-      <div>
+      <div className="min-w-0">
         <p className="font-semibold text-content-primary">{title}</p>
         <p className="mt-0.5 text-[13px] leading-[18px] text-content-secondary">{hint}</p>
+        {detail !== null && (
+          <p className="mt-1 break-words text-[13px] font-medium leading-[18px] text-content-primary">
+            {detail}
+          </p>
+        )}
       </div>
     </li>
   )

@@ -224,6 +224,30 @@ describe('GigProofList', () => {
     const { container } = render(<GigProofList requirements={[]} />)
     expect(container.querySelectorAll('ul > li')).toHaveLength(1)
   })
+
+  it('shows the bar a param-bearing requirement sets — the worker sees it BEFORE accepting', () => {
+    render(
+      <GigProofList
+        requirements={['geotag', 'structured', 'image']}
+        params={{
+          geotag: { radius_m: 1500 },
+          structured: {
+            fields: [
+              { name: 'count', kind: 'number', required: true },
+              { name: 'note', kind: 'string', required: false },
+            ],
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText("Check in within 1,500 m of the gig's location")).toBeInTheDocument()
+    expect(screen.getByText('Report: count, note (optional)')).toBeInTheDocument()
+  })
+
+  it('a gig that declared no params (every pre-#14 row) gets no detail line', () => {
+    render(<GigProofList requirements={['geotag']} params={null} />)
+    expect(screen.queryByText(/Check in within/)).not.toBeInTheDocument()
+  })
 })
 
 describe('GigPosterCard', () => {

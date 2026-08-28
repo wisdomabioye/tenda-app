@@ -61,6 +61,7 @@ const VALUES: GigFormValues = {
   remote: true,
   city: null,
   proofRequirements: [],
+  latitude: null, longitude: null, proofParams: null,
   requiresApproval: false,
 }
 

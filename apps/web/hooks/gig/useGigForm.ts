@@ -13,6 +13,8 @@ import {
   CATEGORY_HINTS,
   DEFAULT_COMPLETION_SECONDS,
   PROOF_NOTE,
+  composerProofSubmission,
+  draftFromProofParams,
   gigAssetByChain,
   getGigMissingRequirement,
   solanaChainId,
@@ -20,6 +22,7 @@ import {
   type ChainRegistryEntry,
   type GigCategory,
   type GigFormValues,
+  type ProofParamsDraft,
   type ProofType,
 } from '@tenda/shared'
 import { api } from '@/api/client'
@@ -74,6 +77,16 @@ export function useGigForm(
   const [selectedCity, setSelectedCity] = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number>(initialValues?.acceptDeadlineHours ?? 168)
   const [proofRequirements, setProofRequirements] = useState<ProofType[]>(initialValues?.proofRequirements ?? [])
+  // The param editors' state (pin/radius/fields), rebuilt from a draft's
+  // stored params + pin on repost. Kept whole even for deselected types —
+  // composerProofSubmission scopes what actually leaves the form.
+  const [proofDraft, setProofDraft] = useState<ProofParamsDraft>(() =>
+    draftFromProofParams(
+      initialValues?.proofParams ?? null,
+      initialValues?.latitude ?? null,
+      initialValues?.longitude ?? null,
+    ),
+  )
   // Instant by default: it is how every gig behaved before the mode existed,
   // and it is the cheaper of the two for the poster.
   const [requiresApproval, setRequiresApproval] = useState(initialValues?.requiresApproval ?? false)
@@ -127,6 +140,8 @@ export function useGigForm(
     asset,
     paymentRaw,
     completionDuration,
+    proofRequirements,
+    proofDraft,
   }
   const missingRequirement = getGigMissingRequirement(validationValues)
 
@@ -148,6 +163,8 @@ export function useGigForm(
       acceptDeadlineHours,
       proofRequirements,
       requiresApproval,
+      // Pin + params derived in one shared step, scoped to the selected types.
+      ...composerProofSubmission(proofRequirements, proofDraft),
     })
   }
 
@@ -178,6 +195,7 @@ export function useGigForm(
     selectedCity, setSelectedCity,
     acceptDeadlineHours, setAcceptDeadlineHours,
     proofRequirements, setProofRequirements,
+    proofDraft, setProofDraft,
     requiresApproval, setRequiresApproval,
     warnSheetOpen, setWarnSheetOpen,
     homeCountry,

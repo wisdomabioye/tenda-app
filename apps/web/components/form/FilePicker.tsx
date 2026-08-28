@@ -8,11 +8,11 @@
  */
 import { useRef } from 'react'
 import { X } from 'lucide-react'
-import type { ProofType } from '@tenda/shared'
+import type { FileProofType } from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
 import type { PickedProofFile } from '@/lib/uploads/escrow-proofs'
 
-export function proofTypeForFile(file: File): ProofType {
+export function proofTypeForFile(file: File): FileProofType {
   if (file.type.startsWith('image/')) return 'image'
   if (file.type.startsWith('video/')) return 'video'
   return 'document'

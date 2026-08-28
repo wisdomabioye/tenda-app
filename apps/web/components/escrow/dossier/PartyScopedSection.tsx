@@ -18,7 +18,7 @@
  * Reviews are deliberately NOT here. They are public on purpose.
  */
 import type { ReactNode } from 'react'
-import { formatRelativeDayWithTime } from '@tenda/shared'
+import { formatRelativeDayWithTime, type ProofPayloadLine } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PersonCard, type PersonCardUser } from '@/components/shared/PersonCard'
 import type { EscrowChatContext } from '@/lib/chat-href'
@@ -36,6 +36,11 @@ export interface DossierProof {
    * information that cannot settle anything.
    */
   href?: string | null
+  /**
+   * A data proof's payload as display lines (shared proofPayloadLines) —
+   * its substance, since there is no file to open. Null on file proofs.
+   */
+  payloadLines?: readonly ProofPayloadLine[] | null
 }
 
 export interface PartyScopedProps {

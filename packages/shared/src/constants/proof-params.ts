@@ -21,6 +21,13 @@ export interface GeotagProofParams {
 export const STRUCTURED_FIELD_KINDS = ['string', 'number', 'boolean'] as const
 export type StructuredFieldKind = (typeof STRUCTURED_FIELD_KINDS)[number]
 
+/** What each kind is called where a POSTER picks one — never the wire word. */
+export const STRUCTURED_FIELD_KIND_LABEL: Record<StructuredFieldKind, string> = {
+  string: 'Text',
+  number: 'Number',
+  boolean: 'Yes / no',
+}
+
 export interface StructuredProofField {
   name: string
   kind: StructuredFieldKind
@@ -41,6 +48,13 @@ export const PARAM_PROOF_TYPES = ['geotag', 'structured'] as const satisfies rea
 
 export const MIN_GEOTAG_RADIUS_M = 10
 export const MAX_GEOTAG_RADIUS_M = 50_000
+/**
+ * What the composers seed the radius field with — wide enough to absorb
+ * ordinary phone GPS error at a work site, tight enough to still mean "you
+ * were there". A poster can change it; the seed just should not be a value
+ * the server would refuse.
+ */
+export const DEFAULT_GEOTAG_RADIUS_M = 500
 export const MAX_STRUCTURED_FIELDS = 20
 export const MAX_STRUCTURED_FIELD_NAME_LENGTH = 64
 
@@ -187,7 +201,9 @@ export function structuredValuesProblem(
     if (!byName.has(key)) return `structured value "${key}" is not a declared field`
   }
   for (const field of fields) {
-    const value = values[field.name]
+    // OWN property only: `values[name]` for a field named "__proto__" would
+    // answer Object.prototype — an inherited object passed off as an answer.
+    const value = Object.hasOwn(values, field.name) ? values[field.name] : undefined
     if (value === undefined) {
       if (field.required) return `structured field "${field.name}" is required`
       continue

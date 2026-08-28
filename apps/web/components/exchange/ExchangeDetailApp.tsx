@@ -30,7 +30,7 @@ import {
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { DossierProofList, dossierProofsFor } from '@/components/escrow/dossier'
-import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/escrow/useEscrowActions'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
 import { showToast } from '@/components/ui/Toast'
@@ -238,7 +238,7 @@ export function ExchangeDetailApp({
         activeSheet={activeSheet}
         onClose={() => setActiveSheet(null)}
         onReviewSubmitted={() => void refresh()}
-        onProofsReady={async (proofs: ProofFile[]) => {
+        onProofsReady={async (proofs: EscrowProofInput[]) => {
           const submitted = await actions.submit(proofs)
           // A failed submit is HALF done: the receipt uploaded, the
           // transaction did not. Re-read so the dialog knows what the escrow
@@ -246,7 +246,7 @@ export function ExchangeDetailApp({
           if (!submitted) void refresh()
           return submitted
         }}
-        onAddProofsReady={async (proofs: ProofFile[]) => {
+        onAddProofsReady={async (proofs: EscrowProofInput[]) => {
           if (await actions.addProofs(proofs)) void refresh()
         }}
         onDisputeReady={(reason: string) => actions.dispute(reason, offer.dispute_bond_raw)}

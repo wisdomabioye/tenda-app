@@ -152,7 +152,7 @@ test('the sheet says what is already stored, deduplicated and counted', () => {
     alreadyAttached: [{ type: 'image' }, { type: 'image' }, { type: 'document' }],
   })
 
-  expect(screen.getByText(/3 files/)).toBeTruthy()
+  expect(screen.getByText(/3 proofs/)).toBeTruthy()
   expect(screen.queryByText(/Photo, Photo/i)).toBeNull()
 })
 
