@@ -139,4 +139,9 @@ pub enum TendaError {
 
     #[msg("approval mode cannot also pre-assign a counterparty; the modes are exclusive")]
     ApprovalModeCannotPreassign,
+
+    // ---- authorities ----------------------------------------------------
+
+    #[msg("authority pubkey must not be the default (all-zero) pubkey")]
+    ZeroAuthority,
 }

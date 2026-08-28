@@ -19,7 +19,10 @@ pub struct PlatformState {
     pub seeker_fee_bps: u16,
     pub approval_window_seconds: i64,
     pub grace_period_seconds: i64,
-    /// Saturating-add — analytics only, never gates logic.
+    /// Reserved: no instruction writes this (initialize zeroes it and nothing
+    /// increments it), so it reads 0 on every deployment. Kept because
+    /// removing it changes `LEN` and the account layout; see the
+    /// close_legacy_platform migration path before repurposing.
     pub total_volume: u64,
     pub bump: u8,
 }

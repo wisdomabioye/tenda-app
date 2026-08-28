@@ -9,6 +9,8 @@ use crate::errors::TendaError;
 use crate::events::PlatformInitialized;
 use crate::state::PlatformState;
 
+use super::require_authority;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InitializePlatformArgs {
     pub protocol_admin: Pubkey,
@@ -38,6 +40,9 @@ pub struct InitializePlatform<'info> {
 }
 
 pub fn initialize_platform_handler(ctx: Context<InitializePlatform>, args: InitializePlatformArgs) -> Result<()> {
+    require_authority(&args.protocol_admin)?;
+    require_authority(&args.dispute_admin)?;
+    require_authority(&args.treasury)?;
     validate_fee_bps(args.fee_bps, args.seeker_fee_bps)?;
     validate_window(args.approval_window_seconds)?;
     validate_grace(args.grace_period_seconds)?;

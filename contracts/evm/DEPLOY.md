@@ -114,6 +114,22 @@ cast call $ESCROW_ADDR "feeBps()(uint16)"        --rpc-url $RPC_URL  # 250
 
 ---
 
+### 4.1 Allow-list the permit relayer (only if the x402 relayer is live)
+
+`createEscrowForWithPermit` refuses every caller the admin has not listed —
+a permit binds an allowance, not the draft's terms, so only Tenda's relayer may
+spend one (design: `docs/agent_escrow_funding_evm.md`). From the admin (Safe):
+
+```bash
+cast send $ESCROW_ADDR "setRelayer(address,bool)" $RELAYER_HOT_WALLET true --rpc-url $RPC_URL
+cast call $ESCROW_ADDR "relayers(address)(bool)" $RELAYER_HOT_WALLET --rpc-url $RPC_URL   # → true
+```
+
+The EIP-3009 path (`createEscrowFor`) needs no listing — its nonce binds every
+term, so anyone, including the signer, may relay it.
+
+---
+
 ## 5. Wire the server (`apps/server/.env`)
 
 Chain secrets are flat env vars keyed by CAIP-2 id — `CHAIN_<SANITISED_ID>_<FIELD>`,

@@ -2889,6 +2889,11 @@ export type TendaEscrow = {
       "code": 6039,
       "name": "approvalModeCannotPreassign",
       "msg": "approval mode cannot also pre-assign a counterparty; the modes are exclusive"
+    },
+    {
+      "code": 6040,
+      "name": "zeroAuthority",
+      "msg": "authority pubkey must not be the default (all-zero) pubkey"
     }
   ],
   "types": [
@@ -3314,7 +3319,11 @@ export type TendaEscrow = {
           {
             "name": "vaultBump",
             "docs": [
-              "Bump for the per-escrow SOL vault PDA. 0 if `kind != Sol`."
+              "Bump for the per-escrow vault PDA that holds the funds: the SOL vault",
+              "(`ESCROW_VAULT_SEED`) for native escrows, the token vault",
+              "(`ESCROW_TOKEN_SEED`) for SPL escrows — `create_escrow_spl` stores",
+              "`ctx.bumps.vault_token_account` here. The settlement structs re-derive",
+              "the matching PDA from it."
             ],
             "type": "u8"
           }
@@ -3821,7 +3830,10 @@ export type TendaEscrow = {
           {
             "name": "totalVolume",
             "docs": [
-              "Saturating-add — analytics only, never gates logic."
+              "Reserved: no instruction writes this (initialize zeroes it and nothing",
+              "increments it), so it reads 0 on every deployment. Kept because",
+              "removing it changes `LEN` and the account layout; see the",
+              "close_legacy_platform migration path before repurposing."
             ],
             "type": "u64"
           },

@@ -12,13 +12,19 @@ Deliberate divergences from the Anchor program (documented in NatSpec):
   no raiser argument.
 - The dispute bond is collected from the raiser at `disputeEscrow` time, not
   at create.
+- Relayed creates (`createEscrowFor` via EIP-3009, `createEscrowForWithPermit`
+  via EIP-2612, the latter admin-allow-listed through `setRelayer`) exist on the
+  EVM side only: the Anchor program needs no counterpart because Solana
+  separates the fee payer natively. Design and binding rules:
+  `docs/agent_escrow_funding_evm.md` (repo docs).
 
 ## Commands
 
 ```bash
 forge build          # solc 0.8.35, via-IR + optimizer (see foundry.toml)
 forge test           # lifecycle, guards, dispute matrix, ERC-20 + native,
-                     # permit paths, reentrancy, fee fuzz, invariant suite
+                     # permit paths, relayed creates (EIP-3009 / permit),
+                     # reentrancy, fee fuzz, invariant suite
 forge fmt --check
 pnpm --dir ../.. sync:abi   # regenerate packages/shared/src/abi after src changes
 ```

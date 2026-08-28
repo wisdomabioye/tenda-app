@@ -70,7 +70,7 @@ token custody); the state machine is identical.
 | `reclaim_abandoned_sol` / `_spl` | creator | Reclaim after the completion window + grace lapses |
 | `dispute_escrow_sol` / `_spl` | either party | Raise a dispute (posts a bond) |
 | `resolve_dispute_sol` / `_spl` | dispute_admin | Resolve, distributing funds + bond |
-| `close_legacy_platform` | protocol_admin | One-off cleanup of the pre-rewrite account |
+| `close_legacy_platform` | anyone (payer) | One-off cleanup of the pre-rewrite account; refuses a current-layout account |
 
 On mainnet `protocol_admin` is the Squads 3-of-5 vault (key ceremony
 pending); `dispute_admin` is a single ops key.
