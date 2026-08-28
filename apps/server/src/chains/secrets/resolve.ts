@@ -23,6 +23,7 @@ export type ResolvedChainSecret =
       usdcMint?: string
       gasSeedKey?: string
       webhookSecret?: string
+      relayerKey?: string
     }
   | {
       namespace: 'eip155'
@@ -36,6 +37,7 @@ export type ResolvedChainSecret =
       disputeAdmin?: string
       paymasterUrl?: string
       webhookSecret?: string
+      relayerKey?: string
     }
 
 /** Convenience aliases for the two namespace variants of the resolved union. */
@@ -68,6 +70,7 @@ export function assemble(
       usdcMint: present.get('usdcMint'),
       gasSeedKey: present.get('gasSeedKey'),
       webhookSecret: present.get('webhookSecret'),
+      relayerKey: present.get('relayerKey'),
     }
   }
   const escrowDeployBlock = present.get('escrowDeployBlock')
@@ -83,5 +86,6 @@ export function assemble(
     disputeAdmin: present.get('disputeAdmin'),
     paymasterUrl: present.get('paymasterUrl'),
     webhookSecret: present.get('webhookSecret'),
+    relayerKey: present.get('relayerKey'),
   }
 }

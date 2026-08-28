@@ -517,3 +517,20 @@ test('nativeAssetOf throws rather than returning undefined — an absent native 
   }
   assert.throws(() => nativeAssetOf(broken), /violates the manifest invariant/)
 })
+
+test('eip3009 (#18): every declaration rides a permit domain, and a declaration without one is refused', () => {
+  const declared = CHAIN_MANIFEST.flatMap((c) => c.assets.filter((a) => a.eip3009 !== undefined).map((a) => `${c.id}/${a.id}`))
+  assert.ok(declared.length > 0, 'expected at least one eip3009-capable asset')
+  for (const entry of CHAIN_MANIFEST) {
+    for (const asset of entry.assets) {
+      if (asset.eip3009 !== undefined) assert.ok(asset.permit !== undefined, `${entry.id}/${asset.id}`)
+    }
+  }
+  const [base] = CHAIN_MANIFEST.filter((c) => c.id === 'eip155:8453')
+  assert.ok(base)
+  const broken: ChainManifestEntry = {
+    ...base,
+    assets: base.assets.map((a) => (a.id === 'USDC_BASE' ? { id: a.id, roles: a.roles, token: a.token, eip3009: true } : a)),
+  }
+  assert.throws(() => assertManifestValid([broken]), /declares eip3009 but no permit domain/)
+})

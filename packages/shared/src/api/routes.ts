@@ -16,6 +16,7 @@ export const apiRoutes: {
   escrows: {
     create: '/v1/escrows',
     buildCreate: '/v1/escrows/:id/build-create',
+    fund: '/v1/escrows/:id/fund',
     accept: '/v1/escrows/:id/accept',
     decline: '/v1/escrows/:id/decline',
     submit: '/v1/escrows/:id/submit',

@@ -23,6 +23,8 @@ import { createSolanaBuilders } from '@server/chains/solana/builders'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
 import { createSolanaVerifier } from '@server/chains/solana/verify'
+import { solanaEscrowRelay } from '@server/chains/solana/relay'
+import type { SolanaRelayer } from '@server/chains/solana/relay/relayer'
 import type {
   AmountRaw,
   AssetId,
@@ -38,6 +40,8 @@ export interface SolanaAdapterDeps {
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /** Test seam: replace the network-backed RPC with a fake. */
   rpc?: SolanaRpc
+  /** Relayer hot wallet (#18); absent = relayed funding unavailable. */
+  relayer?: SolanaRelayer
 }
 
 export interface SolanaAdapterArgs {
@@ -65,12 +69,13 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     connection: new Connection(args.rpc_url, commitmentFor(args.chain_id)),
   })
 
-  const builders = createSolanaBuilders({
+  const builderDeps = {
     rpc,
     program,
     resolveWalletAddress: args.deps.resolveWalletAddress,
     resolveAsset: args.deps.resolveAsset,
-  })
+  }
+  const builders = createSolanaBuilders(builderDeps)
   const verifier = createSolanaVerifier({ rpc, chain_id: args.chain_id, program })
 
   return {
@@ -81,6 +86,9 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     // the address served to clients cannot disagree with the one we transact on.
     escrowAddress: PROGRAM_ID.toBase58(),
     buildTx: builders.buildTx,
+    ...(args.deps.relayer !== undefined
+      ? { relay: solanaEscrowRelay(builderDeps, args.deps.relayer, args.chain_id) }
+      : {}),
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 

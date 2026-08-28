@@ -16,7 +16,7 @@
 import { ErrorCode, sameWalletAddress } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, EscrowState } from '@server/chains/types'
-import { escrowIdHex } from './builders'
+import { escrowIdHex } from './create-params'
 import { fetchEscrowState, type EvmAdapterContext } from './state'
 import { boundPartyAddress } from '@server/chains/signer-role'
 

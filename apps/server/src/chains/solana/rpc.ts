@@ -137,6 +137,20 @@ export interface SolanaConnectionPort {
 }
 
 /**
+ * The per-call budget every Solana network call runs under — the adapter's
+ * reads here AND the relayer's reads/writes (relay/relayer.ts): web3's
+ * `Connection` has no timeout of its own, so without this a hung endpoint
+ * hangs the request.
+ */
+export function withSolanaRpcTimeout<T>(
+  label: string,
+  operation: Promise<T>,
+  timeoutMs = DEFAULT_RPC_TIMEOUT_MS,
+): Promise<T> {
+  return withTimeout(operation, timeoutMs, `solana rpc timeout after ${timeoutMs}ms: ${label}`)
+}
+
+/**
  * Wrap a connection port into the SolanaRpc the adapter consumes, the
  * testable unit: the per-call timeout race plus response→interface mapping.
  */
@@ -144,13 +158,8 @@ export function solanaRpcFromConnection(
   conn: SolanaConnectionPort,
   timeoutMs = DEFAULT_RPC_TIMEOUT_MS,
 ): SolanaRpc {
-  function withRpcTimeout<T>(label: string, operation: Promise<T>): Promise<T> {
-    return withTimeout(
-      operation,
-      timeoutMs,
-      `solana rpc timeout after ${timeoutMs}ms: ${label}`,
-    )
-  }
+  const withRpcTimeout = <T>(label: string, operation: Promise<T>): Promise<T> =>
+    withSolanaRpcTimeout(label, operation, timeoutMs)
 
   return {
     async getLatestBlockhash() {

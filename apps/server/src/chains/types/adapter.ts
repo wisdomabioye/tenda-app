@@ -8,6 +8,7 @@ import type { PermitPayloadResponse } from '@tenda/shared'
 import type { AmountRaw, AssetId, ChainId } from './values'
 import type { BuildTxArgs, UnsignedTx } from './build-tx'
 import type { EscrowState, VerifiedTx, VerifyAuthSigArgs, VerifyTxArgs } from './verify'
+import type { EscrowRelay } from './relay'
 
 // ---------- adapter -------------------------------------------------------
 
@@ -70,6 +71,13 @@ export interface ChainAdapter {
     asset: AssetId
     value_raw: AmountRaw
   }): Promise<PermitPayloadResponse>
+
+  /**
+   * Relayed funding (x402, #18): present only when this chain has a relayer
+   * hot wallet configured (`CHAIN_<ID>_RELAYER_KEY`). Absent = the fund route
+   * answers RELAY_UNAVAILABLE and the caller signs its own create.
+   */
+  readonly relay?: EscrowRelay
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`

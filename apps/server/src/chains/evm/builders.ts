@@ -15,13 +15,13 @@
  * same transaction.
  */
 
-import { encodeFunctionData, toHex } from 'viem'
-import { DISPUTE_WINNER_CODE, ESCROW_KIND_CODE, type PermitSignatureBody } from '@tenda/shared'
+import { encodeFunctionData } from 'viem'
+import { DISPUTE_WINNER_CODE, type PermitSignatureBody } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { uuidToBytes } from '@server/chains/ids'
-import { ESCROW_EVM_ABI, ZERO_ADDRESS } from './rpc'
+import { ESCROW_EVM_ABI } from './rpc'
 import { parsePermitSignature } from './permit'
+import { buildCreateParams, escrowIdHex } from './create-params'
 import type { BuildTxArgs } from '@server/chains/types'
 
 export interface BuiltCall {
@@ -55,22 +55,6 @@ export interface BuildContext {
 }
 
 
-/**
- * A uuid escrow id as the contract's `bytes16` ref.
- *
- * Exported because ./state needs the same encoding to look an escrow up, and
- * kept HERE rather than in chains/ids.ts: that module is deliberately
- * chain-agnostic and viem-free, while `toHex` is viem. One EVM-side encoder,
- * two callers.
- */
-export function escrowIdHex(escrow_id: string): `0x${string}` {
-  return toHex(uuidToBytes(escrow_id))
-}
-
-function asAddress(v: string | null): `0x${string}` {
-  return (v ?? ZERO_ADDRESS) as `0x${string}`
-}
-
 /** Wire permit → the contract's `Permit` calldata tuple. ERC-20 only. */
 function permitTuple(permit: PermitSignatureBody, asset_address: string | null) {
   if (asset_address === null) {
@@ -93,21 +77,9 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'createEscrow': {
       const p = args.payload
       const native = ctx.asset_address === null
-      // One `CreateParams` struct, mirroring the contract — named fields, so
-      // adding a create-time field can never silently shift an argument.
-      const createParams = {
-        escrowId: escrowIdHex(p.escrow_id),
-        kind: ESCROW_KIND_CODE[p.kind],
-        asset: asAddress(ctx.asset_address),
-        amount: BigInt(p.amount_raw),
-        assignedCounterparty: asAddress(ctx.assigned_counterparty_address),
-        acceptDeadline: BigInt(p.accept_deadline_unix),
-        completionDuration: BigInt(p.completion_duration_seconds),
-        disputeBond: BigInt(p.dispute_bond_raw),
-        isSeeker: p.is_seeker,
-        requiresApproval: p.requires_approval,
-        unassignWindowSeconds: BigInt(p.unassign_window_seconds),
-      } as const
+      // The one CreateParams builder (create-params.ts) — the relayed path
+      // hashes the same struct into its EIP-3009 nonce.
+      const createParams = buildCreateParams(p, ctx)
       if (p.permit !== undefined && ctx.permit_encodable) {
         return {
           data: encodeFunctionData({

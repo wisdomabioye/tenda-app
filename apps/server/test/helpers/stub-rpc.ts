@@ -32,7 +32,8 @@ export interface StubRpc {
  * @param respond maps a JSON-RPC method to its `result`. Returning `undefined`
  *   answers `null`, which is what an EVM node returns for an unknown receipt —
  *   so an unhandled method degrades the way the real thing does rather than
- *   erroring in a way no production code has to handle.
+ *   erroring in a way no production code has to handle. May return a Promise:
+ *   a responder that resolves late is how a timeout test gets a slow node.
  */
 export async function startStubRpc(
   respond: (method: string, params: unknown[]) => unknown,
@@ -42,14 +43,13 @@ export async function startStubRpc(
   const server: Server = createServer((req, res) => {
     let body = ''
     req.on('data', (chunk) => (body += String(chunk)))
-    req.on('end', () => {
+    req.on('end', async () => {
       const parsed = JSON.parse(body) as { id: number; method: string; params?: unknown[] }
       const params = parsed.params ?? []
       calls.push({ method: parsed.method, params })
+      const result = (await respond(parsed.method, params)) ?? null
       res.setHeader('content-type', 'application/json')
-      res.end(
-        JSON.stringify({ jsonrpc: '2.0', id: parsed.id, result: respond(parsed.method, params) ?? null }),
-      )
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: parsed.id, result }))
     })
   })
 

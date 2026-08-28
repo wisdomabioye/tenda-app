@@ -44,6 +44,8 @@ export type {
   VerifyAuthSigArgs,
 } from './verify'
 
+export type { EscrowRelay, RelayedCreateArgs } from './relay'
+
 export type {
   ChainAdapter,
   RpcProvider,

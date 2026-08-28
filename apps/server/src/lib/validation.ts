@@ -2,6 +2,16 @@ import { isValidLatitude, isValidLongitude, ErrorCode } from '@tenda/shared'
 import { AppError } from './errors'
 
 /**
+ * A plain object — the shape every JSON body/header field is inspected as
+ * before any of its members is read. Arrays are refused: `typeof [] ===
+ * 'object'`, and a decoder that then reads `.signature` off one would answer
+ * "field missing" for what is a wrong TYPE. ONE copy for every decoder.
+ */
+export function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+/**
  * Throws a 400 AppError if either coordinate is present but out of valid range.
  * Accepts undefined/null (field not provided) without error.
  */

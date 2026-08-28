@@ -17,6 +17,9 @@ import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
 import type { EvmAdapterDeps } from '@server/chains/evm'
 import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
+import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
+import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
+import { solanaSecret } from '@server/chains/secrets'
 import { assertChainRegistryInSync } from '@server/chains/registry-sync'
 import {
   assertEscrowContractsKnown,
@@ -73,6 +76,8 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   }
 
+  const secrets = getChainSecrets()
+
   /**
    * Per-chain deps, selected by `gasPolicy` (not bespoke per-chain keys):
    *   - solana: wallet + asset resolvers.
@@ -86,10 +91,24 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
    * with no edit here.
    */
   const depsFactory: AdapterDepsFactory = {
-    solana: (chainId) => ({
-      resolveWalletAddress: dbWalletResolver('solana'),
-      resolveAsset: dbAssetResolver(chainId),
-    }),
+    solana: (chainId) => {
+      // The relayer key rides the chain's own secret record (#18); the loader
+      // guarantees one active Solana chain, so this IS that chain's secret.
+      const secret = solanaSecret(secrets)
+      return {
+        resolveWalletAddress: dbWalletResolver('solana'),
+        resolveAsset: dbAssetResolver(chainId),
+        ...(secret?.relayerKey !== undefined
+          ? {
+              relayer: web3SolanaRelayer({
+                rpc_url: secret.rpcUrl,
+                chain_id: chainId,
+                secret_key_base58: secret.relayerKey,
+              }),
+            }
+          : {}),
+      }
+    },
     evm: (chainId, secret, entry) => {
       const base: EvmAdapterDeps = {
         resolveWalletAddress: dbWalletResolver('eip155'),
@@ -112,6 +131,16 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
             .limit(1)
           return rows.length > 0
         },
+        // Relayer hot wallet (#18), when this chain's secret carries a key.
+        ...(secret.relayerKey !== undefined
+          ? {
+              relayer: viemEvmRelayer({
+                rpc_url: secret.rpcUrl,
+                chain_id: chainId,
+                private_key: secret.relayerKey as `0x${string}`,
+              }),
+            }
+          : {}),
       }
       if (entry.gasPolicy !== 'paymaster') return base
       return {
@@ -132,8 +161,6 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
       }
     },
   }
-
-  const secrets = getChainSecrets()
 
   // Which contracts each chain may transact with, current AND superseded.
   //

@@ -71,6 +71,19 @@ export type {
   ClientPingBody,
   ClientPingResponse,
 } from './escrows.contract'
+export type {
+  EvmCreateParamsWire,
+  ReceiveAuthorizationTypedData,
+  EvmAuthorizationTerms,
+  SolanaTransactionTerms,
+  RelayTerms,
+  RelayPaymentRequired,
+  EvmAuthorizationPayment,
+  SolanaTransactionPayment,
+  RelayPaymentPayload,
+  RelaySettlementResponse,
+  FundEscrowResponse,
+} from './relay.contract'
 export type { GigsContract } from './gigs.contract'
 export type { DisputesContract } from './disputes.contract'
 export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'

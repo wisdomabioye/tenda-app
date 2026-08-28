@@ -149,7 +149,15 @@ CHAIN_EIP155_8453_DISPUTE_ADMIN_ADDR=0x...   # enables the admin-sign pre-flight
 CHAIN_EIP155_8453_RPC_URL_FALLBACK=https://... # secondary RPC, failover on primary errors
 CHAIN_EIP155_8453_PAYMASTER_URL=https://...  # unset = no gasless UserOps (users pay gas)
 CHAIN_EIP155_8453_WEBHOOK_SECRET=...         # HMAC key, only if using the § 6 webhook
+CHAIN_EIP155_8453_RELAYER_KEY=0x...          # x402 relayer hot wallet (#18); unset = RELAY_UNAVAILABLE
 ```
+
+**The relayer hot wallet (#18)** is a plain EOA that sends `createEscrowFor`
+and pays its gas — a gas float, never escrow funds (the contract pulls those
+from the creator by signature). Fund it with native gas on this chain, monitor
+its balance like the Solana gas-seed wallet, and rotate by replacing the key
+and re-funding; nothing on-chain references it on the EIP-3009 path. Design +
+operations: `docs/agent_escrow_funding_relayer.md`.
 
 Token addresses are **not** env vars — they are manifest constants
 (`packages/shared/src/chains/manifest.ts`), seeded from there.

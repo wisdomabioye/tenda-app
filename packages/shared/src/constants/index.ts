@@ -13,8 +13,18 @@ export { GIG_LIST_SORTS, type GigListSort } from './gig-list'
 export { MESSAGE_MAX_LENGTH } from './chat'
 export { NAME_MAX_LENGTH } from './users'
 export { ErrorCode } from './errors'
+export {
+  X402_VERSION,
+  X_PAYMENT_HEADER,
+  X_PAYMENT_RESPONSE_HEADER,
+  TENDA_RELAY_SCHEME,
+  RELAY_QUOTE_TTL_SECONDS,
+  RELAY_MIN_REMAINING_SECONDS,
+  RELAY_PAYMENT_KINDS,
+  type RelayPaymentKind,
+} from './relay'
 export type { ErrorCode as ErrorCodeType } from './errors'
-export { SOLANA_TX_FEE_LAMPORTS, solanaChainId, solanaPublicRpcUrl, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'
+export { SOLANA_TX_FEE_LAMPORTS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, solanaChainId, solanaPublicRpcUrl, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'
 export {
   EXCHANGE_DISPUTE_REASON_MIN_LENGTH,
   EXCHANGE_DISPUTE_REASON_MAX_LENGTH,

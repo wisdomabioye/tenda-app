@@ -7,11 +7,15 @@
  * mirrors this 1:1, so the compiler objects if the two drift.
  */
 
+import bs58 from 'bs58'
 import { CHAIN_MANIFEST, type ChainManifestEntry } from '@tenda/shared'
 import { isAbsoluteUrl } from '@server/lib/env'
 
+/** An ed25519 secret key as web3's `Keypair.fromSecretKey` takes it: 64 raw bytes. */
+const ED25519_SECRET_KEY_BYTES = 64
+
 /** Validation classes for a secret value. */
-export type SecretKind = 'url' | 'evmAddr' | 'base58' | 'uint' | 'str'
+export type SecretKind = 'url' | 'evmAddr' | 'evmKey' | 'base58' | 'base58Key' | 'uint' | 'str'
 
 export interface SecretFieldSpec {
   /** Logical key on the resolved record. */
@@ -41,6 +45,11 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     { key: 'usdcMint', envSuffix: 'USDC_MINT', required: false, kind: 'base58' },
     { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'str' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
+    // Relayer hot wallet for agent funding (#18): fee payer of relayed
+    // creates. base58 64-byte secret (the shape GAS_SEED_KEY has, checked
+    // here so a typo is a boot error naming the key); absent = the fund
+    // route answers RELAY_UNAVAILABLE on this chain.
+    { key: 'relayerKey', envSuffix: 'RELAYER_KEY', required: false, kind: 'base58Key' },
   ],
   eip155: [
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
@@ -56,6 +65,9 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'evmAddr' },
     { key: 'paymasterUrl', envSuffix: 'PAYMASTER_URL', required: false, kind: 'url' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
+    // Relayer hot wallet for agent funding (#18): sends createEscrowFor and
+    // pays its gas. 0x-hex secp256k1 private key; absent = RELAY_UNAVAILABLE.
+    { key: 'relayerKey', envSuffix: 'RELAYER_KEY', required: false, kind: 'evmKey' },
   ],
 }
 
@@ -107,14 +119,31 @@ export function isValid(kind: SecretKind, value: string): boolean {
       return isAbsoluteUrl(value, CHAIN_ENDPOINT_PROTOCOLS)
     case 'evmAddr':
       return /^0x[0-9a-fA-F]{40}$/.test(value)
+    case 'evmKey':
+      return /^0x[0-9a-fA-F]{64}$/.test(value)
     case 'base58':
       return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)
+    case 'base58Key':
+      // Decoded, not length-matched: base58 length only approximates byte
+      // length (63 bytes of 0xff is 87 characters too), and a key of the
+      // wrong size would otherwise pass here and crash `Keypair.fromSecretKey`
+      // at boot with an error that names nothing.
+      return isBase58Bytes(value, ED25519_SECRET_KEY_BYTES)
     case 'uint':
       // Decimal block ordinal; bounded so Number() stays exact (2^53 blocks
       // is far beyond any chain's height).
       return /^\d{1,15}$/.test(value)
     case 'str':
       return value.length > 0
+  }
+}
+
+/** True iff `value` is base58 text that decodes to exactly `bytes` bytes. */
+function isBase58Bytes(value: string, bytes: number): boolean {
+  try {
+    return bs58.decode(value).length === bytes
+  } catch {
+    return false // not base58 at all
   }
 }
 

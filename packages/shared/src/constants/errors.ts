@@ -106,6 +106,20 @@ export const ErrorCode = {
   // (asset/chain has no permit support, or the token's live domain no longer
   // matches config).
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
+  /**
+   * Relayed funding (x402) cannot be offered here: the chain has no relayer
+   * configured, or the asset cannot fund an escrow by signature (no EIP-3009
+   * on this token, a native asset). The caller falls back to signing and
+   * broadcasting the create transaction itself.
+   */
+  RELAY_UNAVAILABLE:             'RELAY_UNAVAILABLE',
+  /**
+   * The payment artifact in X-PAYMENT was refused before broadcast: it does
+   * not match the terms, its signature does not verify, its window has
+   * lapsed, or the relayed transaction fails simulation. `details.reason`
+   * names which. Distinct from VALIDATION_ERROR (a malformed header).
+   */
+  RELAY_REJECTED:                'RELAY_REJECTED',
   /** Submit refused: the gig requires proof types the worker has not attached. */
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
   /**

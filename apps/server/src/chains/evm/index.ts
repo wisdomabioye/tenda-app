@@ -31,6 +31,8 @@ import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
 import { resolveEvmSigner } from './signer'
 import { buildPermitPayload } from './permit-payload'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
+import { evmEscrowRelay } from './relay'
+import type { EvmRelayer } from './relay/relayer'
 
 export interface EvmAdapterDeps {
   /** user_id → the user's EVM wallet address (0x-hex). */
@@ -61,6 +63,8 @@ export interface EvmAdapterDeps {
   rpc?: EvmRpc
   /** Paymaster endpoint seam; absent = sponsorship unavailable. */
   paymaster?: PaymasterHttp
+  /** Relayer hot wallet (#18); absent = relayed funding unavailable. */
+  relayer?: EvmRelayer
 }
 
 export interface EvmAdapterArgs {
@@ -277,6 +281,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     escrowAddress: args.escrow_contract,
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
+    ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
     // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.

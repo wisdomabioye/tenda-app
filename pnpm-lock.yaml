@@ -485,6 +485,9 @@ importers:
       fastify-tsconfig:
         specifier: ^3.0.0
         version: 3.0.0
+      litesvm:
+        specifier: 0.3.3
+        version: 0.3.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
       ts-node:
         specifier: ^10.4.0
         version: 10.9.2(@swc/core@1.15.18(@swc/helpers@0.5.19))(@types/node@24.12.0)(typescript@5.9.3)
@@ -720,7 +723,7 @@ importers:
         version: 4.5.0
       litesvm:
         specifier: 0.3.3
-        version: 0.3.3(bufferutil@4.1.0)(typescript@5.9.3)
+        version: 0.3.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
       mocha:
         specifier: ^11.7.6
         version: 11.7.6
@@ -19216,7 +19219,7 @@ snapshots:
       '@coral-xyz/anchor': 0.31.1(bufferutil@4.1.0)(typescript@5.9.3)
       '@iarna/toml': 2.2.5
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
-      litesvm: 0.3.3(bufferutil@4.1.0)(typescript@5.9.3)
+      litesvm: 0.3.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -23037,7 +23040,7 @@ snapshots:
   litesvm-linux-x64-musl@0.3.3:
     optional: true
 
-  litesvm@0.3.3(bufferutil@4.1.0)(typescript@5.9.3):
+  litesvm@0.3.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6):
     dependencies:
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
       bs58: 6.0.0

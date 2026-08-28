@@ -6,6 +6,7 @@
  */
 
 import type { Endpoint } from '../endpoint'
+import type { FundEscrowResponse } from './relay.contract'
 import type { AssignWorkerBody, ReleaseAssignmentResponse } from '../../types/application'
 import type { EscrowTxType } from '../../constants/escrow'
 import type { DataProofType, FileProofType, ProofType } from '../../constants/proofs'
@@ -207,6 +208,18 @@ export interface EscrowsContract {
   /** Rebuild the unsigned create tx for an owned draft (publish path for
    *  server-opened offramp drafts + signing-declined retries). */
   buildCreate: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, CreateEscrowApiResponse>
+  /**
+   * Relayed funding of an owned draft (x402): without an X-PAYMENT header the
+   * answer is 402 + RelayPaymentRequired; with one the server relays the
+   * signed artifact, pays the gas, and answers 202 (relay.contract.ts).
+   *
+   * The escrow PRIMITIVE, not the agent surface: web/mobile do not call it and
+   * agents use the one-shot `/v1/agent/…` route (#19), which composes the same
+   * relay in-process. Declared here so the route table stays honest; kept for
+   * a possible gasless human flow (decision 2026-08-28, see
+   * docs/agent_escrow_funding_relayer.md).
+   */
+  fund: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, FundEscrowResponse>
   accept: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, EscrowActionResponse>
   decline: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   submit: Endpoint<'POST', IdParam, SubmitEscrowProofBody, undefined, EscrowActionResponse>

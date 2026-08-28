@@ -67,6 +67,17 @@ export interface ChainAsset {
    * ERC-20 assets with a canonical manifest token only.
    */
   permit?: { version: string }
+  /**
+   * EIP-3009 support — the token implements `receiveWithAuthorization` under
+   * the SAME EIP-712 domain as its permit (FiatTokenV2 and its bridged/mock
+   * derivatives do), which is what lets an agent fund an escrow by signature
+   * with Tenda's relayer paying the gas (createEscrowFor, #17/#18). Requires
+   * `permit` (the domain version it reuses); the server additionally probes
+   * the live token for RECEIVE_WITH_AUTHORIZATION_TYPEHASH before quoting, so
+   * a declaration ahead of a redeploy degrades to RELAY_UNAVAILABLE rather
+   * than to unusable signatures.
+   */
+  eip3009?: true
 }
 
 export interface ChainManifestEntry {
@@ -189,6 +200,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         roles: ['gig', 'exchange'],
         token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'ETH_BASE', roles: ['exchange'], token: null },
     ],
@@ -213,6 +225,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         roles: ['gig', 'exchange'],
         token: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'ETH_BASE', roles: ['exchange'], token: null },
     ],
@@ -244,6 +257,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         roles: ['gig', 'exchange'],
         token: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'cUSD', roles: ['exchange'], token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
       { id: 'CELO', roles: ['exchange'], token: null },
@@ -272,6 +286,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         roles: ['gig', 'exchange'],
         token: '0x01C5C0122039549AD1493B8220cABEdD739BC44E',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'CELO', roles: ['exchange'], token: null },
     ],
@@ -292,15 +307,18 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     gasPolicy: 'none',
     assets: [
       // No canonical Circle USDC exists on 0G, so Galileo runs the repo's own
-      // MockUSDCPermitV2 (contracts/evm/test/mocks), deployed 2026-08-27:
-      // 6 decimals, EIP-712 domain USDC / version "2" — eip712Domain() plus a
-      // DOMAIN_SEPARATOR recomputation verified on-chain, and a live permit()
-      // executed against it — with an open mint() for smoke funding.
+      // MockUSDCPermitV2 (contracts/evm/test/mocks): 6 decimals, EIP-712 domain
+      // USDC / version "2" — DOMAIN_SEPARATOR recomputation verified on-chain —
+      // with an open mint() for smoke funding. REDEPLOYED 2026-08-28 (the #17
+      // build with receiveWithAuthorization; RECEIVE_WITH_AUTHORIZATION_TYPEHASH
+      // verified on-chain = the canonical FiatTokenV2 constant), replacing
+      // 0xcBFf…5e04 (2026-08-27, pre-EIP-3009) — relayed funding (#18) works here.
       {
         id: 'USDC_0G',
         roles: ['gig', 'exchange'],
-        token: '0xcBFf5B5f90D83561Ad58c6125e6CFE365D3a5e04',
+        token: '0x3780460189622E60cB7ec6e8e97038A386674B71',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'OG', roles: ['exchange'], token: null },
     ],
@@ -341,6 +359,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         roles: ['gig', 'exchange'],
         token: '0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E',
         permit: { version: '2' },
+        eip3009: true,
       },
       { id: 'OG', roles: ['exchange'], token: null },
     ],
@@ -393,6 +412,11 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
       }
       if (asset.permit !== undefined && asset.permit.version.length === 0) {
         throw new Error(`CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' has an empty permit version`)
+      }
+      if (asset.eip3009 !== undefined && asset.permit === undefined) {
+        throw new Error(
+          `CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' declares eip3009 but no permit domain to sign under`,
+        )
       }
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {
