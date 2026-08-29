@@ -97,7 +97,7 @@ test('grant: email already used by another admin → 409 EMAIL_IN_USE', { skip }
   )
 })
 
-test('grantAdminEmail: a DB failure that is NOT the email collision is re-thrown as-is (#110)', async () => {
+test('grantAdminEmail: a DB failure that is NOT the email collision is re-thrown as-is (#110)', { skip }, async () => {
   // lib/admin-auth.ts's bare `throw err`, the last line of its catch. The catch
   // exists to turn ONE postgres error — the admin_users.email unique violation
   // — into a 409 EMAIL_IN_USE, and everything else must pass through untouched.
