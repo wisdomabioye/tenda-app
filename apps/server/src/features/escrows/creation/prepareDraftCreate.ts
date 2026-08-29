@@ -13,7 +13,7 @@
  * identical preamble; the comments that justify each step travelled with it.
  */
 import { and, eq } from 'drizzle-orm'
-import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
+import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode, type SignerPreferenceBody } from '@tenda/shared'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
@@ -23,6 +23,7 @@ import { normalizeContractAddress } from '@server/chains/contracts'
 import type { ChainAdapter, ChainRegistry, CreateEscrowPayload } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import { hasPendingEscrowCreateTransaction } from './hasPendingEscrowCreateTransaction'
+import { draftCreatePayload } from './draftCreatePayload'
 
 /** Deadlines closer than this get refreshed, the program rejects a create
  *  whose accept window is already (about to be) over. */
@@ -37,7 +38,7 @@ export interface PreparedDraftCreate {
 
 export async function prepareDraftCreate(
   deps: { db: AppDatabase; chains: ChainRegistry },
-  args: { escrow: EscrowRow; user_id: string; body: unknown },
+  args: { escrow: EscrowRow; user_id: string; body: SignerPreferenceBody | null },
 ): Promise<PreparedDraftCreate> {
   const { escrow, user_id } = args
   if (escrow.creator_id !== user_id) {
@@ -154,24 +155,8 @@ export async function prepareDraftCreate(
   return {
     adapter,
     signer_address,
-    payload: {
-      escrow_id: escrow.id,
-      kind: escrow.kind,
-      asset: escrow.asset,
-      amount_raw: escrow.amount_raw,
-      ...(escrow.assigned_counterparty_id !== null
-        ? { assigned_counterparty_user_id: escrow.assigned_counterparty_id }
-        : {}),
-      accept_deadline_unix: Math.floor(accept_deadline.getTime() / 1000),
-      completion_duration_seconds,
-      dispute_bond_raw: escrow.dispute_bond_raw,
-      // Acceptance mode. Both come from the DRAFT ROW, not from config: this
-      // rebuilds the transaction for an escrow that already exists, so it
-      // must encode what that draft was created with. Reading config here
-      // would silently re-mode a draft whose defaults had since changed.
-      requires_approval: escrow.requires_approval,
-      unassign_window_seconds: escrow.unassign_window_seconds,
-      is_seeker: escrow.is_seeker,
-    },
+    // The same row → payload mapping POST /v1/escrows uses for a persisted
+    // draft, under the windows just refreshed above.
+    payload: draftCreatePayload(escrow, { accept_deadline, completion_duration_seconds }),
   }
 }

@@ -53,7 +53,7 @@ const iso = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3_600
 const CLOCK = /^\d+:\d{2}:\d{2}$/
 
 const user: UserRef = {
-  id: 'u1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, country: 'NG',
+  id: 'u1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, is_agent: false, country: 'NG',
 }
 
 function makeOffer(

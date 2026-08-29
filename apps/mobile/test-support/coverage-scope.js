@@ -220,6 +220,11 @@ module.exports = [
   'features/escrow/transition-failure.ts', // 100/100/100/100
   'components/gig/GigDetailGate.tsx',
   'components/shared/ReviewScore.tsx',
+  // The counterparty card, gated with its first suite (#19: the agent badge).
+  // Measured before listing: the file reads 77.77 / 60.86 / 66.66 / 77.77 (the
+  // message press is the dark part) and the global thresholds hold at
+  // 94.36 / 93.29 / 93.76 / 94.51.
+  'components/shared/PersonCard.tsx',
   'stores/gigs.store.ts',
   // CO1 takedown enforcement: the hooks that act on a refusal, where the
   // server is the first to know a listing was pulled and the screen has to

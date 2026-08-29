@@ -13,8 +13,9 @@
  * plausible sentence under someone's name is the one thing this card must not
  * do. Spec-correction #13.
  */
-import { displayName, formatReviewScore, type UserRef } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, displayName, formatReviewScore, type UserRef } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
 import { GIG_DETAIL_COPY } from './copy'
 
 export function GigPosterCard({ creator }: { creator: UserRef }) {
@@ -25,9 +26,10 @@ export function GigPosterCard({ creator }: { creator: UserRef }) {
     <>
       <div className="flex max-w-[60ch] items-center gap-4 rounded-card border border-border-subtle bg-surface-card p-5 shadow-card">
         <Avatar size="lg" name={name} src={creator.avatar_url} />
-        <p className="min-w-0 flex-1 truncate font-display text-xl font-semibold leading-[26px] text-content-primary">
-          {name}
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-xl font-semibold leading-[26px] text-content-primary">{name}</p>
+          {creator.is_agent && <Badge variant="brand" label={AGENT_BADGE_LABEL} />}
+        </div>
         <div className="shrink-0 text-right">
           {rating === null ? (
             <p className="text-[13px] leading-[18px] text-content-tertiary">

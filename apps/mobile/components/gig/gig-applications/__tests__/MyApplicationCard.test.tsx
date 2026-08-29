@@ -99,6 +99,7 @@ function row(
         review_score: null,
         country: 'NG',
         is_seeker: false,
+        is_agent: false,
       },
     },
   }

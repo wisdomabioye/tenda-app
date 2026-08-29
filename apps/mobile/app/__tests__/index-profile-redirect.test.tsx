@@ -56,6 +56,7 @@ function userRow(first_name: string, last_name: string): User {
     role: 'user',
     status: 'active',
     is_seeker: false,
+    is_agent: false,
     review_score: null,
     sponsored_tx_remaining: 0,
     advanced_mode_enabled: false,

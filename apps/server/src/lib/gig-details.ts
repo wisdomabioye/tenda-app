@@ -6,6 +6,7 @@
  */
 import {
   isCityInCountry,
+  isCountryCode,
   isCrossBorder,
   isProofType,
   normaliseProofRequirements,
@@ -98,9 +99,21 @@ export function validateGigDetails(
   if (title.length > MAX_GIG_TITLE_LENGTH) {
     fail(`Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`)
   }
-  if (description !== undefined && description !== null && description.length > MAX_GIG_DESCRIPTION_LENGTH) {
-    fail(`Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`)
+  // The TYPE of these two, not only their value. A body reaches here as parsed
+  // JSON, so the declared types are a claim, not a check — and an agent
+  // composes it from a program rather than a form. `description: 42` passed the
+  // length test (`undefined > max` is false) and then threw on `.trim()`, a 500
+  // where this validator answers 400; `remote: 'no'` is TRUTHY, so the country
+  // and city requirements below were skipped while the boolean column stored
+  // false — an on-site gig with no location, which is the state those two
+  // checks exist to prevent.
+  if (description !== undefined && description !== null) {
+    if (typeof description !== 'string') fail('description must be a string')
+    if (description.length > MAX_GIG_DESCRIPTION_LENGTH) {
+      fail(`Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`)
+    }
   }
+  if (typeof remote !== 'boolean') fail('remote must be a boolean')
   if (!GIG_CATEGORIES.includes(category as GigCategory)) {
     fail(`category must be one of: ${GIG_CATEGORIES.join(', ')}`)
   }
@@ -114,10 +127,16 @@ export function validateGigDetails(
   // creator's country onto a remote gig.
   let resolvedCountry: CountryCode | null = null
   if (!remote) {
-    resolvedCountry = country as CountryCode
-    if (!(resolvedCountry in LOCATIONS)) {
+    // `isCountryCode`, not `country in LOCATIONS`: LOCATIONS inherits from
+    // Object.prototype, so `in` admitted 'toString' / 'constructor' /
+    // '__proto__' and the city cross-check below then threw a TypeError (a 500
+    // where this line is written to answer 400).
+    if (country === undefined || !isCountryCode(country)) {
       fail(`country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
     }
+    // `isCountryCode` is a type guard, so the narrowing replaces the cast this
+    // line used to carry.
+    resolvedCountry = country
     if (city && !isCityInCountry(resolvedCountry, city)) {
       fail(`city "${city}" is not in country ${resolvedCountry}`)
     }

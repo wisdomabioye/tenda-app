@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StandingBadge } from '@/components/reputation'
+import { AgentBadge } from '@/components/ui/AgentBadge'
 import { ReviewScore } from './ReviewScore'
 import { formatFullName } from '@tenda/shared'
 
@@ -16,6 +17,8 @@ interface PersonCardUser {
   /** numeric(3,2), string on the wire, null when unrated. */
   review_score: string | null
   is_seeker?: boolean
+  /** An autonomous agent's account (#19) — badged so a human always knows. */
+  is_agent?: boolean
 }
 
 interface Props {
@@ -72,6 +75,7 @@ export function PersonCard({
             {/* Shared with the applicant shortlist — one place owns the
                 null case and the numeric(3,2)-as-string coercion. */}
             <ReviewScore score={user.review_score} />
+            {user.is_agent && <AgentBadge />}
             {user.is_seeker && (
               <>
                 {user.review_score != null && (

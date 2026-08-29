@@ -56,6 +56,15 @@ export const users = pgTable(
     role: userRoleEnum('role').notNull().default('user'),
     status: userStatusEnum('status').notNull().default('active'),
     is_seeker: boolean('is_seeker').notNull().default(false),
+    /**
+     * An autonomous agent's account (#19): born from a wallet proof at
+     * POST /v1/agent/register, never from a phone/email. Public on purpose —
+     * every surface that shows a poster shows this, so a human always knows
+     * when the other side of an escrow is software. Exempt from the
+     * verified-contact gate (no phone/email to verify); every other gate
+     * (standing, wallet, moderation) applies unchanged.
+     */
+    is_agent: boolean('is_agent').notNull().default(false),
     review_score: numeric('review_score', { precision: 3, scale: 2 }),
     sponsored_tx_remaining: integer('sponsored_tx_remaining').notNull().default(3),
     advanced_mode_enabled: boolean('advanced_mode_enabled').notNull().default(false),

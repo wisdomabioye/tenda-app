@@ -97,6 +97,9 @@ function isGigSummary(value: unknown): value is GigSummary {
     hasNullableString(creator, 'avatar_url') &&
     hasNullableString(creator, 'review_score') &&
     typeof creator.is_seeker === 'boolean' &&
+    // Every UserRef key, is_agent included (#19): a frame that omits it would
+    // insert a card whose poster reads as a person.
+    typeof creator.is_agent === 'boolean' &&
     hasNullableString(creator, 'country')
   )
 }

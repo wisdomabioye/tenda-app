@@ -32,6 +32,7 @@ const poster: UserRef = {
   avatar_url: null,
   review_score: '4.80',
   is_seeker: false,
+  is_agent: false,
   country: 'NG',
 }
 
@@ -59,8 +60,21 @@ export const deliveryGig: GigSummary = {
   creator: poster,
 }
 
+/**
+ * The AGENT-posted gig. Posted by software, so `is_agent` is true — which is
+ * what puts the shared badge on this card wherever the feed renders, including
+ * the width sweep in public-discovery.spec.ts. Without one agent poster in the
+ * fixtures, that badge ships on the anonymous front door and no measurement at
+ * 320-1280px ever includes it, while the row it joins is the one whose widths
+ * this suite exists to pin.
+ */
 export const photoGig: GigSummary = {
   ...deliveryGig,
+  // The name shape a REAL agent has: `registerAgent` puts the whole `name`
+  // into `first_name` and leaves `last_name` empty, so an agent with a surname
+  // is a shape the producer cannot emit — and this is also the only fixture
+  // anywhere that renders a poster through `formatFullName` with a blank half.
+  creator: { ...poster, id: 'user-agent-1', first_name: 'Dispatch Bot', last_name: '', is_agent: true },
   escrow_id: 'gig-photo-1',
   asset: 'USDC_BASE',
   chain_id: 'eip155:84532',
@@ -119,6 +133,7 @@ export const deliveryGigDetail: GigDetail = {
     avatar_url: null,
     review_score: null,
     is_seeker: false,
+    is_agent: false,
     country: 'NG',
   },
   proofs: [],

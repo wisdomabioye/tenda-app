@@ -7,7 +7,7 @@
  */
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
-import { formatFullName } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, formatFullName } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { StandingBadge } from '@/components/profile'
 import { escrowChatHref, type EscrowChatContext } from '@/lib/chat-href'
@@ -20,6 +20,8 @@ export interface PersonCardUser {
   review_score?: string | null
   /** Solana Seeker-phone flag (device-derived) — rendered as a small tag. */
   is_seeker?: boolean
+  /** An autonomous agent's account (#19) — badged so a human always knows. */
+  is_agent?: boolean
 }
 
 export function PersonCard({
@@ -56,6 +58,9 @@ export function PersonCard({
           {score !== null && <span className="ml-1.5 font-numeric text-xs text-content-secondary">★ {score}</span>}
           {user.is_seeker === true && (
             <span className="ml-1.5 text-xs text-content-tertiary">· Seeker</span>
+          )}
+          {user.is_agent === true && (
+            <span className="ml-1.5 text-xs font-semibold text-brand-primary">· {AGENT_BADGE_LABEL}</span>
           )}
         </Link>
         {/* Self included, like mobile: parties see their OWN public standing

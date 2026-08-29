@@ -32,20 +32,14 @@ vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'u2' }) }))
 vi.mock('@/components/profile/StandingBadge', () => ({ StandingBadge: () => null }))
 
 import UserProfilePage from '@/app/(app)/profile/[id]/page'
-import type { Review, User } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, type Review, type User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
+import { makePublicUser } from '@/test/factories/user'
 
-const USER = {
-  id: 'u2',
-  first_name: 'Grace',
-  last_name: 'Hopper',
-  avatar_url: null,
-  review_score: '4.80',
-  is_seeker: false,
-  country: 'NG',
-  city: 'Lagos',
-  bio: null,
-}
+// The REAL wire row (typed factory), not a hand-picked subset the page happens
+// to read today: a field the page starts reading is then present as the server
+// sends it, never invented here.
+const USER = makePublicUser({ id: 'u2', first_name: 'Grace', last_name: 'Hopper', review_score: '4.80' })
 
 /**
  * Typed as the real row on purpose. This fixture claimed `rating` and a nested
@@ -171,6 +165,23 @@ test('shows the stranger their completed work, in the third person', async () =>
   expect(await screen.findByText('12')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Work completed' })).toBeInTheDocument()
   expect(completedWorkMock).toHaveBeenCalledWith({ id: 'u2' })
+})
+
+test('names an agent account as one, beside the name (#19)', async () => {
+  // The page a human opens from a party card to check who they are dealing
+  // with: the flag GET /v1/users/:id carries has to reach the screen here too.
+  getMock.mockResolvedValue({ ...USER, first_name: 'Dispatch', last_name: 'Bot', is_agent: true })
+  reviewsMock.mockResolvedValue({ data: [], total: 0 })
+  render(<UserProfilePage />)
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Dispatch Bot' })).toBeInTheDocument())
+  expect(screen.getByText(AGENT_BADGE_LABEL)).toBeInTheDocument()
+})
+
+test('says nothing of the kind for a person', async () => {
+  reviewsMock.mockResolvedValue({ data: [], total: 0 })
+  render(<UserProfilePage />)
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Grace Hopper' })).toBeInTheDocument())
+  expect(screen.queryByText(AGENT_BADGE_LABEL)).not.toBeInTheDocument()
 })
 
 test('a stranger with no completed work gets no block at all', async () => {

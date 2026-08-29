@@ -16,10 +16,11 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
-import { formatFullName, type PublicUser } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, formatFullName, type PublicUser } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
 import { PaginatedList } from '@/components/shared/PaginatedList'
@@ -84,6 +85,10 @@ export default function UserProfilePage() {
         <Avatar name={fullName} src={user.avatar_url} size="md" className="scale-125" />
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-2xl font-bold text-content-primary">{fullName}</h1>
+          {/* Software, said where the name is (#19) — the same badge the feed
+              and the poster card carry, so the page a stranger opens to check
+              who they are dealing with tells them too. */}
+          {user.is_agent && <Badge variant="brand" label={AGENT_BADGE_LABEL} />}
           <p className="text-sm text-content-secondary">
             {[user.city, user.country].filter(Boolean).join(', ') || 'Location not set'}
           </p>

@@ -72,9 +72,20 @@ export type LocationEntry = (typeof LOCATIONS)[CountryCode]
 /** All city strings across every supported country. */
 export const ALL_CITIES: string[] = Object.values(LOCATIONS).flatMap((l) => [...l.cities])
 
-/** Narrowing guard: is this string one of the supported market countries? */
+/**
+ * Narrowing guard: is this string one of the supported market countries?
+ *
+ * `Object.hasOwn` rather than `in`, for the reason `getPayoutSpec` records
+ * against the other vocabulary in this package: LOCATIONS is a plain object and
+ * inherits from Object.prototype, so `'toString' in LOCATIONS` — and
+ * 'constructor', and '__proto__' — answer TRUE. Every caller gates on this
+ * guard, and `LOCATIONS['toString'].name` is then `Function.prototype.name`
+ * rather than a country, so those strings walked through a check written to
+ * stop them and reached the wire as `UserRef.country` / `GigSummary.country`,
+ * which the published Agent API schema admits only the LOCATIONS keys for.
+ */
 export function isCountryCode(code: string): code is CountryCode {
-  return code in LOCATIONS
+  return Object.hasOwn(LOCATIONS, code)
 }
 
 /**
@@ -109,12 +120,19 @@ export function findCountryForCity(city: string): CountryCode | undefined {
   return undefined
 }
 
-/** True if the given city is one of the supported cities for the given country. */
+/**
+ * True if the given city is one of the supported cities for the given country.
+ *
+ * Gated on `isCountryCode`, not on the truthiness of the lookup: LOCATIONS
+ * inherits from Object.prototype, so `LOCATIONS['toString']` is a FUNCTION —
+ * truthy — and the old `if (!entry) return false` fell straight through to
+ * `entry.cities.includes(city)`, which threw a TypeError. That reached the wire
+ * as a 500 on POST /v1/gigs and POST /v1/agent/tasks for `country: 'toString'`
+ * with any city. Same rule as `getPayoutSpec` in this package.
+ */
 export function isCityInCountry(country: string | null | undefined, city: string | null | undefined): boolean {
-  if (!country || !city) return false
-  const entry = LOCATIONS[country as CountryCode]
-  if (!entry) return false
-  return (entry.cities as readonly string[]).includes(city)
+  if (!country || !city || !isCountryCode(country)) return false
+  return (LOCATIONS[country].cities as readonly string[]).includes(city)
 }
 
 /**

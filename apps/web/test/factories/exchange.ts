@@ -11,6 +11,7 @@ export function makeUserRef(overrides: Partial<UserRef> & { id: string }): UserR
     avatar_url: null,
     review_score: null,
     is_seeker: false,
+    is_agent: false,
     country: 'NG',
     ...overrides,
   }

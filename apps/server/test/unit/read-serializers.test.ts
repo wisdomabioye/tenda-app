@@ -17,6 +17,7 @@ const creator: UserRef = {
   avatar_url: null,
   review_score: '4.50',
   is_seeker: false,
+  is_agent: false,
   country: 'NG',
 }
 

@@ -36,7 +36,7 @@ import { ExchangeOfferCard } from '../ExchangeOfferCard'
 
 const creator: UserRef = {
   id: 'u1', first_name: 'Ada', last_name: 'Obi', avatar_url: null, review_score: '4.7',
-  is_seeker: false, country: 'NG',
+  is_seeker: false, is_agent: false, country: 'NG',
 }
 
 const offer: ExchangeSummary = {

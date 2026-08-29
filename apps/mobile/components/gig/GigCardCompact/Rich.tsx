@@ -8,6 +8,7 @@ import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type Count
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
+import { AgentBadge } from '@/components/ui/AgentBadge'
 import { gigCardAmountDigits } from './amount'
 import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
@@ -76,6 +77,7 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
 
         <View style={s.rowBadges}>
           <ChainBadge chainId={gig.chain_id} />
+          {gig.creator.is_agent && <AgentBadge />}
           {deadlineMeta.label ? (
             <View style={s.deadline}>
               {deadlineMeta.glyph === 'clock' ? (

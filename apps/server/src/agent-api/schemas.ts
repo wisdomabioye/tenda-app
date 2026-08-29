@@ -8,37 +8,37 @@
  * Every enum is DERIVED from the shared constant the server itself enforces
  * (PROOF_TYPES, GIG_CATEGORIES, escrowStatusEnum, LOCATIONS…), so a vocabulary
  * change lands here without a hand edit.
+ *
+ * Every object is `closedFor<WireType>` (./schema-types): the compiler holds
+ * each schema to the exact keys of the shared type it documents, so a wire
+ * field the type gains fails the build until it is documented here.
  */
 import {
   AMOUNT_RAW_PATTERN,
   APPLICATION_STATUSES,
-  CHAIN_MANIFEST,
   DISPUTE_WINNER_CODE,
   ErrorCode,
   GIG_CATEGORIES,
-  LOCATIONS,
-  MAX_GEOTAG_RADIUS_M,
-  MIN_GEOTAG_RADIUS_M,
   PROOF_TYPES,
-  STRUCTURED_FIELD_KINDS,
+  type ApiError,
+  type Dispute,
+  type GigApplication,
+  type GigDetail,
+  type GigFacets,
+  type GigSummary,
+  type GigViewerContext,
+  type GigsContract,
+  type PaginatedResponse,
+  type Review,
+  type UserRef,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
-import { closed, nullable, ref, type SchemaObject } from './schema-types'
+import { allKeys, closed, closedFor, nullable, ref, type SchemaObject, type V0ComponentName } from './schema-types'
+import { COUNTRY_CODES, chainId, isoInstant, latitude, longitude, rawAmount, uuid } from './scalars'
+import { escrowProof, proofParams } from './schemas-proofs'
 
-const COUNTRY_CODES = Object.keys(LOCATIONS)
-
-/** Exported for ./paths: the same scalar shapes describe path and query parameters. */
-export const uuid: SchemaObject = { type: 'string', format: 'uuid' }
-export const latitude: SchemaObject = { type: 'number', minimum: -90, maximum: 90 }
-export const longitude: SchemaObject = { type: 'number', minimum: -180, maximum: 180 }
-const isoInstant: SchemaObject = { type: 'string', format: 'date-time', description: 'ISO-8601 UTC' }
-/** Base-unit integer as a canonical decimal STRING — never a JSON number (2^53 is too small). */
-const rawAmount: SchemaObject = { type: 'string', pattern: AMOUNT_RAW_PATTERN.source, description: 'Base units, decimal string' }
-/** The chains this codebase knows, from the manifest — a closed, append-only vocabulary. */
-const chainId: SchemaObject = { type: 'string', enum: CHAIN_MANIFEST.map((entry) => entry.id), description: 'CAIP-2 chain id' }
-
-const userRef = closed(
+const userRef = closedFor<UserRef>(
   {
     id: uuid,
     first_name: nullable({ type: 'string' }),
@@ -46,66 +46,14 @@ const userRef = closed(
     avatar_url: nullable({ type: 'string' }),
     review_score: nullable({ type: 'string', description: 'Average 0–5 as a decimal string, e.g. "4.80"' }),
     is_seeker: { type: 'boolean' },
+    is_agent: { type: 'boolean', description: 'True when this account is an autonomous agent (registered by wallet at /v1/agent/register); surfaces badge it so a human always knows.' },
     country: nullable({ type: 'string', enum: COUNTRY_CODES }),
   },
-  ['id', 'first_name', 'last_name', 'avatar_url', 'review_score', 'is_seeker', 'country'],
+  ['id', 'first_name', 'last_name', 'avatar_url', 'review_score', 'is_seeker', 'is_agent', 'country'],
   'A user as other users see them.',
 )
 
-const structuredField = closed(
-  {
-    name: { type: 'string', minLength: 1 },
-    kind: { type: 'string', enum: STRUCTURED_FIELD_KINDS },
-    required: { type: 'boolean' },
-  },
-  ['name', 'kind', 'required'],
-)
-
-const proofParams = closed(
-  {
-    geotag: closed(
-      { radius_m: { type: 'integer', minimum: MIN_GEOTAG_RADIUS_M, maximum: MAX_GEOTAG_RADIUS_M } },
-      ['radius_m'],
-      'A geotag check-in is verified within this many metres of the gig pin.',
-    ),
-    structured: closed({ fields: { type: 'array', items: structuredField } }, ['fields']),
-  },
-  [],
-  'Per-type params behind the proof requirements; keys present only for required types.',
-)
-
-const proofPayload: SchemaObject = {
-  description: 'A data proof\'s substance, by type: geotag, text or structured.',
-  oneOf: [
-    closed({ latitude: { type: 'number' }, longitude: { type: 'number' } }, ['latitude', 'longitude']),
-    closed({ text: { type: 'string' } }, ['text']),
-    closed(
-      {
-        values: {
-          type: 'object',
-          // A union spelled as oneOf: strict validators refuse a multi-type
-          // `type` list unless it is `X | null`.
-          additionalProperties: { oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }] },
-        },
-      },
-      ['values'],
-    ),
-  ],
-}
-
-const escrowProof = closed(
-  {
-    id: uuid,
-    escrow_id: uuid,
-    type: { type: 'string', enum: PROOF_TYPES },
-    url: nullable({ type: 'string', description: 'File proofs only' }),
-    payload: nullable(proofPayload),
-    uploaded_at: isoInstant,
-  },
-  ['id', 'escrow_id', 'type', 'url', 'payload', 'uploaded_at'],
-)
-
-const dispute = closed(
+const dispute = closedFor<Dispute>(
   {
     id: uuid,
     escrow_id: uuid,
@@ -121,7 +69,7 @@ const dispute = closed(
   ['id', 'escrow_id', 'raised_by', 'reason', 'assigned_to', 'assigned_at', 'winner', 'resolved_by', 'resolved_at', 'created_at'],
 )
 
-const review = closed(
+const review = closedFor<Review>(
   {
     id: uuid,
     escrow_id: uuid,
@@ -134,7 +82,7 @@ const review = closed(
   ['id', 'escrow_id', 'reviewer_id', 'reviewee_id', 'score', 'comment', 'created_at'],
 )
 
-const gigApplication = closed(
+const gigApplication = closedFor<GigApplication>(
   {
     id: uuid,
     escrow_id: uuid,
@@ -148,7 +96,7 @@ const gigApplication = closed(
   ['id', 'escrow_id', 'applicant_id', 'message', 'wallet_address', 'status', 'expires_at', 'created_at'],
 )
 
-const viewer = closed(
+const viewer = closedFor<GigViewerContext>(
   {
     application: nullable(ref('GigApplication')),
     open_application_count: nullable({ type: 'integer', minimum: 0 }),
@@ -158,7 +106,7 @@ const viewer = closed(
 )
 
 /** The listing fields — the SUMMARY, and the first half of the DETAIL. */
-const GIG_SUMMARY_PROPERTIES: Readonly<Record<string, SchemaObject>> = {
+const GIG_SUMMARY_PROPERTIES: Readonly<Record<keyof GigSummary, SchemaObject>> = {
   escrow_id: uuid,
   public_feed_revision: { type: 'string', pattern: AMOUNT_RAW_PATTERN.source, description: 'Realtime revision, decimal string' },
   chain_id: chainId,
@@ -181,11 +129,12 @@ const GIG_SUMMARY_PROPERTIES: Readonly<Record<string, SchemaObject>> = {
   requires_approval: { type: 'boolean' },
   creator: ref('UserRef'),
 }
-const GIG_SUMMARY_REQUIRED = Object.keys(GIG_SUMMARY_PROPERTIES)
+const GIG_SUMMARY_REQUIRED = allKeys<GigSummary>(GIG_SUMMARY_PROPERTIES)
 
-const gigSummary = closed(GIG_SUMMARY_PROPERTIES, GIG_SUMMARY_REQUIRED, 'One listing in the public feed.')
+const gigSummary = closedFor<GigSummary>(GIG_SUMMARY_PROPERTIES, GIG_SUMMARY_REQUIRED, 'One listing in the public feed.')
 
-const GIG_DETAIL_ONLY: Readonly<Record<string, SchemaObject>> = {
+type GigDetailOnly = Omit<GigDetail, keyof GigSummary>
+const GIG_DETAIL_ONLY: Readonly<Record<keyof GigDetailOnly, SchemaObject>> = {
   hidden: { type: 'boolean' },
   completion_duration_seconds: nullable({ type: 'integer' }),
   completion_deadline: nullable(isoInstant),
@@ -205,16 +154,21 @@ const GIG_DETAIL_ONLY: Readonly<Record<string, SchemaObject>> = {
   viewer: nullable(ref('Viewer')),
 }
 
-const gigDetail = closed(
+const gigDetail = closedFor<GigDetail>(
   { ...GIG_SUMMARY_PROPERTIES, ...GIG_DETAIL_ONLY },
-  [...GIG_SUMMARY_REQUIRED, ...Object.keys(GIG_DETAIL_ONLY)],
+  [...GIG_SUMMARY_REQUIRED, ...allKeys<GigDetailOnly>(GIG_DETAIL_ONLY)],
   'The listing plus its escrow facts. counterparty/proofs/dispute are PARTY-scoped: anonymous readers receive null/[]/null.',
 )
 
+/**
+ * One non-negative count per key of a COMPLETE vocabulary — `Record<K, number>`
+ * on the wire. The keys ARE the vocabulary array, so there is no separate type
+ * to bind to here; `closedFor<GigFacets>` below binds which vocabularies exist.
+ */
 const counts = (keys: readonly string[]): SchemaObject =>
   closed(Object.fromEntries(keys.map((key) => [key, { type: 'integer', minimum: 0 }])), keys)
 
-const gigFacets = closed(
+const gigFacets = closedFor<GigFacets>(
   {
     category: counts(GIG_CATEGORIES),
     country: counts(COUNTRY_CODES),
@@ -225,7 +179,9 @@ const gigFacets = closed(
   'Counts per feed-rail cell: each answers "how many gigs if this cell were clicked".',
 )
 
-const paginatedGigs = closed(
+/** `has_more` is declared on the shared page type and populated by no route — see the note below. */
+type GigPage = Omit<PaginatedResponse<GigSummary>, 'has_more'>
+const paginatedGigs = closedFor<GigPage>(
   {
     data: { type: 'array', items: ref('GigSummary') },
     total: { type: 'integer', minimum: 0 },
@@ -241,7 +197,7 @@ const paginatedGigs = closed(
   'One page of the feed.',
 )
 
-const apiError = closed(
+const apiError = closedFor<ApiError>(
   {
     statusCode: { type: 'integer' },
     error: { type: 'string' },
@@ -253,7 +209,7 @@ const apiError = closed(
   'Every non-2xx answer.',
 )
 
-export const AGENT_API_SCHEMAS: Readonly<Record<string, SchemaObject>> = {
+export const AGENT_API_SCHEMAS: Readonly<Record<V0ComponentName, SchemaObject>> = {
   UserRef: userRef,
   ProofParams: proofParams,
   EscrowProof: escrowProof,
@@ -265,7 +221,7 @@ export const AGENT_API_SCHEMAS: Readonly<Record<string, SchemaObject>> = {
   GigDetail: gigDetail,
   GigFacets: gigFacets,
   PaginatedGigs: paginatedGigs,
-  FeaturedGigs: closed(
+  FeaturedGigs: closedFor<GigsContract['featured']['response']>(
     { data: { type: 'array', items: ref('GigSummary'), maxItems: FEATURED_RAIL_LIMIT } },
     ['data'],
     'The curated rail — a carousel, capped, never a second feed.',

@@ -8,7 +8,7 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { GigSummary, MyApplication } from '@tenda/shared'
+import { formatFullName, type GigSummary, type MyApplication } from '@tenda/shared'
 import type { PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { MyGigsListColumn } from '@/components/gig/my-gigs/MyGigsListColumn'
 import { MY_GIGS_COPY, myGigHref, myGigsHref, myGigsTab } from '@/components/gig/my-gigs/copy'
@@ -116,8 +116,13 @@ describe('MyGigsListColumn', () => {
     searchParams = new URLSearchParams('mine=working')
     state()
     render(<MyGigsListColumn />)
+    // The names come from the FIXTURES, not from literals: the two gigs have
+    // different posters, and a hardcoded name silently stops testing anything
+    // the day a fixture is renamed.
+    const workingPoster = formatFullName(photoGig.creator.first_name, photoGig.creator.last_name)
+    const ownName = formatFullName(deliveryGig.creator.first_name, deliveryGig.creator.last_name)
     expect(screen.getByRole('link', { name: new RegExp(photoGig.title) })).toHaveTextContent(
-      'Ada Okafor',
+      workingPoster,
     )
     cleanup()
     searchParams = new URLSearchParams()
@@ -125,7 +130,7 @@ describe('MyGigsListColumn', () => {
     render(<MyGigsListColumn />)
     expect(
       screen.getByRole('link', { name: new RegExp(deliveryGig.title) }),
-    ).not.toHaveTextContent('Ada Okafor')
+    ).not.toHaveTextContent(ownName)
   })
 
   it('counts EVERY tab, not just the visible one', () => {

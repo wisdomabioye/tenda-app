@@ -11,7 +11,7 @@ export {
 export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, isCountryCode, localeCountryOrNull, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
 export { GIG_LIST_SORTS, type GigListSort } from './gig-list'
 export { MESSAGE_MAX_LENGTH } from './chat'
-export { NAME_MAX_LENGTH } from './users'
+export { NAME_MAX_LENGTH, AGENT_BADGE_LABEL } from './users'
 export { ErrorCode } from './errors'
 export {
   X402_VERSION,
@@ -20,6 +20,7 @@ export {
   TENDA_RELAY_SCHEME,
   RELAY_QUOTE_TTL_SECONDS,
   RELAY_MIN_REMAINING_SECONDS,
+  RELAY_PAYMENT_REQUIRED_MESSAGE,
   RELAY_PAYMENT_KINDS,
   type RelayPaymentKind,
 } from './relay'

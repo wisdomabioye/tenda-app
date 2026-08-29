@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { GigAvailableFrame, GigUnavailableFrame } from '../../src/api/contracts/ws.contract'
 import type { GigSummary } from '../../src/types/gig'
+import type { UserRef } from '../../src/types/user'
 import {
   applyGigFeedEvent,
   classifyGigFeedQuery,
@@ -11,14 +12,15 @@ import {
   type GigFeedState,
 } from '../../src/gig-feed'
 
-const creator = {
+// Typed, so a field the wire does not carry cannot ride along in a fixture.
+const creator: UserRef = {
   id: 'user-1',
   first_name: 'Ada',
   last_name: 'Lovelace',
   avatar_url: null,
-  username: null,
   country: 'NG',
   is_seeker: false,
+  is_agent: false,
   review_score: null,
 }
 

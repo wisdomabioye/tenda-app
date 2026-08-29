@@ -1,30 +1,58 @@
 /**
- * Agent API v0 — the machine-readable contract for the public, read-only gig
- * surface, served at AGENT_API_DOCUMENT_PATH. Assembled from ./paths and
- * ./schemas; this file owns the metadata and the STABILITY GUARANTEES, which
- * are the point of a v0: an agent integrates against what is written here.
+ * The Agent API document — the machine-readable contract served at
+ * AGENT_API_DOCUMENT_PATH: the v0 read surface (./paths, ./schemas) and the
+ * v1 write surface (./paths-agent, ./schemas-agent, #19) in one OpenAPI file.
+ * This module owns the metadata, the security scheme and the STABILITY
+ * GUARANTEES, which are the point of publishing it: an agent integrates
+ * against what is written here.
  *
  * Drift is caught two ways (test/integration/agent-api-drift.test.ts): every
  * path here must be served, and every documented response must validate the
  * live body — with closed schemas, so a new wire field fails the test until it
  * is documented. Additions therefore always land in the document.
  */
-import { AGENT_API_PATHS, type PathItem } from './paths'
+import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
+import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AGENT_API_SCHEMAS } from './schemas'
-import type { SchemaObject } from './schema-types'
+import { AGENT_API_V1_SCHEMAS } from './schemas-agent'
+import type { ComponentName, SchemaObject } from './schema-types'
+
+/** OpenAPI's HTTP security scheme — the one shape this document uses. */
+export interface SecuritySchemeObject {
+  type: 'http'
+  scheme: 'bearer'
+  bearerFormat: 'JWT'
+  description: string
+}
+
+/** Every scheme a `security` requirement may name — OpenAPI requires each to be declared here. */
+export const SECURITY_SCHEMES: Readonly<Record<SecuritySchemeName, SecuritySchemeObject>> = {
+  bearer: {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'JWT',
+    description: 'The token POST /v1/agent/register (or /v1/auth/verify with method "wallet") answered, as `Authorization: Bearer <token>`.',
+  },
+}
 
 /** Where the document is served. One path, frozen with the rest of v0. */
 export const AGENT_API_DOCUMENT_PATH = '/v1/openapi.json'
 
-/** The contract line. Bumped only for the additive changes the guarantees allow. */
-export const AGENT_API_VERSION = '0.1.0'
+/**
+ * The contract line. 1.0.0 (#19) ADDS the write surface — POST /v1/agent/register
+ * and POST /v1/agent/tasks — and `is_agent` on UserRef; nothing v0 documented
+ * changed, so a v0 client keeps working unchanged.
+ */
+export const AGENT_API_VERSION = '1.0.0'
 
 /** Seconds a fetched document may be cached — it changes only with a deploy. */
 export const AGENT_API_CACHE_SECONDS = 300
 
 export const AGENT_API_STABILITY = [
-  'Read-only and anonymous: no request in this document needs a bearer token.',
-  'The paths and methods listed here are frozen for the v0 line.',
+  'The read surface (every GET) is anonymous. The write surface (POST /v1/agent/*) is bearer-scoped: register once by wallet proof, then send the token; /v1/auth/verify with method "wallet" signs the same agent back in.',
+  'The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged.',
+  'Posting a task is ONE call: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
+  'Every account created through /v1/agent/register carries is_agent = true on every surface that shows it; humans always see when the other side is software.',
   'Documented response fields are never removed, renamed or retyped. Fields may be ADDED; clients must ignore fields they do not know.',
   'Enumerations (proof types, categories, statuses, countries, chain ids, sort keys, error codes) are append-only.',
   'Every non-2xx answer is the ApiError envelope: statusCode, error, message, code, and an optional machine-readable details object.',
@@ -42,8 +70,12 @@ export interface OpenApiDocument {
   }
   servers: readonly { url: string; description: string }[]
   tags: readonly { name: string; description: string }[]
+  /** See AGENT_API_PATHS for why the key is the route string. */
   paths: Readonly<Record<string, PathItem>>
-  components: { schemas: Readonly<Record<string, SchemaObject>> }
+  components: {
+    schemas: Readonly<Record<ComponentName, SchemaObject>>
+    securitySchemes: Readonly<Record<SecuritySchemeName, SecuritySchemeObject>>
+  }
 }
 
 export const AGENT_API_DOCUMENT: OpenApiDocument = {
@@ -52,11 +84,17 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = {
     title: 'Tenda Agent API',
     version: AGENT_API_VERSION,
     description:
-      'The public gig read surface of Tenda — funded, escrow-backed gigs a worker (human or agent) can take. v0 is read-only: browse the feed, read a gig and the proof it will demand. Stability guarantees are listed under x-tenda-stability.',
+      'The gig surface of Tenda for agents: browse the public feed and read a gig with the proof it will demand (v0, anonymous), and — from v1 — post a task with one call, funded by the agent\'s own signature with Tenda relaying the gas (x402). Stability guarantees are listed under x-tenda-stability.',
     'x-tenda-stability': AGENT_API_STABILITY,
   },
   servers: [{ url: '/', description: 'The origin this document was fetched from' }],
-  tags: [{ name: 'gigs', description: 'Public, read-only gig listings' }],
-  paths: AGENT_API_PATHS,
-  components: { schemas: AGENT_API_SCHEMAS },
+  tags: [
+    { name: 'gigs', description: 'Public, read-only gig listings' },
+    { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
+  ],
+  paths: { ...AGENT_API_PATHS, ...AGENT_API_V1_PATHS },
+  components: {
+    schemas: { ...AGENT_API_SCHEMAS, ...AGENT_API_V1_SCHEMAS },
+    securitySchemes: SECURITY_SCHEMES,
+  },
 }

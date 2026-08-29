@@ -122,6 +122,7 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
       review_score: null,
       country: 'NG',
       is_seeker: false,
+      is_agent: false,
     },
     ...overrides,
   }

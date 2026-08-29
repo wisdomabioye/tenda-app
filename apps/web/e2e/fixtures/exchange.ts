@@ -25,6 +25,7 @@ const seller = {
   avatar_url: null,
   review_score: '4.70',
   is_seeker: false,
+  is_agent: false,
   country: 'NG',
 }
 
@@ -35,6 +36,7 @@ const kenyanSeller = {
   avatar_url: null,
   review_score: null,
   is_seeker: false,
+  is_agent: false,
   country: 'KE',
 }
 

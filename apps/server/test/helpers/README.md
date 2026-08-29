@@ -12,6 +12,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `solana.ts` | `fakeSolanaRpc()`, escrow/platform account encoders + event-log builders for verify-tx tests |
 | `stub-rpc.ts` | `startStubRpc()` — a throwaway JSON-RPC node on a REAL socket, for asserting what the server puts on the wire rather than what a mocked transport was told (EVM listeners, and both relayers' live calls — viem's transport and web3's `Connection`); `withEvmChainEnv()` points one chain's secrets at it and restores them |
 | `chains-boot.ts` | `withBootedChainsApp()`, `seedBootChain()`, `withNoChainsConfigured()` — an app carrying the REAL chains plugin, which no route suite has (the harness substitutes a fake registry), plus the no-chain environment its boot refusal needs |
+| `agent.ts` | `registerAgent()` (through the real POST /v1/agent/register with a nonce-signed proof on the eip155 harness chain), `agentTaskBody()`, `agentWalletAddress()`, `TaskPost` (the body type the refusal cases post — a widened `category` plus the `permit` the one-shot refuses) — the Agent API v1 suites' fixtures, shared by `agent-tasks` and `agent-tasks-listing` |
 | `auth-message.ts` | `issueNonce()` + `buildAuthMessage()` — wallet-auth flow helpers |
 | `admin-auth.ts` | `issueAdminCode()` — admin email-OTP login helper |
 | `oauth-env.ts` | `GOOGLE_TEST_AUDIENCE` — a side-effect module that configures the Google OAuth audience; **import it first**, since config and the strategy registry both memoise on first use and cannot be influenced afterwards |

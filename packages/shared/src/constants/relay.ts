@@ -30,6 +30,10 @@ export const TENDA_RELAY_SCHEME = 'tenda-escrow-create' as const
 export const RELAY_QUOTE_TTL_SECONDS = 10 * 60
 export const RELAY_MIN_REMAINING_SECONDS = 30
 
+/** The 402 `error` line — the same sentence on every x402 surface Tenda serves. */
+export const RELAY_PAYMENT_REQUIRED_MESSAGE =
+  'payment required: sign the terms in `accepts` and resend with an X-PAYMENT header'
+
 /** The two payment artifacts the scheme accepts, discriminated by namespace. */
 export const RELAY_PAYMENT_KINDS = ['eip155-authorization', 'solana-transaction'] as const
 export type RelayPaymentKind = (typeof RELAY_PAYMENT_KINDS)[number]

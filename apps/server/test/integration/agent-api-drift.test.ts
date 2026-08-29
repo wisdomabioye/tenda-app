@@ -1,5 +1,5 @@
 /**
- * The Agent API v0 document ↔ the server that serves it.
+ * The Agent API document (v0 reads + v1 writes) ↔ the server that serves it.
  *
  * Two directions, like api-routes-drift.test.ts: every path the document
  * declares is served on the method it declares, and every response the live
@@ -16,7 +16,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import type { ValidateFunction } from 'ajv'
 import type { FastifyInstance } from 'fastify'
-import { MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, apiRoutes, type GigsContract } from '@tenda/shared'
+import { MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, type AgentTaskPaymentRequired, type GigsContract } from '@tenda/shared'
 import { escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
 import {
   AGENT_API_CACHE_SECONDS,
@@ -24,16 +24,20 @@ import {
   AGENT_API_DOCUMENT_PATH,
 } from '@server/agent-api/openapi'
 import {
+  TEST_CHAIN_ID_ALT,
   TEST_DB_CONFIGURED,
   attachGigDetails,
   authHeader,
   createEscrow,
   createUser,
   resetDb,
+  seedAltChain,
   useTestApp,
 } from '../helpers/test-app'
 import { servedPaths } from '../helpers/route-table'
 import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
+import { JSON_MEDIA_TYPE, type HttpStatus } from '@server/agent-api/paths'
+import { agentTaskBody, registerAgent } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -44,11 +48,11 @@ const GIGS = apiRoutes.gigs
 const documented = (route: string): string => route.replace(':id', '{id}')
 const served = (path: string): string => path.replace('{id}', ':id')
 
-/** The 200 schema an operation documents, compiled. */
-function responseValidator(path: string): ValidateFunction {
-  const content = AGENT_API_DOCUMENT.paths[path].get.responses['200'].content
-  assert.ok(content !== undefined, `${path} documents no 200 body`)
-  return ajv.compile(content['application/json'].schema)
+/** The schema an operation documents for one status, compiled. */
+function responseValidator(path: string, method: 'get' | 'post' = 'get', status: HttpStatus = '200'): ValidateFunction {
+  const content = AGENT_API_DOCUMENT.paths[path][method]?.responses[status]?.content
+  assert.ok(content !== undefined, `${method.toUpperCase()} ${path} documents no ${status} body`)
+  return ajv.compile(content[JSON_MEDIA_TYPE].schema)
 }
 
 function assertValid(validate: ValidateFunction, body: unknown, label: string): void {
@@ -89,11 +93,13 @@ async function seedPublicGig(
   return { id: escrow.id, poster }
 }
 
-test('every documented path is served on GET, and the document is served where it says', { skip }, async () => {
+test('every documented path is served on the method it declares, and the document is served where it says', { skip }, async () => {
   const app = getApp()
-  const missing = Object.keys(AGENT_API_DOCUMENT.paths)
-    .map(served)
-    .filter((url) => !app.hasRoute({ method: 'GET', url }))
+  const missing: string[] = []
+  for (const [path, item] of Object.entries(AGENT_API_DOCUMENT.paths)) {
+    if (item.get !== undefined && !app.hasRoute({ method: 'GET', url: served(path) })) missing.push(`GET ${path}`)
+    if (item.post !== undefined && !app.hasRoute({ method: 'POST', url: served(path) })) missing.push(`POST ${path}`)
+  }
   assert.deepStrictEqual(missing, [])
   assert.ok(app.hasRoute({ method: 'GET', url: AGENT_API_DOCUMENT_PATH }))
 })
@@ -105,7 +111,8 @@ test('every public GET under /v1/gigs is documented — the document is the whol
   const live = [...servedPaths(getApp())]
     .filter((path) => path.startsWith(GIGS.list) && !BEARER_ONLY.has(path))
     .sort()
-  assert.deepStrictEqual(live, Object.keys(AGENT_API_DOCUMENT.paths).map(served).sort())
+  const documentedReads = Object.entries(AGENT_API_DOCUMENT.paths).filter(([, item]) => item.get !== undefined).map(([path]) => served(path))
+  assert.deepStrictEqual(live, documentedReads.sort())
 })
 
 test('GET /v1/openapi.json serves the document itself, cacheable, without a bearer', { skip }, async () => {
@@ -228,4 +235,31 @@ test('an undocumented field on a live body is refused, not stripped', { skip }, 
   assert.strictEqual(validate({ ...body, undocumented: true }), false)
   const { title: _dropped, ...withoutTitle } = body
   assert.strictEqual(validate(withoutTitle), false)
+})
+
+// ---------- v1: the write surface (#19) -----------------------------------------
+
+test('v1: the live registration answer, the 402 terms and the 201 all validate against their closed schemas', { skip }, async () => {
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+  const agent = await registerAgent(app)
+  assertValid(responseValidator(apiRoutes.agent.register, 'post'), agent.response, `POST ${apiRoutes.agent.register}`)
+  const body = agentTaskBody()
+  const quote = await app.inject({ method: 'POST', url: apiRoutes.agent.tasks, headers: authHeader(agent.token), payload: body })
+  assert.strictEqual(quote.statusCode, 402)
+  assertValid(responseValidator(apiRoutes.agent.tasks, 'post', '402'), quote.json(), `POST ${apiRoutes.agent.tasks} → 402`)
+  const terms = quote.json<AgentTaskPaymentRequired>().accepts[0]
+  assert.ok(terms !== undefined && terms.payment.kind === 'eip155-authorization')
+  const header = Buffer.from(JSON.stringify({
+    x402Version: X402_VERSION, scheme: TENDA_RELAY_SCHEME, network: TEST_CHAIN_ID_ALT,
+    payload: { signature: `0x${'44'.repeat(65)}`, authorization: terms.payment.typed_data.message },
+  })).toString('base64')
+  const created = await app.inject({ method: 'POST', url: apiRoutes.agent.tasks, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: header }, payload: body })
+  assert.strictEqual(created.statusCode, 201, created.body)
+  assertValid(responseValidator(apiRoutes.agent.tasks, 'post', '201'), created.json(), `POST ${apiRoutes.agent.tasks} → 201`)
+  // The badge reaches the wire through the documented UserRef: the agent's own draft, then the public feed once open.
+  const draft = await app.inject({ method: 'GET', url: gigUrl(quote.json<AgentTaskPaymentRequired>().task_id), headers: authHeader(agent.token) })
+  assertValid(responseValidator(documented(GIGS.get)), draft.json(), `GET ${GIGS.get} as the agent`)
+  assert.strictEqual(draft.json<GigDetail>().creator.is_agent, true)
 })

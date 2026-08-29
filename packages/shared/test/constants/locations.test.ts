@@ -56,6 +56,27 @@ test('isCountryCode: narrows supported markets and rejects everything else', () 
   assert.equal(isCountryCode(''), false)
 })
 
+test('isCountryCode: a key inherited from Object.prototype is not a country', () => {
+  // The bug `getPayoutSpec` documents in this same package, on the other
+  // vocabulary: LOCATIONS is a plain object, so `'toString' in LOCATIONS` is
+  // TRUE and the guard waved three strings through every caller that gates on
+  // it — including the server's country validation, which then stored them.
+  for (const key of ['toString', 'constructor', '__proto__', 'valueOf', 'hasOwnProperty']) {
+    assert.equal(isCountryCode(key), false, key)
+  }
+})
+
+test('isCityInCountry: an inherited key is not a country, and does not THROW', () => {
+  // `LOCATIONS['toString']` is a FUNCTION — truthy — so the `if (!entry) return
+  // false` guard fell through and `entry.cities.includes(city)` threw a
+  // TypeError. Reached through POST /v1/gigs and POST /v1/agent/tasks with
+  // country 'toString' + any city, which answered 500 instead of a 400.
+  for (const key of ['toString', 'constructor', '__proto__', 'valueOf']) {
+    assert.equal(isCityInCountry(key, 'Lagos'), false, key)
+    assert.equal(coerceCityForCountry(key, 'Lagos'), null, key)
+  }
+})
+
 test('localeCountryOrNull: supported regions come through, case-insensitively', () => {
   assert.equal(localeCountryOrNull('en-NG'), 'NG')
   assert.equal(localeCountryOrNull('en-ng'), 'NG')

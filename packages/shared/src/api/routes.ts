@@ -58,6 +58,15 @@ export const apiRoutes: {
   applications: {
     mine: '/v1/applications',
   },
+  /**
+   * The Agent API's write surface (#19): the one-shot task post and the
+   * wallet-born registration behind it. Agents READ through the public gig
+   * routes above (documented at /v1/openapi.json).
+   */
+  agent: {
+    register: '/v1/agent/register',
+    tasks: '/v1/agent/tasks',
+  },
   users: {
     me: '/v1/users/me',
     updateMe: '/v1/users/me',

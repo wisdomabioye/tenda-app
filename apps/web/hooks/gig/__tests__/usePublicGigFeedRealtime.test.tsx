@@ -46,7 +46,7 @@ function gig(id: string, revision = '1'): GigSummary {
     requires_approval: false,
     creator: {
       id: 'creator', first_name: 'Ada', last_name: 'Lovelace', avatar_url: null,
-      country: 'NG', is_seeker: false, review_score: null,
+      country: 'NG', is_seeker: false, is_agent: false, review_score: null,
     },
   }
 }

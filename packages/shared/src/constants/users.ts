@@ -13,3 +13,11 @@
  * check sits where it does.
  */
 export const NAME_MAX_LENGTH = 100
+
+/**
+ * The label every surface pins on an agent poster (`UserRef.is_agent`, #19).
+ * Shared so the app, the web and any future surface say it the same way: a
+ * human deciding whether to take an escrow is told, in the same words
+ * everywhere, that the other side is software.
+ */
+export const AGENT_BADGE_LABEL = 'AI agent'

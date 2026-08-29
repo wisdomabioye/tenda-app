@@ -40,6 +40,7 @@ export interface UserRow {
   role: 'user' | 'dispute_admin' | 'super_admin'
   status: 'active' | 'suspended'
   is_seeker: boolean
+  is_agent: boolean
   review_score: string | null
   sponsored_tx_remaining: number
   advanced_mode_enabled: boolean
@@ -63,6 +64,7 @@ export function userFixture(overrides: Partial<UserRow> = {}): UserRow {
     role: 'user',
     status: 'active',
     is_seeker: false,
+    is_agent: false,
     review_score: null,
     sponsored_tx_remaining: 3,
     advanced_mode_enabled: false,

@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, NAME_MAX_LENGTH, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
+import { ErrorCode, NAME_MAX_LENGTH, isCloudinaryUrl, LOCATIONS, isCityInCountry, isCountryCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates, optionalName } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
@@ -37,6 +37,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
         review_score:     users.review_score,
         role:             users.role,
         is_seeker:        users.is_seeker,
+        is_agent:         users.is_agent,
         created_at:       users.created_at,
       })
       .from(users)
@@ -71,7 +72,10 @@ const userById: FastifyPluginAsync = async (fastify) => {
 
     ensureValidCoordinates(latitude, longitude)
 
-    if (country !== undefined && country !== null && !(country in LOCATIONS)) {
+    // `isCountryCode`, not `country in LOCATIONS`: `in` admits every
+    // Object.prototype key, and this route PERSISTS the value — it then rides
+    // UserRef.country, whose published schema admits only the LOCATIONS codes.
+    if (country !== undefined && country !== null && !isCountryCode(country)) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
     }
 
@@ -84,7 +88,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
     const trimmed_first = optionalName('first_name', first_name, NAME_MAX_LENGTH)
     const trimmed_last = optionalName('last_name', last_name, NAME_MAX_LENGTH)
 
-    const updates: Record<string, unknown> = { updated_at: new Date() }
+    const updates: Partial<typeof users.$inferInsert> = { updated_at: new Date() }
     if (trimmed_first !== undefined) updates.first_name = trimmed_first
     if (trimmed_last !== undefined)  updates.last_name  = trimmed_last
     if (avatar_url !== undefined) updates.avatar_url = avatar_url

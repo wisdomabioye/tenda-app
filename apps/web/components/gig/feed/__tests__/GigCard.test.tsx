@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CATEGORY_LABELS, chainLabel, formatAssetAmount, splitAssetAmount } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, CATEGORY_LABELS, chainLabel, formatAssetAmount, splitAssetAmount } from '@tenda/shared'
 import type { GigSummary } from '@tenda/shared'
 import { GigCard } from '@/components/gig/feed/GigCard'
 import { toGigCardModel } from '@/components/gig/feed/gig-card-model'
@@ -13,6 +13,15 @@ const inHours = (hours: number) =>
   new Date(Date.now() + hours * 3_600_000).toISOString()
 
 describe('GigCard', () => {
+  it('badges an agent poster with the shared label, and a person with nothing', () => {
+    const byAgent: GigSummary = { ...deliveryGig, creator: { ...deliveryGig.creator, is_agent: true } }
+    const { unmount } = render(<GigCard gig={byAgent} />)
+    expect(screen.getByText(AGENT_BADGE_LABEL)).toBeInTheDocument()
+    unmount()
+    render(<GigCard gig={deliveryGig} />)
+    expect(screen.queryByText(AGENT_BADGE_LABEL)).not.toBeInTheDocument()
+  })
+
   it('links to the gig by its escrow id', () => {
     render(<GigCard gig={deliveryGig} />)
     expect(screen.getByRole('link')).toHaveAttribute('href', `/gig/${deliveryGig.escrow_id}`)

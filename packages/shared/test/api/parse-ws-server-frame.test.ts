@@ -25,7 +25,7 @@ const gig = {
   requires_approval: false,
   creator: {
     id: 'user-1', first_name: 'Ada', last_name: 'Lovelace', avatar_url: null,
-    review_score: null, is_seeker: false, country: 'NG',
+    review_score: null, is_seeker: false, is_agent: false, country: 'NG',
   },
 }
 
@@ -57,6 +57,9 @@ test('rejects malformed, private-looking, and incomplete feed frames', () => {
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, proof_params: undefined } }), null)
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, proof_params: 'radius' } }), null)
   assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, creator: { id: 'user-1' } } }), null)
+  // The agent flag is part of the creator's shape (#19): a frame without it is not a GigSummary.
+  assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, creator: { ...gig.creator, is_agent: undefined } } }), null)
+  assert.equal(parseWsServerFrame({ ...available, gig: { ...gig, creator: { ...gig.creator, is_agent: 'yes' } } }), null)
   assert.equal(parseWsServerFrame({ ...available, escrow_id: 'another-gig' }), null)
   assert.equal(parseWsServerFrame({ ...available, gig_revision: '3' }), null)
   assert.equal(parseWsServerFrame({ ...available, type: 'gig_unavailable', gig: undefined, cause: 'invented' }), null)

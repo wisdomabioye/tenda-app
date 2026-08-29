@@ -8,7 +8,7 @@
  */
 
 import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm'
-import { user_identities, user_wallets } from '@tenda/shared/db/schema'
+import { user_identities, user_wallets, users } from '@tenda/shared/db/schema'
 import type { ChainNamespace } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
@@ -71,6 +71,16 @@ export async function hasVerifiedContact(db: AppDatabase, userId: string): Promi
   return rows.length > 0
 }
 
+/** True when the account is an autonomous agent (`users.is_agent`, #19). */
+export async function isAgentAccount(db: AppDatabase, userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ is_agent: users.is_agent })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return rows[0]?.is_agent === true
+}
+
 /**
  * First-transaction gate (Stage 9D, deferred wallet + verified contact).
  * Before building any unsigned tx the caller must sign (escrow create / accept
@@ -98,6 +108,10 @@ export async function assertCanTransact(
       { chain_ns: chainNs },
     )
   }
+  // An agent (#19) is born from a wallet and has no phone or email to verify;
+  // its reachability is its operator's problem, and every surface badges it
+  // so the humans it deals with know. The wallet half above still binds.
+  if (await isAgentAccount(db, userId)) return
   if (!(await hasVerifiedContact(db, userId))) {
     throw new AppError(
       403,

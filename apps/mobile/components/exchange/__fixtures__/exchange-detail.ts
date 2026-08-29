@@ -23,6 +23,7 @@ export function userRef(id: string, overrides: Partial<UserRef> = {}): UserRef {
     avatar_url: null,
     review_score: '0',
     is_seeker: false,
+    is_agent: false,
     country: 'NG',
     ...overrides,
   }

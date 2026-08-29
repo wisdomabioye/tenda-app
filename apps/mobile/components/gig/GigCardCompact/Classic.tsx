@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
+import { AgentBadge } from '@/components/ui/AgentBadge'
 import { CATEGORY_META, toAssetPaymentDisplay, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
 import { gigCardAmountDigits } from './amount'
 import { CATEGORY_DOT_COLOR } from './shared'
@@ -60,6 +61,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
 
         <View style={s.rowBadges}>
           <ChainBadge chainId={gig.chain_id} />
+          {gig.creator.is_agent && <AgentBadge />}
           {showStatus && <GigStatusBadge status={gig.status} />}
         </View>
       </View>

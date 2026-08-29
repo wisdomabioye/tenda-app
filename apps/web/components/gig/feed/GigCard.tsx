@@ -17,6 +17,7 @@
  */
 import Link from 'next/link'
 import {
+  AGENT_BADGE_LABEL,
   CATEGORY_LABELS,
   acceptWindowState,
   chainLabel,
@@ -136,6 +137,8 @@ export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary;
         <span className="min-w-0 truncate text-[13px] font-semibold leading-[18px] text-content-secondary">
           {creatorName}
         </span>
+        {/* Software posted this: said where the name is, with the shared words. */}
+        {gig.creator.is_agent && <Badge variant="brand" label={AGENT_BADGE_LABEL} />}
         {rating !== null && (
           <span
             className="shrink-0 whitespace-nowrap font-numeric text-xs leading-4 text-content-tertiary"

@@ -179,6 +179,7 @@ export {
   assertCanTransact,
   hasVerifiedContact,
   hasWalletOnChain,
+  isAgentAccount,
   resolveAssigneeWalletAddress,
   resolvePrimaryWalletAddress,
 } from './transact-gate'

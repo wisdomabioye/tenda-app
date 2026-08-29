@@ -27,7 +27,7 @@ describe('GigReviews', () => {
   })
 
   it('does not expose a counterparty identity on a public detail', () => {
-    const counterparty = { id: 'worker-1', first_name: 'Private', last_name: 'Worker', avatar_url: null, review_score: null, country: null, is_seeker: false }
+    const counterparty = { id: 'worker-1', first_name: 'Private', last_name: 'Worker', avatar_url: null, review_score: null, country: null, is_seeker: false, is_agent: false }
     render(<GigReviews gig={{ ...deliveryGigDetail, counterparty, reviews: [{ ...review, reviewer_id: counterparty.id }] }} />)
     expect(screen.queryByText('Private Worker')).not.toBeInTheDocument()
     expect(screen.getByText('Counterparty')).toBeInTheDocument()

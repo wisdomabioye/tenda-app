@@ -45,7 +45,7 @@ export type PublicUser = Omit<
  */
 export type UserRef = Pick<
   User,
-  'id' | 'first_name' | 'last_name' | 'avatar_url' | 'review_score' | 'is_seeker' | 'country'
+  'id' | 'first_name' | 'last_name' | 'avatar_url' | 'review_score' | 'is_seeker' | 'is_agent' | 'country'
 >
 
 export interface UpdateUserInput {

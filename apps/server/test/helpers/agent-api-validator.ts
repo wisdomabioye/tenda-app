@@ -9,8 +9,9 @@
  */
 import Ajv from 'ajv'
 import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
+import { COMPONENT_REF_PREFIX } from '@server/agent-api/schema-types'
 
-export const COMPONENT_REF_PREFIX = '#/components/schemas/'
+export { COMPONENT_REF_PREFIX }
 
 export function strictAjv(): Ajv {
   return new Ajv({ strict: true, allErrors: true, validateFormats: false })

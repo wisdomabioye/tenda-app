@@ -74,6 +74,14 @@ test('PATCH /v1/users/:id: rejects an unsupported country', { skip }, async () =
     headers: authHeader(u.token), payload: { country: 'ZZ' },
   })
   assert.strictEqual(res.statusCode, 400)
+  // …including a key every plain object inherits: `'toString' in LOCATIONS` is
+  // TRUE, so a membership check written that way PERSISTED it, and the stored
+  // value then rides UserRef.country on every gig this user posts.
+  const proto = await app.inject({
+    method: 'PATCH', url: `/v1/users/${u.row.id}`,
+    headers: authHeader(u.token), payload: { country: 'toString' },
+  })
+  assert.strictEqual(proto.statusCode, 400, proto.body)
 })
 
 test('PATCH /v1/users/:id: a valid update persists', { skip }, async () => {

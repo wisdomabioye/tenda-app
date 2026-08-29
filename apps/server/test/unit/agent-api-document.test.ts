@@ -1,5 +1,5 @@
 /**
- * The Agent API v0 document, as a document: well-formed, internally
+ * The Agent API document (v0 reads + v1 writes), as a document: well-formed, internally
  * consistent, and DERIVED from the shared vocabularies rather than restating
  * them. The live half — every path served, every response validating — is
  * test/integration/agent-api-drift.test.ts.
@@ -18,9 +18,16 @@ import {
   GIG_CATEGORIES,
   GIG_LIST_SORTS,
   LOCATIONS,
+  MAX_COMPLETION_DURATION_SECONDS,
+  MAX_GIG_TITLE_LENGTH,
   MAX_PAGINATION_LIMIT,
   MAX_PROXIMITY_RADIUS_KM,
+  MIN_COMPLETION_DURATION_SECONDS,
+  NAME_MAX_LENGTH,
   PROOF_TYPES,
+  RELAY_PAYMENT_KINDS,
+  TENDA_RELAY_SCHEME,
+  X402_VERSION,
   apiRoutes,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema'
@@ -30,6 +37,7 @@ import {
   AGENT_API_STABILITY,
   AGENT_API_VERSION,
 } from '@server/agent-api/openapi'
+import { operationsOf } from '@server/agent-api/paths'
 import type { SchemaObject } from '@server/agent-api/schema-types'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
 import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
@@ -47,28 +55,55 @@ function walk(root: SchemaObject, visit: (schema: SchemaObject) => void): void {
 
 test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.strictEqual(AGENT_API_DOCUMENT.openapi, '3.1.0')
+  // The $ref prefix is OpenAPI's, not ours: every internal check would still
+  // pass with a misspelt one (the validator registers under the same string),
+  // and only an external reader would notice. Pinned to the spec's spelling.
+  assert.strictEqual(COMPONENT_REF_PREFIX, '#/components/schemas/')
   assert.strictEqual(AGENT_API_DOCUMENT.info.version, AGENT_API_VERSION)
   assert.strictEqual(AGENT_API_DOCUMENT_PATH, '/v1/openapi.json')
   // The guarantees are the point of a v0: they travel IN the document.
   assert.deepStrictEqual(AGENT_API_DOCUMENT.info['x-tenda-stability'], AGENT_API_STABILITY)
-  assert.ok(AGENT_API_STABILITY.some((line) => /read-only/i.test(line)))
+  assert.ok(AGENT_API_STABILITY.some((line) => /anonymous/i.test(line) && /bearer/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /never removed/i.test(line)))
+  assert.ok(AGENT_API_STABILITY.some((line) => /is_agent/.test(line)))
+  assert.strictEqual(AGENT_API_VERSION, '1.0.0')
 })
 
-test('exactly the four public gig reads are documented, GET only, spelled from the route map', () => {
-  assert.deepStrictEqual(
-    Object.keys(paths).sort(),
-    [
-      apiRoutes.gigs.list,
-      apiRoutes.gigs.facets,
-      apiRoutes.gigs.featured,
-      apiRoutes.gigs.get.replace(':id', '{id}'),
-    ].sort(),
-  )
-  for (const [path, item] of Object.entries(paths)) {
+test('the four public gig reads are GET-only and the two agent writes POST-only, all spelled from the route map', () => {
+  const READS = [apiRoutes.gigs.list, apiRoutes.gigs.facets, apiRoutes.gigs.featured, apiRoutes.gigs.get.replace(':id', '{id}')]
+  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks]
+  assert.deepStrictEqual(Object.keys(paths).sort(), [...READS, ...WRITES].sort())
+  for (const path of READS) {
+    const item = paths[path]
     assert.deepStrictEqual(Object.keys(item), ['get'], `${path} must be read-only`)
-    assert.ok(item.get.responses['200'] !== undefined, `${path} documents its 200`)
-    assert.ok(item.get.operationId.length > 0)
+    assert.ok(item.get?.responses['200'] !== undefined, `${path} documents its 200`)
+    assert.strictEqual(item.get?.security, undefined, `${path} is anonymous`)
+  }
+  for (const path of WRITES) {
+    const item = paths[path]
+    assert.deepStrictEqual(Object.keys(item), ['post'], `${path} must be write-only`)
+    assert.ok(item.post?.requestBody?.required === true, `${path} documents its body`)
+  }
+  // The one-shot is bearer-scoped and documents BOTH halves of the x402 round trip.
+  const tasks = paths[apiRoutes.agent.tasks].post
+  assert.deepStrictEqual(tasks?.security, [{ bearer: [] }])
+  assert.ok(tasks?.responses['402'] !== undefined && tasks.responses['201'] !== undefined)
+  assert.ok(tasks?.parameters?.some((p) => p.in === 'header' && p.name === 'x-payment'))
+  // Registration is anonymous by necessity — it is how a bearer is obtained.
+  assert.strictEqual(paths[apiRoutes.agent.register].post?.security, undefined)
+  // OpenAPI: a requirement may only name a scheme components.securitySchemes declares.
+  const declared = new Set(Object.keys(components.securitySchemes))
+  for (const item of Object.values(paths)) {
+    for (const op of operationsOf(item)) {
+      for (const requirement of op.security ?? []) {
+        for (const name of Object.keys(requirement)) assert.ok(declared.has(name), `security scheme ${name} is not declared`)
+      }
+    }
+  }
+  assert.deepStrictEqual(components.securitySchemes.bearer.type, 'http')
+  assert.deepStrictEqual(components.securitySchemes.bearer.scheme, 'bearer')
+  for (const item of Object.values(paths)) {
+    for (const op of operationsOf(item)) assert.ok(op.operationId.length > 0)
   }
 })
 
@@ -83,10 +118,13 @@ test('every $ref resolves to a component schema, and every component is referenc
   }
   for (const schema of Object.values(components.schemas)) walk(schema, collect)
   for (const item of Object.values(paths)) {
-    for (const response of Object.values(item.get.responses)) {
-      for (const media of Object.values(response.content ?? {})) walk(media.schema, collect)
+    for (const op of operationsOf(item)) {
+      for (const response of Object.values(op.responses)) {
+        for (const media of Object.values(response.content ?? {})) walk(media.schema, collect)
+      }
+      for (const media of Object.values(op.requestBody?.content ?? {})) walk(media.schema, collect)
+      for (const parameter of op.parameters ?? []) walk(parameter.schema, collect)
     }
-    for (const parameter of item.get.parameters ?? []) walk(parameter.schema, collect)
   }
   const unreferenced = Object.keys(components.schemas).filter((name) => !referenced.has(name))
   assert.deepStrictEqual(unreferenced, [], 'a component nothing points at is dead documentation')
@@ -110,7 +148,8 @@ test('enumerations are the shared vocabularies, not restated copies', () => {
   assert.deepStrictEqual(summary.status.enum, escrowStatusEnum.enumValues)
   assert.deepStrictEqual(summary.category.enum, GIG_CATEGORIES)
   assert.deepStrictEqual(summary.proof_requirements.items?.enum, PROOF_TYPES)
-  assert.deepStrictEqual(summary.country.enum, Object.keys(LOCATIONS))
+  // Nullable enums carry null as a value too (a remote poster may have no country).
+  assert.deepStrictEqual(summary.country.enum, [...Object.keys(LOCATIONS), null])
   assert.deepStrictEqual(
     components.schemas.GigApplication.properties?.status.enum,
     APPLICATION_STATUSES,
@@ -128,13 +167,15 @@ test('enumerations are the shared vocabularies, not restated copies', () => {
 
 test('every query parameter compiles strictly and states the bound the server refuses at', () => {
   const ajv = strictAjv()
-  type Parameter = NonNullable<(typeof paths)[string]['get']['parameters']>[number]
+  type Parameter = NonNullable<ReturnType<typeof operationsOf>[number]['parameters']>[number]
   const byName = new Map<string, Parameter>()
   for (const item of Object.values(paths)) {
-    for (const parameter of item.get.parameters ?? []) {
-      // Compiling is the check: strict ajv refuses a contradictory schema.
-      ajv.compile(parameter.schema)
-      byName.set(parameter.name, parameter)
+    for (const op of operationsOf(item)) {
+      for (const parameter of op.parameters ?? []) {
+        // Compiling is the check: strict ajv refuses a contradictory schema.
+        ajv.compile(parameter.schema)
+        byName.set(parameter.name, parameter)
+      }
     }
   }
   const param = (name: string): SchemaObject => {
@@ -174,11 +215,59 @@ test('the schemas compile under a STRICT validator and the closure bites', () =>
     avatar_url: null,
     review_score: '4.80',
     is_seeker: false,
+    is_agent: false,
     country: 'NG',
   }
   assert.strictEqual(validate(user), true)
+  // is_agent is part of the closed contract now: a ref without it is refused.
+  const { is_agent: _dropped, ...withoutAgent } = user
+  assert.strictEqual(validate(withoutAgent), false)
   // One undocumented key is a failure, not a pass with a warning.
   assert.strictEqual(validate({ ...user, handle: '@ada' }), false)
   // A wrong type on a documented key is too.
   assert.strictEqual(validate({ ...user, review_score: 4.8 }), false)
+})
+
+// ---------- v1: the write surface (#19) -----------------------------------------
+
+test('v1 request bodies derive their bounds from the shared constants the routes enforce', () => {
+  const task = components.schemas.AgentTaskBody.properties ?? {}
+  assert.deepStrictEqual(task.category.enum, GIG_CATEGORIES)
+  assert.deepStrictEqual(task.chain_id.enum, CHAIN_MANIFEST.map((entry) => entry.id))
+  assert.deepStrictEqual(task.proof_requirements.items?.enum, PROOF_TYPES)
+  assert.strictEqual(task.completion_duration_seconds.minimum, MIN_COMPLETION_DURATION_SECONDS)
+  assert.strictEqual(task.completion_duration_seconds.maximum, MAX_COMPLETION_DURATION_SECONDS)
+  assert.strictEqual(task.title.maxLength, MAX_GIG_TITLE_LENGTH)
+  assert.strictEqual(task.amount_raw.pattern, AMOUNT_RAW_PATTERN.source)
+  assert.deepStrictEqual(components.schemas.AgentTaskBody.required, [
+    'creation_operation_id', 'chain_id', 'asset', 'amount_raw', 'accept_deadline_unix', 'completion_duration_seconds', 'title', 'category',
+  ])
+  const register = components.schemas.AgentRegisterBody.properties ?? {}
+  assert.strictEqual(register.name.maxLength, NAME_MAX_LENGTH)
+  assert.deepStrictEqual(register.country.enum, Object.keys(LOCATIONS))
+  // The 402 is the x402 envelope: version pinned, one accepts entry, the task id beside it.
+  const paymentRequired = components.schemas.AgentTaskPaymentRequired.properties ?? {}
+  assert.strictEqual(paymentRequired.x402Version.const, X402_VERSION)
+  assert.strictEqual(paymentRequired.accepts.maxItems, 1)
+  assert.strictEqual(components.schemas.RelayTerms.properties?.scheme.const, TENDA_RELAY_SCHEME)
+  assert.deepStrictEqual(
+    [components.schemas.EvmAuthorizationTerms, components.schemas.SolanaTransactionTerms].map((s) => s.properties?.kind.const),
+    [...RELAY_PAYMENT_KINDS],
+  )
+})
+
+test('the v1 schemas compile strictly and the closure bites on the task body and the terms', () => {
+  const ajv = agentApiAjv()
+  const body = ajv.getSchema(`${COMPONENT_REF_PREFIX}AgentTaskBody`)
+  assert.ok(body !== undefined)
+  const minimal = {
+    creation_operation_id: '1c1e6a6e-9b1e-4e3a-8f4b-2b0f7d6b1a11', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '25000000',
+    accept_deadline_unix: 1_900_000_000, completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS, title: 'Deliver a parcel', category: GIG_CATEGORIES[0],
+  }
+  assert.strictEqual(body(minimal), true)
+  assert.strictEqual(body({ ...minimal, permit: {} }), false, 'a permit has no place in the one-shot')
+  assert.strictEqual(body({ ...minimal, amount_raw: '007' }), false, 'amounts are canonical')
+  const terms = ajv.getSchema(`${COMPONENT_REF_PREFIX}RelayTerms`)
+  assert.ok(terms !== undefined)
+  assert.strictEqual(terms({ scheme: 'exact' }), false)
 })

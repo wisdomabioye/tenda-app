@@ -17,6 +17,7 @@ export const USER_COLS = {
   avatar_url: users.avatar_url,
   review_score: users.review_score,
   is_seeker: users.is_seeker,
+  is_agent: users.is_agent,
   country: users.country,
 }
 

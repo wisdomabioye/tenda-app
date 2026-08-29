@@ -10,43 +10,62 @@
  */
 import {
   AMOUNT_RAW_PATTERN,
-  CHAIN_MANIFEST,
   GIG_CATEGORIES,
   GIG_LIST_SORTS,
-  LOCATIONS,
   MAX_PAGINATION_LIMIT,
   MAX_PROXIMITY_RADIUS_KM,
   apiRoutes,
 } from '@tenda/shared'
 import { ref, type SchemaObject } from './schema-types'
-import { latitude, longitude, uuid } from './schemas'
+import { COUNTRY_CODES, chainId, latitude, longitude, uuid } from './scalars'
 
-interface ParameterObject {
+export interface ParameterObject {
   name: string
-  in: 'query' | 'path'
+  in: 'query' | 'path' | 'header'
   required?: boolean
   description?: string
   schema: SchemaObject
 }
 
-interface ResponseObject {
+/** The one media type this API speaks. */
+export const JSON_MEDIA_TYPE = 'application/json'
+export type JsonContent = Readonly<Record<typeof JSON_MEDIA_TYPE, { schema: SchemaObject }>>
+
+/** An HTTP status this API documents — a 2xx, 4xx or 5xx code, as the string key OpenAPI uses. */
+export type HttpStatus = `${'2' | '4' | '5'}${number}`
+
+/** The security schemes `components.securitySchemes` declares; a requirement may name nothing else. */
+export type SecuritySchemeName = 'bearer'
+export type SecurityRequirement = Readonly<Record<SecuritySchemeName, readonly string[]>>
+
+export interface ResponseObject {
   description: string
-  content?: Readonly<Record<string, { schema: SchemaObject }>>
+  content?: JsonContent
 }
 
-interface OperationObject {
+export interface OperationObject {
   operationId: string
   summary: string
   description: string
   tags: readonly string[]
   parameters?: readonly ParameterObject[]
-  responses: Readonly<Record<string, ResponseObject>>
+  /** v1 write operations; absent on the v0 reads. */
+  requestBody?: { required: true; content: JsonContent }
+  /** `[{ bearer: [] }]` on the operations that need a token; absent = anonymous. */
+  security?: readonly SecurityRequirement[]
+  responses: Readonly<Record<HttpStatus, ResponseObject>>
 }
 
-export type PathItem = Readonly<Record<'get', OperationObject>>
+/** One path: the v0 reads are GET-only, the v1 writes POST-only; both appear in one map. */
+export type PathItem = Readonly<Partial<Record<'get' | 'post', OperationObject>>>
 
-const json = (schema: SchemaObject): ResponseObject['content'] => ({ 'application/json': { schema } })
-const errorResponse = (description: string): ResponseObject => ({ description, content: json(ref('ApiError')) })
+/** The operations a path item carries, method-agnostic — for the tests that walk every response. */
+export function operationsOf(item: PathItem): readonly OperationObject[] {
+  return [item.get, item.post].filter((op): op is OperationObject => op !== undefined)
+}
+
+export const json = (schema: SchemaObject): JsonContent => ({ [JSON_MEDIA_TYPE]: { schema } })
+export const errorResponse = (description: string): ResponseObject => ({ description, content: json(ref('ApiError')) })
 
 const query = (name: string, schema: SchemaObject, description: string): ParameterObject => ({
   name,
@@ -63,16 +82,12 @@ const amountText: SchemaObject = { type: 'string', pattern: AMOUNT_RAW_PATTERN.s
 
 /** The filters the public feed and its facets share. */
 const PUBLIC_FEED_FILTERS: readonly ParameterObject[] = [
-  query('country', { type: 'string', enum: Object.keys(LOCATIONS) }, 'ISO-3166 alpha-2 work country'),
+  query('country', { type: 'string', enum: COUNTRY_CODES }, 'ISO-3166 alpha-2 work country'),
   query('remote', boolText, 'Only remote (true) or only on-site (false) gigs'),
   query('cross_border', boolText, 'Only gigs whose work country differs from the poster\'s'),
   query('city', { type: 'string' }, 'Work city, matched exactly as sent'),
   query('category', { type: 'string', enum: GIG_CATEGORIES }, 'Gig category'),
-  query(
-    'chain_id',
-    { type: 'string', enum: CHAIN_MANIFEST.map((entry) => entry.id) },
-    'CAIP-2 settlement chain; a chain this deployment has not enabled answers 400',
-  ),
+  query('chain_id', chainId, 'CAIP-2 settlement chain; a chain this deployment has not enabled answers 400'),
   query('q', { type: 'string' }, 'Full-text search over title + description; orders by relevance unless `sort` is set'),
   query('min_amount_raw', amountText, 'Inclusive lower bound, base units; must not exceed max_amount_raw'),
   query('max_amount_raw', amountText, 'Inclusive upper bound, base units'),
@@ -91,6 +106,11 @@ const PAGING: readonly ParameterObject[] = [
 const NOT_IN_V0 =
   ' The bearer-only query keys `mine` and `status` (own listings, any status) exist on this route but are outside the v0 guarantee.'
 
+/**
+ * Keyed by the route PATH. `string`, not a literal union, because the keys are
+ * computed from the shared route map (whose values are typed `string`); the
+ * drift test proves every key is served on its method.
+ */
 export const AGENT_API_PATHS: Readonly<Record<string, PathItem>> = {
   [apiRoutes.gigs.list]: {
     get: {

@@ -14,6 +14,7 @@ import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
 import type { DisputesContract } from './disputes.contract'
 import type { ApplicationsContract } from './applications.contract'
+import type { AgentContract } from './agent.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -21,6 +22,7 @@ export interface ApiContract {
   disputes: DisputesContract
   gigs: GigsContract
   applications: ApplicationsContract
+  agent: AgentContract
   users: UsersContract
   upload: UploadContract
   blockchain: BlockchainContract
@@ -85,6 +87,14 @@ export type {
   FundEscrowResponse,
 } from './relay.contract'
 export type { GigsContract } from './gigs.contract'
+export type {
+  AgentContract,
+  AgentRegisterBody,
+  AgentRegisterResponse,
+  AgentTaskBody,
+  AgentTaskPaymentRequired,
+  AgentTaskCreated,
+} from './agent.contract'
 export type { DisputesContract } from './disputes.contract'
 export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'
 export type { UploadContract, UploadSignatureBody } from './upload.contract'
