@@ -19,11 +19,6 @@ pub struct PlatformState {
     pub seeker_fee_bps: u16,
     pub approval_window_seconds: i64,
     pub grace_period_seconds: i64,
-    /// Reserved: no instruction writes this (initialize zeroes it and nothing
-    /// increments it), so it reads 0 on every deployment. Kept because
-    /// removing it changes `LEN` and the account layout; see the
-    /// close_legacy_platform migration path before repurposing.
-    pub total_volume: u64,
     pub bump: u8,
 }
 
@@ -31,9 +26,16 @@ impl PlatformState {
     /// `8` discriminator
     /// `+ 32 * 3` protocol_admin / dispute_admin / treasury
     /// `+ 2 * 2`  fee_bps / seeker_fee_bps
-    /// `+ 8 * 3`  approval_window / grace_period / total_volume
+    /// `+ 8 * 2`  approval_window / grace_period
     /// `+ 1`      bump
-    pub const LEN: usize = 8 + 32 * 3 + 2 * 2 + 8 * 3 + 1;
+    ///
+    /// A reserved `total_volume: u64` sat between `grace_period_seconds` and
+    /// `bump` until #27 and was never written by any instruction. Removing it
+    /// SHRANK this by 8, which is what makes an older account migratable:
+    /// `close_legacy_platform` closes any platform PDA whose length is not
+    /// exactly `LEN`, so a pre-#27 account (133 bytes) becomes closeable and
+    /// `initialize_platform` can re-create it at the current size.
+    pub const LEN: usize = 8 + 32 * 3 + 2 * 2 + 8 * 2 + 1;
 
     pub fn effective_fee_bps(&self, is_seeker: bool) -> u16 {
         if is_seeker {

@@ -1038,16 +1038,8 @@ export type TendaEscrow = {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -3826,16 +3818,6 @@ export type TendaEscrow = {
           {
             "name": "gracePeriodSeconds",
             "type": "i64"
-          },
-          {
-            "name": "totalVolume",
-            "docs": [
-              "Reserved: no instruction writes this (initialize zeroes it and nothing",
-              "increments it), so it reads 0 on every deployment. Kept because",
-              "removing it changes `LEN` and the account layout; see the",
-              "close_legacy_platform migration path before repurposing."
-            ],
-            "type": "u64"
           },
           {
             "name": "bump",

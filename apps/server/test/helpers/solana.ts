@@ -115,7 +115,6 @@ export function platformStateFixture(
     seekerFeeBps: 100,
     approvalWindowSeconds: new BN(172_800),
     gracePeriodSeconds: new BN(3_600),
-    totalVolume: new BN(0),
     bump: 255,
     ...overrides,
   }

@@ -55,7 +55,6 @@ pub fn initialize_platform_handler(ctx: Context<InitializePlatform>, args: Initi
     state.seeker_fee_bps = args.seeker_fee_bps;
     state.approval_window_seconds = args.approval_window_seconds;
     state.grace_period_seconds = args.grace_period_seconds;
-    state.total_volume = 0;
     state.bump = ctx.bumps.platform_state;
 
     let now = Clock::get()?.unix_timestamp;

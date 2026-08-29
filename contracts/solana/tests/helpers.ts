@@ -37,6 +37,7 @@ import { assert } from "chai";
 import * as path from "node:path";
 
 import IDL_JSON from "../target/idl/tenda_escrow.json";
+import { PLATFORM_STATE_LEN } from "../tests-common/idl-layout";
 import type { TendaEscrow } from "../target/types/tenda_escrow";
 
 // ---------------------------------------------------------------------------
@@ -70,6 +71,21 @@ export const LIMITS = {
   minUnassignWindowSeconds: 0,
   maxUnassignWindowSeconds: 24 * 3_600,
 } as const;
+
+export {
+  PLATFORM_STATE_LEN,
+  idlAccountFields,
+  idlInstructionAccounts,
+} from "../tests-common/idl-layout";
+
+/**
+ * What `PlatformState` measured BEFORE #27 removed the reserved `total_volume:
+ * u64` that no instruction ever wrote. Every platform PDA initialized by an
+ * older deployment is still this size, which is precisely why it is migratable:
+ * `close_legacy_platform` closes any platform PDA whose length is not the
+ * current `LEN`.
+ */
+export const PLATFORM_STATE_LEN_PRE_27 = PLATFORM_STATE_LEN + 8;
 
 /** Platform defaults used by initPlatform unless a test overrides them. */
 export const PLATFORM_DEFAULTS = {
