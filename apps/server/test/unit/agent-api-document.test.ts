@@ -196,7 +196,11 @@ test('the document allows null exactly where the DATABASE does', () => {
   // Both polarities are actually represented, or the loop above proves nothing.
   assert.ok(checked.includes('created_at'), 'created_at was not checked')
   assert.ok(checked.includes('accept_deadline'), 'accept_deadline was not checked')
-  assert.strictEqual(checked.length, Object.keys(GIG_SUMMARY_COLS).length - 1)
+  assert.strictEqual(
+    checked.length,
+    Object.keys(GIG_SUMMARY_COLS).length - 1,
+    'every selected key but `creator` is a column; a new nested projection needs a case here',
+  )
 })
 
 test('every query parameter compiles strictly and states the bound the server refuses at', () => {

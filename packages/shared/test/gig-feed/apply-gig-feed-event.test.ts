@@ -187,15 +187,16 @@ test('revision comparison supports values beyond Number.MAX_SAFE_INTEGER and ref
   assert.throws(() => compareGigFeedRevisions('-1', '1'), /non-negative decimal/)
 })
 
-test('recency ordering handles null timestamps and uses escrow id as a stable tie-breaker', () => {
+test('recency ordering puts the newer gig first and uses escrow id as a stable tie-breaker', () => {
   const timestamp = '2026-08-13T10:00:00.000Z'
+  const older = '2026-08-12T10:00:00.000Z'
+  // Newer first, whichever side it is on — the ordering, not just a sign.
+  assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('a', older)), -1)
+  assert.equal(compareGigSummariesByRecency(gig('a', older), gig('a', timestamp)), 1)
+  // Equal timestamps fall through to the id, descending.
   assert.equal(compareGigSummariesByRecency(gig('b', timestamp), gig('a', timestamp)), -1)
   assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('b', timestamp)), 1)
   assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('a', timestamp)), 0)
-  assert.equal(compareGigSummariesByRecency(
-    gig('a', timestamp),
-    gig('b', timestamp, { created_at: null }),
-  ), -1)
 })
 
 test('blank search stays client-matchable while partial proximity and invalid max require server truth', () => {
@@ -211,7 +212,7 @@ test('blank search stays client-matchable while partial proximity and invalid ma
  * long enough to be MATCHED and then be narrowed before it is stored.
  */
 test('a caller that stores less than a summary matches on the full gig and stores the projection', () => {
-  interface Card { escrow_id: string; created_at: string | null; title: string }
+  interface Card { escrow_id: string; created_at: string; title: string }
   const toCard = (item: GigSummary): Card => ({
     escrow_id: item.escrow_id,
     created_at: item.created_at,

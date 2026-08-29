@@ -33,9 +33,10 @@ export interface GigSummary {
   status: EscrowStatus
   accept_deadline: string | null
   /**
-   * Always present: `escrows.created_at` is NOT NULL with a default, and the
-   * one serializer both the HTTP routes and the realtime frames go through
-   * (`toGigSummary`) reads it as a `Date` and emits `.toISOString()`.
+   * Always present: `escrows.created_at` is NOT NULL with a default, so every
+   * producer reads it as a `Date` and emits `.toISOString()` unconditionally —
+   * the shared `toGigSummary` (feed, featured rail, realtime frames) and the
+   * detail route's own projection, which builds this shape by hand.
    */
   created_at: string
   title: string
