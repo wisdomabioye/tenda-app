@@ -32,7 +32,12 @@ export interface GigSummary {
   amount_raw: string
   status: EscrowStatus
   accept_deadline: string | null
-  created_at: string | null
+  /**
+   * Always present: `escrows.created_at` is NOT NULL with a default, and the
+   * one serializer both the HTTP routes and the realtime frames go through
+   * (`toGigSummary`) reads it as a `Date` and emits `.toISOString()`.
+   */
+  created_at: string
   title: string
   description: string | null
   category: GigCategory

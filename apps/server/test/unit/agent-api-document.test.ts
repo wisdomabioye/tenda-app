@@ -1,5 +1,6 @@
 /**
- * The Agent API document (v0 reads + v1 writes), as a document: well-formed, internally
+ * The Agent API document (v0 reads; the v1 writes are in the sibling
+ * agent-api-document-v1.test.ts), as a document: well-formed, internally
  * consistent, and DERIVED from the shared vocabularies rather than restating
  * them. The live half — every path served, every response validating — is
  * test/integration/agent-api-drift.test.ts.
@@ -10,6 +11,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { Column, is } from 'drizzle-orm'
 import {
   AMOUNT_RAW_PATTERN,
   APPLICATION_STATUSES,
@@ -18,16 +20,9 @@ import {
   GIG_CATEGORIES,
   GIG_LIST_SORTS,
   LOCATIONS,
-  MAX_COMPLETION_DURATION_SECONDS,
-  MAX_GIG_TITLE_LENGTH,
   MAX_PAGINATION_LIMIT,
   MAX_PROXIMITY_RADIUS_KM,
-  MIN_COMPLETION_DURATION_SECONDS,
-  NAME_MAX_LENGTH,
   PROOF_TYPES,
-  RELAY_PAYMENT_KINDS,
-  TENDA_RELAY_SCHEME,
-  X402_VERSION,
   apiRoutes,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema'
@@ -40,6 +35,7 @@ import {
 import { operationsOf } from '@server/agent-api/paths'
 import type { SchemaObject } from '@server/agent-api/schema-types'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
+import { GIG_SUMMARY_COLS } from '@server/lib/gig-read'
 import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
 
 const { paths, components } = AGENT_API_DOCUMENT
@@ -165,6 +161,44 @@ test('enumerations are the shared vocabularies, not restated copies', () => {
   assert.deepStrictEqual(Object.keys(facets.country.properties ?? {}), Object.keys(LOCATIONS))
 })
 
+/**
+ * A field's nullability on the wire is a property of the COLUMN it is
+ * projected from, so this derives the expectation from the Drizzle schema
+ * rather than restating it: `GIG_SUMMARY_COLS` is the same map the query
+ * selects with, and `.notNull` is what the migration actually declared.
+ *
+ * `closedFor<GigSummary>` cannot catch this — it binds which keys exist and
+ * which are required, and a nullable schema accepts a non-null value happily,
+ * so a document that over-promises null drifts silently in both directions.
+ */
+test('the document allows null exactly where the DATABASE does', () => {
+  const summary = components.schemas.GigSummary.properties ?? {}
+  const allowsNull = (schema: SchemaObject): boolean => {
+    if (schema.oneOf !== undefined) return schema.oneOf.some((branch) => branch.type === 'null')
+    if (Array.isArray(schema.type)) return schema.type.includes('null')
+    return schema.type === 'null'
+  }
+
+  const checked: string[] = []
+  for (const [field, column] of Object.entries(GIG_SUMMARY_COLS)) {
+    // `creator` is a nested projection (USER_COLS), not a column of its own.
+    // Drizzle's own guard, so this narrows without a cast.
+    if (!is(column, Column)) continue
+    const schema = summary[field]
+    assert.ok(schema !== undefined, `${field} is selected but absent from the document`)
+    assert.strictEqual(
+      allowsNull(schema),
+      !column.notNull,
+      `${field}: document ${allowsNull(schema) ? 'allows' : 'refuses'} null, column is ${column.notNull ? 'NOT NULL' : 'nullable'}`,
+    )
+    checked.push(field)
+  }
+  // Both polarities are actually represented, or the loop above proves nothing.
+  assert.ok(checked.includes('created_at'), 'created_at was not checked')
+  assert.ok(checked.includes('accept_deadline'), 'accept_deadline was not checked')
+  assert.strictEqual(checked.length, Object.keys(GIG_SUMMARY_COLS).length - 1)
+})
+
 test('every query parameter compiles strictly and states the bound the server refuses at', () => {
   const ajv = strictAjv()
   type Parameter = NonNullable<ReturnType<typeof operationsOf>[number]['parameters']>[number]
@@ -226,48 +260,4 @@ test('the schemas compile under a STRICT validator and the closure bites', () =>
   assert.strictEqual(validate({ ...user, handle: '@ada' }), false)
   // A wrong type on a documented key is too.
   assert.strictEqual(validate({ ...user, review_score: 4.8 }), false)
-})
-
-// ---------- v1: the write surface (#19) -----------------------------------------
-
-test('v1 request bodies derive their bounds from the shared constants the routes enforce', () => {
-  const task = components.schemas.AgentTaskBody.properties ?? {}
-  assert.deepStrictEqual(task.category.enum, GIG_CATEGORIES)
-  assert.deepStrictEqual(task.chain_id.enum, CHAIN_MANIFEST.map((entry) => entry.id))
-  assert.deepStrictEqual(task.proof_requirements.items?.enum, PROOF_TYPES)
-  assert.strictEqual(task.completion_duration_seconds.minimum, MIN_COMPLETION_DURATION_SECONDS)
-  assert.strictEqual(task.completion_duration_seconds.maximum, MAX_COMPLETION_DURATION_SECONDS)
-  assert.strictEqual(task.title.maxLength, MAX_GIG_TITLE_LENGTH)
-  assert.strictEqual(task.amount_raw.pattern, AMOUNT_RAW_PATTERN.source)
-  assert.deepStrictEqual(components.schemas.AgentTaskBody.required, [
-    'creation_operation_id', 'chain_id', 'asset', 'amount_raw', 'accept_deadline_unix', 'completion_duration_seconds', 'title', 'category',
-  ])
-  const register = components.schemas.AgentRegisterBody.properties ?? {}
-  assert.strictEqual(register.name.maxLength, NAME_MAX_LENGTH)
-  assert.deepStrictEqual(register.country.enum, Object.keys(LOCATIONS))
-  // The 402 is the x402 envelope: version pinned, one accepts entry, the task id beside it.
-  const paymentRequired = components.schemas.AgentTaskPaymentRequired.properties ?? {}
-  assert.strictEqual(paymentRequired.x402Version.const, X402_VERSION)
-  assert.strictEqual(paymentRequired.accepts.maxItems, 1)
-  assert.strictEqual(components.schemas.RelayTerms.properties?.scheme.const, TENDA_RELAY_SCHEME)
-  assert.deepStrictEqual(
-    [components.schemas.EvmAuthorizationTerms, components.schemas.SolanaTransactionTerms].map((s) => s.properties?.kind.const),
-    [...RELAY_PAYMENT_KINDS],
-  )
-})
-
-test('the v1 schemas compile strictly and the closure bites on the task body and the terms', () => {
-  const ajv = agentApiAjv()
-  const body = ajv.getSchema(`${COMPONENT_REF_PREFIX}AgentTaskBody`)
-  assert.ok(body !== undefined)
-  const minimal = {
-    creation_operation_id: '1c1e6a6e-9b1e-4e3a-8f4b-2b0f7d6b1a11', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '25000000',
-    accept_deadline_unix: 1_900_000_000, completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS, title: 'Deliver a parcel', category: GIG_CATEGORIES[0],
-  }
-  assert.strictEqual(body(minimal), true)
-  assert.strictEqual(body({ ...minimal, permit: {} }), false, 'a permit has no place in the one-shot')
-  assert.strictEqual(body({ ...minimal, amount_raw: '007' }), false, 'amounts are canonical')
-  const terms = ajv.getSchema(`${COMPONENT_REF_PREFIX}RelayTerms`)
-  assert.ok(terms !== undefined)
-  assert.strictEqual(terms({ scheme: 'exact' }), false)
 })

@@ -74,13 +74,11 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
           <MapPin size={16} aria-hidden className="shrink-0 text-content-tertiary" />
           <span className="min-w-0 break-words">{gigPlaceLabel(gig)}</span>
         </span>
-        {gig.created_at !== null && (
-          <span className="flex items-center gap-2">
-            <Clock size={16} aria-hidden className="text-content-tertiary" />
-            {GIG_DETAIL_COPY.postedPrefix}{' '}
-            <RelativeTime iso={gig.created_at} className="font-numeric" />
-          </span>
-        )}
+        <span className="flex items-center gap-2">
+          <Clock size={16} aria-hidden className="text-content-tertiary" />
+          {GIG_DETAIL_COPY.postedPrefix}{' '}
+          <RelativeTime iso={gig.created_at} className="font-numeric" />
+        </span>
         {gig.cross_border && (
           <span className="flex items-center gap-2 rounded-full border border-feedback-info-border bg-feedback-info-surface px-3 py-1 text-[13px] font-semibold text-feedback-info-text">
             <Globe size={14} aria-hidden />

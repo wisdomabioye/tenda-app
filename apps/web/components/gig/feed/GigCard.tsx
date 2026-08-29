@@ -124,12 +124,8 @@ export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary;
             a flex item that is not allowed to shrink, and `city` is free text
             a poster typed. */}
         <span className="min-w-0 truncate">{gigPlaceLabel(gig)}</span>
-        {gig.created_at !== null && (
-          <>
-            <span aria-hidden>·</span>
-            <RelativeTime iso={gig.created_at} className="whitespace-nowrap font-numeric" />
-          </>
-        )}
+        <span aria-hidden>·</span>
+        <RelativeTime iso={gig.created_at} className="whitespace-nowrap font-numeric" />
       </div>
 
       <div className="mt-auto flex items-center gap-2.5 pt-5">

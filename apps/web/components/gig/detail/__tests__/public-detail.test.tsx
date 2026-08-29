@@ -70,11 +70,6 @@ describe('GigDetailHeader', () => {
     expect(container.querySelector('.min-w-0')).not.toBeNull()
   })
 
-  it('omits the posted line when the wire carries no timestamp', () => {
-    render(<GigDetailHeader gig={{ ...gig, created_at: null }} />)
-    expect(screen.queryByText(GIG_DETAIL_COPY.postedPrefix)).not.toBeInTheDocument()
-  })
-
   it('keeps "Posted" TICKING — it is a claim about the present tense', () => {
     // This block used to be a server-rendered string, frozen in the HTML: a
     // gig posted a moment ago read "Posted now" for the whole visit.
@@ -150,10 +145,11 @@ describe('gigTerms', () => {
       ...gig,
       completion_duration_seconds: null,
       accept_deadline: null,
-      created_at: null,
     }
     const labels = gigTerms(sparse).map((t) => t.label)
-    expect(labels).toEqual(['Payment', 'Chain', 'Location'])
+    // `created_at` is NOT in the sparse set: escrows.created_at is NOT NULL, so
+    // Posted is the one term that survives however little else the wire carries.
+    expect(labels).toEqual(['Payment', 'Chain', 'Location', 'Posted'])
   })
 
   it('states the deadline in a FIXED zone, and NAMES it', () => {

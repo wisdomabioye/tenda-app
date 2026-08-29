@@ -77,13 +77,11 @@ export function gigTerms(gig: GigDetail): Term[] {
       numeric: true,
     })
   }
-  if (gig.created_at !== null) {
-    terms.push({
-      label: GIG_DETAIL_COPY.terminology.posted,
-      value: <RelativeTime iso={gig.created_at} />,
-      numeric: true,
-    })
-  }
+  terms.push({
+    label: GIG_DETAIL_COPY.terminology.posted,
+    value: <RelativeTime iso={gig.created_at} />,
+    numeric: true,
+  })
   return terms
 }
 

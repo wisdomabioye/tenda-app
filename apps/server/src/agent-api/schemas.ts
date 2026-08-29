@@ -114,7 +114,7 @@ const GIG_SUMMARY_PROPERTIES: Readonly<Record<keyof GigSummary, SchemaObject>> =
   amount_raw: rawAmount,
   status: { type: 'string', enum: escrowStatusEnum.enumValues },
   accept_deadline: nullable(isoInstant),
-  created_at: nullable(isoInstant),
+  created_at: isoInstant,
   title: { type: 'string' },
   description: nullable({ type: 'string' }),
   category: { type: 'string', enum: GIG_CATEGORIES },

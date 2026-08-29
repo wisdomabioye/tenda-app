@@ -103,11 +103,6 @@ describe('GigCard', () => {
     expect(screen.queryByText(/★/)).not.toBeInTheDocument()
   })
 
-  it('omits the posted time when the wire carries none, rather than an empty slot', () => {
-    render(<GigCard gig={{ ...deliveryGig, created_at: null }} />)
-    expect(screen.getByRole('link').textContent).not.toContain('·')
-  })
-
   it('keeps the posted time TICKING, so a fresh gig stops saying "now"', () => {
     // The card renders once and then only when a realtime update lands, so a
     // timestamp sampled at render froze: a gig posted while the reader watched
