@@ -19,6 +19,7 @@ import {
   initPlatform,
   newCtx,
   platformArgs,
+  setUpgradeAuthority,
   warpBy,
   sendIxs,
   expectEvent,
@@ -109,6 +110,52 @@ describe("admin", () => {
         initPlatform(ctx, { gracePeriodSeconds: new BN(-1) }),
         "GracePeriodOutOfRange",
       );
+    });
+
+    it("REFUSES a signer who is not the program's upgrade authority (#39)", async () => {
+      // Solana has no constructor: initialize_platform is necessarily a separate
+      // transaction, so between `solana program deploy` and the deployer's own
+      // init there is a window in which anybody could call this. Whoever wins
+      // names protocol_admin / dispute_admin / treasury — i.e. takes every fee
+      // and the power to resolve disputes, which moves escrowed user funds.
+      //
+      // It is IRRECOVERABLE: `close_legacy_platform` only closes a PDA whose
+      // length is not LEN (an attacker's is exactly LEN) and every set_* needs
+      // the incumbent admin. So the gate has to be on-chain, not operational.
+      const attacker = Keypair.generate();
+      ctx.svm.airdrop(attacker.publicKey, 1_000_000_000n);
+
+      await expectTendaError(
+        ctx.program.methods
+          .initializePlatform(
+            platformArgs(ctx, { treasury: attacker.publicKey }),
+          )
+          .accountsPartial({
+            platformState: ctx.platformPda,
+            payer: attacker.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([attacker])
+          .rpc(),
+        "NotUpgradeAuthority",
+      );
+
+      // Nothing was created — the next legitimate init still has a free PDA.
+      assert.isNull(ctx.svm.getAccount(ctx.platformPda));
+      await initPlatform(ctx);
+      const state = await ctx.program.account.platformState.fetch(
+        ctx.platformPda,
+      );
+      assert.isTrue(state.treasury.equals(ctx.treasury.publicKey));
+    });
+
+    it("REFUSES an IMMUTABLE program — no upgrade authority means no initializer", async () => {
+      // `solana program set-upgrade-authority --final` leaves Option::None here.
+      // Such a program can never be initialized, which is a real ordering
+      // constraint on launch: initialize BEFORE making the program immutable.
+      setUpgradeAuthority(ctx, null);
+      await expectTendaError(initPlatform(ctx), "NotUpgradeAuthority");
+      assert.isNull(ctx.svm.getAccount(ctx.platformPda));
     });
 
     it("rejects double initialization", async () => {

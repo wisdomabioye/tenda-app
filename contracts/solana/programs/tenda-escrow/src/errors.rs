@@ -144,4 +144,7 @@ pub enum TendaError {
 
     #[msg("authority pubkey must not be the default (all-zero) pubkey")]
     ZeroAuthority,
+
+    #[msg("only the program's upgrade authority may initialize the platform")]
+    NotUpgradeAuthority,
 }

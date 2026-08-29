@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::bpf_loader_upgradeable;
 
 use crate::constants::{
     MAX_APPROVAL_WINDOW_SECONDS, MAX_GRACE_PERIOD_SECONDS, MAX_PLATFORM_FEE_BPS,
@@ -35,6 +36,34 @@ pub struct InitializePlatform<'info> {
 
     #[account(mut)]
     pub payer: Signer<'info>,
+
+    /// The program's OWN ProgramData account — where the upgrade authority set
+    /// by `solana program deploy` lives.
+    ///
+    /// Solana has no constructor: `initialize_platform` is necessarily a
+    /// separate transaction from the deploy, so without this gate the first
+    /// caller after a deploy wins and names themselves protocol_admin,
+    /// dispute_admin and treasury — taking every fee and the power to resolve
+    /// disputes, which moves escrowed user funds. It is irrecoverable
+    /// (`close_legacy_platform` cannot touch a current-length PDA, and every
+    /// `set_*` needs the incumbent admin), so the gate belongs on-chain rather
+    /// than in a "run init quickly" operational note.
+    ///
+    /// Unforgeable on both halves: the ADDRESS is derived from this program's
+    /// id under the upgradeable loader, and `Account<ProgramData>` requires that
+    /// loader to own it.
+    ///
+    /// NOTE: a program whose upgrade authority has been removed (made immutable)
+    /// carries `None` here and can never be initialized — so initialize BEFORE
+    /// making the program immutable.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = bpf_loader_upgradeable::ID,
+        constraint = program_data.upgrade_authority_address == Some(payer.key())
+            @ TendaError::NotUpgradeAuthority,
+    )]
+    pub program_data: Account<'info, ProgramData>,
 
     pub system_program: Program<'info, System>,
 }

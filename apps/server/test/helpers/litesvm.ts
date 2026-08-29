@@ -50,6 +50,44 @@ export interface LiteSvmFixture {
   mint(holders: Array<{ owner: PublicKey; amount: bigint }>): PublicKey
 }
 
+/**
+ * `initialize_platform` is gated on the program's UPGRADE AUTHORITY (#39), which
+ * lives in a ProgramData account at a PDA of [program id] under the upgradeable
+ * loader. LiteSVM loads the program under BPFLoader2 and creates no such
+ * account, so the harness has to supply the one a real deployment would have —
+ * otherwise every boot fails with `AccountNotInitialized` on `program_data`.
+ *
+ * `UpgradeableLoaderState::ProgramData` (bincode): u32 tag (3) | u64 slot |
+ * Option<Pubkey> authority, then the ELF. The trailing bytes are written
+ * because a header-only account exists on no cluster.
+ *
+ * Deliberately a second copy of contracts/solana/tests/helpers.ts
+ * `setUpgradeAuthority`: these are different packages with different tsconfigs,
+ * and the contracts harness already duplicates `idlBytesConstant` across its own
+ * two harnesses for the same reason. Keep them in step.
+ */
+const BPF_LOADER_UPGRADEABLE = new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111')
+const PROGRAM_DATA_HEADER = 45
+const PROGRAM_DATA_ELF_STUB = 1_024
+
+function setUpgradeAuthority(svm: LiteSVM, authority: PublicKey): void {
+  const data = Buffer.alloc(PROGRAM_DATA_HEADER + PROGRAM_DATA_ELF_STUB)
+  data.writeUInt32LE(3, 0)
+  data.writeBigUInt64LE(0n, 4)
+  data.writeUInt8(1, 12) // Option::Some
+  authority.toBuffer().copy(data, 13)
+  const [address] = PublicKey.findProgramAddressSync(
+    [PROGRAM_ID.toBuffer()],
+    BPF_LOADER_UPGRADEABLE,
+  )
+  svm.setAccount(address, {
+    lamports: Number(svm.minimumBalanceForRentExemption(BigInt(data.length))),
+    data,
+    owner: BPF_LOADER_UPGRADEABLE,
+    executable: false,
+  })
+}
+
 /** Boot LiteSVM with the program loaded and the platform initialized. */
 export async function startLiteSvm(): Promise<LiteSvmFixture> {
   const svm = new LiteSVM()
@@ -62,6 +100,7 @@ export async function startLiteSvm(): Promise<LiteSvmFixture> {
   const payer = Keypair.generate()
   const treasury = Keypair.generate()
   svm.airdrop(payer.publicKey, FUND_LAMPORTS)
+  setUpgradeAuthority(svm, payer.publicKey)
 
   const send = (ixs: TransactionInstruction[], signers: Keypair[] = []): void => {
     const tx = new Transaction().add(...ixs)
