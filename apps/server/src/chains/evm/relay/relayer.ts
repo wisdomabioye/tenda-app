@@ -16,7 +16,7 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { chainById, nativeCurrencyOf } from '@tenda/shared'
-import { evmNumericChainId } from '../permit'
+import { evmChainNumericId } from '@tenda/shared'
 import { DEFAULT_EVM_RPC_TIMEOUT_MS } from '../rpc'
 import { RECEIVE_WITH_AUTHORIZATION_TYPEHASH } from './authorization'
 
@@ -57,7 +57,7 @@ const EIP3009_PROBE_ABI = [
 function relayChain(chain_id: string, rpc_url: string): Chain {
   const entry = chainById(chain_id)
   return {
-    id: evmNumericChainId(chain_id),
+    id: evmChainNumericId(chain_id),
     name: entry.displayName,
     nativeCurrency: nativeCurrencyOf(entry),
     rpcUrls: { default: { http: [rpc_url] } },

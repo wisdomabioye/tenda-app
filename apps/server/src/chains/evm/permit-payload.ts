@@ -13,9 +13,9 @@ import { isAddress } from 'viem'
 import { chainById, ErrorCode, type PermitPayloadResponse } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw, type AmountRaw, type AssetId } from '@server/chains/types'
+import { evmChainNumericId } from '@tenda/shared'
 import {
   buildPermitTypedData,
-  evmNumericChainId,
   PERMIT_DEADLINE_SECONDS,
   permitDomainMatches,
 } from './permit'
@@ -74,7 +74,7 @@ export async function buildPermitPayload(
   const typed_data = buildPermitTypedData({
     token_name: facts.name,
     permit_version: permit_config.version,
-    chain_numeric_id: evmNumericChainId(ctx.args.chain_id),
+    chain_numeric_id: evmChainNumericId(ctx.args.chain_id),
     token: token_address,
     owner,
     spender: ctx.args.escrow_contract,

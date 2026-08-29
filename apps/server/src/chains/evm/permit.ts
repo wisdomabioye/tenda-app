@@ -228,13 +228,3 @@ export function domainSeparatorMatches(
   })
   return computed.toLowerCase() === onchain_domain_separator.toLowerCase()
 }
-
-/** The eip155 numeric reference of a CAIP-2 id ('eip155:84532' → 84532). */
-export function evmNumericChainId(chain_id: string): number {
-  const reference = chain_id.split(':')[1] ?? ''
-  const numeric = Number(reference)
-  if (!Number.isInteger(numeric) || numeric <= 0) {
-    throw new Error(`'${chain_id}' is not an eip155 CAIP-2 id`)
-  }
-  return numeric
-}

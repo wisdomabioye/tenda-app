@@ -9,9 +9,9 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { AppError } from '@server/lib/errors'
+import { evmChainNumericId } from '@tenda/shared'
 import {
   buildPermitTypedData,
-  evmNumericChainId,
   parsePermitSignature,
   PERMIT_DEADLINE_SECONDS,
   permitDomainMatches,
@@ -175,11 +175,17 @@ test('permitDomainMatches: reproduces the REAL Base Sepolia USDC separator; reje
   assert.strictEqual(permitDomainMatches(wrongChain, USDC_BASE_SEPOLIA_SEPARATOR), false)
 })
 
-test('evmNumericChainId: extracts the eip155 reference; throws on non-EVM ids', () => {
-  assert.strictEqual(evmNumericChainId('eip155:84532'), 84532)
-  assert.strictEqual(evmNumericChainId('eip155:8453'), 8453)
-  assert.throws(() => evmNumericChainId('solana:devnet'))
-  assert.throws(() => evmNumericChainId('eip155:'))
+test('evmChainNumericId: extracts the eip155 reference; throws on non-EVM ids', () => {
+  assert.strictEqual(evmChainNumericId('eip155:84532'), 84532)
+  assert.strictEqual(evmChainNumericId('eip155:8453'), 8453)
+  assert.throws(() => evmChainNumericId('solana:devnet'))
+  assert.throws(() => evmChainNumericId('eip155:'))
+  // A NON-EVM namespace with a numeric reference: 'devnet' above only throws
+  // because it is not a number, so it never tested the namespace at all.
+  assert.throws(() => evmChainNumericId('solana:101'))
+  // Hex references: `Number('0x1')` is 1, so a malformed reference would
+  // otherwise coerce through and build a network with the wrong chain id.
+  assert.throws(() => evmChainNumericId('eip155:0x1'))
 })
 
 test('PERMIT_DEADLINE_SECONDS: bounded — signable but not open-ended', () => {

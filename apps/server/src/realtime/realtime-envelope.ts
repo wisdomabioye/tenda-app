@@ -1,4 +1,5 @@
 import { parseWsServerFrame, type WsServerFrame } from '@tenda/shared'
+import { isRecord } from '../lib/validation'
 
 export const REALTIME_ENVELOPE_SCHEMA_VERSION = 1 as const
 export const REALTIME_MAX_MESSAGE_BYTES = 64 * 1_024
@@ -8,10 +9,6 @@ export interface RealtimeEnvelope {
   event_id: string
   source_instance: string
   frame: WsServerFrame
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function parseRealtimeEnvelope(value: unknown): RealtimeEnvelope | null {

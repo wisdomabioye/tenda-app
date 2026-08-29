@@ -20,7 +20,8 @@ import { AppError } from '@server/lib/errors'
 import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/x402'
 import type { EscrowRelay, RelayedCreateArgs } from '@server/chains/types'
 import { ESCROW_EVM_ABI } from '../rpc'
-import { domainSeparatorMatches, evmNumericChainId } from '../permit'
+import { evmChainNumericId } from '@tenda/shared'
+import { domainSeparatorMatches } from '../permit'
 import { authorizationNonce, buildCreateParams, createParamsWire, type EvmCreateParams } from '../create-params'
 import type { EvmAdapterContext } from '../state'
 import {
@@ -70,7 +71,7 @@ export function evmEscrowRelay(ctx: EvmAdapterContext, relayer: EvmRelayer): Esc
     const domain = {
       token_name: facts.name,
       version: config.permit.version,
-      chain_numeric_id: evmNumericChainId(chain_id),
+      chain_numeric_id: evmChainNumericId(chain_id),
     }
     // The reconstructed domain must hash to the token's LIVE separator, the
     // same guard the permit payload runs: never hand out unsignable terms.
