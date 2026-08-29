@@ -16,7 +16,10 @@ use super::cancel::{CancelSol as SettleSol, CancelSpl as SettleSpl};
 
 pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
     let now = Clock::get()?.unix_timestamp;
     require!(
         now >= escrow.accept_deadline,
@@ -48,7 +51,10 @@ pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
 
 pub fn handler_spl(ctx: Context<SettleSpl>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
     let now = Clock::get()?.unix_timestamp;
     require!(
         now >= escrow.accept_deadline,

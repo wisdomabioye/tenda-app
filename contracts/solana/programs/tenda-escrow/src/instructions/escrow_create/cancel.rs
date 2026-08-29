@@ -68,7 +68,10 @@ pub struct CancelSpl<'info> {
 
 pub fn handler_sol(ctx: Context<CancelSol>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
 
     let amount = escrow.amount;
     let escrow_id = escrow.escrow_id;
@@ -95,7 +98,10 @@ pub fn handler_sol(ctx: Context<CancelSol>) -> Result<()> {
 
 pub fn handler_spl(ctx: Context<CancelSpl>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
 
     let amount = escrow.amount;
     let escrow_id = escrow.escrow_id;

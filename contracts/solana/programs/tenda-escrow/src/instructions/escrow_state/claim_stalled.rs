@@ -17,11 +17,15 @@ use super::settlement_accounts::{compute_fee, SettleSol, SettleSpl};
 
 pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Submitted, TendaError::InvalidEscrowStatus);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
-    require!(ctx.accounts.signer.key() == counterparty, TendaError::NotCounterparty);
+    require!(
+        escrow.status == EscrowStatus::Submitted,
+        TendaError::InvalidEscrowStatus
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
+    require!(
+        ctx.accounts.signer.key() == counterparty,
+        TendaError::NotCounterparty
+    );
     require_keys_eq!(
         ctx.accounts.counterparty.key(),
         counterparty,
@@ -34,7 +38,12 @@ pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
         TendaError::ApprovalDeadlineNotPassed
     );
 
-    let fee = compute_fee(escrow.amount, ctx.accounts.platform_state.effective_fee_bps(escrow.is_seeker))?;
+    let fee = compute_fee(
+        escrow.amount,
+        ctx.accounts
+            .platform_state
+            .effective_fee_bps(escrow.is_seeker),
+    )?;
     let counterparty_payout = escrow
         .amount
         .checked_sub(fee)
@@ -74,11 +83,15 @@ pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
 
 pub fn handler_spl(ctx: Context<SettleSpl>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Submitted, TendaError::InvalidEscrowStatus);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
-    require!(ctx.accounts.signer.key() == counterparty, TendaError::NotCounterparty);
+    require!(
+        escrow.status == EscrowStatus::Submitted,
+        TendaError::InvalidEscrowStatus
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
+    require!(
+        ctx.accounts.signer.key() == counterparty,
+        TendaError::NotCounterparty
+    );
     require_keys_eq!(
         ctx.accounts.counterparty_token_account.owner,
         counterparty,
@@ -91,7 +104,10 @@ pub fn handler_spl(ctx: Context<SettleSpl>) -> Result<()> {
         TendaError::ApprovalDeadlineNotPassed
     );
 
-    let fee_bps = ctx.accounts.platform_state.effective_fee_bps(escrow.is_seeker);
+    let fee_bps = ctx
+        .accounts
+        .platform_state
+        .effective_fee_bps(escrow.is_seeker);
     let fee = compute_fee(escrow.amount, fee_bps)?;
     let counterparty_payout = escrow
         .amount

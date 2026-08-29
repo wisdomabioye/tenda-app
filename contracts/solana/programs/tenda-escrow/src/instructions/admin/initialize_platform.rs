@@ -68,7 +68,10 @@ pub struct InitializePlatform<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn initialize_platform_handler(ctx: Context<InitializePlatform>, args: InitializePlatformArgs) -> Result<()> {
+pub fn initialize_platform_handler(
+    ctx: Context<InitializePlatform>,
+    args: InitializePlatformArgs,
+) -> Result<()> {
     require_authority(&args.protocol_admin)?;
     require_authority(&args.dispute_admin)?;
     require_authority(&args.treasury)?;
@@ -101,7 +104,10 @@ pub fn initialize_platform_handler(ctx: Context<InitializePlatform>, args: Initi
 }
 
 pub(crate) fn validate_fee_bps(fee_bps: u16, seeker_fee_bps: u16) -> Result<()> {
-    require!(fee_bps <= MAX_PLATFORM_FEE_BPS, TendaError::PlatformFeeTooHigh);
+    require!(
+        fee_bps <= MAX_PLATFORM_FEE_BPS,
+        TendaError::PlatformFeeTooHigh
+    );
     require!(
         seeker_fee_bps <= fee_bps,
         TendaError::SeekerFeeExceedsStandardFee

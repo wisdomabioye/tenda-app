@@ -176,6 +176,17 @@ jobs:
           avm install 0.32.1
           avm use 0.32.1
       - run: pnpm install --frozen-lockfile
+      # Mirrors the EVM job's `forge fmt --check`, which the Solana side lacked —
+      # so the program drifted out of rustfmt shape with nothing to catch it
+      # (13 files by the time this landed). `cargo fmt` resolves the PINNED
+      # toolchain from rust-toolchain.toml, which declares the rustfmt
+      # component, so this checks the same formatting a laptop produces.
+      #
+      # BEFORE the build, like its EVM counterpart: a formatting failure should
+      # cost seconds, not the minutes `anchor build` takes.
+      - name: Format check (rustfmt)
+        working-directory: contracts/solana
+        run: cargo fmt --check
       - name: Build program (rust toolchain pinned by contracts/solana/rust-toolchain.toml)
         working-directory: contracts/solana
         run: anchor build

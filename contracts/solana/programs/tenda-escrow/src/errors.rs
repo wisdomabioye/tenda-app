@@ -7,7 +7,6 @@ use anchor_lang::prelude::*;
 #[error_code]
 pub enum TendaError {
     // ---- platform config -------------------------------------------------
-
     #[msg("platform fee bps exceeds MAX_PLATFORM_FEE_BPS")]
     PlatformFeeTooHigh,
 
@@ -27,7 +26,6 @@ pub enum TendaError {
     NotDisputeAdmin,
 
     // ---- escrow validation ----------------------------------------------
-
     #[msg("amount below MIN_ESCROW_AMOUNT")]
     AmountTooLow,
 
@@ -37,7 +35,9 @@ pub enum TendaError {
     #[msg("accept_deadline must be in the future")]
     AcceptDeadlineInPast,
 
-    #[msg("invalid asset for this instruction (SOL escrow expects system_program; SPL expects mint)")]
+    #[msg(
+        "invalid asset for this instruction (SOL escrow expects system_program; SPL expects mint)"
+    )]
     InvalidAssetForInstruction,
 
     #[msg("supplied mint does not match escrow.asset")]
@@ -53,7 +53,6 @@ pub enum TendaError {
     TreasuryMismatch,
 
     // ---- state machine --------------------------------------------------
-
     #[msg("escrow status disallows this operation")]
     InvalidEscrowStatus,
 
@@ -88,7 +87,6 @@ pub enum TendaError {
     ReclaimWindowNotOpen,
 
     // ---- dispute --------------------------------------------------------
-
     #[msg("caller is not creator or counterparty (dispute only by parties)")]
     NotDisputeParty,
 
@@ -99,7 +97,6 @@ pub enum TendaError {
     DisputeBondMismatch,
 
     // ---- arithmetic -----------------------------------------------------
-
     #[msg("arithmetic overflow")]
     ArithmeticOverflow,
 
@@ -107,7 +104,6 @@ pub enum TendaError {
     ArithmeticUnderflow,
 
     // ---- vault accounting ----------------------------------------------
-
     #[msg("escrow vault balance is below the amount being settled")]
     VaultUnderfunded,
 
@@ -118,7 +114,6 @@ pub enum TendaError {
     PlatformLayoutCurrent,
 
     // ---- acceptance modes -----------------------------------------------
-
     #[msg("escrow requires creator approval; the worker cannot accept directly")]
     ApprovalRequired,
 
@@ -141,7 +136,6 @@ pub enum TendaError {
     ApprovalModeCannotPreassign,
 
     // ---- authorities ----------------------------------------------------
-
     #[msg("authority pubkey must not be the default (all-zero) pubkey")]
     ZeroAuthority,
 
