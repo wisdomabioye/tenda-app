@@ -29,7 +29,8 @@
     "verify:gas-seed": "tsx src/scripts/verify-gas-seed.ts",
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",
     "verify:relayed-funding-evm": "tsx src/scripts/verify-relayed-funding-evm.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "verify:agent-hire": "tsx src/scripts/agent-hire-e2e/main.ts"
   },
   "keywords": [],
   "author": "",
