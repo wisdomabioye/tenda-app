@@ -15,8 +15,10 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CHAIN_MANIFEST } from '@tenda/shared'
 import { OPTIONAL_URL_ENV_VARS, REQUIRED_ENV_VARS } from '@server/config'
 import { knownChainEnvKeys } from '@server/chains/secrets'
+import { chainEnvPrefix } from '@server/chains/secrets/schema'
 import { knownSlackEnvKeys } from '@server/lib/slack'
 
 /** Env-var names documented in .env.example, commented-out lines included. */
@@ -39,6 +41,32 @@ test('every CHAIN_* var documented in .env.example is one the secrets loader rea
     unknown,
     [],
     `stale chain env names in .env.example (the loader would reject these at boot): ${unknown.join(', ')}`,
+  )
+})
+
+test('every chain in the manifest has an .env.example entry', () => {
+  // The OTHER direction from the test above, and the same reasoning as the
+  // Slack pair: `documented ⊆ known` only catches names that ROTTED. It cannot
+  // catch a chain nobody wrote down — which is how both 0G chains sat in
+  // CHAIN_MANIFEST with no entry here at all, undiscoverable to anyone
+  // configuring a deployment.
+  //
+  // RPC_URL is the right sentinel: it is the one key every family needs (the
+  // Solana chains take no ESCROW_ADDR, the EVM ones do), and no chain can be
+  // activated without it.
+  //
+  // `chainEnvPrefix` is the LOADER's own derivation, not a copy of it: a test
+  // that re-spelled the id → env-name rule could agree with the loader today
+  // and drift from it on the next chain id that is shaped differently.
+  const documented = documentedKeys()
+  const missing = CHAIN_MANIFEST.map((c) => ({
+    id: c.id,
+    key: `${chainEnvPrefix(c.id)}_RPC_URL`,
+  })).filter(({ key }) => !documented.has(key))
+  assert.deepStrictEqual(
+    missing.map((m) => `${m.id} (${m.key})`),
+    [],
+    'manifest chains with no .env.example entry — an operator cannot configure them',
   )
 })
 
