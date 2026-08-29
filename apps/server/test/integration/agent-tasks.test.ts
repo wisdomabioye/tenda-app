@@ -13,19 +13,13 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows, gig_details, tx_attempts, user_wallets } from '@tenda/shared/db/schema'
-import { TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes, type AgentTaskCreated, type AgentTaskPaymentRequired } from '@tenda/shared'
+import { X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes, type AgentTaskCreated, type AgentTaskPaymentRequired } from '@tenda/shared'
 import { FAKE_RELAYED_TX_REF, TEST_CHAIN_ID, TEST_CHAIN_ID_ALT, TEST_DB_CONFIGURED, authHeader, capturedRelays, createTransactableUser, createUser, seedAltChain, useTestApp } from '../helpers/test-app'
-import { agentTaskBody, agentWalletAddress, registerAgent, type TaskPost } from '../helpers/agent'
+import { agentPaymentHeader, agentTaskBody, agentWalletAddress, registerAgent, type TaskPost } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 const URL = apiRoutes.agent.tasks
-
-const payment = (address: string) =>
-  Buffer.from(JSON.stringify({
-    x402Version: X402_VERSION, scheme: TENDA_RELAY_SCHEME, network: TEST_CHAIN_ID_ALT,
-    payload: { signature: `0x${'44'.repeat(65)}`, authorization: { from: address, to: `0x${'f1'.repeat(20)}`, value: '25000000', validAfter: '0', validBefore: '1900000000', nonce: `0x${'33'.repeat(32)}` } },
-  })).toString('base64')
 
 test('one-shot: the first call mints the draft + listing and answers 402 with terms bound to it', { skip }, async () => {
   const app = getApp()
@@ -67,7 +61,7 @@ test('one-shot: the same body resent with X-PAYMENT lands on the SAME draft, rel
   const quote = await app.inject({ method: 'POST', url: URL, headers: authHeader(agent.token), payload: body })
   assert.strictEqual(quote.statusCode, 402)
   const task_id = quote.json<AgentTaskPaymentRequired>().task_id
-  const res = await app.inject({ method: 'POST', url: URL, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: payment(agent.address) }, payload: body })
+  const res = await app.inject({ method: 'POST', url: URL, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: agentPaymentHeader(agent.address) }, payload: body })
   assert.strictEqual(res.statusCode, 201, res.body)
   const created = res.json<AgentTaskCreated>()
   assert.deepStrictEqual(created, { task_id, tx_ref: FAKE_RELAYED_TX_REF, status: 'draft', recorded: true, enqueued: false })
@@ -79,7 +73,7 @@ test('one-shot: the same body resent with X-PAYMENT lands on the SAME draft, rel
   assert.strictEqual(attempt?.action, 'create')
   assert.strictEqual(attempt?.user_id, agent.response.user.id)
   // A third resend while the create is unsettled is the pending-create 409.
-  const again = await app.inject({ method: 'POST', url: URL, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: payment(agent.address) }, payload: body })
+  const again = await app.inject({ method: 'POST', url: URL, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: agentPaymentHeader(agent.address) }, payload: body })
   assert.strictEqual(again.statusCode, 409)
   assert.strictEqual(again.json().code, 'ESCROW_WRONG_STATUS')
 })

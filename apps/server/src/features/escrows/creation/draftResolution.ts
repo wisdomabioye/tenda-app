@@ -39,6 +39,33 @@ export interface DraftInsert extends DraftIdentity {
   escrow_contract: string
 }
 
+/**
+ * Does the body sent now describe the draft this operation already minted?
+ *
+ * Compares only the terms the CALLER authored and the server never rewrites.
+ * A column the server owns cannot be evidence that the caller changed their
+ * mind — it changes on its own, and the caller is then refused for a
+ * difference they did not make.
+ *
+ * That is why `accept_deadline` is NOT compared (#32). `prepareDraftCreate`
+ * refreshes a deadline that is lapsed or inside its refresh margin and
+ * PERSISTS it, so a draft whose create has been built once no longer holds
+ * the instant the client sent. Measured on the real routes before the fix:
+ * an identical body whose deadline was 30s out answered 409 on resend, one
+ * 24h out replayed — which stranded the one-shot's 402 → X-PAYMENT round
+ * trip and a POST /v1/escrows retry after build-create.
+ *
+ * Nothing else on the replay path reads the resent instant either: `replay`
+ * hands back the ROW, and both callers rebuild the transaction from it. The
+ * row's deadline was already authoritative everywhere but here. The cost,
+ * taken deliberately: reusing an operation id with a genuinely different
+ * deadline now replays the first draft instead of refusing — the correct
+ * idempotent answer, and the response carries the deadline that won.
+ *
+ * Same rule, one field over: the assignee is compared by
+ * `assigned_counterparty_id` and not by `assigned_counterparty_address`,
+ * because `restampAssignee` below owns the address.
+ */
 function matchesTerms(row: EscrowRow, terms: DraftTerms): boolean {
   return (
     row.kind === terms.kind &&
@@ -48,8 +75,7 @@ function matchesTerms(row: EscrowRow, terms: DraftTerms): boolean {
     row.assigned_counterparty_id === terms.assigned_counterparty_id &&
     row.requires_approval === terms.requires_approval &&
     row.completion_duration_seconds === terms.completion_duration_seconds &&
-    row.dispute_bond_raw === terms.dispute_bond_raw &&
-    row.accept_deadline?.getTime() === terms.accept_deadline_unix * 1000
+    row.dispute_bond_raw === terms.dispute_bond_raw
   )
 }
 
