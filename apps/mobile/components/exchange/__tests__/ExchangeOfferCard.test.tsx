@@ -50,7 +50,7 @@ const offer: ExchangeSummary = {
   rate: '1600000',
   payment_window_seconds: 12 * 3600,
   accept_deadline: null,
-  created_at: null,
+  created_at: '2026-08-15T12:00:00.000Z',
   creator,
 }
 

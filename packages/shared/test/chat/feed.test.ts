@@ -63,14 +63,6 @@ test('a first message with NO context gets no leading DM divider', () => {
   assert.equal(feed.some(isDivider), false)
 })
 
-test('a null created_at produces no day header and breaks no adjacent grouping', () => {
-  const feed = buildMessageFeed([
-    msg({ id: 'm1', created_at: null }),
-    msg({ id: 'm2' }),
-  ])
-  assert.deepEqual(shape(feed), ['msg:m1', 'ts:2026-08-10', 'msg:m2'])
-})
-
 test('empty input yields an empty feed', () => {
   assert.deepEqual(buildMessageFeed([]), [])
 })

@@ -139,7 +139,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: m.escrow_title ?? null,
         escrow_kind: m.escrow_kind ?? null,
         read_at: m.read_at?.toISOString() ?? null,
-        created_at: m.created_at?.toISOString() ?? null,
+        created_at: m.created_at.toISOString(),
       }))
     },
   )
@@ -254,7 +254,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: context.title,
         escrow_kind: context.kind,
         read_at: newMessage.read_at?.toISOString() ?? null,
-        created_at: newMessage.created_at?.toISOString() ?? null,
+        created_at: newMessage.created_at.toISOString(),
       }
 
       // Live fan-out to open chat screens. Reaches the sender's own socket

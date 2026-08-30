@@ -46,7 +46,7 @@ export function makeMeResponse(wallets: LinkedWallet[]): MeResponse {
       role: 'user',
       is_seeker: false,
       advanced_mode_enabled: false,
-      created_at: null,
+      created_at: '2026-08-15T12:00:00.000Z',
     },
     wallets,
     profile_complete: true,

@@ -29,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const page = await listGigs({ limit: 100, sort: 'created_at' })
     const gigEntries: MetadataRoute.Sitemap = page.data.map((gig) => ({
       url: new URL(`/gig/${gig.escrow_id}`, base).toString(),
-      lastModified: gig.created_at ?? undefined,
+      lastModified: gig.created_at,
       changeFrequency: 'hourly',
       priority: 0.8,
     }))

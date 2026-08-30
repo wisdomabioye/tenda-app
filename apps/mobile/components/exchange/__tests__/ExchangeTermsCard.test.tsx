@@ -190,9 +190,3 @@ test('an asset the display metadata does not know renders as its raw id', () => 
   render(<ExchangeTermsCard offer={makeOffer('open', {}, { asset: 'USDC_NEWCHAIN' })} />)
   expect(screen.getByText(/\/ USDC_NEWCHAIN$/)).toBeTruthy()
 })
-
-test('omits the Listed row when the offer carries no created_at', () => {
-  // The positive case is covered above; this is the nullable half of the wire.
-  render(<ExchangeTermsCard offer={makeOffer('open', {}, { created_at: null })} />)
-  expect(screen.queryByText('Listed')).toBeNull()
-})

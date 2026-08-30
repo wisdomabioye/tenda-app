@@ -91,9 +91,7 @@ export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
   if (offer.accept_deadline !== null) {
     rows.push({ label: OFFER_TERMS_COPY.closes, value: formatDate(offer.accept_deadline), mono: true })
   }
-  if (offer.created_at !== null) {
-    rows.push({ label: OFFER_TERMS_COPY.listed, value: formatDate(offer.created_at), mono: true })
-  }
+  rows.push({ label: OFFER_TERMS_COPY.listed, value: formatDate(offer.created_at), mono: true })
 
   return (
     <section className="mt-8 border-t border-border-subtle pt-6">

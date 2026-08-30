@@ -107,7 +107,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           ...conv,
           closed_at:       conv.closed_at?.toISOString() ?? null,
           last_message_at: conv.last_message_at?.toISOString() ?? null,
-          created_at:      conv.created_at?.toISOString() ?? null,
+          created_at:      conv.created_at.toISOString(),
           other_user: {
             id:         other?.id ?? otherId,
             first_name: other?.first_name ?? null,
@@ -217,7 +217,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
         ...existing,
         closed_at:       existing.closed_at?.toISOString() ?? null,
         last_message_at: existing.last_message_at?.toISOString() ?? null,
-        created_at:      existing.created_at?.toISOString() ?? null,
+        created_at:      existing.created_at.toISOString(),
         other_user: {
           id:         targetUser.id,
           first_name: targetUser.first_name,

@@ -61,12 +61,18 @@ export function NotificationsListColumn() {
         out.push({ key: entry.key, label: entry.label, rows: [] })
         continue
       }
-      // A notice with NO timestamp gets no day header from the walker, so the
-      // open group is somebody else's date — appending it there would file an
-      // undated notice under "Today". It opens its own unlabelled run instead.
+      // Every notice carries a timestamp (notifications.created_at is NOT NULL),
+      // so the walker always opens a day header before the first item and the
+      // open group is always the right date. This used to carry an extra
+      // undated-notice branch to stop one being filed under "Today"; the wire
+      // type said `string | null` and the column never was (#38).
+      //
+      // The `undefined` check below stays: `groupByDay` is a SHARED walker whose
+      // signature still accepts a null iso and emits a leading item when it gets
+      // one. Nothing passes it one today, but the guard is what stands between
+      // that contract and a TypeError, and it costs one comparison.
       const open = out[out.length - 1]
-      const wouldMisfile = entry.item.created_at === null && open?.label !== undefined
-      if (open === undefined || wouldMisfile) out.push({ key: entry.key, rows: [entry.item] })
+      if (open === undefined) out.push({ key: entry.key, rows: [entry.item] })
       else open.rows = [...open.rows, entry.item]
     }
     return out.filter((group) => group.rows.length > 0)

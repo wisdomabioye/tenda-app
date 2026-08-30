@@ -70,11 +70,16 @@ export function buildMessageFeed<M extends Message>(msgs: M[]): ChatFeedItem<M>[
       })
     }
 
-    const currDay = curr.created_at ? new Date(curr.created_at).toDateString() : null
-    const prevDay = prev?.created_at ? new Date(prev.created_at).toDateString() : null
-    const newDay = currDay !== null && currDay !== prevDay
+    // Every message carries a timestamp (messages.created_at is NOT NULL), so
+    // the first message always opens a day header and no message can fall
+    // between two. This used to guard `created_at` for null on both sides and
+    // again before pushing — the wire type said `string | null` and the column
+    // never was (#38). Only `prev` is genuinely absent, on the first item.
+    const currDay = new Date(curr.created_at).toDateString()
+    const prevDay = prev === null ? null : new Date(prev.created_at).toDateString()
+    const newDay = currDay !== prevDay
 
-    if (newDay && curr.created_at) {
+    if (newDay) {
       feed.push({
         _type: 'timestamp',
         _key: `ts_${curr.id}`,

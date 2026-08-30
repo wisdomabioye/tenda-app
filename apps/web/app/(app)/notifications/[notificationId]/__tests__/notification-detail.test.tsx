@@ -85,9 +85,12 @@ describe('once the feed has landed', () => {
   it('renders the notice it was given', () => {
     routeParams = { notificationId: 'ntf-1' }
     useNotificationsStore.setState({ feedStatus: 'ready', notifications: [notice()] })
-    render(<NotificationDetailPage />)
+    const { container } = render(<NotificationDetailPage />)
     expect(screen.getByText('Gig accepted')).toBeInTheDocument()
     expect(screen.getByText('Bola accepted your delivery gig.')).toBeInTheDocument()
+    // The arrival instant, rendered unconditionally since #38. Asserted on
+    // <time dateTime> rather than the relative label, which moves with the clock.
+    expect(container.querySelector('time')).toHaveAttribute('dateTime', notice().created_at)
   })
 })
 

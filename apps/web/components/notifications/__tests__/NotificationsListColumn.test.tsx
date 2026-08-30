@@ -6,7 +6,7 @@
  * opened), and an announcement is not a row of this list — an empty personal
  * feed must not take a pinned broadcast off the screen.
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnnouncementWire, NotificationWire } from '@tenda/shared'
@@ -80,31 +80,24 @@ describe('NotificationsListColumn', () => {
   })
 
   it('groups by day, through the SAME walker chat and the wallet feed use', () => {
+    // Same day ACCUMULATES into one run; a new day opens another. Asserted as
+    // an exact count of labelled runs and the rows inside them, because a
+    // `>= 2` count passed even when the loop opened a fresh run per notice —
+    // the day headers were then filtered away as empty and the total looked
+    // right. Measured: that mutant left every case in this file green (#38).
     useNotificationsStore.setState({
       notifications: [
-        notice({ id: 'a', created_at: '2026-08-15T12:00:00.000Z' }),
-        notice({ id: 'b', created_at: '2026-08-11T09:00:00.000Z' }),
+        notice({ id: 'a', title: 'First', created_at: '2026-08-15T12:00:00.000Z' }),
+        notice({ id: 'b', title: 'Second', created_at: '2026-08-15T09:00:00.000Z' }),
+        notice({ id: 'c', title: 'Third', created_at: '2026-08-11T09:00:00.000Z' }),
       ],
     })
     render(<NotificationsListColumn />)
-    // Two calendar days, two named runs of rows.
-    expect(screen.getAllByRole('list').length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('does not file an UNDATED notice under somebody else\'s day', () => {
-    // The walker emits no day header for a notice with no timestamp, so the
-    // open group is the previous notice's date — appending there would stamp
-    // an undated notice "Today".
-    useNotificationsStore.setState({
-      notifications: [
-        notice({ id: 'dated', created_at: '2026-08-15T12:00:00.000Z' }),
-        notice({ id: 'undated', title: 'No stamp', created_at: null }),
-      ],
-    })
-    render(<NotificationsListColumn />)
-    const dayRun = screen.getAllByRole('list').find((list) => list.hasAttribute('aria-labelledby'))
-    expect(dayRun).toBeDefined()
-    expect(dayRun?.textContent).not.toContain('No stamp')
+    const runs = screen.getAllByRole('list').filter((list) => list.hasAttribute('aria-labelledby'))
+    expect(runs).toHaveLength(2)
+    expect(within(runs[0]).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(runs[1]).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(runs[1]).getByText('Third')).toBeInTheDocument()
   })
 
   it('keeps a pinned announcement on screen when there are no notices at all', () => {
@@ -160,6 +153,16 @@ describe('NotificationsListColumn', () => {
     cleanup()
     useNotificationsStore.setState({ hasMore: false })
     render(<NotificationsListColumn />)
+    expect(screen.queryByRole('button', { name: NOTIFICATIONS_LIST_COPY.loadMore })).toBeNull()
+  })
+
+  it('says it is loading, and refuses a second click, while a page is in flight', () => {
+    // The control must not read "Load more" while the fetch it started is still
+    // running — that invites the double submission the disabled state prevents.
+    useNotificationsStore.setState({ hasMore: true, loadingMore: true })
+    render(<NotificationsListColumn />)
+    const button = screen.getByRole('button', { name: NOTIFICATIONS_LIST_COPY.loadingMore })
+    expect(button).toBeDisabled()
     expect(screen.queryByRole('button', { name: NOTIFICATIONS_LIST_COPY.loadMore })).toBeNull()
   })
 

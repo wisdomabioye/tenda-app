@@ -73,12 +73,10 @@ export default function NotificationDetailPage() {
         <h1 className="mt-4 font-display text-xl font-bold leading-7 tracking-[-0.3px] text-content-primary">
           {notification.title}
         </h1>
-        {notification.created_at !== null && (
-          <RelativeTime
-            iso={notification.created_at}
-            className="mt-2 block font-numeric text-xs leading-4 text-content-tertiary"
-          />
-        )}
+        <RelativeTime
+          iso={notification.created_at}
+          className="mt-2 block font-numeric text-xs leading-4 text-content-tertiary"
+        />
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[22px] text-content-secondary">
           {notification.body}
         </p>

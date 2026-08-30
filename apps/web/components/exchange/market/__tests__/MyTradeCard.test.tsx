@@ -52,10 +52,20 @@ describe('MyTradeCard', () => {
     expect(screen.getByText('In progress')).toBeInTheDocument()
   })
 
-  it('survives a row with no currency and no timestamp', () => {
-    // Both are nullable on this wire; neither should render "null".
+  it('stamps the row with the instant it was listed', () => {
+    // The row renders this unconditionally (#38 — escrows.created_at is NOT
+    // NULL). Asserted on <time dateTime>, not the relative label, because the
+    // label moves with the wall clock and the instant does not.
+    const { container } = render(<MyTradeCard row={row()} userId="me" />)
+    expect(container.querySelector('time')).toHaveAttribute('dateTime', '2026-08-15T10:00:00.000Z')
+  })
+
+  it('survives a row with no currency', () => {
+    // fiat_currency is genuinely nullable (null for gigs) and must not render
+    // as "null". created_at was dropped from this case in #38: the column is
+    // NOT NULL, so the row this once described could never reach the client.
     const { container } = render(
-      <MyTradeCard row={row({ fiat_currency: null, created_at: null })} userId="me" />,
+      <MyTradeCard row={row({ fiat_currency: null })} userId="me" />,
     )
     expect(container.textContent).not.toContain('null')
     expect(screen.getByText('50 USDC')).toBeInTheDocument()

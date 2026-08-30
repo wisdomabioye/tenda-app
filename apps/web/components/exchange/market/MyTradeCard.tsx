@@ -47,12 +47,8 @@ export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: strin
         </span>
         <span className="mt-1 block truncate text-[13px] leading-[18px] text-content-secondary">
           {EXCHANGE_COPY.side(selling)} · {chainLabel(row.chain_id)}
-          {row.created_at !== null && (
-            <>
-              {' · '}
-              <RelativeTime iso={row.created_at} />
-            </>
-          )}
+          {' · '}
+          <RelativeTime iso={row.created_at} />
         </span>
       </span>
       <ExchangeStatusBadge status={row.status} />

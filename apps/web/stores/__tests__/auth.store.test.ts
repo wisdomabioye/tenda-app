@@ -207,7 +207,7 @@ describe('logout', () => {
     useNotificationsStore.setState({
       unread: 3,
       notifications: [
-        { id: 'n1', title: 'T', body: 'B', data: null, read_at: null, created_at: null },
+        { id: 'n1', title: 'T', body: 'B', data: null, read_at: null, created_at: '2026-08-15T12:00:00.000Z' },
       ],
     })
     await useAuthStore.getState().logout()

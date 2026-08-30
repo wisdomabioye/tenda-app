@@ -25,7 +25,7 @@ export function toNotificationWire(row: NotificationRow): NotificationWire {
     body: row.body,
     data: row.data ?? null,
     read_at: row.read_at?.toISOString() ?? null,
-    created_at: row.created_at?.toISOString() ?? null,
+    created_at: row.created_at.toISOString(),
   }
 }
 

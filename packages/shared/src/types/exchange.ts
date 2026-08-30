@@ -27,7 +27,7 @@ export interface ExchangeSummary {
   rate: string
   payment_window_seconds: number
   accept_deadline: string | null
-  created_at: string | null
+  created_at: string
   creator: UserRef
 }
 

@@ -40,6 +40,13 @@ test('read row: no dot, plain aria label', () => {
   expect(screen.queryByTestId('notification-unread-dot')).toBeNull()
 })
 
+test('stamps the row with the instant the notice arrived', () => {
+  // Rendered unconditionally since #38 (notifications.created_at is NOT NULL).
+  // <time dateTime> is the stable half; the relative label moves with the clock.
+  const { container } = render(<NotificationRow notification={notice()} onPress={vi.fn()} />)
+  expect(container.querySelector('time')).toHaveAttribute('dateTime', notice().created_at)
+})
+
 test('icon map: gig→Handshake, exchange→ArrowLeftRight, dispute→Scale, else Bell', () => {
   expect(notificationIcon({ screen: 'escrow', kind: 'gig' })).toBe(Handshake)
   expect(notificationIcon({ screen: 'escrow', kind: 'exchange' })).toBe(ArrowLeftRight)

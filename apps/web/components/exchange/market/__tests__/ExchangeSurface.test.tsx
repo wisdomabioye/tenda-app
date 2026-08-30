@@ -99,7 +99,7 @@ describe('ExchangeSurface — the two lists', () => {
             creator_id: 'me',
             counterparty_id: null,
             accept_deadline: null,
-            created_at: null,
+            created_at: '2026-08-15T12:00:00.000Z',
           },
         ],
         total: 1,

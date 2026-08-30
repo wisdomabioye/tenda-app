@@ -106,6 +106,13 @@ describe('OfferTerms', () => {
     expect(screen.getByText(OFFER_TERMS_COPY.unknown)).toBeInTheDocument()
   })
 
+  it('always states when the offer was listed', () => {
+    // Unconditional since #38: escrows.created_at is NOT NULL, so unlike the
+    // closing date below there is no "absent" case for this row to have.
+    render(<OfferTerms offer={makeExchangeDetail()} />)
+    expect(screen.getByText(OFFER_TERMS_COPY.listed)).toBeInTheDocument()
+  })
+
   it('omits a closing date the offer does not have', () => {
     const { rerender } = render(<OfferTerms offer={makeExchangeDetail({ accept_deadline: null })} />)
     expect(screen.queryByText(OFFER_TERMS_COPY.closes)).toBeNull()

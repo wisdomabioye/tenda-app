@@ -41,7 +41,7 @@ function TxRow({ tx, userId }: { tx: UserEscrowTransaction; userId: string }) {
         <span className="text-sm font-semibold text-content-primary">{label}</span>
         <span className="truncate text-xs text-content-tertiary">
           {tx.escrow.title ?? 'Exchange'}
-          {tx.created_at !== null && ` · ${formatRelativeDayWithTime(tx.created_at)}`}
+          {` · ${formatRelativeDayWithTime(tx.created_at)}`}
         </span>
       </div>
       {shown !== null && (

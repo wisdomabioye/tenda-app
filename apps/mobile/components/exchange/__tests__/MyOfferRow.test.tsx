@@ -33,7 +33,7 @@ import { MyOfferRow } from '../MyOfferRow'
 const base: EscrowListRow = {
   id: 'esc-1', kind: 'exchange', status: 'open', chain_id: 'solana:devnet',
   asset: 'USDC_SOL', amount_raw: '2500000', title: null, fiat_currency: 'NGN',
-  creator_id: 'me', counterparty_id: null, accept_deadline: null, created_at: null,
+  creator_id: 'me', counterparty_id: null, accept_deadline: null, created_at: '2026-08-15T12:00:00.000Z',
 }
 
 test('selling side shows the SELLING tag, amount → currency, and status', () => {

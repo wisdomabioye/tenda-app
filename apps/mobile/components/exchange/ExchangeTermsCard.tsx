@@ -75,9 +75,7 @@ export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
   if (offer.my_signer_address !== null) {
     rows.push({ label: BOUND_WALLET_LABEL, value: truncateWallet(offer.my_signer_address) })
   }
-  if (offer.created_at !== null) {
-    rows.push({ label: 'Listed', value: formatDate(offer.created_at) })
-  }
+  rows.push({ label: 'Listed', value: formatDate(offer.created_at) })
 
   // The concrete "by when" for the current stage — a LIVE ticking clock, the
   // gap the old card had: it only ever showed the static window duration.

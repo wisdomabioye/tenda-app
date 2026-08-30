@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { groupByDay, type UserEscrowTransaction } from '@tenda/shared'
+import { formatRelativeDayWithTime, groupByDay, type UserEscrowTransaction } from '@tenda/shared'
 import { WALLET_COPY } from '@/components/wallet/copy'
 
 const hookState = {
@@ -140,6 +140,11 @@ describe('section switch', () => {
   })
 })
 
+/** The formatted stamp can contain regex-special characters (e.g. a dot in "a.m."). */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 describe('feed (shared per-side copy)', () => {
   it('words the payout from the WORKER’s side with a credited amount', () => {
     hookState.feed = groupByDay([tx({})], (t) => t.created_at, (t) => t.id, 'tx')
@@ -154,6 +159,43 @@ describe('feed (shared per-side copy)', () => {
     render(<WalletScreen />)
     expect(screen.getByText('Payout released')).toBeInTheDocument()
     expect(screen.queryByText(/\+48\.5/)).toBeNull()
+  })
+
+  it('stamps every row with when it happened', () => {
+    // Unconditional since #38 (escrow_transactions.created_at is NOT NULL).
+    // Compared against the shared formatter's own output so the assertion
+    // proves the row rendered THIS transaction's instant, not merely some text.
+    hookState.feed = groupByDay([tx({})], (t) => t.created_at, (t) => t.id, 'tx')
+    render(<WalletScreen />)
+    const stamp = formatRelativeDayWithTime('2026-08-15T09:00:00Z')
+    expect(screen.getByText(new RegExp(escapeRegExp(stamp)))).toBeInTheDocument()
+  })
+
+  it('shows a funding row as a DEBIT to the poster who paid it', () => {
+    // The only path to a '-' sign: `create` seen by the creator. Every other
+    // row in this file is a credit or unsigned, so the negative styling branch
+    // had never been rendered.
+    hookState.user = { id: 'creator-1' }
+    hookState.feed = groupByDay([tx({ type: 'create' })], (t) => t.created_at, (t) => t.id, 'tx')
+    render(<WalletScreen />)
+    // Anchored: the row also renders an ISO date, which is full of hyphens.
+    const amount = screen.getByText(/^-\d/)
+    expect(amount).toBeInTheDocument()
+    expect(amount).toHaveClass('text-numeric-negative')
+  })
+
+  it('names an exchange row "Exchange", because that wire carries no title', () => {
+    // `escrow.title` is gig_details.title and is NULL for every exchange — the
+    // same wire fact MyTradeCard exists for. Without the fallback the row would
+    // headline nothing at all.
+    hookState.feed = groupByDay(
+      [tx({ escrow: { ...tx({}).escrow, kind: 'exchange', title: null } })],
+      (t) => t.created_at,
+      (t) => t.id,
+      'tx',
+    )
+    render(<WalletScreen />)
+    expect(screen.getByText(/Exchange/)).toBeInTheDocument()
   })
 
   it('an empty feed says so as a panel, not as a sentence where rows go', () => {

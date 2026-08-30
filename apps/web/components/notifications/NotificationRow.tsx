@@ -41,12 +41,10 @@ export function NotificationRow({
         <span className="mt-0.5 line-clamp-2 block text-[13.5px] leading-[18px] text-content-secondary">
           {notification.body}
         </span>
-        {notification.created_at !== null && (
-          <RelativeTime
-            iso={notification.created_at}
-            className="mt-1 block text-xs text-content-tertiary"
-          />
-        )}
+        <RelativeTime
+          iso={notification.created_at}
+          className="mt-1 block text-xs text-content-tertiary"
+        />
       </span>
 
       {unread && (

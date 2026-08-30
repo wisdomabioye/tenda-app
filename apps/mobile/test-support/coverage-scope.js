@@ -225,6 +225,9 @@ module.exports = [
   // message press is the dark part) and the global thresholds hold at
   // 94.36 / 93.29 / 93.76 / 94.51.
   'components/shared/PersonCard.tsx',
+  // The review row, gated with its FIRST suite (#38) — it had no tests at all.
+  // Measured before listing: 100/100/100/100.
+  'components/shared/ReviewCard.tsx',
   'stores/gigs.store.ts',
   // CO1 takedown enforcement: the hooks that act on a refusal, where the
   // server is the first to know a listing was pulled and the screen has to

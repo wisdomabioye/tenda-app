@@ -98,7 +98,7 @@ export interface MeUser {
   role: string
   is_seeker: boolean
   advanced_mode_enabled: boolean
-  created_at: string | null
+  created_at: string
 }
 
 export interface MeResponse {

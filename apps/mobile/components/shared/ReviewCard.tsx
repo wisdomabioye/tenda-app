@@ -21,7 +21,7 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
   const name = formatFullName(reviewer.first_name, reviewer.last_name) || 'Anonymous'
-  const time = review.created_at ? formatRelativeShort(review.created_at) : null
+  const time = formatRelativeShort(review.created_at)
 
   return (
     <View style={[s.row, { borderBottomColor: theme.colors.border.subtle }]}>
@@ -42,11 +42,9 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
               />
             ))}
           </View>
-          {time && (
-            <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
-              {time}
-            </Text>
-          )}
+          <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
+            {time}
+          </Text>
         </View>
         {review.comment ? (
           <Text style={[s.comment, { color: theme.colors.content.secondary }]}>
