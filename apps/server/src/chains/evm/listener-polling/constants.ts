@@ -59,3 +59,14 @@ export const EVM_MAX_RANGES_PER_TICK = 20
  * anything older stays unscanned, hence the boot warning when relying on it.
  */
 export const EVM_BACKFILL_BLOCKS = 200_000n
+
+/**
+ * How far behind head the LIVE cursor may fall before each tick says so.
+ *
+ * Generous on purpose: one tick's worth of blocks is normal, and a warning that
+ * fires in normal operation is one nobody reads. 1,000 blocks is several ticks
+ * behind on any chain here — by then the listener is genuinely not keeping up
+ * and the app is serving stale escrow state, which is the condition #35 exists
+ * to make visible instead of leaving it to be discovered from a stuck gig.
+ */
+export const EVM_LIVE_LAG_WARN_BLOCKS = 1_000

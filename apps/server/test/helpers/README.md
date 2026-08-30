@@ -30,6 +30,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `source-scan.ts` | `stripComments()` — for the few invariants only a source read can catch; blanks comment bodies while preserving line numbers, so a scan cannot match the prose ABOUT the pattern it hunts |
 | `anvil.ts` | `startAnvilFixture(port)`, `sendUnsigned()`, `signPermit()`, `ANVIL_KEYS`, `ANVIL_CHAIN_ID`, `anvilSkip` — a REAL EVM node with the repo's TendaEscrow + mock USDC deployed and the dev accounts funded, shared by every `*.anvil.test.ts`; each suite picks its own port because files run concurrently |
 | `litesvm.ts` | `startLiteSvm()`, `litesvmRpc()`, `litesvmRelayer()`, `litesvmSkip` — the server's Solana read seam and relayer write path over LiteSVM running the REAL `tenda_escrow.so`, so a transaction the server built is proven to execute on the program the chain runs |
+| `cursor-store.ts` | `fakeCursorStore()` — in-memory `CursorStore` for the polling-listener suites, recording live, history and adoption writes IN ORDER so a test can assert that live is persisted before history runs, and that adoption is the ONE atomic write it has to be (#35) |
 | `redis.ts` / `chain.ts` | Type surfaces only — concrete impls live in the suites that need them |
 
 Every file in this directory has a row, and `test/unit/test-helpers-readme.test.ts`
