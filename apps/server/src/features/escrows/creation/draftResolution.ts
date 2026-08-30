@@ -21,7 +21,15 @@ import type { AppDatabase } from '@server/plugins/db'
 import type { ValidatedCreateEscrow } from './validateCreateEscrow'
 import { hasPendingEscrowCreateTransaction } from './hasPendingEscrowCreateTransaction'
 
-/** The terms a draft is keyed and compared by — the validator's output, minus the permit. */
+/**
+ * Every term a draft is CREATED from — the validator's output, minus the
+ * permit (a signature, never persisted).
+ *
+ * Not all of them are replay-compared: `matchesTerms` owns that list and
+ * deliberately excludes `accept_deadline_unix`, which the server rewrites
+ * (#32). Adding a field here therefore does NOT enrol it in the replay
+ * check — decide there, deliberately, which side of that line it belongs on.
+ */
 export type DraftTerms = Omit<ValidatedCreateEscrow, 'permit'>
 
 export interface DraftIdentity {
@@ -65,6 +73,18 @@ export interface DraftInsert extends DraftIdentity {
  * Same rule, one field over: the assignee is compared by
  * `assigned_counterparty_id` and not by `assigned_counterparty_address`,
  * because `restampAssignee` below owns the address.
+ *
+ * TRIPWIRE. `prepareDraftCreate` re-stamps FOUR columns — accept_deadline,
+ * escrow_contract, assigned_counterparty_address and
+ * `completion_duration_seconds`. The first three are correctly absent here,
+ * but the fourth IS compared, and the only thing making that safe is
+ * reachability: it is re-stamped solely when the row's value is NULL (a
+ * server-opened exchange draft backfilled from the offer's payment window),
+ * and those rows carry NO `creation_operation_id`, so `findReplayedDraft`
+ * can never return one. Give a server-opened offramp draft an operation id —
+ * a natural way to make P2P offer creation idempotent — and this comparison
+ * starts reading a column the server rewrites, reproducing #32 for exchange
+ * escrows. Drop it from this list at the same time.
  */
 function matchesTerms(row: EscrowRow, terms: DraftTerms): boolean {
   return (
@@ -170,7 +190,7 @@ export function draftColumns(args: DraftInsert): typeof escrows.$inferInsert & D
   }
 }
 
-/** The two windows every inserted draft carries — typed present, not `| null`, for the payload mapping. */
+/** The columns `draftCreatePayload` reads, typed PRESENT rather than `| null` — an inserted draft always carries them, which the raw insert type cannot say. */
 interface DraftWindowsPresent {
   accept_deadline: Date
   completion_duration_seconds: number

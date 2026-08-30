@@ -98,7 +98,7 @@ const agentTaskBody = closedFor<AgentTaskBody>(
     chain_id: chainId,
     asset: { type: 'string', description: 'The chain\'s gig asset id (USDC), e.g. USDC_BASE' },
     amount_raw: rawAmount,
-    accept_deadline_unix: { type: 'integer', description: 'Unix seconds; must be in the future. The server moves it forward when it is within a minute of lapsing at funding time, so the draft may carry a later deadline than the one sent — it is not part of the idempotency key' },
+    accept_deadline_unix: { type: 'integer', description: 'Unix seconds; must be in the future. The server moves it forward when it is within a minute of lapsing at funding time, so the draft may carry a later deadline than the one sent. It is therefore NOT one of the terms a replay compares: resending the same creation_operation_id with a different deadline replays the first draft, while a different amount, asset, duration, bond, counterparty or approval mode is still 409' },
     completion_duration_seconds: { type: 'integer', minimum: MIN_COMPLETION_DURATION_SECONDS, maximum: MAX_COMPLETION_DURATION_SECONDS },
     dispute_bond_raw: rawAmount,
     requires_approval: { type: 'boolean', description: 'Approval mode: workers apply, the agent assigns' },

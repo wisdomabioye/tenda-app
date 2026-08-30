@@ -61,8 +61,8 @@ export type TaskPost = Omit<Partial<AgentTaskBody>, 'category'> & {
   permit?: PermitSignatureBody
 }
 
-/** What a one-shot task is worth by default — the body and the X-PAYMENT envelope that funds it must agree. */
-export const AGENT_TASK_AMOUNT_RAW = '25000000'
+/** What a one-shot task is worth — the body and the X-PAYMENT envelope that funds it must agree, so both read this. */
+const AGENT_TASK_AMOUNT_RAW = '25000000'
 
 /** A valid one-shot body on the eip155 harness chain; override any field. */
 export function agentTaskBody(overrides: Partial<AgentTaskBody> = {}): AgentTaskBody {
@@ -91,7 +91,7 @@ export function agentTaskBody(overrides: Partial<AgentTaskBody> = {}): AgentTask
  * Here rather than inline in each suite because it is the one-shot's wire
  * envelope: a second hand-written copy drifts the moment that wire changes.
  */
-export function agentPaymentHeader(from: string, value: string = AGENT_TASK_AMOUNT_RAW): string {
+export function agentPaymentHeader(from: string): string {
   return Buffer.from(
     JSON.stringify({
       x402Version: X402_VERSION,
@@ -102,7 +102,7 @@ export function agentPaymentHeader(from: string, value: string = AGENT_TASK_AMOU
         authorization: {
           from,
           to: `0x${'f1'.repeat(20)}`,
-          value,
+          value: AGENT_TASK_AMOUNT_RAW,
           validAfter: '0',
           validBefore: '1900000000',
           nonce: `0x${'33'.repeat(32)}`,
