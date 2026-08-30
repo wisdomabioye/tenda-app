@@ -23,11 +23,25 @@ import { solanaGasSeedSender } from '@server/chains/solana/gas-seed-sender'
 import { solanaSecret } from '@server/chains/secrets'
 
 /**
+ * What the sender builders actually need from the app: somewhere to log.
+ *
+ * Narrow on purpose, mirroring `consoleSender`'s own parameter and
+ * `buildAdminEmailSender` one file over — both take the shape they use rather
+ * than the whole instance. `buildOtpDeps` below still takes the FastifyInstance
+ * because it genuinely reads `db` and `queue`; these two do not, and a wider
+ * type here forces every caller (including tests) to conjure an instance or
+ * cast through `unknown` to supply one.
+ */
+export interface OtpSenderHost {
+  log: { warn(obj: object, msg: string): void }
+}
+
+/**
  * Pick the phone SMS transport: prefer cost-optimal routing (Termii for its
  * configured prefixes, Twilio for the global rest) when BOTH are set; else
  * whichever single provider is configured; else the dev console fallback.
  */
-function buildPhoneSender(fastify: FastifyInstance): OtpSender {
+function buildPhoneSender(host: OtpSenderHost): OtpSender {
   const config = getConfig()
   const termii =
     config.TERMII_API_KEY !== null && config.TERMII_SENDER_ID !== null
@@ -48,7 +62,7 @@ function buildPhoneSender(fastify: FastifyInstance): OtpSender {
     termii,
     twilio,
     prefixes: config.TERMII_COUNTRY_PREFIXES,
-    fallback: consoleSender(fastify.log, 'phone'),
+    fallback: consoleSender(host.log, 'phone'),
   })
 }
 
@@ -58,13 +72,13 @@ function buildPhoneSender(fastify: FastifyInstance): OtpSender {
  * fallback here AND the `send-otp` worker processor, single source so the two
  * delivery paths can never drift.
  */
-export function buildOtpSenders(fastify: FastifyInstance): Record<OtpChannel, OtpSender> {
+export function buildOtpSenders(host: OtpSenderHost): Record<OtpChannel, OtpSender> {
   const config = getConfig()
   const email: OtpSender =
     config.RESEND_API_KEY !== null && config.EMAIL_FROM !== null
       ? emailOtpSender({ api_key: config.RESEND_API_KEY, from: config.EMAIL_FROM })
-      : consoleSender(fastify.log, 'email')
-  return { phone: buildPhoneSender(fastify), email }
+      : consoleSender(host.log, 'email')
+  return { phone: buildPhoneSender(host), email }
 }
 
 export function buildOtpDeps(fastify: FastifyInstance): OtpDeps {

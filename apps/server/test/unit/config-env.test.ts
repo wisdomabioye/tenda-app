@@ -10,6 +10,8 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
 import { slackEnvKey } from '@server/lib/slack'
+import { buildOtpSenders, type OtpSenderHost } from '@server/lib/onboarding-deps'
+import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 
 const REQUIRED: Record<string, string> = {
   DATABASE_URL: 'postgres://localhost/test',
@@ -202,4 +204,121 @@ test('reports missing, URL, and Slack problems together in one throw', () => {
   assert.match(message, /JWT_SECRET/)
   assert.match(message, /ADMIN_DASHBOARD_URL/)
   assert.match(message, /SLACK_WEBHOOK_DISPUTES/)
+})
+
+/**
+ * A BLANK var must read exactly like an UNSET one (#34) — the rule, and the
+ * oracle the two tests below share.
+ *
+ * `lib/env.ts` states the rule — "blank means absent … one rule, one home" —
+ * and `optionalEnv` implements it, but config.ts only routed SOME vars through
+ * it; the rest read `process.env.X ?? null`, and `??` does not fire for ''.
+ * The consequence is the opposite of harmless: blanking a key is the documented
+ * way to switch a provider off, so `TERMII_API_KEY=` built a live Termii sender
+ * from an empty credential instead of falling back to the console logger.
+ *
+ * ORACLE, rather than a hardcoded list of vars: load once with every optional
+ * var UNSET, then again with each set to `value`, and require the two configs
+ * to agree field by field. A var added later is covered the day it is added,
+ * which a list would not be — and this file's own fixture drifts otherwise
+ * (see the required-var drift guard above).
+ *
+ * try/finally is load-bearing, not tidiness: this sets ~25 vars, and a failed
+ * assertion that skipped the cleanup would leave them set for every test after
+ * it in this file — turning one real failure into a cascade that hides its own
+ * cause. `beforeEach` only clears the seven vars in the OPTIONAL fixture.
+ */
+function assertBlankReadsAsUnset(value: string, label: string): void {
+  const required = new Set<string>(REQUIRED_ENV_VARS)
+  const unset = loadConfig()
+  const optionalKeys = Object.keys(unset).filter((k) => !required.has(k))
+  try {
+    for (const key of optionalKeys) process.env[key] = value
+    const blank = loadConfig()
+    for (const key of optionalKeys) {
+      assert.deepStrictEqual(
+        blank[key as keyof typeof blank],
+        unset[key as keyof typeof unset],
+        `${key}: ${label} did not read as unset`,
+      )
+    }
+  } finally {
+    for (const key of optionalKeys) delete process.env[key]
+  }
+}
+
+test('a whitespace-only optional var reads exactly like an unset one', () => {
+  assertBlankReadsAsUnset('   ', 'a whitespace-only value')
+})
+
+test('the empty string is treated the same way — it is what an operator actually types', () => {
+  // `KEY=` in a .env file yields '', not whitespace. Asserted separately because
+  // '' is FALSY and '   ' is truthy, so the two take different code paths
+  // through the readers that test truthiness rather than null.
+  assertBlankReadsAsUnset('', 'an empty value')
+})
+
+/**
+ * The behaviour the config rule exists for: blanking a provider key is the
+ * documented way to switch it off in development, and it must actually reach
+ * the console fallback rather than build a live sender from an empty
+ * credential. Asserted through `buildOtpSenders` — the real composition both
+ * the inline dispatch and the send-otp worker use — by DRIVING the sender and
+ * watching what it does, not by inspecting its shape.
+ */
+function senderProbe() {
+  const logged: Array<{ channel: string; code: string }> = []
+  // No cast: `buildOtpSenders` declares the narrow shape it actually uses.
+  const host: OtpSenderHost = {
+    log: { warn: (obj: object) => logged.push(obj as { channel: string; code: string }) },
+  }
+  return { logged, host }
+}
+
+test('a blank provider key reaches the console fallback, for phone AND email', async () => {
+  const keys = ['TERMII_API_KEY', 'TERMII_SENDER_ID', 'TWILIO_ACCOUNT_SID',
+                'TWILIO_AUTH_TOKEN', 'TWILIO_SMS_FROM', 'RESEND_API_KEY', 'EMAIL_FROM']
+  try {
+    for (const key of keys) process.env[key] = ''
+    loadConfig()
+    const { logged, host } = senderProbe()
+    const senders = buildOtpSenders(host)
+
+    await senders.phone.send('+2348012345678', '123456')
+    await senders.email.send('someone@example.test', '654321')
+
+    assert.deepStrictEqual(
+      logged.map((l) => l.channel),
+      ['phone', 'email'],
+      'a blank credential built a live sender instead of the console fallback',
+    )
+    assert.deepStrictEqual(logged.map((l) => l.code), ['123456', '654321'])
+  } finally {
+    for (const key of keys) delete process.env[key]
+  }
+})
+
+test('a REAL provider key still builds the live sender — the control', async () => {
+  // Without this, the test above is satisfied by "everything logs", which would
+  // also be true if the composition were broken in the opposite direction.
+  //
+  // Through the recording fetch double, NOT the network: the first version of
+  // this test let the live sender reach Resend and took 5.7 SECONDS to fail on
+  // a timeout — a unit test that depends on the sandbox having no route to the
+  // internet. The captured request is also better evidence than a rejection.
+  process.env.RESEND_API_KEY = 're_test_key'
+  process.env.EMAIL_FROM = 'no-reply@tenda.test'
+  loadConfig()
+  const sent = stubFetch({ status: 200, body: '{"id":"stub"}' })
+  try {
+    const { logged, host } = senderProbe()
+    await buildOtpSenders(host).email.send('someone@example.test', '654321')
+    assert.deepStrictEqual(logged, [], 'the console fallback was used despite a configured key')
+    assert.strictEqual(sent.length, 1, 'the live sender did not send')
+    assert.match(sent[0].url, /resend/i)
+  } finally {
+    restoreFetch()
+    delete process.env.RESEND_API_KEY
+    delete process.env.EMAIL_FROM
+  }
 })

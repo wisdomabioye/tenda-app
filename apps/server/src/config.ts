@@ -217,11 +217,23 @@ export function loadConfig(): Config {
     throw new Error(`Invalid environment configuration:\n  - ${problems.join('\n  - ')}`)
   }
 
-  // Required values are stored VERBATIM. The blank check above trims to decide
-  // "is it set?", but trimming what gets stored would change a secret whose
-  // value legitimately ends in whitespace (a JWT_SECRET read from a file mount
-  // signs differently after a trim, invalidating every live session). The two
-  // base URLs are the exception, see `baseUrlEnv`.
+  // Two rules, deliberately different, because the risks are not symmetric.
+  //
+  // REQUIRED values are stored VERBATIM. The blank check above trims only to
+  // decide "is it set?"; trimming what gets STORED would change a secret whose
+  // value legitimately ends in whitespace — a JWT_SECRET read from a file mount
+  // signs differently after a trim, invalidating every live session.
+  //
+  // OPTIONAL values go through `optionalEnv`, which trims. That is the point:
+  // these are read to answer "is this provider configured?", and a var holding
+  // only whitespace must answer no (#34 — `TERMII_API_KEY=` used to build a
+  // live Termii sender from an empty credential instead of falling back to the
+  // console logger). Trimming the stored value is the accepted consequence and
+  // is what an operator means anyway: a trailing space in a .env line is a
+  // typo, not part of an API key. Every one of these is a credential, a URL or
+  // an id — none has meaningful surrounding whitespace, unlike JWT_SECRET.
+  //
+  // The two base URLs are trimmed and slash-normalised on top, see `baseUrlEnv`.
   _config = {
     DATABASE_URL:          process.env.DATABASE_URL!,
     JWT_SECRET:            process.env.JWT_SECRET!,
@@ -230,44 +242,40 @@ export function loadConfig(): Config {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
     // Non-null: required, so the blank check above already threw.
     API_BASE_URL:          baseUrlEnv('API_BASE_URL')!,
-    PLATFORM_FEE_BPS:      Number(process.env.PLATFORM_FEE_BPS ?? 250),
-    JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
-    TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
-    TERMII_SENDER_ID:      process.env.TERMII_SENDER_ID ?? null,
+    PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? 250),
+    JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
+    TERMII_API_KEY:        optionalEnv('TERMII_API_KEY'),
+    TERMII_SENDER_ID:      optionalEnv('TERMII_SENDER_ID'),
     TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],
-    TWILIO_ACCOUNT_SID:    process.env.TWILIO_ACCOUNT_SID ?? null,
-    TWILIO_AUTH_TOKEN:     process.env.TWILIO_AUTH_TOKEN ?? null,
-    TWILIO_SMS_FROM:       process.env.TWILIO_SMS_FROM ?? null,
-    OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
+    TWILIO_ACCOUNT_SID:    optionalEnv('TWILIO_ACCOUNT_SID'),
+    TWILIO_AUTH_TOKEN:     optionalEnv('TWILIO_AUTH_TOKEN'),
+    TWILIO_SMS_FROM:       optionalEnv('TWILIO_SMS_FROM'),
+    OPENROUTER_API_KEY:    optionalEnv('OPENROUTER_API_KEY'),
     OPENROUTER_MODERATION_MODEL:
       optionalEnv('OPENROUTER_MODERATION_MODEL') ?? moderationConfig.model,
     OPENROUTER_MODERATION_TIMEOUT_MS:
       positiveIntegerEnv('OPENROUTER_MODERATION_TIMEOUT_MS', moderationConfig.timeoutMs),
     OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS:
       positiveIntegerEnv('OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS', moderationConfig.maxOutputTokens),
-    FIAT_RAILS_ENABLED:    process.env.FIAT_RAILS_ENABLED !== 'false',
-    YELLOWCARD_API_KEY:        process.env.YELLOWCARD_API_KEY ?? null,
-    YELLOWCARD_API_SECRET:     process.env.YELLOWCARD_API_SECRET ?? null,
-    YELLOWCARD_WEBHOOK_SECRET: process.env.YELLOWCARD_WEBHOOK_SECRET ?? null,
-    ONRAMPMONEY_API_KEY:        process.env.ONRAMPMONEY_API_KEY ?? null,
-    ONRAMPMONEY_API_SECRET:     process.env.ONRAMPMONEY_API_SECRET ?? null,
-    ONRAMPMONEY_WEBHOOK_SECRET: process.env.ONRAMPMONEY_WEBHOOK_SECRET ?? null,
-    NIP_API_KEY:                process.env.NIP_API_KEY ?? null,
-    REDIS_URL:              process.env.REDIS_URL ?? null,
-    FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
-    APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
-    APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,
-    APNS_PRIVATE_KEY_B64:  process.env.APNS_PRIVATE_KEY_B64 ?? null,
-    APNS_TOPIC:            process.env.APNS_TOPIC ?? null,
-    CORS_ORIGIN:           process.env.CORS_ORIGIN
-                             ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-                             : null,
-    ADMIN_ORIGIN:          process.env.ADMIN_ORIGIN
-                             ? process.env.ADMIN_ORIGIN.split(',').map((o) => o.trim())
-                             : null,
-    RESEND_API_KEY:        process.env.RESEND_API_KEY ?? null,
-    EMAIL_FROM:            process.env.EMAIL_FROM ?? null,
-    ADMIN_JWT_EXPIRES_IN:  process.env.ADMIN_JWT_EXPIRES_IN ?? '12h',
+    FIAT_RAILS_ENABLED:    optionalEnv('FIAT_RAILS_ENABLED') !== 'false',
+    YELLOWCARD_API_KEY:        optionalEnv('YELLOWCARD_API_KEY'),
+    YELLOWCARD_API_SECRET:     optionalEnv('YELLOWCARD_API_SECRET'),
+    YELLOWCARD_WEBHOOK_SECRET: optionalEnv('YELLOWCARD_WEBHOOK_SECRET'),
+    ONRAMPMONEY_API_KEY:        optionalEnv('ONRAMPMONEY_API_KEY'),
+    ONRAMPMONEY_API_SECRET:     optionalEnv('ONRAMPMONEY_API_SECRET'),
+    ONRAMPMONEY_WEBHOOK_SECRET: optionalEnv('ONRAMPMONEY_WEBHOOK_SECRET'),
+    NIP_API_KEY:                optionalEnv('NIP_API_KEY'),
+    REDIS_URL:              optionalEnv('REDIS_URL'),
+    FCM_SERVICE_ACCOUNT_B64: optionalEnv('FCM_SERVICE_ACCOUNT_B64'),
+    APNS_KEY_ID:           optionalEnv('APNS_KEY_ID'),
+    APNS_TEAM_ID:          optionalEnv('APNS_TEAM_ID'),
+    APNS_PRIVATE_KEY_B64:  optionalEnv('APNS_PRIVATE_KEY_B64'),
+    APNS_TOPIC:            optionalEnv('APNS_TOPIC'),
+    CORS_ORIGIN:           csvEnv(process.env.CORS_ORIGIN),
+    ADMIN_ORIGIN:          csvEnv(process.env.ADMIN_ORIGIN),
+    RESEND_API_KEY:        optionalEnv('RESEND_API_KEY'),
+    EMAIL_FROM:            optionalEnv('EMAIL_FROM'),
+    ADMIN_JWT_EXPIRES_IN:  optionalEnv('ADMIN_JWT_EXPIRES_IN') ?? '12h',
     ADMIN_DASHBOARD_URL:   baseUrlEnv(ADMIN_DASHBOARD_URL_ENV),
     GOOGLE_OAUTH_CLIENT_IDS: csvEnv(process.env.GOOGLE_OAUTH_CLIENT_IDS),
     APPLE_OAUTH_CLIENT_IDS:  csvEnv(process.env.APPLE_OAUTH_CLIENT_IDS),
