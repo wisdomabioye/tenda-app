@@ -132,7 +132,7 @@ describe('transition builders', () => {
       chain_id: 'solana:devnet',
       asset: 'USDC_SOL',
       amount_raw: '5000000',
-      accept_deadline_unix: 1_900_000_000,
+      accept_window_seconds: 24 * 3600,
       completion_duration_seconds: 86_400,
     }
     const response = { escrow_id: 'new-1', unsigned: UNSIGNED }

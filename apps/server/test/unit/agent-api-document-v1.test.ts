@@ -15,8 +15,10 @@ import {
   CHAIN_MANIFEST,
   GIG_CATEGORIES,
   LOCATIONS,
+  MAX_ACCEPT_WINDOW_SECONDS,
   MAX_COMPLETION_DURATION_SECONDS,
   MAX_GIG_TITLE_LENGTH,
+  MIN_ACCEPT_WINDOW_SECONDS,
   MIN_COMPLETION_DURATION_SECONDS,
   NAME_MAX_LENGTH,
   PROOF_TYPES,
@@ -36,10 +38,15 @@ test('v1 request bodies derive their bounds from the shared constants the routes
   assert.deepStrictEqual(task.proof_requirements.items?.enum, PROOF_TYPES)
   assert.strictEqual(task.completion_duration_seconds.minimum, MIN_COMPLETION_DURATION_SECONDS)
   assert.strictEqual(task.completion_duration_seconds.maximum, MAX_COMPLETION_DURATION_SECONDS)
+  // #41: the accept window is bounded too, and the document must quote the same
+  // rail the validator refuses at — a document that promised a wider range than
+  // the server accepts would send agents into a 422 they could not predict.
+  assert.strictEqual(task.accept_window_seconds.minimum, MIN_ACCEPT_WINDOW_SECONDS)
+  assert.strictEqual(task.accept_window_seconds.maximum, MAX_ACCEPT_WINDOW_SECONDS)
   assert.strictEqual(task.title.maxLength, MAX_GIG_TITLE_LENGTH)
   assert.strictEqual(task.amount_raw.pattern, AMOUNT_RAW_PATTERN.source)
   assert.deepStrictEqual(components.schemas.AgentTaskBody.required, [
-    'creation_operation_id', 'chain_id', 'asset', 'amount_raw', 'accept_deadline_unix', 'completion_duration_seconds', 'title', 'category',
+    'creation_operation_id', 'chain_id', 'asset', 'amount_raw', 'accept_window_seconds', 'completion_duration_seconds', 'title', 'category',
   ])
   const register = components.schemas.AgentRegisterBody.properties ?? {}
   assert.strictEqual(register.name.maxLength, NAME_MAX_LENGTH)
@@ -61,11 +68,17 @@ test('the v1 schemas compile strictly and the closure bites on the task body and
   assert.ok(body !== undefined)
   const minimal = {
     creation_operation_id: '1c1e6a6e-9b1e-4e3a-8f4b-2b0f7d6b1a11', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '25000000',
-    accept_deadline_unix: 1_900_000_000, completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS, title: 'Deliver a parcel', category: GIG_CATEGORIES[0],
+    accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS, completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS, title: 'Deliver a parcel', category: GIG_CATEGORIES[0],
   }
   assert.strictEqual(body(minimal), true)
   assert.strictEqual(body({ ...minimal, permit: {} }), false, 'a permit has no place in the one-shot')
   assert.strictEqual(body({ ...minimal, amount_raw: '007' }), false, 'amounts are canonical')
+  // The document refuses the same out-of-rail window the validator does, so an
+  // agent generating requests FROM the schema cannot produce a body the server
+  // will 422 (#41). Milliseconds-for-seconds is the shape #40 named.
+  assert.strictEqual(body({ ...minimal, accept_window_seconds: MAX_ACCEPT_WINDOW_SECONDS + 1 }), false)
+  assert.strictEqual(body({ ...minimal, accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS - 1 }), false)
+  assert.strictEqual(body({ ...minimal, accept_window_seconds: Date.now() }), false, 'milliseconds are not seconds')
   const terms = ajv.getSchema(`${COMPONENT_REF_PREFIX}RelayTerms`)
   assert.ok(terms !== undefined)
   assert.strictEqual(terms({ scheme: 'exact' }), false)

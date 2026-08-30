@@ -17,9 +17,10 @@
 
 import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
+import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
@@ -30,16 +31,21 @@ import { normalizeContractAddress } from '@server/chains/contracts'
 import { assertCallerWallet, readSignerPreference } from '@server/lib/escrow'
 import { draftCreatePayload, type DraftSource } from '@server/features/escrows/creation/draftCreatePayload'
 import { draftColumns, findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
+import { acceptDeadlineMoved, deriveAcceptDeadline } from '@server/features/escrows/creation/deriveAcceptDeadline'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateEscrowBody }>(
     '/',
     { preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('create')] },
     async (request, reply) => {
+      // ONE instant for the whole request: the validator and the draft's
+      // provisional accept deadline are both anchored to it, so they cannot
+      // disagree by the milliseconds between two `new Date()` calls (#41).
+      const now = new Date()
       const input = validateCreateEscrow(
         {
           hasChain: (chain_id) => fastify.chains.has(chain_id),
-          now: () => new Date(),
+          now: () => now,
           caller_user_id: request.user.id,
         },
         request.body ?? {},
@@ -117,7 +123,20 @@ const route: FastifyPluginAsync = async (fastify) => {
       // the rules, shared with the agent one-shot.
       const replayed = await findReplayedDraft(fastify.db, identity)
       if (replayed !== null) {
-        return reply.code(200).send({ escrow_id: replayed.id, unsigned: await buildUnsigned(replayed) })
+        // A replay can arrive after the draft's own window has run out, and this
+        // path does not go through `prepareDraftCreate` — so it applies the same
+        // derivation, and persists it when it moved. Handing back a transaction
+        // the row disagrees with is the failure mode the re-stamp exists to stop;
+        // handing back a LAPSED one costs the caller gas for a certain revert.
+        const accept_deadline = deriveAcceptDeadline(replayed, now)
+        if (acceptDeadlineMoved(replayed.accept_deadline, accept_deadline)) {
+          await fastify.db
+            .update(escrows)
+            .set({ accept_deadline })
+            .where(and(eq(escrows.id, replayed.id), eq(escrows.status, 'draft')))
+        }
+        const unsigned = await buildUnsigned({ ...replayed, accept_deadline })
+        return reply.code(200).send({ escrow_id: replayed.id, unsigned })
       }
 
       const { unassign_window_seconds } = await getPlatformConfig(fastify.db)
@@ -125,6 +144,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const insert = {
         ...identity,
         escrow_id,
+        now,
         is_seeker: user.is_seeker,
         unassign_window_seconds,
         escrow_contract: normalizeContractAddress(adapter.namespace, adapter.escrowAddress),

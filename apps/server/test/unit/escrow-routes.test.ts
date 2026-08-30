@@ -38,6 +38,7 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     creator_address: null,
     counterparty_address: null,
     assigned_counterparty_address: null,
+    accept_window_seconds: 7 * 24 * 3600,
     accept_deadline: T_FUTURE,
     completion_duration_seconds: 86400,
     completion_deadline: T_FUTURE,

@@ -475,6 +475,106 @@ contract TendaEscrowTest is Test {
         assertEq(uint8(status(id)), 5);
     }
 
+    function test_refundExpired_isPermissionless_andStillPaysTheCreator() public {
+        // #43. An expired listing is already DEAD — acceptEscrow reverts once
+        // acceptDeadline passes — so sweeping it takes no opportunity from
+        // anyone. And the destination is not the caller's to choose: this pays
+        // `e.creator`, never `msg.sender`, which is precisely what makes opening
+        // the caller safe rather than merely convenient. The case it exists for
+        // is an agent that crashed and is never coming back to click refund.
+        bytes16 id = newId();
+        createNative(id);
+        vm.warp(block.timestamp + ACCEPT_WINDOW);
+
+        uint256 creatorBefore = creator.balance;
+        uint256 outsiderBefore = outsider.balance;
+        vm.prank(outsider);
+        vm.expectEmit(true, true, false, true);
+        emit TendaEscrow.EscrowExpired(id, creator, AMOUNT);
+        escrow.refundExpired(id);
+
+        assertEq(creator.balance - creatorBefore, AMOUNT, "the creator is paid");
+        assertEq(outsider.balance, outsiderBefore, "the caller gains nothing but a gas bill");
+        assertEq(uint8(status(id)), 5); // Refunded
+    }
+
+    function test_refundExpired_permissionless_stillEnforcesTheDeadline() public {
+        // Opening the CALLER must not open the CONDITION: a stranger who is
+        // early gets the timing error, not an ownership one.
+        bytes16 id = newId();
+        createNative(id);
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.AcceptDeadlineNotPassed.selector);
+        escrow.refundExpired(id);
+    }
+
+    function test_reclaimAbandoned_isPermissionless_andStillPaysTheCreator() public {
+        // The same argument one state along: past completionDeadline + grace the
+        // worker can no longer submit (submitProof reverts on that exact
+        // boundary), so the engagement is over either way and the refund takes
+        // nothing from them.
+        bytes16 id = newId();
+        acceptedNative(id);
+        vm.warp(block.timestamp + DURATION + GRACE);
+
+        uint256 creatorBefore = creator.balance;
+        uint256 outsiderBefore = outsider.balance;
+        vm.prank(outsider);
+        vm.expectEmit(true, true, false, true);
+        emit TendaEscrow.EscrowAbandoned(id, creator, worker, AMOUNT);
+        escrow.reclaimAbandoned(id);
+
+        assertEq(creator.balance - creatorBefore, AMOUNT, "the creator is paid");
+        assertEq(outsider.balance, outsiderBefore, "not the caller");
+        assertEq(uint8(status(id)), 5);
+    }
+
+    function test_reclaimAbandoned_permissionless_stillEnforcesTheWindow() public {
+        bytes16 id = newId();
+        acceptedNative(id);
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.ReclaimWindowNotOpen.selector);
+        escrow.reclaimAbandoned(id);
+    }
+
+    function test_sweep_erc20_goesToTheCreatorToo() public {
+        // The production asset is a token, and the payout branches on it — so
+        // the caller change is proved on the SafeERC20 path as well, not just
+        // the native one.
+        bytes16 id = newId();
+        createUsdc(id, 1_000e6);
+        vm.warp(block.timestamp + ACCEPT_WINDOW);
+
+        uint256 creatorBefore = usdc.balanceOf(creator);
+        uint256 outsiderBefore = usdc.balanceOf(outsider);
+        vm.prank(outsider);
+        escrow.refundExpired(id);
+
+        assertEq(usdc.balanceOf(creator) - creatorBefore, 1_000e6, "tokens return to the creator");
+        assertEq(usdc.balanceOf(outsider), outsiderBefore, "and not to the sweeper");
+    }
+
+    function test_cancelEscrow_staysCreatorOnly_theDeliberateAsymmetry() public {
+        // #43 opens the two RECOVERY paths and deliberately leaves this one
+        // shut. cancelEscrow has no time condition — it withdraws a LIVE
+        // listing — so a permissionless cancel would let anyone destroy a gig a
+        // worker is about to accept. The other two are safe to open precisely
+        // because their conditions are objective and already fatal to the
+        // escrow; this one is neither.
+        bytes16 id = newId();
+        createNative(id);
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.NotCreator.selector);
+        escrow.cancelEscrow(id);
+
+        // Still shut once the listing has expired: the sweep path for that state
+        // is refundExpired, which pays the same address anyway.
+        vm.warp(block.timestamp + ACCEPT_WINDOW);
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.NotCreator.selector);
+        escrow.cancelEscrow(id);
+    }
+
     function test_reclaimAbandoned_submittedExplicitlyExcluded() public {
         bytes16 id = newId();
         submittedNative(id);

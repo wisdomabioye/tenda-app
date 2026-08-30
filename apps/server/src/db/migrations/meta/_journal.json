@@ -260,6 +260,13 @@
       "when": 1788083290541,
       "tag": "0036_nice_random",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788097967180,
+      "tag": "0037_natural_daredevil",
+      "breakpoints": true
     }
   ]
 }

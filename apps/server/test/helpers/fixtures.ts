@@ -1,3 +1,4 @@
+import { DEFAULT_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
 /**
  * Typed object factories for tests. Real implementations — usable now without
  * a DB or any external infra.
@@ -146,6 +147,7 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     // what the boot probe is built to reject. Tests that exercise pinning set
     // it explicitly.
     escrow_contract: null,
+    accept_window_seconds: DEFAULT_ACCEPT_WINDOW_SECONDS,
     accept_deadline: new Date('2026-01-08T00:00:00Z'),
     completion_duration_seconds: 86_400,
     completion_deadline: null,

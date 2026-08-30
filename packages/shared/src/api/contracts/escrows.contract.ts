@@ -105,7 +105,9 @@ export interface CreateEscrowApiBody {
   /** Asset registry id, e.g. 'SOL', 'USDC_SOL'. */
   asset: string
   amount_raw: string
-  accept_deadline_unix: number
+  /** How long the listing stays open for a counterparty to accept. The server
+   *  derives the absolute deadline from this when it BUILDS the create tx (#41). */
+  accept_window_seconds: number
   completion_duration_seconds: number
   dispute_bond_raw?: string
   assigned_counterparty_id?: string

@@ -15,18 +15,19 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ApiClientError,
-  ErrorCode,
-  TRANSACTION_GATE_MESSAGE,
-  WalletError,
   checkEscrowTransitionApplied,
   classifyTransactionGateError,
   coerceCityForCountry,
-  randomUuid,
-  reuseOrCreateEscrowCreationAttempt,
-  transactionGateRoute,
+  ErrorCode,
   type EscrowCreationAttempt,
   type GigFormValues,
+  randomUuid,
+  reuseOrCreateEscrowCreationAttempt,
+  SECONDS_PER_HOUR,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
   type TransactionProgressPhase,
+  WalletError,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
@@ -35,7 +36,6 @@ import { declaredSignerFor, ensureTxPreconditions, resolveSignersForChain, signS
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 
-const MS_PER_HOUR = 3_600_000
 
 export type TxPhase = TransactionProgressPhase
 
@@ -85,10 +85,9 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       creationAttempt.current,
       [chain_id, asset, amount_raw, values.acceptDeadlineHours, values.completionDuration,
         values.requiresApproval],
-      () => Math.floor((Date.now() + values.acceptDeadlineHours * MS_PER_HOUR) / 1000),
       randomUuid,
     )
-    const { operationId, acceptDeadlineUnix } = creationAttempt.current
+    const { operationId } = creationAttempt.current
 
     setPhase('preparing')
     let escrow_id: string | null = null
@@ -120,7 +119,8 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
         asset,
         amount_raw,
         ...(signer !== undefined ? { signer_address: signer } : {}),
-        accept_deadline_unix: acceptDeadlineUnix,
+        // A DURATION: the server anchors it when it builds the create (#41).
+        accept_window_seconds: values.acceptDeadlineHours * SECONDS_PER_HOUR,
         completion_duration_seconds: values.completionDuration,
         // Only sent when true: the server treats an absent flag as instant
         // mode, so an omitted `false` and an explicit one mean the same thing

@@ -88,7 +88,8 @@ test('threads the chosen windows into escrow + offer creation and signs', async 
   expect(mockCreate).toHaveBeenCalledWith({
     creation_operation_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     kind: 'exchange', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '2500000',
-    accept_deadline_unix: NOW_S + 24 * 3600,
+    // A DURATION now (#41): the server anchors it at build time.
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 21600,
     // The wallet the create BAKES, declared rather than left to the server's
     // primary-wallet default.
@@ -154,6 +155,28 @@ test('surfaces the API error message when create fails ungated', async () => {
   expect(mockReplace).not.toHaveBeenCalled()
 })
 
+test('changing the accept window mints a NEW operation id', async () => {
+  // #41 made the window a compared TERM on the server: the same operation id
+  // with a different window is now a 409. That is only safe because the window
+  // is part of this composer's terms fingerprint — drop it there and a seller
+  // who changed their mind after an ambiguous response would resend the old id
+  // with a new window and be refused with no way to clear it.
+  // The FIRST submit must fail ambiguously, or the attempt is cleared on success
+  // and the second id would be new whatever the fingerprint holds — the test
+  // would then pass for a reason that has nothing to do with the window.
+  mockCreate
+    .mockRejectedValueOnce(new Error('request timed out'))
+    .mockResolvedValueOnce({ escrow_id: 'e1', unsigned: { kind: 'evm-tx' } })
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+  await act(async () => { await result.current.submit({ ...ARGS, acceptHours: 48 }) })
+
+  const first = mockCreate.mock.calls[0][0]
+  const changed = mockCreate.mock.calls[1][0]
+  expect(changed.accept_window_seconds).not.toBe(first.accept_window_seconds)
+  expect(changed.creation_operation_id).not.toBe(first.creation_operation_id)
+})
+
 test('an ambiguous create failure retries with the same operation and deadline', async () => {
   mockCreate
     .mockRejectedValueOnce(new Error('request timed out'))
@@ -166,7 +189,9 @@ test('an ambiguous create failure retries with the same operation and deadline',
   const first = mockCreate.mock.calls[0][0]
   const retry = mockCreate.mock.calls[1][0]
   expect(retry.creation_operation_id).toBe(first.creation_operation_id)
-  expect(retry.accept_deadline_unix).toBe(first.accept_deadline_unix)
+  // The window is a TERM, so an identical retry sends an identical one — and
+  // there is no separately pinned instant left that could drift between them.
+  expect(retry.accept_window_seconds).toBe(first.accept_window_seconds)
   expect(mockExchangeCreate).toHaveBeenCalledTimes(1)
 })
 

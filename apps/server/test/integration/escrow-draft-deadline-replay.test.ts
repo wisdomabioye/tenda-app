@@ -1,21 +1,21 @@
 /**
- * A draft replay must survive the accept deadline the SERVER refreshed (#32).
+ * The accept window is the CALLER's; the deadline is the SERVER's (#41).
  *
- * `prepareDraftCreate` rewrites `escrows.accept_deadline` when it is lapsed or
- * inside its 60s refresh margin, and persists it so the row can never disagree
- * with the transaction it just built. `matchesTerms` used to compare that
- * column against the instant the caller sent — so the caller was refused for a
- * change the server had made, and the identical body answered 409 "already
- * used with different escrow terms".
+ * #32's symptom was a replay refused for a change the caller never made: the
+ * body carried an absolute deadline, `prepareDraftCreate` rewrote it when it
+ * was about to lapse, and `matchesTerms` then compared the rewritten column
+ * against the instant that had been sent. The fix there was to stop comparing
+ * it, which cost the term entirely.
  *
- * Both entry points are exercised because both are stranded by it: the human
- * POST /v1/escrows retried after build-create, and the agent one-shot's
- * 402 → X-PAYMENT resend (which refreshes on its OWN first call, since the
- * quote goes through prepareDraftCreate too).
+ * #41 removed the shape instead of the comparison. The caller sends a DURATION,
+ * the server derives `accept_deadline` at the moment it builds the transaction,
+ * and the two facts stop overlapping: the window is caller-authored and never
+ * rewritten, so it can be compared, and the deadline is server-owned and never
+ * compared. This suite holds both halves.
  *
- * The near deadlines here are 30 SECONDS out. That is not an exotic value —
- * it is any listing whose accept window has nearly run out by the time the
- * creator signs, and `validateCreateEscrow` accepts anything in the future.
+ * Both entry points are exercised: the human POST /v1/escrows retried after
+ * build-create, and the agent one-shot's 402 → X-PAYMENT resend (whose quote
+ * goes through the same preparation).
  *
  * Real app via fastify.inject; gated on TEST_DATABASE_URL (helpers/test-app).
  */
@@ -25,7 +25,14 @@ import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { escrows } from '@tenda/shared/db/schema'
-import { X_PAYMENT_HEADER, apiRoutes, type AgentTaskCreated, type AgentTaskPaymentRequired } from '@tenda/shared'
+import {
+  type AgentTaskCreated,
+  type AgentTaskPaymentRequired,
+  apiRoutes,
+  MIN_ACCEPT_WINDOW_SECONDS,
+  RELAY_QUOTE_TTL_SECONDS,
+  X_PAYMENT_HEADER,
+} from '@tenda/shared'
 import {
   TEST_CHAIN_ID,
   TEST_DB_CONFIGURED,
@@ -41,8 +48,8 @@ import { agentPaymentHeader, agentTaskBody, registerAgent } from '../helpers/age
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
-/** Close enough that prepareDraftCreate's 60s margin refreshes it; still valid to send. */
-const NEAR_SECONDS = 30
+/** A window well inside the rail, used wherever the exact value does not matter. */
+const WINDOW_SECONDS = 24 * 3600
 
 type CreateEscrowRequestBody = ReturnType<typeof createEscrowBody>
 
@@ -95,36 +102,89 @@ async function withCapturedDeadlines(
   return seen
 }
 
-test('create replay: the deadline the SERVER refreshed does not refuse the caller', { skip }, async () => {
+test('a draft that has sat past its deadline still builds a LIVE one', { skip }, async () => {
+  // The property #41 exists for. Both programs reject a create whose accept
+  // window has already closed, and a draft can be composed on Monday and
+  // published on Thursday. Anchoring on the build — not on the body, and not on
+  // created_at — is what makes staleness unreachable rather than patched.
   const app = getApp()
   const user = await createTransactableUser(app)
-  const sent_unix = Math.floor(Date.now() / 1000) + NEAR_SECONDS
-  const body = createEscrowBody({ creation_operation_id: randomUUID(), accept_deadline_unix: sent_unix })
+  const body = createEscrowBody({ creation_operation_id: randomUUID(), accept_window_seconds: WINDOW_SECONDS })
 
   const first = await post(app, user, body)
   assert.strictEqual(first.statusCode, 201, first.body)
   const escrow_id: string = first.json().escrow_id
-  // The create route does not refresh: the row still holds what was sent, so
-  // the 200 below cannot be explained by the deadline never having moved.
-  assert.strictEqual(await deadlineOf(app, escrow_id), sent_unix * 1000)
 
-  // Publishing is what rewrites it — the same step the one-shot's quote runs.
-  assert.strictEqual((await buildCreate(app, user, escrow_id)).statusCode, 200)
-  const refreshed = await deadlineOf(app, escrow_id)
-  assert.ok(refreshed > sent_unix * 1000, 'the server moved the deadline forward')
+  // Age the draft past its own deadline, exactly as sitting for days would.
+  const stale = new Date(Date.now() - 60_000)
+  await app.db.update(escrows).set({ accept_deadline: stale }).where(eq(escrows.id, escrow_id))
 
-  // THE REGRESSION: the identical body, resent. 409 before the fix.
+  const encoded = await withCapturedDeadlines(app, async () => {
+    assert.strictEqual((await buildCreate(app, user, escrow_id)).statusCode, 200)
+  })
+
+  const nowUnix = Math.floor(Date.now() / 1000)
+  assert.strictEqual(encoded.length, 1)
+  assert.ok(encoded[0] > nowUnix, 'the transaction encodes a deadline in the FUTURE')
+  // And it is the window measured from the build, not from the stale row.
+  assert.ok(
+    Math.abs(encoded[0] - (nowUnix + WINDOW_SECONDS)) <= 5,
+    `expected ~now + ${WINDOW_SECONDS}s, got ${encoded[0] - nowUnix}s out`,
+  )
+  assert.ok(await deadlineOf(app, escrow_id) > Date.now(), 'the row was re-stamped with it')
+})
+
+test('a REPLAY of a stale draft also builds a live deadline, not the row’s', { skip }, async () => {
+  // The other way into a build. POST /v1/escrows answers a replayed operation
+  // with a rebuilt transaction taken straight off the stored row — it does not
+  // go through `prepareDraftCreate`, so it is a second place the same staleness
+  // can reach a signer. A draft older than its own window replayed here would
+  // hand the caller a transaction both programs reject, after they paid gas.
+  const app = getApp()
+  const user = await createTransactableUser(app)
+  const body = createEscrowBody({ creation_operation_id: randomUUID(), accept_window_seconds: WINDOW_SECONDS })
+
+  const first = await post(app, user, body)
+  assert.strictEqual(first.statusCode, 201, first.body)
+  const escrow_id: string = first.json().escrow_id
+
+  const stale = new Date(Date.now() - 60_000)
+  await app.db.update(escrows).set({ accept_deadline: stale }).where(eq(escrows.id, escrow_id))
+
   const encoded = await withCapturedDeadlines(app, async () => {
     const replay = await post(app, user, body)
     assert.strictEqual(replay.statusCode, 200, replay.body)
-    assert.strictEqual(replay.json().escrow_id, escrow_id, 'the same draft, not a second escrow')
-    assert.ok(replay.json().unsigned, 'the caller still gets something to sign')
+    assert.strictEqual(replay.json().escrow_id, escrow_id, 'still the same draft')
   })
 
-  // And the rebuilt transaction encodes the ROW's deadline, not the resent
-  // instant — the reason the resent one is not worth comparing.
-  assert.deepStrictEqual(encoded, [Math.floor(refreshed / 1000)])
-  assert.strictEqual(await deadlineOf(app, escrow_id), refreshed, 'the replay did not move it back')
+  const nowUnix = Math.floor(Date.now() / 1000)
+  assert.strictEqual(encoded.length, 1)
+  assert.ok(encoded[0] > nowUnix, 'the replayed transaction encodes a deadline in the FUTURE')
+  // And the row was re-stamped with exactly it: a row that disagreed with the
+  // transaction it just handed out is the other half of the same defect.
+  assert.strictEqual(
+    Math.floor((await deadlineOf(app, escrow_id)) / 1000),
+    encoded[0],
+    'the row holds the instant the transaction encodes',
+  )
+})
+
+test('create replay: the identical body replays the same draft', { skip }, async () => {
+  // #32's regression, still guarded — now trivially, because nothing the server
+  // owns is part of the comparison any more.
+  const app = getApp()
+  const user = await createTransactableUser(app)
+  const body = createEscrowBody({ creation_operation_id: randomUUID(), accept_window_seconds: WINDOW_SECONDS })
+
+  const first = await post(app, user, body)
+  assert.strictEqual(first.statusCode, 201, first.body)
+  const escrow_id: string = first.json().escrow_id
+  assert.strictEqual((await buildCreate(app, user, escrow_id)).statusCode, 200)
+
+  const replay = await post(app, user, body)
+  assert.strictEqual(replay.statusCode, 200, replay.body)
+  assert.strictEqual(replay.json().escrow_id, escrow_id, 'the same draft, not a second escrow')
+  assert.ok(replay.json().unsigned, 'the caller still gets something to sign')
 })
 
 test('create replay: a term the CALLER changed is still refused', { skip }, async () => {
@@ -141,6 +201,10 @@ test('create replay: a term the CALLER changed is still refused', { skip }, asyn
     { amount_raw: '2000000' },
     { completion_duration_seconds: 7_200 },
     { dispute_bond_raw: '500' },
+    // RESTORED by #41. Under #32 this replayed silently, because the deadline
+    // the caller sent was not comparable — the server rewrote it. A duration is
+    // never rewritten, so a different one is a genuine change of terms again.
+    { accept_window_seconds: 48 * 3600 },
   ]) {
     const res = await post(app, user, { ...body, ...changed })
     assert.strictEqual(res.statusCode, 409, `${JSON.stringify(changed)} → ${res.body}`)
@@ -152,36 +216,41 @@ test('create replay: a term the CALLER changed is still refused', { skip }, asyn
   }
 })
 
-test('create replay: a caller-changed deadline replays the first draft rather than refusing', { skip }, async () => {
-  // The cost of the fix, stated rather than left to be discovered: the accept
-  // deadline is no longer part of the operation key's terms, so reusing the id
-  // with a different one is an idempotent replay. What the caller gets back is
-  // the deadline that WON, and the row is not rewritten by the resend.
+test('create replay: a caller-changed WINDOW is refused, not silently replayed', { skip }, async () => {
+  // The cost #32 accepted, and #41 gives back. Reusing an operation id with a
+  // different accept window used to replay the first draft and hand back a
+  // deadline the caller had not asked for — the only honest answer available
+  // while the server owned that field. Now it is a 409 like every other term.
   const app = getApp()
   const user = await createTransactableUser(app)
   const operation_id = randomUUID()
-  const first_unix = Math.floor(Date.now() / 1000) + 86_400
-  const body = createEscrowBody({ creation_operation_id: operation_id, accept_deadline_unix: first_unix })
+  const body = createEscrowBody({ creation_operation_id: operation_id, accept_window_seconds: 12 * 3600 })
 
   const created = await post(app, user, body)
   assert.strictEqual(created.statusCode, 201, created.body)
   const escrow_id: string = created.json().escrow_id
 
-  const encoded = await withCapturedDeadlines(app, async () => {
-    const res = await post(app, user, { ...body, accept_deadline_unix: first_unix + 3_600 })
-    assert.strictEqual(res.statusCode, 200, res.body)
-    assert.strictEqual(res.json().escrow_id, escrow_id)
-  })
-  assert.deepStrictEqual(encoded, [first_unix], "the first draft's deadline, not the resent one")
-  assert.strictEqual(await deadlineOf(app, escrow_id), first_unix * 1000)
+  const changed = await post(app, user, { ...body, accept_window_seconds: 48 * 3600 })
+  assert.strictEqual(changed.statusCode, 409, changed.body)
+  assert.strictEqual(changed.json().code, 'VALIDATION_ERROR')
+
+  // The first draft is untouched by the refused resend.
+  const [row] = await app.db
+    .select({ window: escrows.accept_window_seconds })
+    .from(escrows)
+    .where(eq(escrows.id, escrow_id))
+  assert.strictEqual(row?.window, 12 * 3600, 'the refused resend rewrote nothing')
 })
 
-test('one-shot: a near-now deadline survives the 402 → X-PAYMENT resend', { skip }, async () => {
+test('one-shot: the 402 → X-PAYMENT resend still lands on ONE draft', { skip }, async () => {
+  // The agent round trip is a resend by construction: the same body goes out
+  // twice, once to be quoted and once with the payment. Under #32 the quote
+  // itself moved the deadline, so the second call was refused for the server's
+  // own edit. With the window caller-owned there is nothing left to move.
   const app = getApp()
   await seedAltChain(app)
   const agent = await registerAgent(app)
-  const sent_unix = Math.floor(Date.now() / 1000) + NEAR_SECONDS
-  const body = agentTaskBody({ accept_deadline_unix: sent_unix })
+  const body = agentTaskBody({ accept_window_seconds: WINDOW_SECONDS })
 
   const quote = await app.inject({
     method: 'POST',
@@ -191,12 +260,7 @@ test('one-shot: a near-now deadline survives the 402 → X-PAYMENT resend', { sk
   })
   assert.strictEqual(quote.statusCode, 402, quote.body)
   const task_id = quote.json<AgentTaskPaymentRequired>().task_id
-  // The quote goes through prepareDraftCreate, so the 402 itself refreshed it.
-  const refreshed = await deadlineOf(app, task_id)
-  assert.ok(refreshed > sent_unix * 1000, 'the quote moved the deadline forward')
 
-  // THE REGRESSION: the same body resent with the payment. 409 before the fix,
-  // which stranded the agent with a signed authorization and no way to spend it.
   const paid = await app.inject({
     method: 'POST',
     url: apiRoutes.agent.tasks,
@@ -210,4 +274,74 @@ test('one-shot: a near-now deadline survives the 402 → X-PAYMENT resend', { sk
 
   const drafts = await app.db.select({ id: escrows.id }).from(escrows)
   assert.strictEqual(drafts.length, 1, 'one draft across both calls')
+})
+
+test('one-shot: an out-of-range window is refused before any draft exists', { skip }, async () => {
+  // #40, now a property of the type rather than a missing check.
+  const app = getApp()
+  await seedAltChain(app)
+  const agent = await registerAgent(app)
+
+  const res = await app.inject({
+    method: 'POST',
+    url: apiRoutes.agent.tasks,
+    headers: authHeader(agent.token),
+    payload: agentTaskBody({ accept_window_seconds: Date.now() }), // milliseconds, the #40 shape
+  })
+
+  assert.strictEqual(res.statusCode, 422, res.body)
+  assert.match(res.json().message, /accept_window_seconds/)
+  const drafts = await app.db.select({ id: escrows.id }).from(escrows)
+  assert.strictEqual(drafts.length, 0, 'a refused body leaves nothing behind')
+})
+
+test('two builds of the same draft encode the SAME accept deadline', { skip }, async () => {
+  // The agent one-shot signs an EIP-3009 authorization whose nonce is
+  // keccak256 of the create params, and `acceptDeadline` is INSIDE that struct
+  // (chains/evm/create-params.ts). The 402 quote and the X-PAYMENT resend each
+  // go through the same preparation, so a deadline re-derived from the clock on
+  // both gives two different nonces the moment the pair straddles a one-second
+  // boundary — and the relay then refuses the agent's own signature with
+  // "authorization.nonce must be the hash of the quoted create parameters".
+  //
+  // Real agents take longer than a second to sign, so this is not a race the
+  // flow occasionally loses; it is one it almost always loses. MEASURED: the
+  // evm-relay anvil suite failed on exactly that message.
+  const app = getApp()
+  const user = await createTransactableUser(app)
+  const body = createEscrowBody({ creation_operation_id: randomUUID(), accept_window_seconds: WINDOW_SECONDS })
+
+  const first = await post(app, user, body)
+  assert.strictEqual(first.statusCode, 201, first.body)
+  const escrow_id: string = first.json().escrow_id
+
+  const encoded = await withCapturedDeadlines(app, async () => {
+    assert.strictEqual((await buildCreate(app, user, escrow_id)).statusCode, 200)
+    await new Promise((resolve) => setTimeout(resolve, 1_100)) // cross a second boundary
+    assert.strictEqual((await buildCreate(app, user, escrow_id)).statusCode, 200)
+  })
+
+  assert.strictEqual(encoded.length, 2)
+  assert.strictEqual(
+    encoded[0],
+    encoded[1],
+    'the second build re-derived the deadline, invalidating a nonce an agent may already have signed',
+  )
+})
+
+test('the accept-window floor must outlast a relay quote, or the nonce fix is inert', () => {
+  // Not DB-backed, so it runs everywhere — this guards an invariant, not a route.
+  //
+  // `deriveAcceptDeadline` — the rule both build paths share — reuses a stored
+  // deadline only while it outlives `now + RELAY_QUOTE_TTL_SECONDS`. A freshly
+  // derived one is `now + accept_window_seconds`, so reuse can only happen if the SMALLEST
+  // window a caller may choose is longer than a quote's life. Raise the quote
+  // TTL above that floor — a natural change the first time an agent needs
+  // longer to sign — and every build re-derives again, silently restoring the
+  // failure where the relay refuses the agent's own signature.
+  assert.ok(
+    MIN_ACCEPT_WINDOW_SECONDS > RELAY_QUOTE_TTL_SECONDS,
+    `the shortest accept window (${MIN_ACCEPT_WINDOW_SECONDS}s) must exceed the relay quote TTL ` +
+      `(${RELAY_QUOTE_TTL_SECONDS}s), or a quote and its payment can never agree on a deadline`,
+  )
 })

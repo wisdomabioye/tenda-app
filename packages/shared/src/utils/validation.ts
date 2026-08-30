@@ -7,6 +7,7 @@ import {
 } from '../constants/assets'
 import { parseUnits, sanitizeDecimalText } from './units'
 import { isAmountRaw } from './amount-raw'
+import { ACCEPT_DEADLINE_OPTIONS, SECONDS_PER_HOUR } from '../constants/escrow'
 
 /** E.164 phone format, e.g. +2348012345678 (stage-1 OTP routes). */
 export const E164_RE = /^\+[1-9]\d{7,14}$/
@@ -120,12 +121,38 @@ export function isValidGigAmountRaw(asset: string, amount_raw: string): boolean 
   return value >= BigInt(min_raw) && value <= BigInt(max_raw)
 }
 
+/**
+ * The shape both duration rails share: a whole number of seconds inside an
+ * inclusive range. Named once because #41 added the second rail and copying the
+ * body would have meant two places to fix if the rule ever gains a case.
+ */
+function isIntegerSecondsInRange(seconds: number, min: number, max: number): boolean {
+  return Number.isInteger(seconds) && seconds >= min && seconds <= max
+}
+
 export function isValidCompletionDuration(seconds: number): boolean {
-  return (
-    Number.isInteger(seconds) &&
-    seconds >= MIN_COMPLETION_DURATION_SECONDS &&
-    seconds <= MAX_COMPLETION_DURATION_SECONDS
-  )
+  return isIntegerSecondsInRange(seconds, MIN_COMPLETION_DURATION_SECONDS, MAX_COMPLETION_DURATION_SECONDS)
+}
+
+/**
+ * Accept-window bounds, DERIVED from the option set both composers offer so the
+ * pickers and the API can never disagree about the rail (the rule #52
+ * established for the completion duration).
+ *
+ * This bound is the reason #41 moved the wire to a duration. An absolute
+ * deadline has no natural ceiling, so it never got one: the only checks were
+ * "is an integer" and "is in the future", and a caller passing `Date.now()` in
+ * MILLISECONDS by mistake was accepted as a unix SECOND — a deadline in the
+ * year 58,633, minted as a draft and handed back as a transaction to sign. A
+ * duration has an obvious range, and this is it.
+ */
+export const MIN_ACCEPT_WINDOW_SECONDS =
+  Math.min(...ACCEPT_DEADLINE_OPTIONS.map((option) => option.hours)) * SECONDS_PER_HOUR
+export const MAX_ACCEPT_WINDOW_SECONDS =
+  Math.max(...ACCEPT_DEADLINE_OPTIONS.map((option) => option.hours)) * SECONDS_PER_HOUR
+
+export function isValidAcceptWindow(seconds: number): boolean {
+  return isIntegerSecondsInRange(seconds, MIN_ACCEPT_WINDOW_SECONDS, MAX_ACCEPT_WINDOW_SECONDS)
 }
 
 // Maximum records per page — prevents runaway queries on all paginated endpoints

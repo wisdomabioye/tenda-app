@@ -51,7 +51,7 @@ const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
 /** Terms shared by a request body and the row a competing writer inserts. */
-const ACCEPT_DEADLINE_UNIX = Math.floor(Date.now() / 1000) + 86_400
+const ACCEPT_WINDOW_SECONDS = 24 * 3600
 const COMPLETION_SECONDS = 3_600
 const AMOUNT_RAW = '1000000'
 /** What the competing writer asks for instead, in the different-terms case. */
@@ -61,7 +61,7 @@ function draftBody(operation_id: string): CreateEscrowRequestBody {
   return createEscrowBody({
     creation_operation_id: operation_id,
     amount_raw: AMOUNT_RAW,
-    accept_deadline_unix: ACCEPT_DEADLINE_UNIX,
+    accept_window_seconds: ACCEPT_WINDOW_SECONDS,
     completion_duration_seconds: COMPLETION_SECONDS,
   })
 }
@@ -180,7 +180,10 @@ test('create replay: a race winner with DIFFERENT terms is 409, and leaves one r
         // matches, so the refusal is about the terms and not about the row
         // being unrecognisable.
         amount_raw: RIVAL_AMOUNT_RAW,
-        accept_deadline: new Date(ACCEPT_DEADLINE_UNIX * 1000),
+        // Staged with the SAME window the body sends: #41 made the window one
+        // of the compared terms, so a row staged with the fixture default would
+        // now be a genuine mismatch rather than a race to converge on.
+        accept_window_seconds: ACCEPT_WINDOW_SECONDS,
         completion_duration_seconds: COMPLETION_SECONDS,
       })
     },
@@ -231,7 +234,10 @@ test('create replay: a race winner with the SAME terms hands back that draft (th
         creator_id: user.row.id,
         creation_operation_id: operation_id,
         amount_raw: AMOUNT_RAW,
-        accept_deadline: new Date(ACCEPT_DEADLINE_UNIX * 1000),
+        // Staged with the SAME window the body sends: #41 made the window one
+        // of the compared terms, so a row staged with the fixture default would
+        // now be a genuine mismatch rather than a race to converge on.
+        accept_window_seconds: ACCEPT_WINDOW_SECONDS,
         completion_duration_seconds: COMPLETION_SECONDS,
       })
       winner_id = row.id

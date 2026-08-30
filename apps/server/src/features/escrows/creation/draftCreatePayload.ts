@@ -13,7 +13,7 @@ import type { CreateEscrowPayload } from '@server/chains/types'
 import type { EscrowRow } from '@server/lib/escrow-routes'
 
 export interface DraftWindows {
-  /** The accept deadline the transaction will encode (a draft may have had its lapsed one refreshed). */
+  /** The accept deadline the transaction will encode — DERIVED at build from the draft's window (#41), never the instant a caller sent. */
   accept_deadline: Date
   completion_duration_seconds: number
 }

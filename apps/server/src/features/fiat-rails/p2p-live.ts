@@ -204,6 +204,10 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
             amount_raw: input.asset_amount_raw,
             creator_id: input.user_id,
             status: 'draft',
+            // Stated, not left to the column default: this row's window is the
+            // fact `prepareDraftCreate` re-derives the deadline from at build
+            // (#41), so the two must be written from the same constant here.
+            accept_window_seconds: DEFAULT_ACCEPT_WINDOW_SECONDS,
             accept_deadline: new Date(Date.now() + DEFAULT_ACCEPT_WINDOW_SECONDS * 1000),
             completion_duration_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
           })

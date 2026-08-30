@@ -71,7 +71,7 @@ export function agentTaskBody(overrides: Partial<AgentTaskBody> = {}): AgentTask
     chain_id: TEST_CHAIN_ID_ALT,
     asset: TEST_ASSET_ALT,
     amount_raw: AGENT_TASK_AMOUNT_RAW,
-    accept_deadline_unix: Math.floor(Date.now() / 1000) + 3_600,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 3_600,
     title: 'Photograph the storefront at 12 Broad St',
     category: 'service',

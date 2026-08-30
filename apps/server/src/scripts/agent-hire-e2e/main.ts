@@ -18,7 +18,7 @@
  * claim on the happy path.
  */
 import 'dotenv/config'
-import { apiRoutes } from '@tenda/shared'
+import { type AgentTaskBody, apiRoutes, MIN_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
 import { actorAccount, chainCtx, mint, native, sendUnsigned, usdc } from './chain'
 import {
   buildTransition,
@@ -110,12 +110,16 @@ async function main(): Promise<void> {
   console.log(`   worker ${w.how} → ${w.id}`)
 
   phase('Agent posts the task — POST /v1/agent/tasks (no X-PAYMENT) → 402')
-  const body = {
+  // TYPED, so the compiler catches the next wire change instead of a 422 at
+  // run time: this literal still carried `accept_deadline_unix` after #41
+  // replaced it, and nothing noticed until an audit read it.
+  const body: AgentTaskBody = {
     creation_operation_id: newOperationId(),
     chain_id: CHAIN_ID,
     asset: 'USDC_0G',
     amount_raw: AMOUNT.toString(),
-    accept_deadline_unix: Math.floor(Date.now() / 1000) + 3600,
+    // The shortest window the API allows — this listing exists for one run.
+    accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS,
     completion_duration_seconds: 3600,
     title: 'Summarise three PDFs into one brief',
     category: 'digital',

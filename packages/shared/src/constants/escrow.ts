@@ -35,6 +35,14 @@ export function isEscrowTxType(v: unknown): v is EscrowTxType {
 export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60
 
 /**
+ * Seconds in an hour — the unit `ACCEPT_DEADLINE_OPTIONS` is authored in and
+ * the wire is measured in. Named because #41 converts between the two in three
+ * places (the bound, and each composer), and three loose `3600`s is how the
+ * pickers and the API drift apart.
+ */
+export const SECONDS_PER_HOUR = 3_600
+
+/**
  * Selectable accept-window options (in hours) for the create flows — how long
  * an escrow stays open for a counterparty to accept. Shared by the gig form and
  * the exchange offer form (both are escrows); the server only requires a future

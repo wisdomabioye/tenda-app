@@ -62,7 +62,11 @@ test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.ok(AGENT_API_STABILITY.some((line) => /anonymous/i.test(line) && /bearer/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /never removed/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /is_agent/.test(line)))
-  assert.strictEqual(AGENT_API_VERSION, '1.0.0')
+  // Pinned so a bump is never incidental. 2.0.0 is the first MAJOR: #41 renamed
+  // and retyped a REQUEST field on POST /v1/agent/tasks (accept_deadline_unix →
+  // accept_window_seconds), which the response-field promise below does not
+  // cover and which a caller must act on.
+  assert.strictEqual(AGENT_API_VERSION, '2.0.0')
 })
 
 test('the four public gig reads are GET-only and the two agent writes POST-only, all spelled from the route map', () => {

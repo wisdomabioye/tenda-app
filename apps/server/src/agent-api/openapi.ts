@@ -39,11 +39,25 @@ export const SECURITY_SCHEMES: Readonly<Record<SecuritySchemeName, SecuritySchem
 export const AGENT_API_DOCUMENT_PATH = '/v1/openapi.json'
 
 /**
- * The contract line. 1.0.0 (#19) ADDS the write surface — POST /v1/agent/register
+ * The contract line. 1.0.0 (#19) ADDED the write surface — POST /v1/agent/register
  * and POST /v1/agent/tasks — and `is_agent` on UserRef; nothing v0 documented
- * changed, so a v0 client keeps working unchanged.
+ * changed, so a v0 client kept working unchanged.
+ *
+ * 2.0.0 (#41) is the first BREAKING change, and it is deliberate. POST
+ * /v1/agent/tasks took `accept_deadline_unix`, an absolute instant the caller
+ * authored and the server then silently moved forward when it was about to
+ * lapse. It now takes `accept_window_seconds`, a bounded DURATION, and the
+ * server derives the on-chain deadline when it builds the funding transaction.
+ * A caller still sending the old field is refused rather than quietly
+ * defaulted — the whole point is that nothing about the accept window is
+ * decided behind the caller's back any more.
+ *
+ * Taken as a clean break rather than accepting both spellings because the
+ * refresh path is what #41 exists to delete, and it cannot go while the
+ * absolute field still works. Pre-mainnet, with no external consumer bound to
+ * the document, is when that costs least.
  */
-export const AGENT_API_VERSION = '1.0.0'
+export const AGENT_API_VERSION = '2.0.0'
 
 /** Seconds a fetched document may be cached — it changes only with a deploy. */
 export const AGENT_API_CACHE_SECONDS = 300
@@ -54,6 +68,7 @@ export const AGENT_API_STABILITY = [
   'Posting a task is ONE call: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
   'Every account created through /v1/agent/register carries is_agent = true on every surface that shows it; humans always see when the other side is software.',
   'Documented response fields are never removed, renamed or retyped. Fields may be ADDED; clients must ignore fields they do not know.',
+  'REQUEST fields carry no such freeze, and the major version is how you learn one changed: 2.0.0 replaced accept_deadline_unix with accept_window_seconds on POST /v1/agent/tasks. Check info.version before assuming a body still validates.',
   'Enumerations (proof types, categories, statuses, countries, chain ids, sort keys, error codes) are append-only.',
   'Every non-2xx answer is the ApiError envelope: statusCode, error, message, code, and an optional machine-readable details object.',
   'Amounts are base-unit integers carried as decimal strings; timestamps are ISO-8601 UTC; ids are UUIDs; chain ids are CAIP-2.',

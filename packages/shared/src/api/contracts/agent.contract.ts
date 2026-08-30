@@ -44,7 +44,9 @@ export interface AgentTaskBody extends Omit<CreateGigDetailsBody, 'escrow_id'> {
   chain_id: string
   asset: string
   amount_raw: string
-  accept_deadline_unix: number
+  /** How long the listing stays open for a worker to accept. The server derives
+   *  the absolute deadline from this when it BUILDS the create tx (#41). */
+  accept_window_seconds: number
   completion_duration_seconds: number
   dispute_bond_raw?: string
   /** Direct invite: the one worker who may accept (they need a wallet on the chain — 422 otherwise). */

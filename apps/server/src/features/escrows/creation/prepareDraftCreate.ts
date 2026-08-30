@@ -4,16 +4,16 @@
  * checks are exactly the ones that must never differ between them:
  *
  *   ownership → still a draft → not taken down → no create already in flight
- *   → completion window (offramp drafts may lack one) → refreshed accept
- *   deadline → chain configured → first-transaction gate → signer preference
- *   validated → assignee wallet re-resolved → the row RE-STAMPED with what
- *   the transaction will encode.
+ *   → completion window (offramp drafts may lack one) → accept deadline
+ *   DERIVED from the draft's window → chain configured → first-transaction
+ *   gate → signer preference validated → assignee wallet re-resolved → the
+ *   row RE-STAMPED with what the transaction will encode.
  *
  * Extracted from build-create (#18) when the relayed funding route needed the
  * identical preamble; the comments that justify each step travelled with it.
  */
 import { and, eq } from 'drizzle-orm'
-import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode, type SignerPreferenceBody } from '@tenda/shared'
+import { ErrorCode, type SignerPreferenceBody } from '@tenda/shared'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
@@ -24,10 +24,7 @@ import type { ChainAdapter, ChainRegistry, CreateEscrowPayload } from '@server/c
 import type { AppDatabase } from '@server/plugins/db'
 import { hasPendingEscrowCreateTransaction } from './hasPendingEscrowCreateTransaction'
 import { draftCreatePayload } from './draftCreatePayload'
-
-/** Deadlines closer than this get refreshed, the program rejects a create
- *  whose accept window is already (about to be) over. */
-const REFRESH_MARGIN_MS = 60_000
+import { acceptDeadlineMoved, deriveAcceptDeadline } from './deriveAcceptDeadline'
 
 export interface PreparedDraftCreate {
   adapter: ChainAdapter
@@ -88,13 +85,10 @@ export async function prepareDraftCreate(
     )
   }
 
-  // Refresh a lapsed/missing accept deadline (pre-publish: the listing window
-  // is ours to restart, the offer terms are untouched).
-  const now = Date.now()
-  let accept_deadline = escrow.accept_deadline
-  if (accept_deadline === null || accept_deadline.getTime() <= now + REFRESH_MARGIN_MS) {
-    accept_deadline = new Date(now + DEFAULT_ACCEPT_WINDOW_SECONDS * 1000)
-  }
+  // ONE rule, shared with the replay branch of POST /v1/escrows — reuse a
+  // stored instant while a quote over it could still be live, redraw a lapsed
+  // one. `deriveAcceptDeadline` carries the whole argument.
+  const accept_deadline = deriveAcceptDeadline(escrow, new Date())
 
   // The chain may have been deconfigured since the draft was created (e.g.
   // BASE env removed), surface a clean 503, not a raw throw.
@@ -140,8 +134,12 @@ export async function prepareDraftCreate(
   // contract it is no longer being built against, and the pending-create
   // guard above is what stops this racing a create already in flight.
   const escrow_contract = normalizeContractAddress(adapter.namespace, adapter.escrowAddress)
+  // Only when something actually moved. `escrows.updated_at` auto-bumps on any
+  // Drizzle update, and a build that changes nothing is not an edit to the
+  // draft — the agent one-shot alone lands here twice (the 402 quote and the
+  // X-PAYMENT resend), and neither is the user touching their listing.
   if (
-    accept_deadline !== escrow.accept_deadline ||
+    acceptDeadlineMoved(escrow.accept_deadline, accept_deadline) ||
     completion_duration_seconds !== escrow.completion_duration_seconds ||
     escrow_contract !== escrow.escrow_contract ||
     assigned_counterparty_address !== escrow.assigned_counterparty_address
@@ -156,7 +154,7 @@ export async function prepareDraftCreate(
     adapter,
     signer_address,
     // The same row → payload mapping POST /v1/escrows uses for a persisted
-    // draft, under the windows just refreshed above.
+    // draft, under the deadline just derived above.
     payload: draftCreatePayload(escrow, { accept_deadline, completion_duration_seconds }),
   }
 }

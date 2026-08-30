@@ -8,11 +8,14 @@
  */
 
 import {
-  ErrorCode,
   AMOUNT_RAW_PRECISION,
-  MAX_COMPLETION_DURATION_SECONDS,
-  MIN_COMPLETION_DURATION_SECONDS,
+  ErrorCode,
+  isValidAcceptWindow,
   isValidCompletionDuration,
+  MAX_ACCEPT_WINDOW_SECONDS,
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_ACCEPT_WINDOW_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
   type PermitSignatureBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
@@ -27,7 +30,7 @@ export interface CreateEscrowBody {
   chain_id?: unknown
   asset?: unknown
   amount_raw?: unknown
-  accept_deadline_unix?: unknown
+  accept_window_seconds?: unknown
   completion_duration_seconds?: unknown
   dispute_bond_raw?: unknown
   assigned_counterparty_id?: unknown
@@ -45,7 +48,7 @@ export interface ValidatedCreateEscrow {
   chain_id: ChainId
   asset: AssetId
   amount_raw: AmountRaw
-  accept_deadline_unix: number
+  accept_window_seconds: number
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw
   assigned_counterparty_id: string | null
@@ -115,16 +118,28 @@ export function validateCreateEscrow(
     fail(`dispute_bond_raw exceeds the maximum precision of ${AMOUNT_RAW_PRECISION} digits`)
   }
 
-  if (
-    typeof body.accept_deadline_unix !== 'number' ||
-    !Number.isInteger(body.accept_deadline_unix)
-  ) {
-    fail('accept_deadline_unix must be an integer unix timestamp')
+  // A DURATION, not an instant (#41). The caller cannot author a moment that
+  // is still in the future by the time the transaction is built — a draft may
+  // sit for days — so the server derives the deadline at build and the caller
+  // owns only how long the window should be.
+  //
+  // Bounded through the SAME predicate the pickers offer, so the clients and
+  // the API cannot disagree. The old absolute field had no ceiling at all:
+  // `Date.now()` in milliseconds passed as a unix second, and a year-58,633
+  // deadline was minted as a draft (#40, dissolved by this shape).
+  // Split the way `completion_duration_seconds` below splits it: the first
+  // message names the CONDITION that failed (not a number), the second owns the
+  // RANGE and says so precisely. Collapsing them tells a caller who sent
+  // "tomorrow" about a range, which is not their problem.
+  if (typeof body.accept_window_seconds !== 'number') {
+    fail('accept_window_seconds must be a number')
   }
-  const accept_deadline_unix = body.accept_deadline_unix
-  if (accept_deadline_unix <= Math.floor(deps.now().getTime() / 1000)) {
-    fail('accept_deadline_unix must be in the future')
+  if (!isValidAcceptWindow(body.accept_window_seconds)) {
+    fail(
+      `accept_window_seconds must be an integer between ${MIN_ACCEPT_WINDOW_SECONDS} and ${MAX_ACCEPT_WINDOW_SECONDS}`,
+    )
   }
+  const accept_window_seconds = body.accept_window_seconds
 
   // BOUNDED, not merely positive. The bound is the PRODUCT rail — the same
   // 90 days both composers offer, through the same shared predicate, so the
@@ -195,7 +210,7 @@ export function validateCreateEscrow(
     chain_id,
     asset,
     amount_raw,
-    accept_deadline_unix,
+    accept_window_seconds,
     completion_duration_seconds,
     dispute_bond_raw,
     assigned_counterparty_id,

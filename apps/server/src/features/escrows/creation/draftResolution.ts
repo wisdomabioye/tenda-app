@@ -25,10 +25,10 @@ import { hasPendingEscrowCreateTransaction } from './hasPendingEscrowCreateTrans
  * Every term a draft is CREATED from — the validator's output, minus the
  * permit (a signature, never persisted).
  *
- * Not all of them are replay-compared: `matchesTerms` owns that list and
- * deliberately excludes `accept_deadline_unix`, which the server rewrites
- * (#32). Adding a field here therefore does NOT enrol it in the replay
- * check — decide there, deliberately, which side of that line it belongs on.
+ * Not all of them are replay-compared: `matchesTerms` owns that list, and the
+ * line it draws is ownership — a term the CALLER authored is compared, a column
+ * the SERVER derives is not. Adding a field here therefore does NOT enrol it in
+ * the replay check; decide there, deliberately, which side it belongs on.
  */
 export type DraftTerms = Omit<ValidatedCreateEscrow, 'permit'>
 
@@ -40,6 +40,12 @@ export interface DraftIdentity {
 }
 
 export interface DraftInsert extends DraftIdentity {
+  /**
+   * The clock the provisional `accept_deadline` is anchored to — injected
+   * rather than read, so a test can place a draft at a chosen instant and the
+   * derivation stays the same one the validator used for this request.
+   */
+  now: Date
   escrow_id: string
   is_seeker: boolean
   unassign_window_seconds: number
@@ -55,20 +61,23 @@ export interface DraftInsert extends DraftIdentity {
  * mind — it changes on its own, and the caller is then refused for a
  * difference they did not make.
  *
- * That is why `accept_deadline` is NOT compared (#32). `prepareDraftCreate`
- * refreshes a deadline that is lapsed or inside its refresh margin and
- * PERSISTS it, so a draft whose create has been built once no longer holds
- * the instant the client sent. Measured on the real routes before the fix:
- * an identical body whose deadline was 30s out answered 409 on resend, one
- * 24h out replayed — which stranded the one-shot's 402 → X-PAYMENT round
- * trip and a POST /v1/escrows retry after build-create.
+ * That is why `accept_deadline` is NOT compared, and now never can be: it is
+ * DERIVED at every build from `accept_window_seconds` (#41), so it differs
+ * between two builds of the same draft by construction.
  *
- * Nothing else on the replay path reads the resent instant either: `replay`
- * hands back the ROW, and both callers rebuild the transaction from it. The
- * row's deadline was already authoritative everywhere but here. The cost,
- * taken deliberately: reusing an operation id with a genuinely different
- * deadline now replays the first draft instead of refusing — the correct
- * idempotent answer, and the response carries the deadline that won.
+ * The WINDOW is compared, and that is the term #32 had to give up. Before
+ * #41 the caller authored an absolute instant that the server then rewrote,
+ * so the field could not be evidence of anything — measured on the real
+ * routes, an identical body whose deadline was 30s out answered 409 on
+ * resend while one 24h out replayed, stranding the one-shot's 402 →
+ * X-PAYMENT round trip. A duration is caller-authored and never rewritten,
+ * so comparing it says exactly what it appears to say: resending the same
+ * window replays, resending a different one is a genuine change of terms.
+ *
+ * "Never rewritten" is the load-bearing half, so it is an invariant and not a
+ * habit: `accept_window_seconds` is written ONCE, by the insert below, and no
+ * other statement in the server sets it. Add one and this comparison starts
+ * reading a column the server owns — which is #32, reproduced.
  *
  * Same rule, one field over: the assignee is compared by
  * `assigned_counterparty_id` and not by `assigned_counterparty_address`,
@@ -94,6 +103,7 @@ function matchesTerms(row: EscrowRow, terms: DraftTerms): boolean {
     row.amount_raw === terms.amount_raw &&
     row.assigned_counterparty_id === terms.assigned_counterparty_id &&
     row.requires_approval === terms.requires_approval &&
+    row.accept_window_seconds === terms.accept_window_seconds &&
     row.completion_duration_seconds === terms.completion_duration_seconds &&
     row.dispute_bond_raw === terms.dispute_bond_raw
   )
@@ -183,7 +193,15 @@ export function draftColumns(args: DraftInsert): typeof escrows.$inferInsert & D
     // funds will not have moved with it. Re-attested from the EscrowCreated
     // log when the tx lands (lib/escrow-events).
     escrow_contract: args.escrow_contract,
-    accept_deadline: new Date(terms.accept_deadline_unix * 1000),
+    accept_window_seconds: terms.accept_window_seconds,
+    // Provisional, and only that. The OWNER's own list (/v1/users/:id/escrows
+    // serves drafts too) projects `accept_deadline` and the clients render it,
+    // so a draft cannot carry a blank where every other escrow shows a date.
+    // The expiry job does NOT read this — it filters status open/accepted
+    // (jobs/expire-escrows.ts). `prepareDraftCreate` re-derives the value from
+    // the window when the create is actually built, and THAT is what reaches
+    // the chain (#41).
+    accept_deadline: new Date(args.now.getTime() + terms.accept_window_seconds * 1000),
     completion_duration_seconds: terms.completion_duration_seconds,
     dispute_bond_raw: terms.dispute_bond_raw,
     is_seeker: args.is_seeker,

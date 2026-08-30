@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
 import {
-  reuseOrCreateEscrowCreationAttempt,
   type BankAccountSummary,
   type EscrowCreationAttempt,
+  reuseOrCreateEscrowCreationAttempt,
+  SECONDS_PER_HOUR,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { ApiClientError, randomUuid } from '@tenda/shared'
@@ -23,7 +24,6 @@ import {
 } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
-const SECONDS_PER_HOUR = 60 * 60
 
 export interface OfferSubmitArgs {
   option: ExchangeAssetOption
@@ -60,10 +60,9 @@ export function useOfferSell() {
         creationAttempt.current,
         [a.option.chainId, a.option.assetId, a.amountRaw, a.acceptHours,
           a.paymentWindowSeconds, a.account.id, a.fiatTotal, a.currency, a.rate],
-        () => Math.floor(Date.now() / 1000) + a.acceptHours * SECONDS_PER_HOUR,
         randomUuid,
       )
-      const { operationId, acceptDeadlineUnix } = creationAttempt.current
+      const { operationId } = creationAttempt.current
 
       // Before the draft exists: an underfunded seller gets a clear message
       // instead of a wallet prompt, a revert, and an orphan draft to clean up.
@@ -85,7 +84,8 @@ export function useOfferSell() {
         chain_id: a.option.chainId,
         asset: a.option.assetId,
         amount_raw: a.amountRaw,
-        accept_deadline_unix: acceptDeadlineUnix,
+        // A DURATION: the server anchors it when it builds the create (#41).
+        accept_window_seconds: a.acceptHours * SECONDS_PER_HOUR,
         completion_duration_seconds: a.paymentWindowSeconds,
         ...(signer !== undefined ? { signer_address: signer } : {}),
       })

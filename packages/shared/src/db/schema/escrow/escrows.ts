@@ -5,6 +5,7 @@
  */
 
 import { sql } from 'drizzle-orm'
+import { DEFAULT_ACCEPT_WINDOW_SECONDS } from '../../../constants/escrow'
 import {
   boolean,
   check,
@@ -103,6 +104,37 @@ export const escrows = pgTable(
      * `assigned_counterparty_id`.
      */
     assigned_counterparty_address: text('assigned_counterparty_address'),
+    /**
+     * How long the listing stays open for a counterparty to accept, as the
+     * CALLER authored it. Immutable once the draft exists.
+     *
+     * The duration is the durable fact; `accept_deadline` below is DERIVED from
+     * it at the moment a create transaction is built (#41). A draft can sit for
+     * days before it is published, so an absolute instant chosen at compose
+     * time is stale by then — both programs reject a create whose accept window
+     * has already closed. Recomputing from this makes that impossible rather
+     * than patching it afterwards.
+     *
+     * NOT NULL with a default so no row can lack one: rows written before this
+     * column existed are backfilled to exactly the window the old refresh path
+     * would have given them, and the server-opened offers in fiat-rails get the
+     * same documented default they already used.
+     */
+    accept_window_seconds: integer('accept_window_seconds')
+      .notNull()
+      .default(DEFAULT_ACCEPT_WINDOW_SECONDS),
+    /**
+     * DERIVED, never caller-authored: `<transaction build time> +
+     * accept_window_seconds` (#41). Read by the listing surfaces and the expiry
+     * job; encoded into the create tx as an absolute unix second, which is what
+     * both chains take.
+     *
+     * Re-derived when a build needs it, NOT on every build: a stored instant
+     * that still outlives a relay quote is reused as-is, because the agent's
+     * EIP-3009 create nonce is a hash over the params this value sits in — two
+     * builds of one task (the 402 and the payment) must agree on it. A lapsed
+     * one is redrawn, since both programs reject a create whose window closed.
+     */
     accept_deadline: timestamp('accept_deadline', { withTimezone: true }),
     completion_duration_seconds: integer('completion_duration_seconds'),
     completion_deadline: timestamp('completion_deadline', { withTimezone: true }),

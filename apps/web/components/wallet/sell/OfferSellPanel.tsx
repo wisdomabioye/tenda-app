@@ -16,6 +16,7 @@ import {
   getOfferMissingRequirement,
   parseUnits,
   payoutCurrencyForCountry,
+  SECONDS_PER_HOUR,
 } from '@tenda/shared'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
@@ -28,7 +29,6 @@ import { OfferDeadlines } from './OfferDeadlines'
 import { SellAssetAmount } from './SellAssetAmount'
 import { SELL_COPY } from './copy'
 
-const SECONDS_PER_HOUR = 60 * 60
 /**
  * Must resolve to an hours value present in ACCEPT_DEADLINE_OPTIONS, or the
  * panel opens with no chip selected (168h/7d is in the set).

@@ -7,7 +7,9 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
+  MAX_ACCEPT_WINDOW_SECONDS,
   MAX_COMPLETION_DURATION_SECONDS,
+  MIN_ACCEPT_WINDOW_SECONDS,
   MIN_COMPLETION_DURATION_SECONDS,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
@@ -35,7 +37,7 @@ function body(over: Partial<CreateEscrowBody> = {}): CreateEscrowBody {
     chain_id: 'solana:devnet',
     asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
-    accept_deadline_unix: NOW_UNIX + 3_600,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 7_200,
     ...over,
   }
@@ -61,7 +63,7 @@ test('valid exchange body normalizes (bond defaults to 0, no assignment)', () =>
     chain_id: 'solana:devnet',
     asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
-    accept_deadline_unix: NOW_UNIX + 3_600,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
@@ -131,10 +133,30 @@ test('dispute bond must be canonical when supplied', () => {
   expectRejects(body({ dispute_bond_raw: '-3' }), 422, /dispute_bond_raw/)
 })
 
-test('deadline must be a future integer', () => {
-  expectRejects(body({ accept_deadline_unix: NOW_UNIX }), 422, /future/)
-  expectRejects(body({ accept_deadline_unix: 1.5 }), 422, /integer/)
-  expectRejects(body({ accept_deadline_unix: 'tomorrow' as unknown as number }), 422, /integer/)
+test('the accept window must be an integer inside the rail the pickers offer', () => {
+  // #41 replaced an absolute deadline with a DURATION, and a duration has a
+  // natural ceiling — which the instant never had. Before, the only checks were
+  // "integer" and "in the future", so `Date.now()` sent in MILLISECONDS was
+  // accepted as a unix SECOND and minted a draft due in the year 58,633 (#40).
+  expectRejects(body({ accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS - 1 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: MAX_ACCEPT_WINDOW_SECONDS + 1 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: 0 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: -3600 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: 1.5 }), 422, /accept_window_seconds/)
+  // The CONDITION, not the range — the same distinction the completion-duration
+  // case below asserts, and the reason the check is two ifs rather than one.
+  expectRejects(body({ accept_window_seconds: 'tomorrow' as unknown as number }), 422, /must be a number$/)
+  // The exact shape #40 named: milliseconds where seconds were meant.
+  expectRejects(body({ accept_window_seconds: Date.now() }), 422, /accept_window_seconds/)
+})
+
+test('both ends of the rail are accepted', () => {
+  // The bound is derived from ACCEPT_DEADLINE_OPTIONS, so a value the pickers
+  // can produce must never be refused by the API.
+  const atMin = validateCreateEscrow(deps(), body({ accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS }))
+  const atMax = validateCreateEscrow(deps(), body({ accept_window_seconds: MAX_ACCEPT_WINDOW_SECONDS }))
+  assert.strictEqual(atMin.accept_window_seconds, MIN_ACCEPT_WINDOW_SECONDS)
+  assert.strictEqual(atMax.accept_window_seconds, MAX_ACCEPT_WINDOW_SECONDS)
 })
 
 test('completion duration must be a number at all', () => {
@@ -248,3 +270,4 @@ test('requires_approval: a non-boolean is a validation error', () => {
     expectRejects(gigBody({ requires_approval: bad }), 422, /must be a boolean/)
   }
 })
+

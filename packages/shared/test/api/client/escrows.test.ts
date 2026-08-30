@@ -39,7 +39,7 @@ test('initial creation uses its dedicated creation timeout', async () => {
     chain_id: 'solana:devnet',
     asset: 'SOL',
     amount_raw: '1000',
-    accept_deadline_unix: 2_000_000_000,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 86_400,
   }
 

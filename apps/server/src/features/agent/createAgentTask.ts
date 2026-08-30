@@ -68,8 +68,10 @@ export async function createAgentTask(
   }
 
   // Escrow terms: the same validator POST /v1/escrows runs, with kind fixed.
+  // ONE instant, shared with the draft's provisional accept deadline (#41).
+  const now = new Date()
   const input = validateCreateEscrow(
-    { hasChain: (chain_id) => fastify.chains.has(chain_id), now: () => new Date(), caller_user_id: user_id },
+    { hasChain: (chain_id) => fastify.chains.has(chain_id), now: () => now, caller_user_id: user_id },
     { ...body, kind: 'gig' },
   )
   const adapter = fastify.chains.get(input.chain_id)
@@ -93,6 +95,7 @@ export async function createAgentTask(
     escrow = (
       await insertDraft(fastify.db, {
         ...identity,
+        now,
         escrow_id: randomUUID(),
         is_seeker: account.is_seeker,
         unassign_window_seconds,

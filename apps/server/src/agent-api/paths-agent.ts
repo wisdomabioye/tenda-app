@@ -53,7 +53,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
         '400': errorResponse(`A malformed ${X_PAYMENT_HEADER} header, a listing field the validator refuses, or CONTENT_MODERATED`),
         '401': errorResponse('No or invalid bearer'),
         '403': errorResponse('Not an agent account, a wallet missing on the chain (WALLET_REQUIRED), or a standing restriction'),
-        '409': errorResponse('creation_operation_id reused with different terms (accept_deadline_unix is not one of them — the server may move it), or the draft already left the draft state / has a create in flight'),
+        '409': errorResponse('creation_operation_id reused with different terms — including a different accept_window_seconds, which #41 made comparable by moving the caller from an absolute deadline to a duration — or the draft already left the draft state / has a create in flight'),
         '422': errorResponse('Escrow terms the validator refuses, a signer_address that is not a linked wallet, an assigned_counterparty_id with no wallet on the chain (ASSIGNEE_WALLET_REQUIRED), RELAY_REJECTED (the artifact does not match the terms, signature, window or simulation) or RELAY_UNAVAILABLE (the asset cannot fund by signature)'),
         '503': errorResponse('RELAY_UNAVAILABLE: the chain has no relayer configured'),
       },
