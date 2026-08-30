@@ -9,7 +9,7 @@
  * module only words the ones that arrive.
  */
 
-import { ASSET_META, amountRawToDisplay } from '../constants/assets'
+import { amountRawToDisplay, getAssetMeta } from '../constants/assets'
 import type { EscrowTxType } from '../constants/escrow'
 import type { PartyRole } from '../utils/parties'
 import type { EscrowKind, UserEscrowTransaction } from '../types'
@@ -174,5 +174,5 @@ export function txDisplayAmount(
   if (raw === null) return null
   const amount = amountRawToDisplay(raw, tx.escrow.asset)
   if (amount !== null && amount <= 0) return null
-  return { amount, symbol: ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset }
+  return { amount, symbol: getAssetMeta(tx.escrow.asset)?.symbol ?? tx.escrow.asset }
 }

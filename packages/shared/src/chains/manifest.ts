@@ -26,7 +26,7 @@
  */
 
 import type { ChainNamespace } from '../db/schema/chains'
-import { ASSET_META } from '../constants/assets'
+import { getAssetMeta } from '../constants/assets'
 
 /** How gas is paid on a chain — selects the registry's per-chain dep wiring. */
 export type GasPolicy =
@@ -399,7 +399,7 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     seen.add(entry.id)
 
     for (const asset of entry.assets) {
-      if (ASSET_META[asset.id] === undefined) {
+      if (getAssetMeta(asset.id) === null) {
         throw new Error(`CHAIN_MANIFEST: asset '${asset.id}' on '${entry.id}' missing from ASSET_META`)
       }
       if (asset.roles.length === 0) {

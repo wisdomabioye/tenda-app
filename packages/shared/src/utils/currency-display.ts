@@ -3,7 +3,7 @@
  * apps/mobile/lib/currency.ts so amount/fiat/window formatting cannot drift
  * between the apps. Display only: never use these values for math.
  */
-import { ASSET_META, amountRawToDisplay } from '../constants/assets'
+import { amountRawToDisplay, getAssetMeta } from '../constants/assets'
 import {
   CURRENCY_META,
   DEFAULT_CURRENCY,
@@ -45,7 +45,7 @@ export function fiatRatePerUnit(
   asset: string,
 ): number | null {
   const solRate = rates?.[currency] ?? null
-  const meta = ASSET_META[asset]
+  const meta = getAssetMeta(asset)
   if (meta?.is_stable === true) {
     const usdRate = rates?.USD ?? null
     return solRate !== null && usdRate !== null && usdRate > 0 ? solRate / usdRate : null
@@ -80,7 +80,7 @@ export function toAssetPaymentDisplay(
   currency: SupportedCurrency,
 ): AssetPaymentDisplay {
   const amount = amountRawToDisplay(amount_raw, asset)
-  const symbol = ASSET_META[asset]?.symbol ?? asset
+  const symbol = getAssetMeta(asset)?.symbol ?? asset
   const perUnit = fiatRatePerUnit(rates, currency, asset)
   const fiat = amount !== null && perUnit !== null && perUnit > 0 ? amount * perUnit : null
   return { amount, symbol, fiat }

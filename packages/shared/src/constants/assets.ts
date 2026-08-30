@@ -38,6 +38,30 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
 }
 
 /**
+ * Display metadata for an asset id, or `null` when this build has none.
+ *
+ * `Object.hasOwn` rather than a bare index: a plain object inherits from
+ * Object.prototype, so `ASSET_META['__proto__']` — and 'constructor', and
+ * 'toString' — answer with something TRUTHY that is not an AssetMeta. A
+ * `=== undefined` guard never fires, `meta.decimals` is then undefined, and
+ * `10 ** undefined` is NaN: every money helper below printed the string 'NaN'
+ * where an unknown asset correctly shows `UNKNOWN_AMOUNT_DISPLAY`, and the
+ * prototype key itself was rendered as the ticker. MEASURED before the fix.
+ *
+ * The same guard `getPayoutSpec` applies to payout countries — one accessor per
+ * shared vocabulary, so `?? null` and `?.` idioms downstream mean what they say
+ * instead of being correct by accident.
+ *
+ * Not reachable from the wire today: the create validator pins `asset` to the
+ * seeded `assets` table. That is a property of one caller, though, and these
+ * helpers are exported and documented as answering null for what they do not
+ * know.
+ */
+export function getAssetMeta(asset: string): AssetMeta | null {
+  return Object.hasOwn(ASSET_META, asset) ? ASSET_META[asset] : null
+}
+
+/**
  * Every asset id that IS USDC, across chains. Derived from ASSET_META rather
  * than hardcoded, so adding `USDC_<CHAIN>` to the map above is enough.
  *
@@ -110,8 +134,8 @@ export const GIG_NATIVE_MAX_DISPLAY = '10000'
  * `splitAssetAmount` like every other surface.
  */
 export function amountRawToDisplay(amount_raw: string, asset: string): number | null {
-  const meta = ASSET_META[asset]
-  if (meta === undefined) return null
+  const meta = getAssetMeta(asset)
+  if (meta === null) return null
   return Number(amount_raw) / 10 ** meta.decimals
 }
 
@@ -171,7 +195,7 @@ export interface SplitAssetAmount {
  * `parseUnits` (utils/units), which are BigInt-exact — never this.
  */
 export function splitAssetAmount(amount_raw: string, asset: string): SplitAssetAmount {
-  const meta = ASSET_META[asset]
+  const meta = getAssetMeta(asset)
   const value = amountRawToDisplay(amount_raw, asset)
   return {
     amount: formatAmountOrUnknown(value, (v) =>

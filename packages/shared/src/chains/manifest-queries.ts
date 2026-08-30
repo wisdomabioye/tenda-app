@@ -7,7 +7,7 @@
  */
 
 import { CHAIN_MANIFEST, isNativeAsset, type ChainAsset, type ChainManifestEntry } from './manifest'
-import { ASSET_META } from '../constants/assets'
+import { getAssetMeta } from '../constants/assets'
 
 /** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
 export function chainById(id: string): ChainManifestEntry {
@@ -99,7 +99,18 @@ export function nativeCurrencyOf(entry: ChainManifestEntry): {
   symbol: string
   decimals: number
 } {
-  const meta = ASSET_META[nativeAssetOf(entry).id]
+  const asset = nativeAssetOf(entry)
+  const meta = getAssetMeta(asset.id)
+  // Cannot arise from CHAIN_MANIFEST: `assertManifestValid` runs at module load
+  // and refuses any manifest asset missing from ASSET_META. It IS reachable
+  // through this signature, which takes an ENTRY a caller can build — the suite
+  // exercises exactly that — so this throws rather than assembling a currency
+  // out of undefined. Worth the guard because `Record<string, AssetMeta>` used
+  // to claim every string key yields metadata, which is how a prototype key
+  // ('toString') reached the money helpers as a truthy non-AssetMeta.
+  if (meta === null) {
+    throw new Error(`chain '${entry.id}': native asset '${asset.id}' missing from ASSET_META`)
+  }
   return { name: meta.name ?? meta.symbol, symbol: meta.symbol, decimals: meta.decimals }
 }
 

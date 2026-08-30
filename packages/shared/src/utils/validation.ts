@@ -1,5 +1,5 @@
 import {
-  ASSET_META,
+  getAssetMeta,
   GIG_NATIVE_MAX_DISPLAY,
   GIG_NATIVE_MIN_DISPLAY,
   GIG_STABLE_MAX_DISPLAY,
@@ -75,7 +75,7 @@ export const MAX_COMPLETION_DURATION_SECONDS = 60 * 60 * 24 * 90 // 90 days
  * what the old code did by returning the lamport bounds.
  */
 export function gigAmountBounds(asset: string): { min_raw: string; max_raw: string } {
-  const meta = ASSET_META[asset]
+  const meta = getAssetMeta(asset)
   const decimals = meta?.decimals ?? 9
   const [min, max] =
     meta?.is_stable === true

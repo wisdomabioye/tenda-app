@@ -9,6 +9,7 @@ import {
   toAssetPaymentDisplay,
   fiatRatePerUnit,
 } from '../../src/utils/currency-display'
+import { INHERITED_OBJECT_KEYS } from '../helpers/inherited-keys'
 
 /** A populated cache: NGN 150,000 per SOL, USD 150 per SOL. */
 const RATES = { NGN: 150_000, USD: 150 }
@@ -173,4 +174,28 @@ test('a known currency is untouched by the fallback — it still gets its symbol
     assert.ok(!formatRate(15.4, code).startsWith(code), `formatRate ${code}`)
     assert.ok(!formatFiatShort(240_000, code).startsWith(code), `formatFiatShort ${code}`)
   }
+})
+
+/**
+ * `toAssetPaymentDisplay` documents `amount` as "null when this build has no
+ * metadata for the asset". A bare `ASSET_META[asset]` broke that promise for
+ * every inherited Object key: the lookup answered a truthy FUNCTION, so the
+ * undefined-guard never fired and `10 ** undefined` made the amount NaN — a
+ * figure, on a money surface, for an asset nobody knows. Both legs are checked
+ * here: the withheld amount AND the fiat that must not be computed from it.
+ */
+test('toAssetPaymentDisplay: an inherited Object key is an unknown asset, not a NaN amount', () => {
+  for (const key of INHERITED_OBJECT_KEYS) {
+    const shown = toAssetPaymentDisplay('5000000', key, RATES, 'NGN')
+    assert.equal(shown.amount, null, `${key} produced an amount`)
+    assert.equal(shown.fiat, null, `${key} produced a fiat figure`)
+    assert.equal(shown.symbol, key, 'the id still names what it is')
+  }
+})
+
+test('toAssetPaymentDisplay: a real asset is unaffected by that guard', () => {
+  // The control — nulls for everything would satisfy the test above.
+  const usdc = toAssetPaymentDisplay('5000000', 'USDC_SOL', RATES, 'NGN')
+  assert.equal(usdc.amount, 5)
+  assert.equal(usdc.symbol, 'USDC')
 })

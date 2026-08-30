@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   ASSET_META,
+  getAssetMeta,
   GIG_NATIVE_MAX_DISPLAY,
   GIG_NATIVE_MIN_DISPLAY,
   GIG_STABLE_MAX_DISPLAY,
@@ -10,6 +11,7 @@ import { formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   formatAssetAmount,
   splitAssetAmount,
 } from '../../src/constants/assets'
+import { INHERITED_OBJECT_KEYS } from '../helpers/inherited-keys'
 import { parseUnits, formatUnits } from '../../src/utils/units'
 
 test('ASSET_META: every entry has a symbol, non-negative decimals, boolean is_stable, coingeckoId', () => {
@@ -179,4 +181,47 @@ test('formatAmountOrUnknown: null never reaches the formatter', () => {
 
   assert.equal(out, UNKNOWN_AMOUNT_DISPLAY)
   assert.equal(ran, false)
+})
+
+/**
+ * A plain object inherits from Object.prototype, so a bare `ASSET_META[asset]`
+ * answers with something TRUTHY — a FUNCTION — for '__proto__', 'constructor',
+ * 'toString' and friends. `meta === undefined` never fires, `meta.decimals` is
+ * undefined, and `10 ** undefined` is NaN: MEASURED, every money helper printed
+ * the string 'NaN' where an unknown asset correctly shows an em dash, and the
+ * prototype key itself was rendered as the ticker.
+ *
+ * The same defect `getPayoutSpec` fixed for payout countries, one vocabulary
+ * over. Not reachable from the wire today — the create validator pins `asset`
+ * to the seeded `assets` table — but these helpers are exported, documented as
+ * answering null for anything they do not know, and consumed by both clients
+ * from server-supplied ids.
+ */
+test('getAssetMeta: resolves a real asset and refuses everything else', () => {
+  assert.deepEqual(getAssetMeta('USDC_SOL'), ASSET_META.USDC_SOL)
+  assert.equal(getAssetMeta('MYSTERY'), null)
+  assert.equal(getAssetMeta(''), null)
+})
+
+test('getAssetMeta: an inherited Object key is not an asset', () => {
+  for (const key of INHERITED_OBJECT_KEYS) {
+    assert.equal(getAssetMeta(key), null, `${key} resolved to asset metadata`)
+  }
+})
+
+test('amountRawToDisplay: an inherited Object key answers null, never NaN', () => {
+  for (const key of INHERITED_OBJECT_KEYS) {
+    assert.equal(amountRawToDisplay('1234', key), null, `${key} produced a figure`)
+  }
+})
+
+test('splitAssetAmount / formatAssetAmount: an inherited Object key shows no figure', () => {
+  for (const key of INHERITED_OBJECT_KEYS) {
+    assert.deepEqual(
+      splitAssetAmount('1000', key),
+      { amount: UNKNOWN_AMOUNT_DISPLAY, symbol: key },
+      `${key} rendered a value`,
+    )
+    assert.equal(formatAssetAmount('1000', key), `${UNKNOWN_AMOUNT_DISPLAY} ${key}`)
+  }
 })

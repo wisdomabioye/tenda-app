@@ -446,6 +446,29 @@ test('nativeCurrencyOf falls back to symbol when the asset omits a name', () => 
   assert.deepEqual(nativeCurrencyOf(synthetic), { name: 'USDC', symbol: 'USDC', decimals: 6 })
 })
 
+test('nativeCurrencyOf refuses a native asset ASSET_META does not know', () => {
+  // The manifest's own load-time check makes this unreachable through
+  // CHAIN_MANIFEST, but `nativeCurrencyOf` takes an ENTRY, so a caller can
+  // reach it — and it must fail loudly rather than build a currency out of
+  // undefined. The bare `ASSET_META[id]` this replaced could not: an id that is
+  // an Object.prototype key ('toString') answered a truthy FUNCTION, and the
+  // result was { name: undefined, symbol: undefined, decimals: undefined }.
+  const unknown: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'none',
+    assets: [{ id: 'NOT_IN_ASSET_META', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => nativeCurrencyOf(unknown), /missing from ASSET_META/)
+
+  // And the prototype-key form specifically — the one that used to slip past.
+  const inherited: ChainManifestEntry = {
+    ...unknown,
+    assets: [{ id: 'toString', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => nativeCurrencyOf(inherited), /missing from ASSET_META/)
+})
+
 test('evmManifestEntries returns only EVM chains, in manifest order', () => {
   const evm = evmManifestEntries()
   assert.ok(evm.length > 0)
