@@ -107,6 +107,71 @@ export function schemaFor(entry: ChainManifestEntry): readonly SecretFieldSpec[]
   return schema
 }
 
+/**
+ * What a field must contain, in words an operator can act on.
+ *
+ * The boot error used to name only the variable, so the one person who needs
+ * to fix it — someone reading container logs, usually without the source to
+ * hand — had to open this file to learn what shape was wanted. Naming the
+ * expectation costs nothing and removes that hop.
+ */
+export function describeKind(kind: SecretKind): string {
+  switch (kind) {
+    case 'url':
+      return `an absolute ${CHAIN_ENDPOINT_PROTOCOLS.join(' or ')} URL`
+    case 'evmAddr':
+      return '0x followed by 40 hex characters'
+    case 'evmKey':
+      return '0x followed by 64 hex characters'
+    case 'base58':
+      return '32 to 44 base58 characters'
+    case 'base58Key':
+      return `a base58-encoded ${ED25519_SECRET_KEY_BYTES}-byte secret key`
+    case 'uint':
+      return 'a decimal integer'
+    case 'bool':
+      return "either 'true' or 'false'"
+    case 'str':
+      return 'a non-empty value'
+  }
+}
+
+/** Quote characters an env file or compose entry can leave wrapped around a value. */
+const QUOTE_CHARS = new Set(['"', "'", '`'])
+
+/**
+ * What ACTUALLY arrived, described without ever reproducing it.
+ *
+ * These fields are private keys and metered RPC endpoints, so no part of the
+ * value may reach a log — not a prefix, not a redacted middle. Length and a
+ * few structural facts are enough to separate the causes that matter and give
+ * away nothing: an EVM key is publicly 66 characters, so saying "68 characters,
+ * wrapped in quotes" identifies the mistake exactly while revealing no key
+ * material. Quoting is called out first because `env_file` in Docker Compose
+ * does NOT strip quotes, which is the most common way this fails.
+ */
+export function describeShape(kind: SecretKind, value: string): string {
+  const notes = [`${value.length} character${value.length === 1 ? '' : 's'}`]
+  const first = value[0]
+  if (value.length >= 2 && first !== undefined && QUOTE_CHARS.has(first) && value.endsWith(first)) {
+    // Return here rather than fall through. A quoted key also trips "no 0x
+    // prefix", which is true of the stored string and useless to an operator
+    // looking at an env file where the 0x is plainly visible — it points at
+    // the wrong thing. The quotes ARE the bug; say only that.
+    notes.push('wrapped in quotes')
+    return notes.join(', ')
+  }
+  // Whitespace SURVIVED the trim in optionalEnv, so any left is internal — a
+  // wrapped line or a value pasted with a break in it.
+  if (/\s/.test(value)) notes.push('contains whitespace')
+  if (kind === 'evmAddr' || kind === 'evmKey') {
+    if (!/^0x/i.test(value)) notes.push('no 0x prefix')
+    else if (!/^0x[0-9a-fA-F]*$/.test(value)) notes.push('non-hex characters after 0x')
+  }
+  if (kind === 'url' && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) notes.push('no scheme://')
+  return notes.join(', ')
+}
+
 export function isValid(kind: SecretKind, value: string): boolean {
   switch (kind) {
     case 'url':

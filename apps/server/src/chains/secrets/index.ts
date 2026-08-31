@@ -27,7 +27,14 @@
 
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
 import { optionalEnv } from '@server/lib/env'
-import { chainEnvPrefix, isValid, knownChainEnvKeys, schemaFor } from './schema'
+import {
+  chainEnvPrefix,
+  describeKind,
+  describeShape,
+  isValid,
+  knownChainEnvKeys,
+  schemaFor,
+} from './schema'
 import { assemble } from './resolve'
 import type { EvmChainSecret, ResolvedChainSecret, SolanaChainSecret } from './resolve'
 
@@ -79,7 +86,12 @@ export function loadChainSecrets(
     for (const spec of schema) {
       const value = present.get(spec.key)
       if (value !== undefined && !isValid(spec.kind, value)) {
-        malformed.push(`${prefix}_${spec.envSuffix}`)
+        // Name the expectation AND the observed shape. The value itself never
+        // appears — these are private keys and metered endpoints, and this
+        // string goes to container logs. See describeShape.
+        malformed.push(
+          `${prefix}_${spec.envSuffix} (expected ${describeKind(spec.kind)}, got ${describeShape(spec.kind, value)})`,
+        )
       }
     }
 
