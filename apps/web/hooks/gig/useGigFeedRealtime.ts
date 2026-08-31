@@ -34,6 +34,7 @@ import {
   type GigSummary,
 } from '@tenda/shared'
 import { useResyncWhileDisconnected } from '@/hooks/connectivity/useResyncWhileDisconnected'
+import { useIsomorphicLayoutEffect } from '@/hooks/timing/useIsomorphicLayoutEffect'
 import { subscribeGigFeedChannel } from '@/stores/realtime.store'
 
 /** What the rendered page already told us about each row's version. */
@@ -85,7 +86,13 @@ export function useGigFeedRealtime<T extends Revisioned>(args: GigFeedRealtimeAr
     revisions: revisionsFrom(args.items),
   })
 
-  useEffect(() => {
+  // LAYOUT, not passive (#46). The listener below runs outside React, so these
+  // refs must already describe the committed render by the time any frame can
+  // arrive. A passive effect is deferred past the commit, and a frame landing
+  // in that gap was reduced against the previous list and an unseeded revision
+  // map — dropping rows and applying superseded frames, because the staleness
+  // guard only engages for a revision it already knows.
+  useIsomorphicLayoutEffect(() => {
     argsRef.current = args
     // Rows come from the render; revisions ACCUMULATE. A row the server has
     // since dropped still has a revision worth remembering, or its late frame

@@ -81,6 +81,30 @@ export function evmListenerDeps(fastify: FastifyInstance): EvmPollTickDeps[] {
         'polling listener: ESCROW_DEPLOY_BLOCK unset, first-run backfill limited to the recency window',
       )
     }
+    // Current AND superseded contracts. `fastify.contracts` is already built
+    // (this plugin depends on `chains`, which decorates it), so the watch set
+    // needs no query of its own and cannot disagree with the set the build and
+    // verify paths use.
+    const escrow_contracts = evmWatchSet(fastify, secret.chainId, secret.escrow)
+    if (escrow_contracts.length === 0) {
+      // REFUSE rather than watch (#45). An empty address array is not "match
+      // nothing" to `eth_getLogs` — it is "no address filter", measured against
+      // a real node: getLogRefs([]) and getLogRefs([USDC]) returned the same
+      // refs. So a listener started on an empty set would enqueue a verify-tx
+      // job for every log-bearing transaction on the chain, swamping the queue
+      // and breaking verification for every chain, not just this one.
+      //
+      // Skipping loses nothing that flooding would have preserved: neither is a
+      // working backstop. Unreachable today — `buildContractRegistry` seeds
+      // `known` with `current` and the union "is not optional" — so this guards
+      // the invariant rather than a live path, and says so loudly if it ever
+      // stops holding.
+      fastify.log.warn(
+        { chain_id: secret.chainId },
+        'polling listener: empty contract watch set for configured EVM chain, not started',
+      )
+      continue
+    }
     plans.push({
       rpc: createEvmRpc({
         rpc_url: secret.rpcUrl,
@@ -90,11 +114,7 @@ export function evmListenerDeps(fastify: FastifyInstance): EvmPollTickDeps[] {
         timeout_ms: EVM_LISTENER_RPC_TIMEOUT_MS,
       }),
       chain_id: secret.chainId,
-      // Current AND superseded contracts. `fastify.contracts` is already built
-      // (this plugin depends on `chains`, which decorates it), so the watch set
-      // needs no query of its own and cannot disagree with the set the build
-      // and verify paths use.
-      escrow_contracts: evmWatchSet(fastify, secret.chainId, secret.escrow),
+      escrow_contracts,
       ...(secret.escrowDeployBlock !== undefined ? { deploy_block: secret.escrowDeployBlock } : {}),
       min_confirmations: chainById(secret.chainId).minConfirmations,
       cursors: drizzleCursorStore(fastify.db),
