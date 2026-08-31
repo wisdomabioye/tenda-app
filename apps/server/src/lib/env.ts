@@ -24,8 +24,15 @@ export function optionalEnv(key: string, env: NodeJS.ProcessEnv = process.env): 
   return value !== undefined && value.length > 0 ? value : null
 }
 
-/** Scheme followed by `//` — what "absolute" means to a human writing env. */
-const ABSOLUTE_PREFIX = /^[a-z][a-z0-9+.-]*:\/\//i
+/**
+ * Scheme followed by `//` — what "absolute" means to a human writing env.
+ *
+ * Exported because chains/secrets/schema.ts DIAGNOSES a rejected URL and has
+ * to ask the same question this file answers. A second copy of the pattern
+ * there would drift the moment this one tightened, and the diagnosis would
+ * quietly degrade to a bare length for values `isAbsoluteUrl` now rejects.
+ */
+export const ABSOLUTE_PREFIX = /^[a-z][a-z0-9+.-]*:\/\//i
 
 /**
  * True when `value` is a parseable absolute URL whose scheme is one of

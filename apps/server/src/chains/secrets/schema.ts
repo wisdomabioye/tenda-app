@@ -9,7 +9,7 @@
 
 import bs58 from 'bs58'
 import { CHAIN_MANIFEST, type ChainManifestEntry } from '@tenda/shared'
-import { isAbsoluteUrl } from '@server/lib/env'
+import { ABSOLUTE_PREFIX, isAbsoluteUrl } from '@server/lib/env'
 
 /** An ed25519 secret key as web3's `Keypair.fromSecretKey` takes it: 64 raw bytes. */
 const ED25519_SECRET_KEY_BYTES = 64
@@ -166,10 +166,46 @@ export function describeShape(kind: SecretKind, value: string): string {
   if (/\s/.test(value)) notes.push('contains whitespace')
   if (kind === 'evmAddr' || kind === 'evmKey') {
     if (!/^0x/i.test(value)) notes.push('no 0x prefix')
+    // `0X` is its own cause and must not be reported as the next one down.
+    // isValid demands a lowercase x, so an upper-cased key is rejected with 64
+    // perfectly good hex digits behind it — telling that operator to hunt for a
+    // non-hex character sends them looking at the only part that is correct.
+    else if (!value.startsWith('0x')) notes.push('uppercase 0X prefix')
     else if (!/^0x[0-9a-fA-F]*$/.test(value)) notes.push('non-hex characters after 0x')
   }
-  if (kind === 'url' && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) notes.push('no scheme://')
+  if (kind === 'url') {
+    // Two distinct URL causes. Missing `//` (`https:rpc.example.com`) parses
+    // happily under WHATWG, which is why isValid checks the prefix separately;
+    // a well-formed but unusable scheme is the OTHER one, and `ws://` is the
+    // one operators actually reach for — isValid's comment says why it cannot
+    // work. Left undiagnosed it read as a bare length.
+    if (!ABSOLUTE_PREFIX.test(value)) notes.push('no scheme://')
+    else {
+      const note = urlNote(value)
+      if (note !== null) notes.push(note)
+    }
+  }
   return notes.join(', ')
+}
+
+/**
+ * Why a value that HAS a `scheme://` still failed, or null when the URL itself
+ * is not the problem. Two causes, kept apart because conflating them sends the
+ * operator to the wrong place: an unusable scheme (`ws://`, which isValid's
+ * comment explains cannot work), and text that does not parse as a URL at all.
+ * The scheme is described, never echoed — the value may carry a metered API key.
+ */
+function urlNote(value: string): string | null {
+  try {
+    void new URL(value)
+  } catch {
+    return 'not a parseable URL'
+  }
+  // The protocol question goes back through isAbsoluteUrl rather than being
+  // re-implemented, so the diagnosis can never disagree with the rejection.
+  return isAbsoluteUrl(value, CHAIN_ENDPOINT_PROTOCOLS)
+    ? null
+    : `scheme is not ${CHAIN_ENDPOINT_PROTOCOLS.join(' or ')}`
 }
 
 export function isValid(kind: SecretKind, value: string): boolean {

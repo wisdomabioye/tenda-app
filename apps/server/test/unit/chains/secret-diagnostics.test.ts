@@ -82,8 +82,50 @@ test('describeShape identifies non-hex characters after a correct prefix', () =>
   assert.match(describeShape('evmKey', `0x${'z'.repeat(64)}`), /non-hex characters after 0x/)
 })
 
+test('an uppercased prefix is named as the prefix, not blamed on the payload', () => {
+  // `0X` + 64 hex digits: isValid rejects it (the x must be lowercase) and the
+  // payload is entirely correct, so "non-hex characters after 0x" would send
+  // the operator to inspect the only part of the value that is right.
+  const upper = `0X${'AB'.repeat(32)}`
+  assert.equal(isValid('evmKey', upper), false)
+  const shape = describeShape('evmKey', upper)
+  assert.match(shape, /uppercase 0X prefix/)
+  assert.doesNotMatch(shape, /non-hex/)
+  assert.doesNotMatch(shape, /no 0x prefix/)
+})
+
 test('describeShape identifies a URL missing its scheme', () => {
   assert.match(describeShape('url', 'rpc.example.com'), /no scheme:\/\//)
+})
+
+test('describeShape names the missing slashes apart from a bad scheme', () => {
+  // `https:rpc.example.com` parses under WHATWG with protocol `https:`, so a
+  // protocol-only check accepts it. It is a slashes problem, not a scheme one.
+  const shape = describeShape('url', 'https:rpc.example.com')
+  assert.match(shape, /no scheme:\/\//)
+  assert.doesNotMatch(shape, /scheme is not/)
+})
+
+test('describeShape diagnoses ws://, the scheme operators actually try', () => {
+  // isValid's own comment calls this out: viem needs a separate webSocket()
+  // transport, so a ws endpoint is rejected. It used to produce a bare length.
+  const wsUrl = 'ws://rpc.example.com'
+  assert.equal(isValid('url', wsUrl), false)
+  assert.match(describeShape('url', wsUrl), /scheme is not https or http/)
+})
+
+test('describeShape separates unparseable text from a wrong scheme', () => {
+  const shape = describeShape('url', 'https://')
+  assert.match(shape, /not a parseable URL/)
+  assert.doesNotMatch(shape, /scheme is not/)
+})
+
+test('the URL note does not echo the scheme it rejected', () => {
+  // An rpc_url can carry a metered API key. The scheme is described by what it
+  // is NOT, so no substring of the value can ride out on this path.
+  const shape = describeShape('url', 'wss://rpc.example.com/v1/secretkey')
+  assert.ok(!shape.includes('wss'), 'the observed scheme was echoed')
+  assert.ok(!shape.includes('secretkey'), 'the URL path was echoed')
 })
 
 test('describeShape reports internal whitespace, which survives the trim', () => {
