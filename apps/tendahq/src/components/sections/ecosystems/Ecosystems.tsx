@@ -9,7 +9,7 @@ import { EcosystemPanel } from './EcosystemPanel'
  */
 export function Ecosystems() {
   return (
-    <SectionShell id="ecosystems" surface="alt" padY="lg">
+    <SectionShell id="ecosystems" surface="base" padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {ECOSYSTEMS_HEADER.eyebrow}

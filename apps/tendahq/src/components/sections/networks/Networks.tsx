@@ -18,7 +18,7 @@ import { NETWORKS_HEADER } from './content'
  */
 export function Networks() {
   return (
-    <SectionShell id="networks" surface="base" padY="lg">
+    <SectionShell id="networks" surface="alt" padY="lg">
       <div className="mb-10 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {NETWORKS_HEADER.eyebrow}

@@ -31,7 +31,7 @@ export function Onboarding() {
   const Icon = ICONS[selected.icon]
 
   return (
-    <SectionShell id="onboarding" surface="base" padY="lg">
+    <SectionShell id="onboarding" surface="alt" padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {ONBOARDING_HEADER.eyebrow}

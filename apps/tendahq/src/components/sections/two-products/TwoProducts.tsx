@@ -16,7 +16,7 @@ export function TwoProducts() {
   const sampleGigs = EXAMPLE_TASKS.slice(0, GIG_PANEL_ROWS)
 
   return (
-    <SectionShell id="products" surface="base" padY="lg">
+    <SectionShell id="products" surface="alt" padY="lg">
       <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
         {PRODUCT_PANELS.map((panel) => (
           <ProductPanel key={panel.id} panel={panel}>

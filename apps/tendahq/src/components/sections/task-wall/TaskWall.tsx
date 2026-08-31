@@ -24,7 +24,7 @@ export function TaskWall() {
   )
 
   return (
-    <SectionShell id="tasks" surface="alt" padY="lg">
+    <SectionShell id="tasks" surface="base" padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {TASK_WALL_HEADER.eyebrow.num} · {TASK_WALL_HEADER.eyebrow.label}

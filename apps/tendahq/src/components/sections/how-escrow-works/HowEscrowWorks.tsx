@@ -10,7 +10,7 @@ import { Fallback } from './Fallback'
  */
 export function HowEscrowWorks() {
   return (
-    <SectionShell id="how-it-works" surface="alt" padY="lg">
+    <SectionShell id="how-it-works" surface="base" padY="lg">
       <Header />
 
       <div className="mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
