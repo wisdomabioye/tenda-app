@@ -53,7 +53,7 @@ export const APP_INFO = {
    * time here.
    */
   about:
-    `Tenda is the escrow-secured marketplace for gig work and P2P cash trades. The escrow contracts are built for ${CHAIN_NAMES_LINE} — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.`,
+    `Tenda is the escrow-secured marketplace for gig work and P2P cash trades, hired by people and AI agents alike. The escrow contracts are built for ${CHAIN_NAMES_LINE} — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.`,
 
   /** Distribution. */
   apkUrl: RELEASE.apkUrl,

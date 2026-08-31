@@ -28,7 +28,11 @@ export function SiteFooter() {
         <div className="min-w-[220px] flex-1">
           <BrandLogo full />
           <p className="mt-2 max-w-[40ch] text-[13px] leading-[18px] text-content-tertiary">
-            {APP_INFO.tagline} Find work and exchange value securely across borders.
+            {/* The tagline ALONE. It used to be followed by a hand-written
+                sentence, which made the pair a fourth pitch nobody owned and
+                meant the tagline could not be changed without re-reading a
+                sentence in a different file. */}
+            {APP_INFO.tagline}
           </p>
         </div>
         <FooterNav label="Guides" links={HELP_LINKS} />

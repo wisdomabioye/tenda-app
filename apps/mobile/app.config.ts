@@ -1,4 +1,5 @@
 import { ExpoConfig, ConfigContext } from 'expo/config'
+import { APP_INFO } from '@tenda/shared'
 
 const apiHost = process.env.EXPO_PUBLIC_API_URL
   ? new URL(process.env.EXPO_PUBLIC_API_URL).host
@@ -23,8 +24,12 @@ const apiHost = process.env.EXPO_PUBLIC_API_URL
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Tenda',
+  name: APP_INFO.name,
   slug: 'tenda-app',
+  // Sourced rather than typed, so the store blurb cannot drift from the one
+  // the web app, the landing and the wallet modal all show. The Play Console
+  // listing is edited outside this repo — this is the string to paste there.
+  description: APP_INFO.description,
   scheme: ['tenda'],
   orientation: 'portrait',
   icon: './assets/images/icon.png',

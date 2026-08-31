@@ -162,7 +162,7 @@ describe('the worker-facing 0G card', () => {
     // alone passes on the phrase "an AI agent posts a gig" earlier in the same
     // sentence, so it stayed green when the badge itself was hand-typed to
     // something else — a test that cannot fail for its stated reason.
-    expect(hire()?.body).toContain(`"${AGENT_BADGE_LABEL}"`)
+    expect(hire()?.body).toContain(`“${AGENT_BADGE_LABEL}”`)
   })
 
   it('promises only the ordinary escrow lifecycle, with no second mechanism', () => {

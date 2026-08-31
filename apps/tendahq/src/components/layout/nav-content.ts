@@ -35,5 +35,8 @@ export const NAV_LABELS = {
   toggleMenu: 'Toggle menu',
   toggleTheme: 'Toggle theme',
   mobileEyebrow: 'Navigate',
-  mobileTagline: `Escrow-secured gigs & P2P on ${APP_INFO.chains.networksLine}`,
+  // Names the two products and the chains, and deliberately does NOT restate
+  // the pitch: "Escrow-secured …" here was a seventh phrasing competing with
+  // the shared tagline. What the nav uniquely adds is the chain list.
+  mobileTagline: `Gigs & P2P cash trades · ${APP_INFO.chains.networksLine}`,
 } as const

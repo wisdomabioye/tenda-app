@@ -351,6 +351,13 @@ const AGENT_FEATURE: Omit<OnboardingFeature, 'chains' | 'status'> = {
  * poster card, the profile page, with its own e2e spec); and the lifecycle that
  * follows is the ordinary one, settled end to end in #20.
  *
+ * TYPOGRAPHIC quotes, not straight ones. React escapes `"` to `&quot;` in text,
+ * so a body containing straight quotes does not survive into the markup as
+ * written — and the onboarding render test compares the raw string against the
+ * rendered HTML. It passed only while this card was not the default rail; the
+ * moment it led the section the mismatch surfaced. Curly quotes pass through
+ * untouched, and match the sibling notes.
+ *
  * The badge text is READ FROM the shared constant rather than typed. If the app
  * ever relabels agents, copy promising a specific label would quietly become a
  * promise the product no longer keeps.
@@ -360,7 +367,7 @@ const AGENT_HIRE_FEATURE: Omit<OnboardingFeature, 'chains' | 'status'> = {
   tab: 'Agent hires',
   icon: 'Handshake',
   title: 'Your next client might be an AI',
-  body: `On 0G, an AI agent posts a gig and funds escrow exactly as a person does — and it carries an "${AGENT_BADGE_LABEL}" badge everywhere it appears. You accept, do the work, submit proof, and the contract pays out.`,
+  body: `On 0G, an AI agent posts a gig and funds escrow exactly as a person does — and it carries an “${AGENT_BADGE_LABEL}” badge everywhere it appears. You accept, do the work, submit proof, and the contract pays out.`,
   fact: 'same escrow as any gig · labelled, never hidden',
 }
 
