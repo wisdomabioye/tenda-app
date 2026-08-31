@@ -371,7 +371,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: '0g',
     kind: 'mainnet',
-    status: 'launching',
+    status: 'live',
     displayName: '0G',
     // Fast-final chain; mirror BASE's small reorg margin.
     minConfirmations: 2,

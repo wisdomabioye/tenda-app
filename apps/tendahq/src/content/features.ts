@@ -391,16 +391,16 @@ export const ONBOARDING_FEATURES: readonly OnboardingFeature[] = (() => {
   const agentChains = zeroG === undefined ? [] : [zeroG]
   const agentCard = { ...AGENT_FEATURE, status: statusFor('built', agentChains) }
   return [
-    ...built,
-    { ...WALLET_FEATURE, chains: [] },
+    // Beside the agent card: same chain, opposite audience. Its status derives
+    // the same way, so both 0G cards move together when the chain deploys.
+    { ...AGENT_HIRE_FEATURE, status: statusFor('built', agentChains), chains: agentChains },
     // Status derived from the chain it names, not declared: the rail is built
     // (#18/#19/#20), so what is left to decide is reachability, and that is
     // statusFor's job. A chainless 0G — the removal path below — leaves the
     // rail built with nothing to place it on, which reads Testnet.
     { ...agentCard, chains: agentChains },
-    // Beside the agent card: same chain, opposite audience. Its status derives
-    // the same way, so both 0G cards move together when the chain deploys.
-    { ...AGENT_HIRE_FEATURE, status: statusFor('built', agentChains), chains: agentChains },
+    ...built,
+    { ...WALLET_FEATURE, chains: [] },
     ...roadmap,
   ]
 })()
