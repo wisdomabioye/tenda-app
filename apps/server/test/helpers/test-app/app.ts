@@ -1,11 +1,13 @@
 /**
  * App + database lifecycle for the HTTP integration harness (CO2): boot a real
- * Fastify app, hold the cross-process suite lock, reset the database between
- * tests.
+ * Fastify app against a LEASED database, reset it between tests.
  *
- * Migrations run once per process via the drizzle programmatic migrator;
- * `resetDb()` truncates every public table between tests (the migrator's
- * bookkeeping lives in the `drizzle` schema and survives).
+ * The database and the migration are `./slot`'s job, not this file's (#49).
+ * Both have to happen before `plugins/db` connects, and the boot-time suites
+ * need them without ever building an app, so neither can live in
+ * `buildTestApp`. What remains here is the app and the reset: `resetDb()`
+ * truncates every public table between tests (the migrator's bookkeeping lives
+ * in the `drizzle` schema and survives).
  */
 // Bare and first, so the stubs are applied before the imports below are
 // evaluated. DEFENSIVE, not currently required: measured while splitting this
@@ -20,10 +22,7 @@ import { join } from 'node:path'
 import { before, after, beforeEach } from 'node:test'
 import Fastify, { type FastifyInstance } from 'fastify'
 import AutoLoad from '@fastify/autoload'
-import postgres from 'postgres'
 import { sql } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/postgres-js'
-import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { chains, assets, platform_config } from '@tenda/shared/db/schema'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { PAYOUT_CURRENCIES } from '@tenda/shared'
@@ -38,6 +37,7 @@ import websocketPlugin from '@server/plugins/websocket'
 import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
 import { buildContractRegistry } from '@server/chains/contracts'
 import { TEST_DB_CONFIGURED } from './env'
+import { leaseSlot, lockBaseDatabase, type SuiteLease } from './slot'
 import {
   capturedBuilds,
   capturedRelays,
@@ -49,22 +49,7 @@ import {
   TEST_NATIVE_ASSET,
 } from './fake-chain'
 
-let migrated = false
-
-/** Bring the test DB to head over a dedicated quiet connection. */
-async function migrateOnce(): Promise<void> {
-  if (migrated) return
-  const client = postgres(process.env.DATABASE_URL as string, { max: 1, onnotice: () => {} })
-  await migrate(drizzle(client), {
-    migrationsFolder: join(__dirname, '..', '..', '..', 'src', 'db', 'migrations'),
-  })
-  await client.end()
-  migrated = true
-}
-
 export async function buildTestApp(): Promise<FastifyInstance> {
-  await migrateOnce()
-
   const app = Fastify({ logger: false })
   registerErrorHandlers(app)
 
@@ -95,59 +80,51 @@ export async function buildTestApp(): Promise<FastifyInstance> {
 
 /**
  * Suites run in sibling processes (node --test = one process per file,
- * concurrent) but share ONE test database — a session-scoped advisory lock
- * held for the file's whole run serializes them. Unit suites are untouched.
+ * concurrent) and each LEASES ITS OWN DATABASE from the pool in ./slot (#49).
+ * They no longer queue behind one global lock, because they no longer share the
+ * database that lock was protecting. Unit suites are untouched.
  */
-const SUITE_LOCK_KEY = 813_370
-
-/** Open a dedicated connection and hold the cross-process suite lock on it. */
-async function acquireSuiteLock(): Promise<postgres.Sql> {
-  const lock = postgres(process.env.DATABASE_URL as string, { max: 1, onnotice: () => {} })
-  await lock`SELECT pg_advisory_lock(${SUITE_LOCK_KEY})`
-  return lock
-}
-
-async function releaseSuiteLock(lock: postgres.Sql): Promise<void> {
-  await lock`SELECT pg_advisory_unlock(${SUITE_LOCK_KEY})`
-  await lock.end()
+async function leaseSuiteLease(): Promise<SuiteLease> {
+  return leaseSlot(process.env.TEST_DATABASE_URL as string)
 }
 
 /**
- * Take the cross-process suite lock for a file that talks to the shared test
- * DB WITHOUT the full app harness (seed/registry tests). Without it a sibling
- * suite's `resetDb` TRUNCATE can wipe the registry rows mid-test. Pair with
- * `{ skip: !TEST_DB_CONFIGURED }`.
+ * Serialise a file that must use the BASE database instead of a slot.
+ *
+ * The boot-time suites take a URL as an argument and test code that holds a
+ * CLUSTER-wide advisory lock, so they cannot be isolated by giving them their
+ * own database — see `lockBaseDatabase`. They keep the pre-#49 behaviour: one
+ * lock, one at a time. Pair with `{ skip: !TEST_DB_CONFIGURED }`.
  */
 export function useSuiteLock(): void {
-  let lock: postgres.Sql | null = null
+  let slot: SuiteLease | null = null
   before(async () => {
     if (!TEST_DB_CONFIGURED) return
-    lock = await acquireSuiteLock()
+    slot = await lockBaseDatabase(process.env.TEST_DATABASE_URL as string)
   })
   after(async () => {
-    if (lock !== null) await releaseSuiteLock(lock)
+    if (slot !== null) await slot.release()
   })
 }
 
 /**
- * Per-suite boilerplate: takes the cross-process suite lock, boots the app
- * once, resets the DB before every test, releases on exit. Returns a getter
- * (the instance doesn't exist until the before hook runs). Pair with
- * `{ skip: !TEST_DB_CONFIGURED }` on each test.
+ * Per-suite boilerplate: leases a database, boots the app once, resets it
+ * between tests, releases on exit. Returns a getter (the instance doesn't exist
+ * until the before hook runs). Pair with `{ skip: !TEST_DB_CONFIGURED }`.
  */
 export function useTestApp(): () => FastifyInstance {
   let app: FastifyInstance
-  let lock: postgres.Sql | null = null
+  let slot: SuiteLease | null = null
   before(async () => {
     if (!TEST_DB_CONFIGURED) return
-    lock = await acquireSuiteLock()
+    slot = await leaseSuiteLease()
     app = await buildTestApp()
   })
   after(async () => {
     if (!TEST_DB_CONFIGURED) return
     // `app` is undefined when before() failed — don't mask the root error.
     if (app !== undefined) await app.close()
-    if (lock !== null) await releaseSuiteLock(lock)
+    if (slot !== null) await slot.release()
   })
   beforeEach(async () => {
     if (!TEST_DB_CONFIGURED) return

@@ -145,61 +145,68 @@ test('the plugin\'s OWN poll config reaches the wire with every known contract',
   const rpc = await startStubRpc((method) =>
     method === 'eth_blockNumber' ? '0x64' : method === 'eth_chainId' ? '0x14a34' : [],
   )
-  const enqueued: string[] = []
+  // `finally`, never a trailing `await rpc.close()` (#48): an assertion that
+  // throws before an unguarded close leaves the listener up and node never
+  // exits, so a RED test becomes a HUNG GATE and the failure it found is
+  // never reported. The three sibling stub-rpc suites all close this way.
+  try {
+    const enqueued: string[] = []
 
-  // `chain_cursors.chain_id` references `chains`, so the row must exist before
-  // the tick writes a cursor at the end of its first range.
-  const testApp = getApp()
-  await testApp.db
-    .insert(chainsTable)
-    .values({
-      id: CHAIN_ID,
-      namespace: 'eip155',
-      display_name: 'Base Sepolia',
-      treasury_address: TREASURY,
-      escrow_program: CURRENT,
+    // `chain_cursors.chain_id` references `chains`, so the row must exist before
+    // the tick writes a cursor at the end of its first range.
+    const testApp = getApp()
+    await testApp.db
+      .insert(chainsTable)
+      .values({
+        id: CHAIN_ID,
+        namespace: 'eip155',
+        display_name: 'Base Sepolia',
+        treasury_address: TREASURY,
+        escrow_program: CURRENT,
+      })
+      .onConflictDoNothing({ target: chainsTable.id })
+
+    const fastify = listenerFastify({
+      // The registry knows BOTH generations — the state after a redeploy.
+      contracts: buildContractRegistry(
+        [{ chain_id: CHAIN_ID, namespace: 'eip155', escrowAddress: CURRENT }],
+        [{ chain_id: CHAIN_ID, address: PREVIOUS }],
+      ),
+      onEnqueue: (payload) => enqueued.push(payload.tx_ref),
     })
-    .onConflictDoNothing({ target: chainsTable.id })
 
-  const fastify = listenerFastify({
-    // The registry knows BOTH generations — the state after a redeploy.
-    contracts: buildContractRegistry(
-      [{ chain_id: CHAIN_ID, namespace: 'eip155', escrowAddress: CURRENT }],
-      [{ chain_id: CHAIN_ID, address: PREVIOUS }],
-    ),
-    onEnqueue: (payload) => enqueued.push(payload.tx_ref),
-  })
+    await withEvmChainEnv(
+      {
+        chainEnvPrefix: chainEnvPrefix(CHAIN_ID),
+        rpcUrl: rpc.url,
+        escrow: CURRENT,
+        treasury: TREASURY,
+      },
+      async () => {
+      const plans = evmListenerDeps(fastify)
+      assert.strictEqual(plans.length, 1, 'exactly one EVM chain is configured here')
 
-  await withEvmChainEnv(
-    {
-      chainEnvPrefix: chainEnvPrefix(CHAIN_ID),
-      rpcUrl: rpc.url,
-      escrow: CURRENT,
-      treasury: TREASURY,
-    },
-    async () => {
-    const plans = evmListenerDeps(fastify)
-    assert.strictEqual(plans.length, 1, 'exactly one EVM chain is configured here')
+      await evmPollTick(plans[0])
 
-    await evmPollTick(plans[0])
-
-    const logCalls = rpc.callsTo('eth_getLogs')
-    assert.ok(logCalls.length > 0, 'the tick must have scanned at least one range')
-    for (const call of logCalls) {
-      const address = (call.params[0] as { address?: unknown }).address
-      assert.ok(Array.isArray(address), 'eth_getLogs must carry an ADDRESS ARRAY, not one address')
-      const seen = (address as string[]).map((a) => a.toLowerCase()).sort()
-      assert.deepStrictEqual(
-        seen,
-        [PREVIOUS, CURRENT].sort(),
-        'the superseded contract must be on the wire — this is the assertion that catches ' +
-          'a registry that never reaches the listener',
-      )
-    }
-      assert.deepStrictEqual(enqueued, [], 'the stub returns no logs, so nothing is enqueued')
-    },
-  )
-  await rpc.close()
+      const logCalls = rpc.callsTo('eth_getLogs')
+      assert.ok(logCalls.length > 0, 'the tick must have scanned at least one range')
+      for (const call of logCalls) {
+        const address = (call.params[0] as { address?: unknown }).address
+        assert.ok(Array.isArray(address), 'eth_getLogs must carry an ADDRESS ARRAY, not one address')
+        const seen = (address as string[]).map((a) => a.toLowerCase()).sort()
+        assert.deepStrictEqual(
+          seen,
+          [PREVIOUS, CURRENT].sort(),
+          'the superseded contract must be on the wire — this is the assertion that catches ' +
+            'a registry that never reaches the listener',
+        )
+      }
+        assert.deepStrictEqual(enqueued, [], 'the stub returns no logs, so nothing is enqueued')
+      },
+    )
+  } finally {
+    await rpc.close()
+  }
 })
 
 // ---------- the empty-watch-set refusal (#45) ---------------------------------

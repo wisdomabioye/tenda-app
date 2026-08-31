@@ -9,8 +9,20 @@
  * `close()` destroys live sockets as well as the listener: viem's transport
  * keeps connections alive, and `server.close()` alone waits for them forever,
  * which surfaces as a test file that passes and then hangs the runner.
+ *
+ * CLOSE IT IN A `finally` (or an `after` hook), never on a test's last line.
+ * An assertion that throws before an unguarded close leaves the listener up and
+ * node never exits — so a RED test becomes a HUNG GATE, and the failure that
+ * tripped it is never reported. Measured: 2m25s on a 5s suite, with no postgres
+ * connection open, i.e. nothing to do with the suite lock (#48).
+ *
+ * The backstop below closes whatever a suite still leaves open, so a slip
+ * degrades to a reported failure rather than a hang. It is a net, not a licence:
+ * a server held open until the end of the file still blocks nothing but is
+ * invisible to the reader.
  */
 
+import { after } from 'node:test'
 import { createServer, type Server } from 'node:http'
 import { resetChainSecretsCache } from '@server/chains/secrets'
 
@@ -27,6 +39,20 @@ export interface StubRpc {
   callsTo(method: string): StubRpcCall[]
   close(): Promise<void>
 }
+
+/**
+ * Every stub still listening. The module-level `after` below drains it, which is
+ * what turns a forgotten close from a hung runner into an ordinary failure.
+ */
+const live = new Set<Server>()
+
+after(async () => {
+  for (const server of live) {
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+  live.clear()
+})
 
 /**
  * @param respond maps a JSON-RPC method to its `result`. Returning `undefined`
@@ -54,6 +80,7 @@ export async function startStubRpc(
   })
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  live.add(server)
   const address = server.address()
   const port = typeof address === 'object' && address !== null ? address.port : 0
 
@@ -62,6 +89,7 @@ export async function startStubRpc(
     calls,
     callsTo: (method) => calls.filter((c) => c.method === method),
     async close() {
+      live.delete(server)
       server.closeAllConnections()
       await new Promise<void>((resolve) => server.close(() => resolve()))
     },
