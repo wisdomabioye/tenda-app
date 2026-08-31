@@ -46,5 +46,9 @@ describe('hero stats', () => {
       `${APP_INFO.versionNumber} · ${APP_INFO.chains.stage}`,
     )
     expect(HERO_CONTENT.stamps.liveLabel).toContain(APP_INFO.chains.networksLine)
+    // The stamp names the chains; it must not assert a contract on them. It
+    // read "Live on 0G · Solana · Base · Celo" while all four were undeployed,
+    // and this test passed throughout — it only ever checked the chain list.
+    expect(HERO_CONTENT.stamps.liveLabel.toLowerCase()).not.toContain('live on')
   })
 })

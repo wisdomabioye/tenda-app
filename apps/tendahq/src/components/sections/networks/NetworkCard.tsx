@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
-import { explorerHost, transportFor, type LandingChain } from '@/content'
+import { CHAIN_STATUS_DISPLAY, chainStatus, explorerHost, transportFor, type LandingChain } from '@/content'
+import { Pill } from '@/components/ui/Pill'
 import { CopyChainId } from './CopyChainId'
 import { NETWORK_LABELS } from './content'
 
@@ -43,6 +44,10 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
  */
 export function NetworkCard({ chain }: Props) {
   const transport = transportFor(chain.namespace)
+  // The card's most load-bearing fact. Everything else on it — the chain id,
+  // the explorer, the gas token — is reference data a visitor may act on, and
+  // acting on it is only sensible once this says Live.
+  const status = CHAIN_STATUS_DISPLAY[chainStatus(chain)]
 
   return (
     <article className="flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-card)]">
@@ -67,6 +72,9 @@ export function NetworkCard({ chain }: Props) {
           {chain.glyph}
         </span>
         <h3 className="body-lg font-semibold text-[var(--content-primary)]">{chain.name}</h3>
+        <Pill tone={status.tone} size="sm" dot dotRing className="ml-auto">
+          {status.label}
+        </Pill>
       </div>
 
       {chain.pitch !== '' && (

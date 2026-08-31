@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LANDING_CHAINS } from '@/content/chains'
+import { LIVE_CHAINS, PLANNED_CHAINS } from '@/content/chain-status'
 import { FEE_PCT } from '@/content/fees'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
 import { RECEIPTS } from '../content'
@@ -15,10 +16,32 @@ import { RECEIPTS } from '../content'
 describe('final CTA receipts', () => {
   const byKey = (k: string) => RECEIPTS.find((r) => r.k === k)
 
-  it('counts live chains from the landing registry, never by hand', () => {
+  /**
+   * This pin used to read `String(LANDING_CHAINS.length)` — and it PASSED while
+   * the receipt announced "4 live" over four chains that had no contract
+   * between them. Deriving the number was never the point; deriving it from
+   * the source that actually knows about deployment is. LANDING_CHAINS is the
+   * list of chains the page TALKS ABOUT, which is why it was the wrong source
+   * and why asserting against it again would re-admit the same false claim.
+   */
+  it('counts chains that are DEPLOYED, not chains that are listed', () => {
     const chains = byKey('Chains')
-    expect(chains?.v).toBe(String(LANDING_CHAINS.length))
-    for (const chain of LANDING_CHAINS) expect(chains?.b).toContain(chain.name)
+    expect(chains?.v).toBe(String(LIVE_CHAINS.length))
+  })
+
+  it('will not report a listed-but-undeployed chain as live', () => {
+    // The regression itself, stated directly: while any listed chain is still
+    // planned, the live count must come out BELOW the number of chains on the
+    // page. Skipped once every listed chain ships, when the two legitimately
+    // agree and the assertion would stop distinguishing anything.
+    if (PLANNED_CHAINS.length === 0) return
+    expect(Number(byKey('Chains')?.v)).toBeLessThan(LANDING_CHAINS.length)
+  })
+
+  it('names the chains still to come, so the count is not left unexplained', () => {
+    const chains = byKey('Chains')
+    for (const chain of PLANNED_CHAINS) expect(chains?.b).toContain(chain.name)
+    for (const chain of LIVE_CHAINS) expect(chains?.b).toContain(chain.name)
   })
 
   it('quotes the worker share from the platform fee, and claims no fee-free lie', () => {

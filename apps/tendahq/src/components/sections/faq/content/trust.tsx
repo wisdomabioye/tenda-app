@@ -1,4 +1,4 @@
-import { APP_INFO, CHAIN_NAMES_PROSE } from '@/content'
+import { APP_INFO, CHAIN_NAMES_PROSE, MAINNET_STATUS_CLAUSE } from '@/content'
 import type { FaqCategory } from '../types'
 
 /**
@@ -31,8 +31,8 @@ export const TRUST_CATEGORY: FaqCategory = {
             In the on-chain escrow contract —{' '}
             <strong>not in a Tenda bank account, not in the worker&apos;s wallet.</strong>{' '}
             When you fund a gig, the money moves directly from your wallet into an escrow
-            account that only the contract can release. The same contract logic runs on{' '}
-            {CHAIN_NAMES_PROSE}.
+            account that only the contract can release. The same contract logic goes to every
+            chain Tenda supports — {CHAIN_NAMES_PROSE} — {MAINNET_STATUS_CLAUSE}.
           </p>
           <p>
             Tenda does hold an admin key, and we&apos;d rather tell you its exact reach than let

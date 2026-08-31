@@ -2,6 +2,7 @@ import {
   APP_INFO,
   CHAIN_STRENGTHS_PROSE,
   DISPLAY_CURRENCY_COUNT,
+  MAINNET_STATUS_CLAUSE,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
   SUPPORTED_CURRENCIES,
@@ -26,8 +27,8 @@ export const COVERAGE_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Tenda runs the same escrow contract on {APP_INFO.chains.networksLine} — pick the
-            chain your money already lives on. Each brings something different:{' '}
+            One escrow contract, built for {APP_INFO.chains.networksLine} —{' '}
+            {MAINNET_STATUS_CLAUSE}. Each brings something different:{' '}
             {CHAIN_STRENGTHS_PROSE}. More chains are on the way.
           </p>
           <p>

@@ -35,7 +35,13 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
       // lands — a "Galileo" here would go stale the hour that happens.
       { label: 'TendaEscrow deployed, with the full escrow lifecycle verified end to end' },
       { label: 'Bridged USDC (USDC.e over Chainlink CCIP) verified for settlement — permit support checked on-chain' },
-      { label: 'Agent-to-human hiring API settling on 0G', roadmap: true },
+      // NOT `roadmap`. This row was written while sign-only funding was designed
+      // and unbuilt, and stayed dimmed after it shipped: #18 the x402 fund
+      // route, #19 the agent API, #20 a full agent-to-human hire settling in
+      // four on-chain transactions on Galileo. A proof point that understates
+      // shipped work fails the panel's own rule as surely as one that overstates
+      // unshipped work. No network qualifier, per the sibling row above.
+      { label: 'Agent-to-human hiring API — an agent-funded hire settled end to end' },
     ],
   },
   {
@@ -70,11 +76,17 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
   },
 ] as const
 
+/**
+ * "we build on", not "we ship on". The panels below are honest per proof point
+ * — each carries `roadmap` when it is not here yet — but the heading above them
+ * asserted shipping across all four chains, three of which have no contract.
+ * The per-proof honesty was being undone by the sentence introducing it.
+ */
 export const ECOSYSTEMS_HEADER = {
   // The count is derived: this line said "three ecosystems" beside a panel
   // list built from the manifest, so a fourth chain would have contradicted
   // the very grid underneath it.
   eyebrow: `Multichain · one escrow, ${LANDING_CHAINS.length} ecosystems`,
-  h2: { lead: 'Built deep into every chain', emphasis: 'we ship on.' },
+  h2: { lead: 'Built deep into every chain', emphasis: 'we build on.' },
   sub: `Tenda isn’t "deployed to" these chains — it uses what makes each one special: ${CHAIN_STRENGTHS_PROSE}. Same product, same guarantees, everywhere.`,
 } as const

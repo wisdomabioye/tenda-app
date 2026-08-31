@@ -80,6 +80,39 @@ export interface ChainAsset {
   eip3009?: true
 }
 
+/**
+ * Whether Tenda's own escrow contract is DEPLOYED on a chain.
+ *
+ * Deliberately NOT derived from `kind`. `kind` answers "is this chain a
+ * mainnet?" — a fact about the chain. This answers "do we settle here?" — a
+ * fact about Tenda, and the two move independently. That inference is the bug
+ * this field exists to remove: the landing read `kind === 'mainnet'` as "we run
+ * there" and advertised four mainnet chains, none of which had a contract.
+ *
+ * THREE states, because two collapsed a distinction that matters:
+ *
+ * - 'live'      a CONFIRMED deployment — a broadcast transaction with a
+ *               receipt, or a program id declared for that cluster. A simulated
+ *               `forge script` run is not a deployment: Celo mainnet has three
+ *               such runs on disk, every one with a null tx hash and no
+ *               receipt.
+ * - 'launching' the deploy is committed and next, but not on-chain yet. Exactly
+ *               one chain should normally hold this.
+ * - 'planned'   intended, unscheduled. No date, no commitment.
+ *
+ * The split between the last two is not cosmetic. With one bucket the landing
+ * said "mainnet launching on 0G, Solana, Base and Celo" — four imminent
+ * launches announced when only 0G was being deployed, which is the original
+ * over-claim rebuilt one level down. A launch is a schedule claim and only
+ * belongs on the chain actually being shipped to.
+ *
+ * Do not re-derive any of this from `kind` or from list ORDER. The landing
+ * already knows 0G leads (LANDING_FAMILY_ORDER, launch positioning); position
+ * in a list is not the same claim as a committed deploy, and reading one off
+ * the other is how the first version of this bug happened.
+ */
+export type ChainStatus = 'live' | 'launching' | 'planned'
+
 export interface ChainManifestEntry {
   /** CAIP-2 id, e.g. `'eip155:8453'`, `'solana:devnet'`. */
   id: string
@@ -87,6 +120,8 @@ export interface ChainManifestEntry {
   /** Network group; one active chain per family per deployment. */
   family: string
   kind: 'mainnet' | 'testnet'
+  /** Whether Tenda's escrow is deployed here — see ChainStatus. */
+  status: ChainStatus
   displayName: string
   /** Reorg-safety margin before a receipt counts as confirmed. */
   minConfirmations: number
@@ -148,6 +183,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'solana',
     family: 'solana',
     kind: 'mainnet',
+    status: 'planned',
     displayName: 'Solana',
     minConfirmations: 1,
     gasPolicy: 'native-seed',
@@ -167,6 +203,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'solana',
     family: 'solana',
     kind: 'testnet',
+    status: 'live',
     displayName: 'Solana Devnet',
     minConfirmations: 1,
     gasPolicy: 'native-seed',
@@ -183,6 +220,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: 'base',
     kind: 'mainnet',
+    status: 'planned',
     displayName: 'BASE',
     // OP-stack L2 with a single sequencer: sub-sequencer reorgs are rare, so 2
     // keeps near-instant UX while retaining a small reorg margin for real
@@ -210,6 +248,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: 'base',
     kind: 'testnet',
+    status: 'live',
     displayName: 'Base Sepolia',
     // Testnet: confirm at the first block (~Solana-instant UX for dev/device
     // smoke). Mainnet keeps a 2-block margin.
@@ -235,6 +274,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: 'celo',
     kind: 'mainnet',
+    status: 'planned',
     displayName: 'CELO',
     minConfirmations: 3,
     publicRpcUrl: 'https://forno.celo.org',
@@ -268,6 +308,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: 'celo',
     kind: 'testnet',
+    status: 'live',
     displayName: 'Celo Sepolia',
     minConfirmations: 3,
     publicRpcUrl: 'https://forno.celo-sepolia.celo-testnet.org',
@@ -298,6 +339,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: '0g',
     kind: 'testnet',
+    status: 'live',
     displayName: '0G Galileo',
     // Testnet: confirm at the first block (~instant UX for dev/device smoke),
     // like Base Sepolia. Mainnet keeps a 2-block margin.
@@ -329,6 +371,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: '0g',
     kind: 'mainnet',
+    status: 'launching',
     displayName: '0G',
     // Fast-final chain; mirror BASE's small reorg margin.
     minConfirmations: 2,
@@ -418,6 +461,17 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
           `CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' declares eip3009 but no permit domain to sign under`,
         )
       }
+    }
+    // Runtime-checked despite being a compile-time union: the landing consumes
+    // this module through a Vite source alias and other packages through the
+    // CJS dist, so a hand-edited entry that simply omits `status` reaches those
+    // readers as `undefined` with no type error at the boundary. `undefined`
+    // is falsy, which is exactly how it would be read as "not live" and quietly
+    // drop a deployed chain off every surface that filters on it.
+    if (entry.status !== 'live' && entry.status !== 'launching' && entry.status !== 'planned') {
+      throw new Error(
+        `CHAIN_MANIFEST: '${entry.id}' must declare status 'live', 'launching' or 'planned'`,
+      )
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' must have exactly one native asset`)

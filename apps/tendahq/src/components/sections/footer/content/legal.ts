@@ -12,15 +12,19 @@
  * the facts inside it now maintain themselves.
  */
 
-import { APP_INFO, CHAIN_NAMES_PROSE } from '@/content'
+import { APP_INFO, MAINNET_STATUS_CLAUSE } from '@/content'
 
 export const FOOTER_LEGAL = {
   copyright: `© ${new Date().getFullYear()} Tenda.`,
   // The stage is parenthesised rather than sentence-initial on purpose: it
   // renders lowercase ("testnet release" / "mainnet"), so a position that
   // demands a capital would read as a typo in one of the two states.
+  // The chain list is GONE from this sentence, replaced by the deployment
+  // clause. It named four mainnet chains as the ones the contracts execute on,
+  // and the contracts were on none of them — a disclaimer is the last text on
+  // a page that may state something the product cannot back.
   disclaimer:
-    `Tenda is a software interface; settlement is executed on-chain by the Tenda escrow contracts on ${CHAIN_NAMES_PROSE} (${APP_INFO.chains.stage}). Tenda never holds your funds and never holds fiat — cash trades settle directly between the two parties. Crypto products may not be available in all regions. Not financial advice.`,
+    `Tenda is a software interface; settlement is executed on-chain by the Tenda escrow contracts (${APP_INFO.chains.stage} · ${MAINNET_STATUS_CLAUSE}). Tenda never holds your funds and never holds fiat — cash trades settle directly between the two parties. Crypto products may not be available in all regions. Not financial advice.`,
   links: [
     { label: 'Terms',   href: '/terms'   },
     { label: 'Privacy', href: '/privacy' },

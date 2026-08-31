@@ -41,8 +41,7 @@ export const CRYPTO_CATEGORY: FaqCategory = {
             A wallet only comes in when money moves, and Tenda walks you through connecting one
             at that point. On Android your phone hands the connection to whichever wallet you
             already use; on {EVM_CHAIN_NAMES_PROSE} any WalletConnect wallet works. The wallet
-            stays yours — Tenda never holds your keys. You don&apos;t even need gas money to
-            start: {GAS_FREE_START_SENTENCE}
+            stays yours — Tenda never holds your keys. {GAS_FREE_START_SENTENCE}
           </p>
           <p>
             For posters: gigs are priced in USDC, a dollar-pegged stablecoin — no volatile

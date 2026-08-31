@@ -14,7 +14,14 @@ export interface HeroStat {
 export const HERO_CONTENT = {
   stamps: {
     versionLabel: `${APP_INFO.versionNumber} · ${APP_INFO.chains.stage}`,
-    liveLabel: `Live on ${APP_INFO.chains.networksLine}`,
+    /**
+     * "Built for", not "Live on" — the single most prominent claim on the page
+     * and, until this change, the falsest: it announced four live chains
+     * directly above a hero for a build whose contracts were all on testnet.
+     * The stage stamp beside it already says which network this release talks
+     * to, so the honest split is chains here, status there.
+     */
+    liveLabel: `Built for ${APP_INFO.chains.networksLine}`,
   },
   h1: {
     line1: 'The escrow',

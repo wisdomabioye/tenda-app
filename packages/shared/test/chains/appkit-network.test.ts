@@ -38,7 +38,7 @@ function syntheticEvmEntry(): ChainManifestEntry {
     id: 'eip155:424242',
     namespace: 'eip155',
     family: 'synthetic',
-    kind: 'testnet',
+    kind: 'testnet', status: 'live',
     displayName: 'Synthetic Testnet',
     minConfirmations: 1,
     publicRpcUrl: 'https://rpc.synthetic.example',

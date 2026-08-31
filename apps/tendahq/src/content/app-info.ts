@@ -45,9 +45,15 @@ export const APP_INFO = {
    * Long-form "about" paragraph used in the footer wordmark column. Reads as
    * the brand's elevator pitch — written for a reader who arrives at the
    * footer without context.
+   *
+   * "are built for", not "run on": CHAIN_NAMES_LINE is the list of chains the
+   * landing TARGETS, which is not the same as the list it has deployed to.
+   * Where the contracts actually are is MAINNET_STATUS_CLAUSE's job, stated
+   * once in the networks header and the legal disclaimer rather than a third
+   * time here.
    */
   about:
-    `Tenda is the escrow-secured marketplace for gig work and P2P cash trades. The escrow contracts run on ${CHAIN_NAMES_LINE} — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.`,
+    `Tenda is the escrow-secured marketplace for gig work and P2P cash trades. The escrow contracts are built for ${CHAIN_NAMES_LINE} — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.`,
 
   /** Distribution. */
   apkUrl: RELEASE.apkUrl,

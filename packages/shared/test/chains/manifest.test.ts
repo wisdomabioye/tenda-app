@@ -165,7 +165,7 @@ test('exchangeAssetsByChain returns USDC + the native token per chain; empty for
 
 test('assertManifestValid rejects an asset that declares no roles', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [{ id: 'ETH_BASE', roles: [], token: null }],
   }
@@ -185,7 +185,7 @@ test('assertManifestValid rejects a duplicate chain id', () => {
 
 test('assertManifestValid rejects an asset missing from ASSET_META', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
     assets: [{ id: 'NOT_A_REAL_ASSET', roles: ['gig'], token: null }],
   }
@@ -194,7 +194,7 @@ test('assertManifestValid rejects an asset missing from ASSET_META', () => {
 
 test('assertManifestValid rejects a chain without exactly one native asset', () => {
   const noNative: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
     assets: [{ id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' }],
   }
@@ -203,7 +203,7 @@ test('assertManifestValid rejects a chain without exactly one native asset', () 
 
 test('assertManifestValid rejects feeCurrency/gasPolicy mismatch', () => {
   const mismatch: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example',
     gasPolicy: 'none', feeCurrency: 'cUSD',
@@ -215,7 +215,7 @@ test('assertManifestValid rejects feeCurrency/gasPolicy mismatch', () => {
 test('assertManifestValid rejects feeCurrency that resolves no address', () => {
   // gasPolicy feeCurrency + feeCurrency id present, but that asset has no token.
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example',
     gasPolicy: 'feeCurrency', feeCurrency: 'CELO',
@@ -230,7 +230,7 @@ test('every EVM manifest chain exposes a publicRpcUrl; assertManifestValid enfor
     assert.ok((entry.publicRpcUrl ?? '').length > 0, `${entry.id} missing publicRpcUrl`)
   }
   const noRpc: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
     assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
@@ -243,7 +243,7 @@ test('every EVM manifest chain exposes an explorerUrl; assertManifestValid enfor
     assert.ok((entry.explorerUrl ?? '').length > 0, `${entry.id} missing explorerUrl`)
   }
   const noExplorer: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
@@ -268,7 +268,7 @@ test('permit config: USDC carries version 2 on every EVM chain; cUSD and natives
 
 test('assertManifestValid rejects permit on an asset without a canonical token', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [
       { id: 'ETH_BASE', roles: ['exchange'], token: null, permit: { version: '2' } },
@@ -280,7 +280,7 @@ test('assertManifestValid rejects permit on an asset without a canonical token',
 
 test('assertManifestValid rejects an empty permit version', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [
       { id: 'ETH_BASE', roles: ['exchange'], token: null },
@@ -326,7 +326,7 @@ test('feeCurrencyAddress falls back to the fee asset token when no adapter is se
   // An 18-decimal Mento stable is its own gas adapter — synthetic entry proves
   // the no-adapter branch still resolves the token address.
   const nativeStable: ChainManifestEntry = {
-    id: 'eip155:42220', namespace: 'eip155', family: 'celo', kind: 'mainnet',
+    id: 'eip155:42220', namespace: 'eip155', family: 'celo', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 3, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'cUSD',
     assets: [
@@ -339,7 +339,7 @@ test('feeCurrencyAddress falls back to the fee asset token when no adapter is se
 
 test('assertManifestValid rejects a feeCurrencyAdapter set without a feeCurrency', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'none',
     feeCurrencyAdapter: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
@@ -350,7 +350,7 @@ test('assertManifestValid rejects a feeCurrencyAdapter set without a feeCurrency
 
 test('assertManifestValid rejects a malformed feeCurrencyAdapter address', () => {
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'USDC_BASE',
     feeCurrencyAdapter: '0xnope',
@@ -366,7 +366,7 @@ test('assertManifestValid rejects a feeCurrency id that is not one of the chain 
   // With an adapter present, a dangling feeCurrency id would otherwise resolve an
   // address and slip through — this guard catches the typo explicitly.
   const bad: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'USDC_CELO',
     feeCurrencyAdapter: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
@@ -387,7 +387,7 @@ test('both Solana chains carry a positive native-seed gasSeedAmountRaw', () => {
 })
 
 const solanaSeedBase: ChainManifestEntry = {
-  id: 'solana:x', namespace: 'solana', family: 'solana', kind: 'mainnet',
+  id: 'solana:x', namespace: 'solana', family: 'solana', kind: 'mainnet', status: 'planned',
   displayName: 'X', minConfirmations: 1, gasPolicy: 'native-seed',
   gasSeedAmountRaw: '7000000',
   assets: [{ id: 'SOL', roles: ['exchange'], token: null }],
@@ -403,6 +403,68 @@ test('assertManifestValid rejects a non-positive-integer gasSeedAmountRaw', () =
   for (const amount of ['0', '1.5', '-1', 'abc', '']) {
     const bad: ChainManifestEntry = { ...solanaSeedBase, gasSeedAmountRaw: amount }
     assert.throws(() => assertManifestValid([bad]), /gasSeedAmountRaw must be a positive integer string/)
+  }
+})
+
+// ---------- status: is Tenda's escrow actually deployed here? ---------------
+
+/**
+ * `status` exists because the landing inferred deployment from `kind` and
+ * advertised four mainnet chains as live while none of them had a contract.
+ * The field carries that claim explicitly; these tests hold it to being a
+ * DECLARATION rather than a second derivation of `kind`.
+ */
+
+test('every manifest entry declares a status', () => {
+  for (const entry of CHAIN_MANIFEST) {
+    assert.ok(
+      entry.status === 'live' || entry.status === 'launching' || entry.status === 'planned',
+      `${entry.id} must declare a known status, saw ${String(entry.status)}`,
+    )
+  }
+})
+
+test('at most one chain is LAUNCHING — a launch claim names one chain, not a set', () => {
+  // The distinction the third status exists for. Two chains "launching" at
+  // once is how the copy went back to announcing a batch of launches: the
+  // landing renders every launching chain under one verb.
+  const launching = CHAIN_MANIFEST.filter((entry) => entry.status === 'launching')
+  assert.ok(launching.length <= 1, `expected at most one launching chain, saw ${launching.length}`)
+})
+
+test('assertManifestValid rejects an entry whose status is missing', () => {
+  // The shape a hand-edited entry has when someone adds a chain and forgets
+  // the field. TS would catch it in this repo; the landing reads this module
+  // through a Vite source alias and the apps through the CJS dist, and neither
+  // boundary re-checks the type — so the guard is what actually holds.
+  const { status: _dropped, ...withoutStatus } = solanaSeedBase
+  const bad = withoutStatus as ChainManifestEntry
+  assert.throws(
+    () => assertManifestValid([bad]),
+    /must declare status 'live', 'launching' or 'planned'/,
+  )
+})
+
+test('assertManifestValid rejects a status outside the vocabulary', () => {
+  // 'deployed', 'coming-soon', 'true' — the plausible near-misses. Each must
+  // be refused rather than silently treated as not-live, which is how a
+  // deployed chain would vanish from every surface that filters on status.
+  for (const status of ['deployed', 'coming-soon', 'LIVE', 'Launching', '']) {
+    // A single narrowing cast (string -> the union), not `unknown`: the point
+    // is to hand the guard a value the type system would have refused, which
+    // is exactly what an untyped boundary hands it in production.
+    const bad: ChainManifestEntry = { ...solanaSeedBase, status } as ChainManifestEntry
+    assert.throws(
+      () => assertManifestValid([bad]),
+      /must declare status 'live', 'launching' or 'planned'/,
+      `status '${status}' must be refused`,
+    )
+  }
+})
+
+test('every status in the vocabulary is accepted — the guard refuses nothing valid', () => {
+  for (const status of ['live', 'launching', 'planned'] as const) {
+    assert.doesNotThrow(() => assertManifestValid([{ ...solanaSeedBase, status }]))
   }
 })
 
@@ -438,7 +500,7 @@ test('nativeCurrencyOf falls back to symbol when the asset omits a name', () => 
   // USDC_SOL has no `name`; a hypothetical native USDC chain would surface the
   // symbol. Proven directly on the fallback branch via a synthetic entry.
   const synthetic: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'none',
     assets: [{ id: 'USDC_SOL', roles: ['exchange'], token: null }],
@@ -454,7 +516,7 @@ test('nativeCurrencyOf refuses a native asset ASSET_META does not know', () => {
   // an Object.prototype key ('toString') answered a truthy FUNCTION, and the
   // result was { name: undefined, symbol: undefined, decimals: undefined }.
   const unknown: ChainManifestEntry = {
-    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     explorerUrl: 'https://explorer.example', gasPolicy: 'none',
     assets: [{ id: 'NOT_IN_ASSET_META', roles: ['exchange'], token: null }],

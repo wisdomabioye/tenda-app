@@ -24,8 +24,37 @@ import {
   SOLANA_CHAIN_NAMES_PROSE,
   type LandingChain,
 } from './chains'
+import { chainStatus } from './chain-status'
+import { AGENT_BADGE_LABEL } from '@tenda/shared/constants/users'
 
-export type FeatureStatus = 'live' | 'roadmap'
+/**
+ * What a card may claim.
+ *
+ * - 'live'    the rail is built AND runs on a chain a visitor can use today
+ * - 'testnet' the rail is built and working, but only where Tenda is deployed —
+ *             which today is testnet only
+ * - 'roadmap' the rail does not exist yet
+ *
+ * 'testnet' exists because two independent facts were previously collapsed into
+ * one hardcoded string. The USDC-gas and gas-grant cards were declared 'live'
+ * beside chain names taken from LANDING_CHAINS (mainnet), so the section
+ * announced, with a pulsing Live pill, two conveniences on chains that have no
+ * contract. Calling them 'roadmap' would have been the opposite error: both
+ * rails are built and verified on-chain. Only 'testnet' is true of both halves.
+ */
+export type FeatureStatus = 'live' | 'testnet' | 'roadmap'
+
+/**
+ * Whether the RAIL ITSELF exists, independent of where it is deployed.
+ *
+ * Kept separate from FeatureStatus because the two answer different questions
+ * and one of them does not move with deployment at all: `paymaster` is unbuilt
+ * because the ERC-4337 path sets the UserOperation sender to the user's EOA,
+ * which is invalid 4337 — that stays true no matter which chains go live. A
+ * single hardcoded status could not express "built but unreachable" and
+ * "unbuilt" as different things, so it expressed neither.
+ */
+type RailBuild = 'built' | 'unbuilt'
 
 export interface OnboardingFeature {
   id: string
@@ -33,7 +62,7 @@ export interface OnboardingFeature {
    *  titles are full sentences and would blow the rail's width. */
   tab: string
   /** Lucide icon name, resolved by the section renderer. */
-  icon: 'Bot' | 'Fuel' | 'Sparkles' | 'Wallet' | 'Zap'
+  icon: 'Bot' | 'Fuel' | 'Handshake' | 'Sparkles' | 'Wallet' | 'Zap'
   /** Chains this rail covers. Empty for cross-chain cards. */
   chains: readonly LandingChain[]
   status: FeatureStatus
@@ -55,7 +84,8 @@ interface PolicyTemplate {
   id: string
   tab: string
   icon: OnboardingFeature['icon']
-  status: FeatureStatus
+  /** Whether the rail exists. The CARD's status is derived — see statusFor. */
+  rail: RailBuild
   title: (c: PolicyContext) => string
   body: (c: PolicyContext) => string
   fact: (c: PolicyContext) => string
@@ -78,7 +108,7 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
     id: 'gas-in-stablecoin',
     tab: 'USDC gas',
     icon: 'Fuel',
-    status: 'live',
+    rail: 'built',
     title: () => 'Your USDC pays its own gas',
     body: (c) =>
       `On ${c.names}, network fees come out of the same USDC you trade with. No hunting for a separate gas token before your first move.`,
@@ -88,7 +118,7 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
     id: 'gas-grant',
     tab: 'Gas grant',
     icon: 'Sparkles',
-    status: 'live',
+    rail: 'built',
     title: (c) => `Start with zero ${c.natives}`,
     body: (c) =>
       `Link your first ${c.names} wallet and Tenda seeds it with enough ${c.natives} for a full escrow lifecycle — post, lock, settle. One grant per person, on us.`,
@@ -98,12 +128,51 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
     id: 'sponsored-gas',
     tab: 'Sponsored gas',
     icon: 'Zap',
-    status: 'roadmap',
+    rail: 'unbuilt',
     title: (c) => `Sponsored gas on ${c.names}`,
     body: (c) =>
       `Covering your first transactions on ${c.names} is on our roadmap. Until it ships you pay your own gas there — which on an L2 runs to a fraction of a cent.`,
     fact: () => 'on the roadmap · not available yet',
   },
+}
+
+/**
+ * How a card's status is presented.
+ *
+ * Keyed by FeatureStatus so a new value is a type error here rather than a card
+ * that renders no pill. Tones are literal strings resolved by the renderer,
+ * matching how this module already names its icons — content stays free of
+ * component imports. The mirror of CHAIN_STATUS_DISPLAY in chain-status.ts, and
+ * deliberately the same shape: the two sections make the same kind of claim.
+ */
+export const FEATURE_STATUS_DISPLAY: Record<
+  FeatureStatus,
+  { label: string; tone: 'live' | 'brand' | 'neutral' }
+> = {
+  live: { label: 'Live', tone: 'live' },
+  testnet: { label: 'Testnet', tone: 'brand' },
+  roadmap: { label: 'Roadmap', tone: 'neutral' },
+}
+
+/**
+ * A card's status: the rail being built AND being reachable on a chain the
+ * visitor can use.
+ *
+ * Both halves are load-bearing and neither can stand in for the other. The
+ * USDC-gas and gas-grant rails are built and verified on-chain, so 'roadmap'
+ * would be false about them; they run only on Celo and Solana MAINNET, which
+ * have no contract, so 'live' was false too. `paymaster` fails the first half
+ * for a reason that has nothing to do with chains and must survive Base going
+ * live, which is exactly why the rail flag is declared rather than derived.
+ *
+ * Exported for the reason gasFreeSentence and featureFor are: the 'live' arm
+ * cannot be reached through the current manifest — no mainnet chain is
+ * deployed — and it is the arm that fires the day one is. A branch that first
+ * runs on launch day is the last one that should be left untested.
+ */
+export function statusFor(rail: RailBuild, chains: readonly LandingChain[]): FeatureStatus {
+  if (rail === 'unbuilt') return 'roadmap'
+  return chains.some((chain) => chainStatus(chain) === 'live') ? 'live' : 'testnet'
 }
 
 /**
@@ -132,6 +201,21 @@ const WALLET_FEATURE: Omit<OnboardingFeature, 'chains'> = {
   id: 'any-wallet',
   tab: 'Any wallet',
   icon: 'Wallet',
+  /*
+   * 'live', and NOT subject to statusFor — deliberately, because this card's
+   * claim does not depend on escrow deployment at all.
+   *
+   * The gas cards do: a gas grant needs Tenda's per-chain seeding wallet, and
+   * paying fees in USDC happens inside a Tenda transaction, so neither is
+   * reachable until the contract is. Wallet CONNECTION is a property of the
+   * app and the transport — Mobile Wallet Adapter on Android, WalletConnect on
+   * any EVM chain. It works today and it goes on working unchanged at mainnet,
+   * so gating it on chain status would mark a shipped capability as pending and
+   * then "promote" it on launch day, having changed nothing.
+   *
+   * The rule this file follows is not "everything defers to chain status" — it
+   * is "a claim defers to whatever it actually depends on".
+   */
   status: 'live',
   title: 'Bring the wallet you already have',
   body: `On ${SOLANA_CHAIN_NAMES_PROSE}, Android hands the connection to whichever wallet you use — Phantom, Solflare and the rest. On ${EVM_CHAIN_NAMES_PROSE}, any WalletConnect wallet works.`,
@@ -140,12 +224,13 @@ const WALLET_FEATURE: Omit<OnboardingFeature, 'chains'> = {
 
 /**
  * "new Solana wallets get seeded with a small SOL grant, and on Celo your USDC
- * pays its own fees" — the gas-free-start sentence, assembled from the same
+ * pays its own fees" — the gas-free-start clauses, assembled from the same
  * policy templates the cards use so the FAQ cannot name a chain the manifest
  * has stopped shipping (or miss one it has started).
  *
- * Only LIVE policies contribute: a roadmap rail has no business appearing in a
- * sentence that promises you can start without gas money.
+ * Only rails that EXIST contribute. A roadmap rail has no business in a
+ * sentence promising you can start without gas money; a 'testnet' rail does,
+ * because it genuinely works on the networks this release talks to.
  */
 const GAS_FREE_CLAUSES: Partial<Record<GasPolicy, (c: PolicyContext) => string>> = {
   'native-seed': (c) => `new ${c.names} wallets get seeded with a small ${c.natives} grant`,
@@ -168,17 +253,28 @@ const GAS_FREE_CLAUSES: Partial<Record<GasPolicy, (c: PolicyContext) => string>>
  * not worth faking. `featureFor` carries the same pair for the same reason.
  */
 export function gasFreeSentence(policies: readonly GasPolicy[]): string {
-  return `${prose(
-    policies.flatMap((policy) => {
-      const clause = GAS_FREE_CLAUSES[policy]
-      const chains = chainsByGasPolicy(policy)
-      if (clause === undefined || chains.length === 0) return []
-      if (GAS_POLICY_TEMPLATES[policy]?.status !== 'live') return []
-      return [clause(contextFor(chains))]
-    }),
-  )}.`
+  const clauses = policies.flatMap((policy) => {
+    const clause = GAS_FREE_CLAUSES[policy]
+    const chains = chainsByGasPolicy(policy)
+    if (clause === undefined || chains.length === 0) return []
+    const template = GAS_POLICY_TEMPLATES[policy]
+    if (template === undefined || statusFor(template.rail, chains) === 'roadmap') return []
+    return [clause(contextFor(chains))]
+  })
+  // EMPTY MEANS EMPTY, not ".". This used to append the full stop
+  // unconditionally, so a run with no qualifying rail produced a lone "." —
+  // which the FAQ rendered as "you don't even need gas money to start: ." The
+  // whole promise now carries inside the string, so having nothing to say
+  // removes the sentence instead of leaving its punctuation behind.
+  if (clauses.length === 0) return ''
+  return `You don't even need gas money to start: ${prose(clauses)}.`
 }
 
+/**
+ * The gas-free promise as a WHOLE sentence, lead-in included, or '' when no
+ * rail can back it. Callers render it as its own sentence — see the note above
+ * on why the lead-in moved in here.
+ */
 export const GAS_FREE_START_SENTENCE = gasFreeSentence(ACTIVE_GAS_POLICIES)
 
 /**
@@ -201,7 +297,7 @@ export function featureFor(policy: GasPolicy): OnboardingFeature | null {
     tab: template.tab,
     icon: template.icon,
     chains,
-    status: template.status,
+    status: statusFor(template.rail, chains),
     title: template.title(context),
     body: template.body(context),
     fact: template.fact(context),
@@ -211,44 +307,100 @@ export function featureFor(policy: GasPolicy): OnboardingFeature | null {
 /**
  * The 0G agent rail — Onboarding's 0G card. Not a gas policy (0G's manifest
  * policy is 'none', which deliberately contributes no card), so like
- * WALLET_FEATURE it is hand-written; unlike it, it names its chain. `roadmap`,
- * not in-progress: the sign-only funding design (x402 — the agent signs a
- * payment authorization, Tenda relays it on-chain) is decided but not shipped,
- * so the copy names the mechanism only as far as it is true and promises no
- * date. The person reading this card is the second audience Onboarding now
- * has: someone pointing an AI agent at Tenda rather than a phone.
+ * WALLET_FEATURE it is hand-written; unlike it, it NAMES A CHAIN, which is why
+ * its status derives rather than being declared.
+ *
+ * IT SHIPPED. This card read `roadmap` with the copy "an agent WILL fund
+ * escrow" and a fact line of "on the roadmap" — written while the x402
+ * sign-only design was decided but unbuilt, and left behind when it was built.
+ * The fund route, the agent API and a full agent-to-human hire settling in four
+ * on-chain transactions all landed and were verified end to end on 0G Galileo.
+ * A stale roadmap label understates shipped work exactly as a premature live
+ * one overstates unshipped work; both are the same failure to keep a status
+ * tied to something real.
+ *
+ * It reads Testnet rather than Live because the rail relays an on-chain
+ * transfer into the escrow contract, so it genuinely depends on that contract
+ * being deployed — and it names 0G MAINNET, which is launching, not live. It
+ * becomes Live on its own the day #13 deploys, with no edit here. That chain
+ * dependency is what separates it from WALLET_FEATURE, whose transports do not
+ * touch the escrow at all.
  */
-const AGENT_FEATURE: Omit<OnboardingFeature, 'chains'> = {
+const AGENT_FEATURE: Omit<OnboardingFeature, 'chains' | 'status'> = {
   id: 'agent-signature-funding',
   tab: 'Agent pay',
   icon: 'Bot',
-  status: 'roadmap',
   title: 'AI agents pay with a signature',
-  body: 'On 0G, an AI agent will fund escrow by signing a payment authorization — Tenda relays it on-chain. No gas token to hold, no bridge, no custody.',
-  fact: 'sign-only funding · on the roadmap',
+  body: 'On 0G, an AI agent funds escrow by signing a payment authorization — Tenda relays it on-chain. No gas token to hold, no bridge, no custody.',
+  fact: 'sign-only funding · x402 · verified end to end',
 }
 
 /**
- * Live rails first, roadmap last — a reader scanning the grid should meet what
- * works before what doesn't. Within each group, manifest order is preserved;
- * the agent card leads the roadmap group (0G-first positioning, 2026-08-27).
+ * The other side of the agent rail — Onboarding's second 0G card.
+ *
+ * AGENT_FEATURE is written for someone POINTING AN AGENT at Tenda. This one is
+ * written for the person on the other end of that hire, who is the section's
+ * primary reader and had nothing addressed to them: 0G declares
+ * `gasPolicy: 'none'`, so it contributes no gas card, and the launch chain was
+ * absent from the getting-started section entirely.
+ *
+ * Every clause is a shipped fact, not positioning. An agent posts and funds
+ * through the same escrow primitive a person uses (#19 composes
+ * draftResolution / attachGigDetails / relayDraftFunding); the badge is real and
+ * on every surface that names a counterparty (PersonCard, GigCard, the gig
+ * poster card, the profile page, with its own e2e spec); and the lifecycle that
+ * follows is the ordinary one, settled end to end in #20.
+ *
+ * The badge text is READ FROM the shared constant rather than typed. If the app
+ * ever relabels agents, copy promising a specific label would quietly become a
+ * promise the product no longer keeps.
+ */
+const AGENT_HIRE_FEATURE: Omit<OnboardingFeature, 'chains' | 'status'> = {
+  id: 'agent-hires-you',
+  tab: 'Agent hires',
+  icon: 'Handshake',
+  title: 'Your next client might be an AI',
+  body: `On 0G, an AI agent posts a gig and funds escrow exactly as a person does — and it carries an "${AGENT_BADGE_LABEL}" badge everywhere it appears. You accept, do the work, submit proof, and the contract pays out.`,
+  fact: 'same escrow as any gig · labelled, never hidden',
+}
+
+/**
+ * Rails that EXIST first, roadmap last — a reader scanning the grid should meet
+ * what works before what doesn't. 'live' and 'testnet' group together for that
+ * ordering because both describe something built; only 'roadmap' describes
+ * something absent. Within each group, manifest order is preserved; the agent
+ * card leads the roadmap group (0G-first positioning, 2026-08-27).
  */
 export const ONBOARDING_FEATURES: readonly OnboardingFeature[] = (() => {
   const derived = ACTIVE_GAS_POLICIES.map(featureFor).filter(
     (f): f is OnboardingFeature => f !== null,
   )
-  const live = derived.filter((f) => f.status === 'live')
-  const roadmap = derived.filter((f) => f.status !== 'live')
+  // Split on EXISTS, not on 'live'. Splitting on 'live' was right when there
+  // were two statuses; with three it put every built-but-unreachable rail into
+  // the roadmap group, so the section led with a roadmap card and interleaved
+  // Testnet and Roadmap pills down the rail. A reader scanning it could no
+  // longer tell built from unbuilt by position.
+  const built = derived.filter((f) => f.status !== 'roadmap')
+  const roadmap = derived.filter((f) => f.status === 'roadmap')
   // The `[]` arm is the removal path — it fires only if 0G leaves the
   // manifest, the same deliberately-unfaked class as featureFor's
   // zero-chains guard above: reaching it from a test would mean stubbing
   // CHAIN_MANIFEST, which tests the stub. The card then ships chainless
   // (like WALLET_FEATURE) rather than crashing the section.
   const zeroG = chainByFamily('0g')
+  const agentChains = zeroG === undefined ? [] : [zeroG]
+  const agentCard = { ...AGENT_FEATURE, status: statusFor('built', agentChains) }
   return [
-    ...live,
+    ...built,
     { ...WALLET_FEATURE, chains: [] },
-    { ...AGENT_FEATURE, chains: zeroG === undefined ? [] : [zeroG] },
+    // Status derived from the chain it names, not declared: the rail is built
+    // (#18/#19/#20), so what is left to decide is reachability, and that is
+    // statusFor's job. A chainless 0G — the removal path below — leaves the
+    // rail built with nothing to place it on, which reads Testnet.
+    { ...agentCard, chains: agentChains },
+    // Beside the agent card: same chain, opposite audience. Its status derives
+    // the same way, so both 0G cards move together when the chain deploys.
+    { ...AGENT_HIRE_FEATURE, status: statusFor('built', agentChains), chains: agentChains },
     ...roadmap,
   ]
 })()

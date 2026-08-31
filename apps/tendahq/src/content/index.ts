@@ -20,6 +20,16 @@ export {
   type LandingChain,
 } from './chains'
 export {
+  chainStatus,
+  LIVE_CHAINS,
+  LAUNCHING_CHAINS,
+  PLANNED_CHAINS,
+  UNDEPLOYED_CHAINS,
+  CHAIN_STATUS_DISPLAY,
+  MAINNET_STATUS_CLAUSE,
+  mainnetStatusClause,
+} from './chain-status'
+export {
   CURRENCIES,
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
@@ -48,6 +58,8 @@ export { EXAMPLE_TRADES, type ExampleTrade, type TradeAssetSymbol } from './trad
 export {
   ONBOARDING_FEATURES,
   ONBOARDING_HEADER,
+  FEATURE_STATUS_DISPLAY,
+  statusFor,
   GAS_FREE_START_SENTENCE,
   type OnboardingFeature,
   type FeatureStatus,

@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { Bot, Fuel, Sparkles, Wallet, Zap } from 'lucide-react'
+import { Bot, Fuel, Handshake, Sparkles, Wallet, Zap } from 'lucide-react'
 import { SectionShell } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Pill } from '@/components/ui/Pill'
 import { LiveDot } from '@/components/ui/LiveDot'
 import { useIntersect } from '@/hooks/useIntersect'
-import { ONBOARDING_FEATURES, ONBOARDING_HEADER } from '@/content'
+import { FEATURE_STATUS_DISPLAY, ONBOARDING_FEATURES, ONBOARDING_HEADER } from '@/content'
 import { cn } from '@/lib/cn'
 
-const ICONS = { Bot, Fuel, Sparkles, Wallet, Zap } as const
+const ICONS = { Bot, Fuel, Handshake, Sparkles, Wallet, Zap } as const
 
 /**
  * §05 Onboarding rails — a SELECTOR RAIL over ONE detail panel. Five rails
@@ -73,7 +73,7 @@ export function Onboarding() {
                 {feature.status !== 'live' && (
                   <span
                     aria-hidden
-                    title="On the roadmap"
+                    title={FEATURE_STATUS_DISPLAY[feature.status].label}
                     className="h-1.5 w-1.5 rounded-full bg-[var(--content-tertiary)]"
                   />
                 )}
@@ -113,16 +113,14 @@ export function Onboarding() {
           </div>
 
           <div className="row-start-1 justify-self-end md:col-start-3">
-            {selected.status === 'live' ? (
-              <Pill tone="live" size="sm">
-                <LiveDot size={5} className="mr-1" />
-                Live
-              </Pill>
-            ) : (
-              <Pill tone="neutral" size="sm">
-                Roadmap
-              </Pill>
-            )}
+            <Pill tone={FEATURE_STATUS_DISPLAY[selected.status].tone} size="sm">
+              {/* The pulsing dot is reserved for 'live'. It is the strongest
+                  availability signal on the card, and putting it on a rail a
+                  visitor cannot reach is how "Live" came to sit over two
+                  undeployed chains in the first place. */}
+              {selected.status === 'live' && <LiveDot size={5} className="mr-1" />}
+              {FEATURE_STATUS_DISPLAY[selected.status].label}
+            </Pill>
           </div>
         </article>
       </div>

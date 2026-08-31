@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ONBOARDING_FEATURES } from '@/content'
+import { chainStatus, FEATURE_STATUS_DISPLAY, ONBOARDING_FEATURES } from '@/content'
 import { Onboarding } from '../Onboarding'
 
 /**
@@ -40,9 +40,57 @@ describe('onboarding rendered', () => {
     expect(html.match(/role="tab"/g)).toHaveLength(ONBOARDING_FEATURES.length)
   })
 
-  it('marks every roadmap rail on its tab, and none of the live ones', () => {
-    const roadmapCount = ONBOARDING_FEATURES.filter((f) => f.status !== 'live').length
-    expect(roadmapCount).toBeGreaterThan(0)
-    expect(html.match(/title="On the roadmap"/g)).toHaveLength(roadmapCount)
+  /**
+   * The tab dot marks anything that is not reachable today. Its title is the
+   * card's own status label rather than a fixed "On the roadmap", because the
+   * two are no longer the same thing: a 'testnet' rail is built and working,
+   * just not on a chain a visitor can use.
+   */
+  it('marks every not-live rail on its tab, and none of the live ones', () => {
+    const notLive = ONBOARDING_FEATURES.filter((f) => f.status !== 'live')
+    expect(notLive.length).toBeGreaterThan(0)
+    const dots = html.match(/title="(Testnet|Roadmap)"/g) ?? []
+    expect(dots).toHaveLength(notLive.length)
+    expect(html).not.toContain('title="On the roadmap"')
+  })
+
+  /**
+   * Scoped to CHAIN-BACKED cards on purpose.
+   *
+   * A card that names chains is making a claim about those chains, so its
+   * status must follow their deployment — that is the defect: two of them
+   * rendered a pulsing Live pill while naming only chains with no contract.
+   *
+   * A chainless card is making a different claim. "Bring the wallet you already
+   * have" is about Mobile Wallet Adapter and WalletConnect, which work today
+   * and work identically after mainnet; deferring it to chain status would mark
+   * a shipped capability pending and then "promote" it on launch day having
+   * changed nothing. The rule is that a claim defers to what it depends on, not
+   * that everything defers to chains.
+   */
+  it('reserves the Live pill for a chain-backed rail on a deployed chain', () => {
+    const chainBacked = ONBOARDING_FEATURES.filter((f) => f.chains.length > 0)
+    expect(chainBacked.length).toBeGreaterThan(0)
+    for (const feature of chainBacked) {
+      const anyLive = feature.chains.some((chain) => chainStatus(chain) === 'live')
+      expect(feature.status === 'live').toBe(anyLive)
+    }
+  })
+
+  it('does not downgrade a capability that never depended on a chain', () => {
+    // The wallet card. It survives the mainnet cutover unchanged, so a status
+    // that moves with chain deployment would be describing the wrong thing.
+    const wallet = ONBOARDING_FEATURES.find((f) => f.id === 'any-wallet')
+    expect(wallet).toBeDefined()
+    expect(wallet?.chains).toHaveLength(0)
+    expect(wallet?.status).toBe('live')
+  })
+
+  it('shows a Testnet pill for a built rail nobody can reach on mainnet yet', () => {
+    // Not Roadmap: both gas rails are built and verified on-chain, and calling
+    // them unbuilt is the opposite error to calling them live.
+    const testnetCards = ONBOARDING_FEATURES.filter((f) => f.status === 'testnet')
+    expect(testnetCards.length).toBeGreaterThan(0)
+    expect(html).toContain(FEATURE_STATUS_DISPLAY.testnet.label)
   })
 })

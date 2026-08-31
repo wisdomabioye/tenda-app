@@ -27,10 +27,22 @@
  * every chain.
  */
 
+import { MAINNET_STATUS_CLAUSE } from '@/content'
+
+/**
+ * The header no longer asserts a deployment.
+ *
+ * It read "Settlement runs on these chains" over "Escrow is a contract on each
+ * of them" — present tense, four mainnet cards, and not one of those chains
+ * had a contract. "Built for" is true whatever the manifest says, and the per
+ * chain Live/Planned badge on each card now carries the fact the old sentence
+ * was guessing at. MAINNET_STATUS_CLAUSE states it once in words for a reader
+ * who scans prose rather than badges.
+ */
 export const NETWORKS_HEADER = {
   eyebrow: 'Networks',
-  h2: { lead: 'Settlement runs on', emphasis: 'these chains.' },
-  sub: 'Escrow is a contract on each of them — not a balance we hold for you. Chain ids are CAIP-2, the same identifiers the app and API use.',
+  h2: { lead: 'Settlement is built for', emphasis: 'these chains.' },
+  sub: `Escrow is a contract on-chain — never a balance we hold for you. Each card says whether that contract is live there yet: ${MAINNET_STATUS_CLAUSE}. Chain ids are CAIP-2, the same identifiers the app and API use.`,
 } as const
 
 /** Column headings for the network rows. */

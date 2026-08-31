@@ -2,7 +2,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CHAIN_MANIFEST } from '@tenda/shared/chains'
 import {
+  CHAIN_STATUS_DISPLAY,
   LANDING_CHAINS,
+  LIVE_CHAINS,
+  PLANNED_CHAINS,
+  chainStatus,
   displayFor,
   explorerHost,
   transportFor,
@@ -124,6 +128,48 @@ describe('supported networks section', () => {
    * cannot tell a chain row from prose about chain rows is measuring the wrong
    * thing, and would have been "fixed" by rewording honest copy.
    */
+  /**
+   * The section's central claim, and the one it got wrong.
+   *
+   * Every card carries a copyable CAIP-2 id and an explorer link — reference
+   * data a visitor may act on. It shipped with four such cards and no contract
+   * behind any of them, because the grid derived from `kind === 'mainnet'` and
+   * nothing on the page distinguished a chain Tenda runs on from a chain Tenda
+   * merely intends to. These assert the badge tracks the MANIFEST, in both
+   * directions, so neither a missing badge nor an over-generous one can return.
+   */
+  it('labels every card with the status the manifest declares', () => {
+    for (const chain of LANDING_CHAINS) {
+      const expected = CHAIN_STATUS_DISPLAY[chainStatus(chain)].label
+      // The card is the smallest thing that can carry a per-chain claim; the
+      // section-level markup would let one chain's badge stand in for another.
+      const card = renderToStaticMarkup(<NetworkCard chain={chain} />)
+      expect(card).toContain(chain.name)
+      expect(card).toContain(expected)
+    }
+  })
+
+  it('calls no chain Live unless the manifest says it is deployed', () => {
+    const liveLabel = CHAIN_STATUS_DISPLAY.live.label
+    for (const chain of PLANNED_CHAINS) {
+      const card = renderToStaticMarkup(<NetworkCard chain={chain} />)
+      expect(card).not.toContain(liveLabel)
+      expect(card).toContain(CHAIN_STATUS_DISPLAY.planned.label)
+    }
+  })
+
+  it('does call a deployed chain Live — the badge is not stuck on Planned', () => {
+    // The other direction. Without it the whole feature could be a constant
+    // "Planned" and every assertion above would still pass. Skipped while no
+    // mainnet has shipped, and it starts asserting the day one does.
+    if (LIVE_CHAINS.length === 0) return
+    for (const chain of LIVE_CHAINS) {
+      expect(renderToStaticMarkup(<NetworkCard chain={chain} />)).toContain(
+        CHAIN_STATUS_DISPLAY.live.label,
+      )
+    }
+  })
+
   it('lists none of the manifest’s testnet chains', () => {
     const testnets = CHAIN_MANIFEST.filter((entry) => entry.kind === 'testnet')
     expect(testnets.length).toBeGreaterThan(0)
