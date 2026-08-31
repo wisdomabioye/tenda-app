@@ -75,6 +75,14 @@ export interface JobPayload {
   'expire-applications': {
     tick_id: string
   }
+  /**
+   * #43: release funds stranded in an escrow whose creator never came back to
+   * refund themselves. Same tick-id-only shape as the other repeatables — the
+   * handler derives its eligibility window from its injected clock.
+   */
+  'sweep-escrows': {
+    tick_id: string
+  }
   /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */
   'verify-tx': VerifyTxJobPayload
   reconcile: {

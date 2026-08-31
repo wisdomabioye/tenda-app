@@ -873,20 +873,25 @@ contract TendaEscrowTest is Test {
         escrow.submitProof(id2, PROOF); // not Accepted
     }
 
-    function test_refund_and_reclaim_notCreator_reverts() public {
+    /// @dev Replaced the pre-#43 `test_refund_and_reclaim_notCreator_reverts`,
+    ///      which asserted the caller check these two paths no longer carry.
+    ///      The property that MATTERS once anyone may call them is not who is
+    ///      refused, it is that the money cannot follow the caller — so the
+    ///      strongest version of the old case is the counterparty, the one
+    ///      party with a motive, triggering it and still not being paid.
+    function test_reclaimAbandoned_theWORKERMayTriggerIt_andIsStillNotPaid() public {
         bytes16 id = newId();
-        createNative(id);
-        vm.warp(block.timestamp + ACCEPT_WINDOW + 1);
-        vm.prank(outsider);
-        vm.expectRevert(TendaEscrow.NotCreator.selector);
-        escrow.refundExpired(id);
-
-        bytes16 id2 = newId();
-        acceptedNative(id2);
+        acceptedNative(id);
         vm.warp(block.timestamp + DURATION + GRACE + 1);
-        vm.prank(worker); // the counterparty may NOT reclaim, only the creator
-        vm.expectRevert(TendaEscrow.NotCreator.selector);
-        escrow.reclaimAbandoned(id2);
+
+        uint256 creatorBefore = creator.balance;
+        uint256 workerBefore = worker.balance;
+        vm.prank(worker);
+        escrow.reclaimAbandoned(id);
+
+        assertEq(creator.balance - creatorBefore, AMOUNT, "the creator is made whole");
+        assertEq(worker.balance, workerBefore, "the counterparty who ghosted gains nothing");
+        assertEq(uint8(status(id)), 5); // Refunded
     }
 
     function test_dispute_erc20_rejectsNativeValue() public {

@@ -79,7 +79,19 @@ export async function startStubRpc(
  * two hand-rolled copies is how one of them ends up missing a key.
  */
 export async function withEvmChainEnv(
-  args: { chainEnvPrefix: string; rpcUrl: string; escrow: string; treasury: string },
+  args: {
+    chainEnvPrefix: string
+    rpcUrl: string
+    escrow: string
+    treasury: string
+    /**
+     * Further CHAIN_* vars, keyed by their FULL name. For optional secrets a
+     * suite wants the loader to see — a relayer key, the #43 sweep flag — which
+     * the three required ones above cannot express. Cleared and restored with
+     * the rest.
+     */
+    extraEnv?: Record<string, string>
+  },
   body: () => Promise<void>,
 ): Promise<void> {
   const saved = { ...process.env }
@@ -93,6 +105,7 @@ export async function withEvmChainEnv(
   process.env[`${args.chainEnvPrefix}_RPC_URL`] = args.rpcUrl
   process.env[`${args.chainEnvPrefix}_ESCROW_ADDR`] = args.escrow
   process.env[`${args.chainEnvPrefix}_TREASURY_ADDR`] = args.treasury
+  for (const [key, value] of Object.entries(args.extraEnv ?? {})) process.env[key] = value
   resetChainSecretsCache()
 
   try {

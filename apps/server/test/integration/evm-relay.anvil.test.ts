@@ -109,11 +109,19 @@ test('an agent with USDC and no ETH funds an escrow: quote → sign → relay, r
   const agentUsdcBefore = await usdcOf(agent.address)
   const relayerEthBefore = await fx.pub.getBalance({ address: relayerAddress })
 
-  const terms = await adapter.relay.quote(args(payload(escrow_id)))
+  // ONE draft, reused for every call below. `payload()` derives its accept
+  // deadline from Date.now() at whole-second resolution, and the EIP-3009 nonce
+  // is the hash of the WHOLE CreateParams — deadline included. Rebuilding the
+  // draft per call therefore signs one set of terms and presents another the
+  // moment a call lands in a later second, and the relayer rightly refuses at
+  // the nonce. That is #44: not a nonce race, just elapsed wall clock, which is
+  // why it only bit under a loaded full-suite run.
+  const draft = payload(escrow_id)
+  const terms = await adapter.relay.quote(args(draft))
   assert.strictEqual(terms.pay_to, fx.escrowAddr)
   assert.strictEqual(terms.asset, fx.tokenAddr)
   const payment = await signTerms(terms)
-  const { tx_ref } = await adapter.relay.relay({ ...args(payload(escrow_id)), payment })
+  const { tx_ref } = await adapter.relay.relay({ ...args(draft), payment })
 
   const receipt = await fx.pub.waitForTransactionReceipt({ hash: tx_ref as Hex })
   assert.strictEqual(receipt.status, 'success')
@@ -136,7 +144,7 @@ test('an agent with USDC and no ETH funds an escrow: quote → sign → relay, r
 
   // Replay: the same artifact again fails simulation (escrow exists / nonce used) — never broadcast.
   await assert.rejects(
-    adapter.relay.relay({ ...args(payload(escrow_id)), payment }),
+    adapter.relay.relay({ ...args(draft), payment }),
     (err: unknown) => err instanceof AppError && err.code === 'RELAY_REJECTED' && /simulation failed/.test(err.message),
   )
 })
@@ -144,13 +152,21 @@ test('an agent with USDC and no ETH funds an escrow: quote → sign → relay, r
 test('a signature over one draft cannot fund altered terms: the relayer refuses at the nonce, the contract would at the token', { skip }, async () => {
   const escrow_id = randomUUID()
   assert.ok(adapter.relay)
-  const payment = await signTerms(await adapter.relay.quote(args(payload(escrow_id))))
+  // One draft, so the pre-assigned worker is the ONLY thing that differs below.
+  // Rebuilding it would let the accept deadline drift too, and the refusal this
+  // test asserts could then be caused by that drift rather than by the altered
+  // term — passing for a reason other than the one it names (#44).
+  const draft = payload(escrow_id)
+  const payment = await signTerms(await adapter.relay.quote(args(draft)))
   // The relayer's own check (a pre-assigned worker changes the struct → the nonce).
   await assert.rejects(
-    adapter.relay.relay({ ...args(payload(escrow_id, { assigned_counterparty_user_id: 'worker' })), payment }),
+    adapter.relay.relay({
+      ...args({ ...draft, assigned_counterparty_user_id: 'worker' }),
+      payment,
+    }),
     (err: unknown) => err instanceof AppError && err.code === 'RELAY_REJECTED' && /nonce must be the hash/.test(err.message),
   )
   // The honest terms still fund — the signature was not consumed by the refusal.
-  const { tx_ref } = await adapter.relay.relay({ ...args(payload(escrow_id)), payment })
+  const { tx_ref } = await adapter.relay.relay({ ...args(draft), payment })
   assert.strictEqual((await fx.pub.waitForTransactionReceipt({ hash: tx_ref as Hex })).status, 'success')
 })

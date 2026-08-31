@@ -58,3 +58,56 @@ test('relayerKey (#18): the Solana key rides the solana shape when it is a 64-by
     )
   }
 })
+
+test('sweepEnabled (#43): OFF unless asked for, and a relayer key is not asking', () => {
+  const key = `0x${'ab'.repeat(32)}`
+  const evm = (env: NodeJS.ProcessEnv) => {
+    const s = loadChainSecrets(env).get('eip155:8453')
+    return s?.namespace === 'eip155' ? s : undefined
+  }
+
+  // The case the flag exists for: a chain fully set up to relay for agents,
+  // which must NOT thereby be spending that float on sweeps.
+  assert.equal(evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RELAYER_KEY: key })?.sweepEnabled, false)
+  // No key, no flag, no chain-level anything: still false, never undefined —
+  // the consumer reads a decision here, not the absence of one.
+  assert.equal(evm(baseMainnetEnv())?.sweepEnabled, false)
+  // Explicitly declined reads the same as never mentioned.
+  assert.equal(
+    evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: 'false' })?.sweepEnabled,
+    false,
+  )
+  // And on.
+  assert.equal(
+    evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: 'true' })?.sweepEnabled,
+    true,
+  )
+})
+
+test('sweepEnabled (#43): anything that is not the two literals is a boot error naming the key', () => {
+  // A value that merely LOOKS like consent must never read as consent — the
+  // #34 lesson, applied to the one flag that authorises spending money. Each of
+  // these would silently mean `false` under a truthiness check.
+  for (const bad of ['yes', 'True', 'TRUE', '1', 'on', 'enabled']) {
+    assert.throws(
+      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: bad }),
+      /CHAIN_EIP155_8453_SWEEP_ENABLED/,
+      `'${bad}' must be refused by name`,
+    )
+  }
+})
+
+test('sweepEnabled (#43): the shared env boundary still owns whitespace and emptiness', () => {
+  // NOT a hole in the strict check above: `optionalEnv` trims every chain var
+  // and maps empty-after-trim to absent (#34), so a stray space around a real
+  // value is fine and a blank var means "unset" rather than "false decided".
+  // Asserted here because a future strictness pass could plausibly break either
+  // and both are load-bearing for an operator editing a .env by hand.
+  const read = (v: string) => {
+    const s = loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: v }).get('eip155:8453')
+    return s?.namespace === 'eip155' ? s.sweepEnabled : 'wrong-ns'
+  }
+  assert.equal(read(' true '), true, 'surrounding whitespace is trimmed, not rejected')
+  assert.equal(read(''), false, 'a blank var is unset, and unset is off')
+  assert.equal(read('   '), false)
+})

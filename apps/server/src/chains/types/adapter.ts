@@ -9,6 +9,7 @@ import type { AmountRaw, AssetId, ChainId } from './values'
 import type { BuildTxArgs, UnsignedTx } from './build-tx'
 import type { EscrowState, VerifiedTx, VerifyAuthSigArgs, VerifyTxArgs } from './verify'
 import type { EscrowRelay } from './relay'
+import type { EscrowSweep } from './sweep'
 
 // ---------- adapter -------------------------------------------------------
 
@@ -78,6 +79,15 @@ export interface ChainAdapter {
    * answers RELAY_UNAVAILABLE and the caller signs its own create.
    */
   readonly relay?: EscrowRelay
+
+  /**
+   * Abandoned-escrow recovery (#43): present only when this chain's deployed
+   * contract lets a third party trigger the creator's own refund. Absent =
+   * nothing sweeps there and the job skips the chain, which is the correct
+   * behaviour for Solana until #42 and for any EVM chain still on a
+   * pre-#43 contract generation.
+   */
+  readonly sweep?: EscrowSweep
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`

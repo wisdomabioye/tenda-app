@@ -48,6 +48,14 @@ export const ANVIL_KEYS = {
   relayer: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
 } as const
 
+/**
+ * The grace period the fixture deploys TendaEscrow with — the window after
+ * completionDeadline in which the worker may still submit and nobody may
+ * reclaim. Named because suites that warp past it must warp past THIS value:
+ * a second copy in a test silently goes wrong the day this one changes.
+ */
+export const ANVIL_GRACE_SECONDS = 3_600
+
 /** Matches the manifest's Base Sepolia entry, so its permit/eip3009 config applies verbatim. */
 const ANVIL_CHAIN_NUMERIC_ID = 84532
 export const ANVIL_CHAIN_ID = `eip155:${ANVIL_CHAIN_NUMERIC_ID}`
@@ -141,7 +149,7 @@ export async function startAnvilFixture(port: number): Promise<AnvilFixture> {
     250,
     100,
     172_800,
-    3_600,
+    ANVIL_GRACE_SECONDS,
   ])
   for (const to of [creator.address, worker.address]) {
     const hash = await creatorWallet.writeContract({

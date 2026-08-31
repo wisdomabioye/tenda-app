@@ -139,6 +139,9 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
                 chain_id: chainId,
                 private_key: secret.relayerKey as `0x${string}`,
               }),
+              // Sweeping spends that same wallet, but only where the operator
+              // asked for it (#43) — CHAIN_<ID>_SWEEP_ENABLED, default off.
+              sweepEnabled: secret.sweepEnabled === true,
             }
           : {}),
       }

@@ -79,6 +79,10 @@ export function drizzleVerifyTxStore(db: AppDatabase): VerifyTxStore {
 
 // ---------- payload ------------------------------------------------------
 
+/** Origin of a verify-tx enqueue; `sweep` is the platform broadcasting a
+ *  creator's own refund for them (#43, see lib/tx-attempts `source`). */
+export type VerifyTxSource = 'webhook' | 'polling' | 'client-hint' | 'reconcile' | 'sweep'
+
 export interface VerifyTxJobPayload {
   /** CAIP-2 chain id; resolves to a `ChainAdapter` via the registry. */
   chain_id: string
@@ -96,7 +100,7 @@ export interface VerifyTxJobPayload {
    */
   escrow_id?: string
   /** Origin of the enqueue. Used for retry-strategy tuning only. */
-  source: 'webhook' | 'polling' | 'client-hint' | 'reconcile'
+  source: VerifyTxSource
 }
 
 // ---------- result -------------------------------------------------------

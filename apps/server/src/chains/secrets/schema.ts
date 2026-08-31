@@ -15,7 +15,7 @@ import { isAbsoluteUrl } from '@server/lib/env'
 const ED25519_SECRET_KEY_BYTES = 64
 
 /** Validation classes for a secret value. */
-export type SecretKind = 'url' | 'evmAddr' | 'evmKey' | 'base58' | 'base58Key' | 'uint' | 'str'
+export type SecretKind = 'url' | 'evmAddr' | 'evmKey' | 'base58' | 'base58Key' | 'uint' | 'bool' | 'str'
 
 export interface SecretFieldSpec {
   /** Logical key on the resolved record. */
@@ -68,6 +68,13 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     // Relayer hot wallet for agent funding (#18): sends createEscrowFor and
     // pays its gas. 0x-hex secp256k1 private key; absent = RELAY_UNAVAILABLE.
     { key: 'relayerKey', envSuffix: 'RELAYER_KEY', required: false, kind: 'evmKey' },
+    // Abandoned-escrow sweeping (#43): pay gas to refund creators who never
+    // came back for their own funds. Default OFF, and deliberately a SEPARATE
+    // switch from `relayerKey` even though it spends the same wallet — relaying
+    // is gas spent serving a flow an agent asked for, sweeping is an open-ended
+    // outflow on escrows nobody asked us to touch. Tying it to the key would
+    // mean enabling agent funding silently enabled the second one too.
+    { key: 'sweepEnabled', envSuffix: 'SWEEP_ENABLED', required: false, kind: 'bool' },
   ],
 }
 
@@ -133,6 +140,12 @@ export function isValid(kind: SecretKind, value: string): boolean {
       // Decimal block ordinal; bounded so Number() stays exact (2^53 blocks
       // is far beyond any chain's height).
       return /^\d{1,15}$/.test(value)
+    case 'bool':
+      // Only the two literals. A typo ('yes', 'True', '1') is a boot error
+      // naming the key rather than a silent false — the same reason every other
+      // kind here validates instead of coercing, and the #34 lesson that a
+      // value which merely LOOKS unset must never read as a decision.
+      return value === 'true' || value === 'false'
     case 'str':
       return value.length > 0
   }

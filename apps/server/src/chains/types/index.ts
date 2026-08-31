@@ -46,6 +46,8 @@ export type {
 
 export type { EscrowRelay, RelayedCreateArgs } from './relay'
 
+export type { EscrowSweep, SweepArgs, SweepableTransition } from './sweep'
+
 export type {
   ChainAdapter,
   RpcProvider,

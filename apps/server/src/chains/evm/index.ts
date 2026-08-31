@@ -32,6 +32,7 @@ import { resolveEvmSigner } from './signer'
 import { buildPermitPayload } from './permit-payload'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
 import { evmEscrowRelay } from './relay'
+import { evmEscrowSweep } from './sweep'
 import type { EvmRelayer } from './relay/relayer'
 
 export interface EvmAdapterDeps {
@@ -65,6 +66,9 @@ export interface EvmAdapterDeps {
   paymaster?: PaymasterHttp
   /** Relayer hot wallet (#18); absent = relayed funding unavailable. */
   relayer?: EvmRelayer
+  /** May this chain spend the relayer float on sweeps (#43)? Default false;
+   *  the wallet says a sweep is POSSIBLE, this says it is wanted. */
+  sweepEnabled?: boolean
 }
 
 export interface EvmAdapterArgs {
@@ -282,6 +286,10 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
     ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
+    // BOTH: a wallet that can pay, and the operator's say-so (#43).
+    ...(args.deps.relayer !== undefined && args.deps.sweepEnabled === true
+      ? { sweep: evmEscrowSweep(args.deps.relayer) }
+      : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
     // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.

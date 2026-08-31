@@ -84,7 +84,10 @@ const nodeAnswering = (): Promise<StubRpc> =>
  * every test that runs after this file — the env silently, the socket by hanging
  * the runner at exit.
  */
-async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void> {
+async function withBootEnv(
+  body: (rpc: StubRpc) => Promise<void>,
+  extraEnv: Record<string, string> = {},
+): Promise<void> {
   const rpc = await nodeAnswering()
   try {
     // `chainEnvPrefix` rather than a literal: the prefix rule lives in the
@@ -96,6 +99,7 @@ async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void>
         rpcUrl: rpc.url,
         escrow: CURRENT,
         treasury: TREASURY,
+        extraEnv,
       },
       () => body(rpc),
     )
@@ -103,6 +107,10 @@ async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void>
     await rpc.close()
   }
 }
+
+/** Same prefix rule as the env itself — never a hand-written key. */
+const chainEnv = (suffix: string): string => `${chainEnvPrefix(TEST_CHAIN_ID_ALT)}_${suffix}`
+const RELAYER_KEY = `0x${'ab'.repeat(32)}`
 
 /**
  * `chains` naming the CURRENT contract, so the registry-sync boot gate passes.
@@ -211,4 +219,51 @@ test('boot: REFUSES to start when a live escrow names a contract history has los
       await app.close()
     }
   })
+})
+
+/**
+ * #43's operator switch, asserted where it is actually decided.
+ *
+ * This is the same escape the file's docstring describes, one feature along.
+ * The secrets suite proves CHAIN_<ID>_SWEEP_ENABLED resolves to a boolean and
+ * the adapter suite proves an adapter given `sweepEnabled` offers the port —
+ * but each constructs its own adapter and passes the value itself. The hand-off
+ * between them is `plugins/chains.ts`, and nothing looked at it: hardcoding
+ * `sweepEnabled: true` there passed every test in the repo while making every
+ * relayer-equipped chain sweep, which is exactly what the flag exists to stop.
+ */
+test('boot: a relayer key alone does NOT enable sweeping', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+        assert.ok(adapter.relay, 'the key configures relayed funding')
+        assert.strictEqual(
+          adapter.sweep,
+          undefined,
+          'and nothing else — enabling agent funding must not silently start spending ' +
+            'that float on other people\'s refunds',
+        )
+      })
+    },
+    { [chainEnv('RELAYER_KEY')]: RELAYER_KEY },
+  )
+})
+
+test('boot: the flag plus the key is what reaches the adapter', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+        assert.ok(adapter.sweep, 'the operator asked for it, so the port is there')
+        // Paid for by the relayer wallet the key names, not some other account.
+        assert.strictEqual(adapter.sweep.sweeper_address.toLowerCase().startsWith('0x'), true)
+      })
+    },
+    { [chainEnv('RELAYER_KEY')]: RELAYER_KEY, [chainEnv('SWEEP_ENABLED')]: 'true' },
+  )
 })

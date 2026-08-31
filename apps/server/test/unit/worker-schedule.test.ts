@@ -41,6 +41,7 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
     'prune-notifications',
     'reconcile',
     'reconcile-fiat',
+    'sweep-escrows',
     'update-price-stats',
   ]
   assert.deepStrictEqual([...byName.keys()].sort(), expected)
@@ -54,6 +55,10 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   assert.strictEqual(byName.get('reconcile')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('reconcile-fiat')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('update-price-stats')?.every_ms, 24 * 3_600_000)
+  // #43 sweeps deliberately slower than the notices it follows: nothing becomes
+  // sweepable inside a minute (a creator gets a day of first refusal), and every
+  // tick that finds work spends real gas.
+  assert.strictEqual(byName.get('sweep-escrows')?.every_ms, 15 * 60_000)
   assert.strictEqual(byName.get('prune-notifications')?.every_ms, 24 * 3_600_000)
 })
 

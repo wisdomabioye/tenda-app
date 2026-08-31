@@ -42,6 +42,7 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   'send-otp': 8, // user-facing latency-sensitive; parallelise like notifications
   'expire-escrows': 1, // repeatable batch jobs never need parallelism
   'expire-applications': 1,
+  'sweep-escrows': 1, // one chain write at a time; the relayer nonce is serial
   reconcile: 1,
   'reconcile-fiat': 1,
   'expire-fiat-quotes': 1,
@@ -78,6 +79,10 @@ function repeatable<N extends JobName>(spec: RepeatableSpec<N>): RepeatableSpec<
 export const REPEATABLES = [
   repeatable({ name: 'expire-escrows', every_ms: 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'expire-applications', every_ms: 60_000, payload: { tick_id: 'cron' } }),
+  // Slower than the notices it follows: nothing becomes sweepable inside a
+  // minute (the first-refusal delay is a day), and every tick that finds work
+  // spends real gas.
+  repeatable({ name: 'sweep-escrows', every_ms: 15 * 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'reconcile', every_ms: 5 * 60_000, payload: {} }),
   repeatable({ name: 'reconcile-fiat', every_ms: 5 * 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'expire-fiat-quotes', every_ms: 60_000, payload: { tick_id: 'cron' } }),

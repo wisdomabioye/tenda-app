@@ -657,10 +657,23 @@ contract TendaEscrow is ReentrancyGuard {
     }
 
     /// @notice "Nobody wanted the work" — Open past acceptDeadline.
+    ///
+    /// @dev PERMISSIONLESS by design (#43). Anyone may trigger it; nobody can
+    ///      redirect it, because the payout address is `e.creator` and never
+    ///      `msg.sender`. Two facts make opening the caller safe rather than
+    ///      merely convenient:
+    ///        * the condition is objective — a timestamp, not a judgement;
+    ///        * the escrow is already dead at that timestamp, since
+    ///          acceptEscrow reverts once acceptDeadline passes. Sweeping it
+    ///          removes no option any party still had.
+    ///      Left creator-only, the creator's own funds sit locked until they
+    ///      come back and pay gas to release them to themselves — and an agent
+    ///      that crashed never comes back. cancelEscrow is deliberately NOT
+    ///      opened the same way: it withdraws a LIVE listing and has no time
+    ///      condition, so a stranger calling it would be destroying a gig.
     function refundExpired(bytes16 escrowId) external nonReentrant {
         Escrow storage e = _mustExist(escrowId);
         if (e.status != Status.Open) revert InvalidEscrowStatus();
-        if (msg.sender != e.creator) revert NotCreator();
         if (block.timestamp < e.acceptDeadline) revert AcceptDeadlineNotPassed();
 
         e.status = Status.Refunded;
@@ -671,10 +684,15 @@ contract TendaEscrow is ReentrancyGuard {
 
     /// @notice "Worker took the job and ghosted" — Accepted past
     ///         completionDeadline + grace. Submitted is explicitly excluded.
+    ///
+    /// @dev PERMISSIONLESS on the same terms as refundExpired (#43): pays
+    ///      `e.creator`, never `msg.sender`. The window it opens on is the very
+    ///      boundary at which submitProof stops accepting work, so by the time
+    ///      anyone may call this the counterparty can no longer deliver — the
+    ///      refund takes nothing from them that they had not already lost.
     function reclaimAbandoned(bytes16 escrowId) external nonReentrant {
         Escrow storage e = _mustExist(escrowId);
         if (e.status != Status.Accepted) revert InvalidEscrowStatus();
-        if (msg.sender != e.creator) revert NotCreator();
         if (block.timestamp < e.completionDeadline + gracePeriodSeconds) revert ReclaimWindowNotOpen();
 
         e.status = Status.Refunded;

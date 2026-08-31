@@ -38,6 +38,12 @@ export type ResolvedChainSecret =
       paymasterUrl?: string
       webhookSecret?: string
       relayerKey?: string
+      /**
+       * Is this chain allowed to spend the relayer float on abandoned-escrow
+       * sweeps (#43)? Absent = NO. Separate from `relayerKey` on purpose: the
+       * key says a sweep is POSSIBLE here, this says it is WANTED.
+       */
+      sweepEnabled?: boolean
     }
 
 /** Convenience aliases for the two namespace variants of the resolved union. */
@@ -87,5 +93,8 @@ export function assemble(
     paymasterUrl: present.get('paymasterUrl'),
     webhookSecret: present.get('webhookSecret'),
     relayerKey: present.get('relayerKey'),
+    // Validated as exactly 'true' | 'false', so this comparison is total —
+    // and an absent var lands on `false` rather than on undefined-is-truthy.
+    sweepEnabled: present.get('sweepEnabled') === 'true',
   }
 }

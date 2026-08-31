@@ -36,6 +36,8 @@ import {
   type VerifyTxDeps,
 } from '@server/jobs/verify-tx'
 import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/expire-escrows'
+import { drizzleSweepEscrowsStore, handleSweepEscrows } from '@server/jobs/sweep-escrows'
+import { drizzleTxAttemptsStore } from '@server/lib/tx-attempts'
 import { getPlatformConfig } from '@server/lib/platform'
 import { handleNotificationRetention } from '@server/workers/notification-retention'
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
@@ -162,6 +164,27 @@ export function buildProcessors(
         {
           store: drizzleExpireEscrowsStore(fastify.db),
           queue: fastify.queue,
+          log: fastify.log,
+          now: () => new Date(),
+          grace_period_seconds: cfg.grace_period_seconds,
+        },
+        payload,
+      )
+    },
+
+    'sweep-escrows': async (payload) => {
+      // Same grace value the notice job uses, resolved per tick for the same
+      // reason: it is admin-tunable and the handler stays I/O-free.
+      const cfg = await getPlatformConfig(fastify.db)
+      return handleSweepEscrows(
+        {
+          store: drizzleSweepEscrowsStore(fastify.db),
+          chains: fastify.chains,
+          attempts: {
+            store: drizzleTxAttemptsStore(fastify.db),
+            queue: fastify.queue,
+            log: fastify.log,
+          },
           log: fastify.log,
           now: () => new Date(),
           grace_period_seconds: cfg.grace_period_seconds,
