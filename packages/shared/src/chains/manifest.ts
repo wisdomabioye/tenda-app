@@ -377,7 +377,17 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 2,
     publicRpcUrl: 'https://evmrpc.0g.ai',
     explorerUrl: 'https://chainscan.0g.ai',
-    gasPolicy: 'none',
+    gasPolicy: 'native-seed',
+    /*
+     * PROVISIONAL, and inert today. `db/seed/rows.ts` resolves a funder wallet
+     * only for `namespace === 'solana'`, so an EVM chain seeds NULL into both
+     * gas columns and `dispatchGasSeeds` skips it — this number reaches nothing
+     * until the EVM GasSeedSender exists (#53). It is a round placeholder, NOT
+     * a measurement: 0G is 18 decimals, so Solana's 7000000 lamports must not
+     * be copied, and the real figure has to come from a measured accept +
+     * submit + approve lifecycle on 0G before the rail ships.
+     */
+    gasSeedAmountRaw: '10000000000000000',
     assets: [
       // USDC.e — XSwap Bridged USDC (Chainlink CCIP; XSwap is 0G's official
       // bridge), built on Circle's Bridged USDC Standard. Verified on-chain

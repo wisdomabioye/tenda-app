@@ -68,13 +68,24 @@ describe('onboarding rendered', () => {
    * changed nothing. The rule is that a claim defers to what it depends on, not
    * that everything defers to chains.
    */
-  it('reserves the Live pill for a chain-backed rail on a deployed chain', () => {
+  it('never claims Live for a rail whose chains are all undeployed', () => {
+    // An IMPLICATION, not a biconditional. The reverse direction — "a live
+    // chain makes the card live" — was wrong: an UNBUILT rail is roadmap
+    // however live its chains are, which is exactly the gas-grant card's
+    // state while the EVM seed does not exist. Stating it as an equivalence
+    // made a correct card fail.
     const chainBacked = ONBOARDING_FEATURES.filter((f) => f.chains.length > 0)
     expect(chainBacked.length).toBeGreaterThan(0)
     for (const feature of chainBacked) {
-      const anyLive = feature.chains.some((chain) => chainStatus(chain) === 'live')
-      expect(feature.status === 'live').toBe(anyLive)
+      if (feature.status !== 'live') continue
+      expect(feature.chains.some((chain) => chainStatus(chain) === 'live')).toBe(true)
     }
+  })
+
+  it('has not gone all-roadmap — something on the rail still ships', () => {
+    // Guards the implication above, which an entirely roadmap section would
+    // satisfy vacuously.
+    expect(ONBOARDING_FEATURES.some((f) => f.status !== 'roadmap')).toBe(true)
   })
 
   it('does not downgrade a capability that never depended on a chain', () => {

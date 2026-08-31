@@ -114,15 +114,32 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
       `On ${c.names}, network fees come out of the same USDC you trade with. No hunting for a separate gas token before your first move.`,
     fact: (c) => `feeCurrency: USDC — no ${c.natives} required`,
   },
+  /*
+   * `unbuilt`, DELIBERATELY, even though the rail is fully wired on Solana.
+   *
+   * The card covers every chain whose gasPolicy is 'native-seed', and since 0G
+   * joined that set the card spans both namespaces — but the seed only exists
+   * for one. TWO places hardcode it: `buildGasSeedDeps` builds a Solana sender
+   * or none at all, and `db/seed/rows.ts` resolves a funder wallet only when
+   * `namespace === 'solana'`, so an EVM chain seeds NULL and dispatch skips it
+   * in silence. A card claiming a grant on 0G would therefore be false, and a
+   * first-time user would meet that falsehood on their very first transaction.
+   *
+   * One card carries one status, so the choice is which way to be wrong.
+   * Understating a shipped Solana rail is visible to us and costs a user
+   * nothing; overstating an absent EVM one costs them a failed transaction.
+   * Decision taken 2026-08-31; flip to 'built' when #53 lands the EVM sender,
+   * and the copy below comes back with it.
+   */
   'native-seed': {
     id: 'gas-grant',
     tab: 'Gas grant',
     icon: 'Sparkles',
-    rail: 'built',
+    rail: 'unbuilt',
     title: (c) => `Start with zero ${c.natives}`,
     body: (c) =>
-      `Link your first ${c.names} wallet and Tenda seeds it with enough ${c.natives} for a full escrow lifecycle — post, lock, settle. One grant per person, on us.`,
-    fact: () => 'one-time gas grant · covers your first escrow',
+      `Linking your first ${c.names} wallet will seed it with enough ${c.natives} for a full escrow lifecycle — post, lock, settle. It runs on Solana today and is not yet available everywhere, so until it is you pay your own gas.`,
+    fact: () => 'one-time gas grant · not available on every chain yet',
   },
   paymaster: {
     id: 'sponsored-gas',

@@ -90,12 +90,16 @@ describe('landing chain registry', () => {
     expect(ACTIVE_GAS_POLICIES).toEqual([...new Set(LANDING_CHAINS.map((c) => c.gasPolicy))])
   })
 
-  it("groups the pay-your-own-gas chains under 'none' (0G), and nothing for an unused policy", () => {
-    // 0G mainnet ships gasPolicy 'none' — the user pays gas in 0G. The
-    // features cards deliberately have no template for it (no onboarding
-    // story), so this grouping must exist here without producing a card.
-    expect(chainsByGasPolicy('none').map((c) => c.family)).toEqual(['0g'])
-    expect(chainsByGasPolicy('paymaster').every((c) => c.family === 'base')).toBe(true)
+  it('groups chains by their declared gas policy, and yields nothing for an unused one', () => {
+    // 0G moved from 'none' to 'native-seed' on 2026-08-31, joining Solana on
+    // the gas-grant card. Asserted as a GROUPING rather than by naming the
+    // policy each chain happens to hold, so the next such move does not need
+    // this test rewritten — only the manifest.
+    for (const policy of ['native-seed', 'feeCurrency', 'paymaster', 'none'] as const) {
+      for (const chain of chainsByGasPolicy(policy)) expect(chain.gasPolicy).toBe(policy)
+    }
+    expect(chainsByGasPolicy('native-seed').map((c) => c.family).sort()).toEqual(['0g', 'solana'])
+    expect(chainsByGasPolicy('none')).toEqual([])
   })
 
   it('finds a chain by manifest family, and nothing for an unknown one', () => {

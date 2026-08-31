@@ -46,10 +46,15 @@ describe('onboarding features', () => {
 
   /** Every chain on a card must be one the card's policy actually covers. */
   it('puts each chain on the card for its own gas policy', () => {
-    for (const feature of ONBOARDING_FEATURES) {
-      if (feature.chains.length === 0) continue
-      const policy = feature.chains[0].gasPolicy
-      expect(feature.chains).toEqual(chainsByGasPolicy(policy))
+    // Scoped to the DERIVED policy cards. The two 0G agent cards are
+    // hand-written and carry that chain deliberately, so reading a policy off
+    // their first chain and demanding the whole group back was only ever true
+    // while no hand-written card shared a policy with a derived one — which
+    // stopped being true the moment 0G took 'native-seed'.
+    for (const policy of ACTIVE_GAS_POLICIES) {
+      const card = featureFor(policy)
+      if (card === null) continue
+      expect(card.chains).toEqual(chainsByGasPolicy(policy))
     }
   })
 
@@ -288,12 +293,27 @@ describe('gas-free start sentence', () => {
     }
   })
 
-  it('names every chain whose gas policy makes starting free', () => {
+  it('names the chains whose rail EXISTS, and no chain whose rail does not', () => {
+    // This used to name native-seed and feeCurrency unconditionally. When the
+    // gas-grant rail was marked unbuilt (its EVM half does not exist), that
+    // made the test demand a sentence promising gas-free starts on chains
+    // where nothing seeds anything — the test asserting the bug, again.
     for (const policy of ['native-seed', 'feeCurrency'] as const) {
+      const card = featureFor(policy)
+      const shipped = card !== null && card.status !== 'roadmap'
       for (const chain of chainsByGasPolicy(policy)) {
-        expect(GAS_FREE_START_SENTENCE).toContain(chain.name)
+        if (shipped) expect(GAS_FREE_START_SENTENCE).toContain(chain.name)
+        else expect(GAS_FREE_START_SENTENCE).not.toContain(chain.name)
       }
     }
+  })
+
+  it('still promises something — the sentence has not quietly emptied out', () => {
+    // Guards the guard above: if every rail became roadmap the assertions
+    // would all take the `not.toContain` branch and pass while the FAQ
+    // rendered nothing at all.
+    expect(GAS_FREE_START_SENTENCE).not.toBe('')
+    expect(GAS_FREE_START_SENTENCE).toContain('gas money to start')
   })
 
   it('reads as a finished sentence', () => {
