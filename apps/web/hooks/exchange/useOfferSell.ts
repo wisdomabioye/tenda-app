@@ -21,6 +21,7 @@ import {
   transactionGateRoute,
 } from '@tenda/shared'
 import { api } from '@/api/client'
+import { useAuthStore } from '@/stores/auth.store'
 import { showToast } from '@/components/ui/Toast'
 import {
   declaredSignerFor,
@@ -48,6 +49,10 @@ export function useOfferSell() {
   const [submitting, setSubmitting] = useState(false)
   const submissionInFlight = useRef(false)
   const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
+
+  /** The wallets[] load, read off the store rather than subscribed to: this
+   *  hook renders nothing, so a subscription would only add re-renders. */
+  const refreshLinkedWallets = () => useAuthStore.getState().refreshWallets()
 
   async function submit(a: OfferSubmitArgs): Promise<void> {
     if (submissionInFlight.current) return
@@ -123,7 +128,18 @@ export function useOfferSell() {
       const gate = classifyTransactionGateError(e)
       if (gate !== null) {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
+        if (gate === 'wallet_required') {
+          // #60, the same rule #59 set for the gig composer: the offer STAYS.
+          // Navigating away took the whole composition with it — asset, amount,
+          // rate, payout account — on a refusal the reader can fix in another
+          // tab and come back from. The precondition notice above the picker is
+          // the way out, and refreshing wallets[] is what makes it appear: the
+          // server has just contradicted this client, so the list it believed
+          // is the stale thing.
+          void refreshLinkedWallets()
+        } else {
+          router.push(transactionGateRoute(gate))
+        }
       } else if (e instanceof InsufficientBalanceError) {
         // Carries the exact shortfall; the generic branch below would replace
         // it with "Failed to create the offer" and lose the one useful fact.

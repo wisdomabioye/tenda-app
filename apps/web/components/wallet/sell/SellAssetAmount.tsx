@@ -11,7 +11,10 @@
  * (`payoutCurrencyForCountry`), not picked here — offering it would let a
  * reader choose a currency their account cannot receive.
  */
+import { useAuthStore } from '@/stores/auth.store'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { Chip } from '@/components/ui/Chip'
+import { SellWalletNotice } from './SellWalletNotice'
 import { MoneyField } from './MoneyField'
 import { chainLabel } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/exchange/useExchangeAssetOptions'
@@ -22,15 +25,33 @@ export function SellAssetAmount({
   selection,
   amount,
   onAmountChange,
+  noWalletMessage,
 }: {
   selection: AssetSelection
   amount: string
   onAmountChange: (next: string) => void
+  /** Mode-specific line for the no-wallet case (mobile's prop, same name). */
+  noWalletMessage: string
 }) {
   const symbol = selection.option?.symbol ?? ''
+  const retryWallets = useAuthStore((s) => s.refreshWallets)
+  const retryChains = useChainRegistryStore((s) => s.fetch)
 
   return (
     <div>
+      {/* Empty is not silence any more: it says WHICH of the four causes it is
+          (#60). The amount field below STAYS — losing every option mid-session
+          must not clear what the reader typed, which is this file's own tested
+          rule and the same principle #60 is about. Mobile hides it instead;
+          the divergence is deliberate and the value survives either way,
+          because the amount is the parent's state, not the field's. */}
+      <SellWalletNotice
+        section={selection.section}
+        noWalletMessage={noWalletMessage}
+        onRetryWallets={() => void retryWallets()}
+        onRetryChains={() => void retryChains()}
+      />
+
       {/* Rendered even with ONE option (mobile's picker does the same): the
           chip is what states the "you sell X on Y" fact before the number. */}
       {selection.options.length > 0 && (

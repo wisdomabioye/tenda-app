@@ -122,7 +122,6 @@ export const UNGATED_WITH_TESTS: readonly string[] = [
   'components/ui/SegmentedTabs.tsx',
   'components/ui/information/ExpandableNotice.tsx',
   'components/ui/overlay/BottomSheet.tsx',
-  'components/wallet/NoLinkedWalletNotice.tsx',
   'components/wallet/TxRow.tsx',
   'components/wallet/WalletEmptyState.tsx',
   'components/wallet/WalletLoadError.tsx',

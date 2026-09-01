@@ -5,7 +5,7 @@
  */
 import { renderHook, act } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import type { BankAccountSummary } from '@tenda/shared'
+import { ApiClientError, TRANSACTION_GATE_MESSAGE, type BankAccountSummary } from '@tenda/shared'
 
 const routerReplace = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
@@ -31,6 +31,12 @@ vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport,
 }))
 vi.mock('@/wallet/balances', () => ({ ensureSufficientBalance }))
+// The wallet gate refreshes wallets[] instead of navigating (#60), so the
+// store is a real dependency of this hook now.
+const refreshWallets = vi.hoisted(() => vi.fn<() => Promise<void>>())
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: { getState: () => ({ refreshWallets }) },
+}))
 const toastMock = vi.hoisted(() => vi.fn())
 vi.mock('@/components/ui/Toast', () => ({ showToast: toastMock }))
 
@@ -74,6 +80,39 @@ beforeEach(() => {
   apiMock.exchange.create.mockResolvedValue({ escrow_id: 'new-exch' })
   apiMock.escrows.delete.mockResolvedValue({ deleted: true })
   signSendAndReport.mockResolvedValue()
+  refreshWallets.mockResolvedValue()
+})
+
+test('the wallet gate KEEPS the composition — it no longer navigates away (#60)', async () => {
+  // Routing to Settings here took the whole offer with it: asset, amount,
+  // rate, payout account. The precondition notice above the picker is the way
+  // out, and refreshing wallets[] is what makes it appear — the server has
+  // just contradicted this client, so the list it believed is the stale thing.
+  apiMock.escrows.create.mockRejectedValue(
+    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
+  )
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(toastMock).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.wallet_required)
+  expect(routerPush).not.toHaveBeenCalled()
+  expect(routerReplace).not.toHaveBeenCalled()
+  expect(refreshWallets).toHaveBeenCalledTimes(1)
+  // Nothing reached the server, so there is no draft to land on either.
+  expect(apiMock.exchange.create).not.toHaveBeenCalled()
+  expect(result.current.submitting).toBe(false)
+})
+
+test('the CONTACT gate still routes — it is not a precondition this surface states', async () => {
+  apiMock.escrows.create.mockRejectedValue(
+    new ApiClientError(403, 'Forbidden', 'no verified contact', 'CONTACT_REQUIRED'),
+  )
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(toastMock).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.contact_required)
+  expect(routerPush).toHaveBeenCalledWith('/settings/security')
+  expect(refreshWallets).not.toHaveBeenCalled()
 })
 
 test('happy path: balance gate → draft → terms → sign, then lands on the offer', async () => {

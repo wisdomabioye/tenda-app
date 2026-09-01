@@ -17,6 +17,7 @@ import {
   parseUnits,
   payoutCurrencyForCountry,
   SECONDS_PER_HOUR,
+  SELL_NO_WALLET_OFFER,
 } from '@tenda/shared'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
@@ -100,7 +101,12 @@ export function OfferSellPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <SellAssetAmount selection={selection} amount={amount} onAmountChange={onAmountChange} />
+      <SellAssetAmount
+        selection={selection}
+        amount={amount}
+        onAmountChange={onAmountChange}
+        noWalletMessage={SELL_NO_WALLET_OFFER}
+      />
 
       <MoneyField
         id="offer-rate"

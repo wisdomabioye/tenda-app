@@ -8,6 +8,7 @@ import {
   parseUnits,
   payoutCurrencyForCountry,
   SECONDS_PER_HOUR,
+  SELL_NO_WALLET_OFFER,
 } from '@tenda/shared'
 import { Text, Button, Spacer } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
@@ -84,7 +85,7 @@ export function OfferSellTab() {
           selection={selection}
           amount={amount}
           onAmountChange={setAmount}
-          noWalletMessage="Link a wallet to post an offer."
+          noWalletMessage={SELL_NO_WALLET_OFFER}
         />
 
         {selection.options.length > 0 && (

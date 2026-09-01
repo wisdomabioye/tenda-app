@@ -38,7 +38,7 @@ const option: ExchangeAssetOption = {
   walletAddress: 'SoLAddr1',
 }
 
-const selection = { options: [option], option, selectedKey: 'k', select: vi.fn() }
+const selection = { options: [option], section: 'ready' as const, option, selectedKey: 'k', select: vi.fn() }
 const account: BankAccountSummary = {
   id: 'acc-1',
   country: 'NG',
@@ -73,7 +73,7 @@ describe('InstantSellPanel', () => {
     // panel must degrade to the bare field rather than crash or show a quote.
     render(
       <InstantSellPanel
-        selection={{ options: [], option: null, selectedKey: '', select: vi.fn() }}
+        selection={{ options: [], section: 'no-wallet', option: null, selectedKey: '', select: vi.fn() }}
         payout={payout}
         amount="50"
         onAmountChange={vi.fn()}

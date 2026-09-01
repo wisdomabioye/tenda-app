@@ -36,6 +36,14 @@ export {
   EXCHANGE_PAYMENT_WINDOW_OPTIONS,
   EXCHANGE_MAX_FIAT_AMOUNT,
   EXCHANGE_MAX_RATE,
+  // Only the strings a CLIENT asserts against or renders are public; the CTA
+  // labels are consumed by `sellWalletNotice` inside the package, and a barrel
+  // entry nothing imports is surface with no reader.
+  SELL_NO_WALLET_INSTANT,
+  SELL_NO_WALLET_OFFER,
+  SELL_WALLET_CHECKING,
+  SELL_WALLET_LOAD_FAILED,
+  SELL_CHAINS_UNAVAILABLE,
   P2P_PROVIDER_ID,
 } from './exchange'
 export {

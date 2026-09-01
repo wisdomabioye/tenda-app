@@ -46,9 +46,12 @@ describe('useExchangeAssetOptions', () => {
     expect(ensureWallets).toHaveBeenCalled()
   })
 
-  it('answers nothing while the registry is still absent', () => {
+  it('answers nothing while the registry is still absent — and SAYS so', () => {
     const { result } = renderHook(() => useExchangeAssetOptions())
-    expect(result.current).toEqual([])
+    expect(result.current.options).toEqual([])
+    // #60: an empty list is not silence any more. Nothing has settled here, so
+    // the surface must not read this as "you have no wallet".
+    expect(result.current.section).toBe('loading')
   })
 
   it('offers an asset only where the reader has a VERIFIED wallet in that namespace', () => {
@@ -56,7 +59,7 @@ describe('useExchangeAssetOptions', () => {
 
     useAuthStore.setState({ wallets: [{ ...WALLET, verified_at: null }] })
     const unverified = renderHook(() => useExchangeAssetOptions())
-    expect(unverified.result.current).toEqual([])
+    expect(unverified.result.current.options).toEqual([])
 
     // Inside `act`: the unverified hook above is still mounted, so this write
     // re-renders it as well as seeding the next one.
@@ -64,8 +67,23 @@ describe('useExchangeAssetOptions', () => {
       useAuthStore.setState({ wallets: [WALLET] })
     })
     const verified = renderHook(() => useExchangeAssetOptions())
-    expect(verified.result.current).toEqual([
+    expect(verified.result.current.options).toEqual([
       expect.objectContaining({ chainId: 'solana:devnet', assetId: 'USDC_SOL', walletAddress: 'SoLAddr1' }),
     ])
+    expect(verified.result.current.section).toBe('ready')
+  })
+
+  it('a settled, wallet-less account is the ONLY case that says "no wallet"', () => {
+    useChainRegistryStore.setState({ chains: [SOLANA], status: 'ready' })
+    useAuthStore.setState({ wallets: [], walletsStatus: 'ready' })
+    const { result } = renderHook(() => useExchangeAssetOptions())
+    expect(result.current.section).toBe('no-wallet')
+  })
+
+  it('a FAILED wallets load is its own state, never the accusation', () => {
+    useChainRegistryStore.setState({ chains: [SOLANA], status: 'ready' })
+    useAuthStore.setState({ wallets: [], walletsStatus: 'error' })
+    const { result } = renderHook(() => useExchangeAssetOptions())
+    expect(result.current.section).toBe('wallets-error')
   })
 })

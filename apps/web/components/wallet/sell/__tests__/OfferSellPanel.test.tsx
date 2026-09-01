@@ -40,7 +40,7 @@ const account: BankAccountSummary = {
   verified: true,
   created_at: '2026-08-01T00:00:00.000Z',
 }
-const selection = { options: [option], option, selectedKey: 'k', select: vi.fn() }
+const selection = { options: [option], section: 'ready' as const, option, selectedKey: 'k', select: vi.fn() }
 const payout = {
   accounts: [account],
   selectedId: 'acc-1',
@@ -73,7 +73,7 @@ describe('OfferSellPanel', () => {
     expect(expected).not.toBeNull()
     render(
       <OfferSellPanel
-        selection={{ options: [], option: null, selectedKey: '', select: vi.fn() }}
+        selection={{ options: [], section: 'no-wallet', option: null, selectedKey: '', select: vi.fn() }}
         payout={payout}
         amount="50"
         onAmountChange={vi.fn()}

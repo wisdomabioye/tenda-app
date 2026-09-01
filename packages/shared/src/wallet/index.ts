@@ -14,6 +14,7 @@ export {
   type GigChainOption,
   type ChainOptionState,
 } from './gig-chain-options'
+export { sellWalletNotice, sellWalletSection } from './sell-precondition'
 export {
   resolveWalletSection,
   isRegistryUsable,

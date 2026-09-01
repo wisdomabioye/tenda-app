@@ -10,7 +10,7 @@
  * can work.
  */
 import Link from 'next/link'
-import { P2P_PROVIDER_ID, parseUnits } from '@tenda/shared'
+import { P2P_PROVIDER_ID, parseUnits, SELL_NO_WALLET_INSTANT } from '@tenda/shared'
 import { AlertPanel, ALERT_ACTION_CLASS } from '@/components/ui/AlertPanel'
 import { Button } from '@/components/ui/Button'
 import { FeeSummary } from '@/components/shared/FeeSummary'
@@ -46,7 +46,12 @@ export function InstantSellPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <SellAssetAmount selection={selection} amount={amount} onAmountChange={onAmountChange} />
+      <SellAssetAmount
+        selection={selection}
+        amount={amount}
+        onAmountChange={onAmountChange}
+        noWalletMessage={SELL_NO_WALLET_INSTANT}
+      />
 
       {error === 'unavailable' && (
         // No RETRY: the rails answered, and asking again immediately gets the

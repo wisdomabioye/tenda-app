@@ -289,7 +289,7 @@ module.exports = [
   // the file reads 100/100/100/100 and every global figure went up.
   'components/wallet/WalletBalanceRows.tsx',
   // The signer preview and its hook. Both 100/100/100/100.
-  'components/wallet/SigningWalletRow.tsx',
+  'components/wallet/{SigningWalletRow,sell/SellWalletNotice}.tsx',
   'hooks/wallet/useSigningWallet.ts',
   'components/feedback/TransactionMonitor.tsx',
   // The gate's OWN machinery (#75). These three decide what everything above

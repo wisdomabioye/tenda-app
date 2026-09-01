@@ -139,19 +139,19 @@ test('asset options: only chains with a VERIFIED wallet in that namespace', () =
     useAuthStore.setState({ wallets: [] })
   })
   const none = renderHook(() => useExchangeAssetOptions())
-  expect(none.result.current).toEqual([])
+  expect(none.result.current.options).toEqual([])
 
   act(() => {
     useAuthStore.setState({ wallets: [{ ...VERIFIED_SOL, verified_at: null }] })
   })
   const unverified = renderHook(() => useExchangeAssetOptions())
-  expect(unverified.result.current).toEqual([])
+  expect(unverified.result.current.options).toEqual([])
 
   act(() => {
     useAuthStore.setState({ wallets: [VERIFIED_SOL] })
   })
   const verified = renderHook(() => useExchangeAssetOptions())
-  expect(verified.result.current).toEqual([
+  expect(verified.result.current.options).toEqual([
     expect.objectContaining({ chainId: 'solana:devnet', assetId: 'USDC_SOL', walletAddress: 'SoLAddr1' }),
   ])
 })

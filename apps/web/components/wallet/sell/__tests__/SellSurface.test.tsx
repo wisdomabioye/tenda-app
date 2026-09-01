@@ -17,7 +17,12 @@ const state = vi.hoisted(() => ({
   accounts: [] as BankAccountSummary[],
 }))
 vi.mock('@/hooks/exchange/useExchangeAssetOptions', () => ({
-  useExchangeAssetOptions: () => state.options,
+  // Returns the empty-reason too since #60; 'ready'/'no-wallet' is derived from
+  // the fixture so a surface test never has to state it twice.
+  useExchangeAssetOptions: () => ({
+    options: state.options,
+    section: state.options.length > 0 ? 'ready' : 'no-wallet',
+  }),
 }))
 vi.mock('@/hooks/fiat/usePayoutAccounts', () => ({
   usePayoutAccounts: () => ({

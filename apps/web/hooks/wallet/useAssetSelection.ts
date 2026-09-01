@@ -9,6 +9,7 @@
  * an option that is no longer there.
  */
 import { useMemo, useState } from 'react'
+import type { WalletSectionState } from '@tenda/shared'
 import {
   useExchangeAssetOptions,
   type ExchangeAssetOption,
@@ -21,6 +22,8 @@ export function assetOptionKey(option: ExchangeAssetOption): string {
 
 export interface AssetSelection {
   options: ExchangeAssetOption[]
+  /** Why `options` is empty (#60) — the surface must say which. */
+  section: WalletSectionState
   /** The chosen option, defaulting to the first available; null when none. */
   option: ExchangeAssetOption | null
   selectedKey: string
@@ -28,7 +31,7 @@ export interface AssetSelection {
 }
 
 export function useAssetSelection(): AssetSelection {
-  const options = useExchangeAssetOptions()
+  const { options, section } = useExchangeAssetOptions()
   const [pickedKey, setPickedKey] = useState<string | null>(null)
   const option = useMemo(
     () => options.find((o) => assetOptionKey(o) === pickedKey) ?? options[0] ?? null,
@@ -36,6 +39,7 @@ export function useAssetSelection(): AssetSelection {
   )
   return {
     options,
+    section,
     option,
     selectedKey: option !== null ? assetOptionKey(option) : '',
     select: (o) => setPickedKey(assetOptionKey(o)),

@@ -2,7 +2,11 @@
  * useOfferSell — posting a P2P sell offer. Verifies the caller-chosen windows
  * thread through (accept → deadline unix, payment window → BOTH the escrow
  * completion duration and the offer payment_window), plus the negative paths:
- * draft cleanup on terms failure, the 9D gate, and signing-declined → draft.
+ * draft cleanup on terms failure, and signing-declined → draft.
+ *
+ * The 9D transaction gate lives in the .gate. sibling since #60: its two
+ * halves answer differently now (the wallet gate stays put, the contact gate
+ * routes), and that needs the auth store this file does not mock.
  */
 import { renderHook, act } from '@testing-library/react-native'
 import type { BankAccountSummary } from '@tenda/shared'
@@ -132,19 +136,6 @@ test('discards the draft when attaching offer terms fails', async () => {
   expect(mockDelete).toHaveBeenCalledWith({ id: 'e1' })
   expect(mockSign).not.toHaveBeenCalled()
   expect(mockToast).toHaveBeenCalledWith('error', expect.any(String))
-})
-
-test('routes to the transaction gate when create is gated (9D)', async () => {
-  // The real shared classifier runs (no gate mock since the move to
-  // @tenda/shared): only the genuine envelope code triggers the route.
-  mockCreate.mockRejectedValue(
-    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
-  )
-  const { result } = renderHook(() => useOfferSell())
-  await act(async () => { await result.current.submit(ARGS) })
-
-  expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
-  expect(mockReplace).not.toHaveBeenCalled()
 })
 
 test('surfaces the API error message when create fails ungated', async () => {

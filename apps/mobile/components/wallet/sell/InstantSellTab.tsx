@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ScrollView } from 'react-native'
-import { parseUnits, P2P_PROVIDER_ID } from '@tenda/shared'
+import { parseUnits, P2P_PROVIDER_ID, SELL_NO_WALLET_INSTANT } from '@tenda/shared'
 import { Button } from '@/components/ui'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
@@ -33,7 +33,7 @@ export function InstantSellTab() {
         selection={selection}
         amount={amount}
         onAmountChange={setAmount}
-        noWalletMessage="Link a wallet to cash out crypto."
+        noWalletMessage={SELL_NO_WALLET_INSTANT}
       />
 
       {selection.options.length > 0 && (

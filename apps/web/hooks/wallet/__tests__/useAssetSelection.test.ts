@@ -12,7 +12,13 @@ import type { ExchangeAssetOption } from '@/hooks/exchange/useExchangeAssetOptio
 
 const options = vi.hoisted(() => ({ current: [] as ExchangeAssetOption[] }))
 vi.mock('@/hooks/exchange/useExchangeAssetOptions', () => ({
-  useExchangeAssetOptions: () => options.current,
+  // The hook answers WHY the list is empty as well as the list (#60); the
+  // section is passed straight through, so a mock that omits it would make
+  // the pass-through unobservable.
+  useExchangeAssetOptions: () => ({
+    options: options.current,
+    section: options.current.length > 0 ? 'ready' : 'no-wallet',
+  }),
 }))
 
 const opt = (over: Partial<ExchangeAssetOption> = {}): ExchangeAssetOption =>
@@ -68,4 +74,17 @@ describe('useAssetSelection', () => {
     const b = opt({ walletAddress: 'SoLAddr2' })
     expect(assetOptionKey(a)).not.toEqual(assetOptionKey(b))
   })
+})
+
+it('passes the empty-reason through to the surface', () => {
+  // The selection object is what reaches SellAssetAmount, so the reason has to
+  // travel with it — otherwise the surface is back to one rendering for four
+  // causes.
+  options.current = []
+  const empty = renderHook(() => useAssetSelection())
+  expect(empty.result.current.section).toBe('no-wallet')
+
+  options.current = [opt()]
+  const ready = renderHook(() => useAssetSelection())
+  expect(ready.result.current.section).toBe('ready')
 })
