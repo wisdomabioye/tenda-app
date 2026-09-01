@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { APP_INFO } from '@/content'
 import { ESCROW_HEADER, STAGES } from './content'
 import { StageCard } from './StageCard'
@@ -8,9 +8,9 @@ import { Fallback } from './Fallback'
  * §04 How escrow works — single unified four-stage flow,
  * followed by a Fallback subsection covering the four exit routes.
  */
-export function HowEscrowWorks() {
+export function HowEscrowWorks({ surface }: LandingSectionProps) {
   return (
-    <SectionShell id="how-it-works" surface="base" padY="lg">
+    <SectionShell id="how-it-works" surface={surface} padY="lg">
       <Header />
 
       <div className="mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">

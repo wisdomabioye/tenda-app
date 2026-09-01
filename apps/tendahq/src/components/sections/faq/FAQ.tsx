@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { FAQ_CATEGORIES } from './content'
 import { FaqCategoryBlock } from './FaqCategoryBlock'
 import { FaqHeader } from './FaqHeader'
@@ -9,9 +9,9 @@ import { FaqStillQuestions } from './FaqStillQuestions'
  * single-open accordion (so a Q open in one category doesn't close one in
  * another). All Q&As collapsed by default per IMPLEMENTATION.md §7.
  */
-export function FAQ() {
+export function FAQ({ surface }: LandingSectionProps) {
   return (
-    <SectionShell id="faq" surface="base" padY="lg">
+    <SectionShell id="faq" surface={surface} padY="lg">
       <FaqHeader />
 
       <div className="mt-12 flex flex-col gap-5">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Bot, Fuel, Handshake, Sparkles, Wallet, Zap } from 'lucide-react'
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Pill } from '@/components/ui/Pill'
 import { LiveDot } from '@/components/ui/LiveDot'
@@ -23,7 +23,7 @@ const ICONS = { Bot, Fuel, Handshake, Sparkles, Wallet, Zap } as const
  * Roadmap tabs carry a muted dot so the honest live/roadmap split survives
  * the compression; the panel repeats it as the full status pill.
  */
-export function Onboarding() {
+export function Onboarding({ surface }: LandingSectionProps) {
   const { ref, isVisible } = useIntersect<HTMLDivElement>({ threshold: 0.15 })
   const [selectedId, setSelectedId] = useState(ONBOARDING_FEATURES[0]?.id)
   const selected =
@@ -31,7 +31,7 @@ export function Onboarding() {
   const Icon = ICONS[selected.icon]
 
   return (
-    <SectionShell id="onboarding" surface="alt" padY="lg">
+    <SectionShell id="onboarding" surface={surface} padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {ONBOARDING_HEADER.eyebrow}

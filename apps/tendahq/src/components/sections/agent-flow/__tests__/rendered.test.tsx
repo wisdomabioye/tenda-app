@@ -14,7 +14,9 @@ import { SignalCircuit } from '../SignalCircuit'
  * meaning survives with the animation off — the canvas is an enhancement over a
  * readable list, never the only copy of it.
  */
-const html = renderToStaticMarkup(<AgentFlow />)
+// The surface is handed down by the page (#55); nothing asserted below
+// depends on which one.
+const html = renderToStaticMarkup(<AgentFlow surface="alt" />)
 const [HUMAN] = FLOW_LANES
 
 describe('the hire loop section', () => {

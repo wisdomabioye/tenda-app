@@ -5,6 +5,21 @@ import { cn } from '@/lib/cn'
 /** Background treatment within the CURRENT theme — never a theme override. */
 export type SectionSurface = 'base' | 'alt'
 
+/**
+ * What every section on the landing spine accepts. The surface is a fact about
+ * a section's POSITION, not about the section, so the page hands it down rather
+ * than each component choosing one (#55) — see `sections/landing-sections.ts`.
+ *
+ * Note this type cannot enforce that a section HONOURS the prop: a component
+ * that declares no props at all is still assignable to `ComponentType` of this,
+ * so one that quietly hardcodes its surface type-checks. That gap is what
+ * `landing-sections.test.tsx` exists to close, by rendering each section at
+ * both surfaces and reading the markup back.
+ */
+export interface LandingSectionProps {
+  surface: SectionSurface
+}
+
 interface Props {
   id?: string
   /** Alternate surfaces give the page rhythm without flipping themes. */

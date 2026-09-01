@@ -12,7 +12,7 @@ import { Onboarding } from '../Onboarding'
  * default is the first rail, and the tablist wiring is real).
  */
 describe('onboarding rendered', () => {
-  const html = renderToStaticMarkup(createElement(Onboarding))
+  const html = renderToStaticMarkup(createElement(Onboarding, { surface: 'alt' }))
 
   it('renders a tab for every rail, in content order', () => {
     for (const feature of ONBOARDING_FEATURES) {

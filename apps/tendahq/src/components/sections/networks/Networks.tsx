@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Pill } from '@/components/ui/Pill'
 import { LANDING_CHAINS, MORE_CHAINS_LABEL } from '@/content'
@@ -16,9 +16,9 @@ import { NETWORKS_HEADER } from './content'
  * `md:grid-cols-2 lg:grid-cols-4`, which wraps rather than squashing when a
  * fifth arrives.
  */
-export function Networks() {
+export function Networks({ surface }: LandingSectionProps) {
   return (
-    <SectionShell id="networks" surface="alt" padY="lg">
+    <SectionShell id="networks" surface={surface} padY="lg">
       <div className="mb-10 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {NETWORKS_HEADER.eyebrow}

@@ -17,7 +17,7 @@
  * visitor will not press. The buttons pin a lane for anyone who wants to read
  * one properly, and say so.
  */
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Pill } from '@/components/ui/Pill'
 import { useIntersect } from '@/hooks/useIntersect'
@@ -28,14 +28,14 @@ import { useFlowTimeline } from './useFlowTimeline'
 // THE SWAP POINT — one import, one line. See the file header.
 import { SignalCircuit } from './SignalCircuit'
 
-export function AgentFlow() {
+export function AgentFlow({ surface }: LandingSectionProps) {
   // The loop only runs on screen: a landing has no business burning frames on
   // a section nobody is looking at.
   const { ref, isVisible } = useIntersect<HTMLDivElement>({ threshold: 0.2 })
   const { lane, activeIndex, progress, pinnedId, togglePin } = useFlowTimeline({ running: isVisible })
 
   return (
-    <SectionShell id="hire-loop" surface="alt" padY="lg">
+    <SectionShell id="hire-loop" surface={surface} padY="lg">
       <div className="mb-8 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {AGENT_FLOW_HEADER.eyebrow}

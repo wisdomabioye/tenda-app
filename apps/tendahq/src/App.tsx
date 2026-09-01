@@ -1,16 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/sections/footer/Footer'
-import { Hero } from './components/sections/hero/Hero'
-import { AgentFlow } from './components/sections/agent-flow'
-import { TaskWall } from './components/sections/task-wall/TaskWall'
-import { TwoProducts } from './components/sections/two-products/TwoProducts'
-import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
-import { Onboarding } from './components/sections/onboarding/Onboarding'
-import { Ecosystems } from './components/sections/ecosystems/Ecosystems'
-import { Networks } from './components/sections/networks/Networks'
-import { FAQ } from './components/sections/faq/FAQ'
-import { FinalCTA } from './components/sections/final-cta/FinalCTA'
+import {
+  LANDING_SECTIONS,
+  sectionSurface,
+} from './components/sections/landing-sections'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
@@ -21,50 +15,17 @@ import { Privacy } from './components/sections/Privacy'
  * instead. Exporting the page is what lets `page-rhythm.test.tsx` assert
  * against the REAL section order rather than against a copy of it that could
  * drift from the page it claims to check.
+ *
+ * The order and the placement rationale live in `landing-sections.ts`; the
+ * surface each section renders is DERIVED from its position here (#55), so
+ * inserting a section is one line in that array and costs nothing downstream.
  */
 export function LandingPage() {
-  // Spine, in the vocabulary the code actually uses: hero → tasks(alt) →
-  // products(base) → how-it-works(alt) → onboarding(base) → ecosystems(alt) →
-  // networks(base) → faq(alt) → download(base).
-  //
-  // It used to be written as "dark … light … dark", which was left over from
-  // before SectionShell settled on one theme per page with sections differing
-  // only in surface tint. That vocabulary had gone wrong as well as stale: it
-  // called products and the escrow explainer both "dark" when they render base
-  // and alt — two sections it described as identical are the pair the rule
-  // below requires to differ.
-  //
-  // Networks follows Ecosystems deliberately: Ecosystems argues WHY these
-  // chains, so the reference table answering WHAT exactly am I connecting to
-  // reads as the follow-up to that argument rather than as a spec sheet
-  // dropped between two pitches.
-  //
-  // The hire loop sits DIRECTLY under the hero, not late in the page: it is
-  // the clearest statement of what Tenda does, and it was the thing a visitor
-  // had to scroll past nine screens to find.
-  //
-  // SURFACES STRICTLY ALTERNATE, and inserting a section is what breaks that.
-  // Every neighbouring pair from TaskWall down differs, so the boundary between
-  // two sections is always visible. Adding Networks as `base` directly above a
-  // `base` FAQ put two identical surfaces side by side and erased one of those
-  // boundaries; restoring the rhythm meant flipping FAQ and FinalCTA, because
-  // an insertion into an alternating chain always costs a flip downstream.
-  // `page-rhythm.test.tsx` now fails if a pair ever matches again. Inserting
-  // the hire loop at the TOP is the worst case of that rule: it flipped every
-  // one of the eight sections below it. Deriving the surface from position
-  // here would make an insertion free, and is not done — see the task.
   return (
     <>
-      <Hero />
-      <AgentFlow />
-      <TaskWall />
-      <TwoProducts />
-      <HowEscrowWorks />
-      <Onboarding />
-      <Ecosystems />
-      <Networks />
-      <FAQ />
-      <FinalCTA />
+      {LANDING_SECTIONS.map(({ key, Section }, index) => (
+        <Section key={key} surface={sectionSurface(index)} />
+      ))}
     </>
   )
 }

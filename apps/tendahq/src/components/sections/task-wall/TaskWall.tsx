@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { MarqueeRow } from '@/components/ui/MarqueeRow'
 import { TaskCard } from '@/components/product/TaskCard'
@@ -17,14 +17,14 @@ const COLUMNS = [
  * counter-scrolling columns of example gigs (single column on mobile), all
  * sourced from content/tasks.ts.
  */
-export function TaskWall() {
+export function TaskWall({ surface }: LandingSectionProps) {
   const perColumn = Math.ceil(EXAMPLE_TASKS.length / COLUMNS.length)
   const columns: ExampleTask[][] = COLUMNS.map((_, i) =>
     EXAMPLE_TASKS.slice(i * perColumn, (i + 1) * perColumn),
   )
 
   return (
-    <SectionShell id="tasks" surface="base" padY="lg">
+    <SectionShell id="tasks" surface={surface} padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {TASK_WALL_HEADER.eyebrow.num} · {TASK_WALL_HEADER.eyebrow.label}

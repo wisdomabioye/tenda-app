@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { DeviceMock } from './DeviceMock'
 import { DownloadButtons } from './DownloadButtons'
 import { FinalCtaHeader } from './FinalCtaHeader'
@@ -10,9 +10,9 @@ import { ReceiptsStrip } from './ReceiptsStrip'
  * headline + dual download CTAs + QR fallback on the left, Android device
  * mock on the right. Receipts strip below spans full width.
  */
-export function FinalCTA() {
+export function FinalCTA({ surface }: LandingSectionProps) {
   return (
-    <SectionShell id="download" surface="alt" padY="lg">
+    <SectionShell id="download" surface={surface} padY="lg">
       <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-16">
         <div className="flex flex-col gap-8">
           <FinalCtaHeader />

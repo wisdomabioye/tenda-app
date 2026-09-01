@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { EXAMPLE_TASKS } from '@/content'
 import { GIG_PANEL_ROWS, PRODUCT_PANELS } from './content'
 import { ProductPanel } from './ProductPanel'
@@ -12,11 +12,11 @@ import { Bridge } from './Bridge'
  * the TradeDeck — corridors of crypto → local cash swiping up. Both visuals
  * draw from the central content layer.
  */
-export function TwoProducts() {
+export function TwoProducts({ surface }: LandingSectionProps) {
   const sampleGigs = EXAMPLE_TASKS.slice(0, GIG_PANEL_ROWS)
 
   return (
-    <SectionShell id="products" surface="alt" padY="lg">
+    <SectionShell id="products" surface={surface} padY="lg">
       <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
         {PRODUCT_PANELS.map((panel) => (
           <ProductPanel key={panel.id} panel={panel}>

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LandingPage } from '../App'
 import { FOOTER_NAV_LINKS } from '@/components/sections/footer/content/sitemap'
+import { renderedSections } from '@/test-support/rendered-sections'
 
 /**
  * Two whole-page invariants that no single section can check about itself, and
@@ -10,34 +11,17 @@ import { FOOTER_NAV_LINKS } from '@/components/sections/footer/content/sitemap'
  * Both were found by inserting the Networks section: it landed as `base`
  * directly above a `base` FAQ, putting two identical surfaces side by side, and
  * it added a footer link whose target nothing verified existed.
+ *
+ * Since #55 the surface is derived from position, so a collision can no longer
+ * be created by hand — which changes what the rhythm assertion is FOR rather
+ * than retiring it. It is now the end-to-end proof that the derivation reaches
+ * the rendered page: a section that ignores the prop and hardcodes a surface
+ * still lands here as a collision the moment its position disagrees with it.
  */
 const html = renderToStaticMarkup(<LandingPage />)
 
-/**
- * Every `<section>` in document order, with the surface it rendered.
- *
- * The id is OPTIONAL. An earlier version of this matcher required `id="..."`,
- * which silently excluded the hero — SectionShell renders an id only when one
- * is passed — so a test claiming no two adjacent sections share a surface was
- * in fact not looking at the first pair on the page. Sections without an id are
- * labelled by position so the failure message still says which pair collided.
- */
-function sections(): { id: string; surface: 'base' | 'alt' }[] {
-  const out: { id: string; surface: 'base' | 'alt' }[] = []
-  let index = 0
-  for (const match of html.matchAll(/<section(?: id="([^"]*)")?[^>]*class="([^"]*)"/g)) {
-    const [, id, className] = match
-    index += 1
-    // SectionShell renders exactly one of these two background tokens. The
-    // closing paren on `--surface-bg)` is what keeps it from also matching
-    // `--surface-bg-alt)`.
-    const alt = className.includes('--surface-bg-alt)')
-    const base = className.includes('--surface-bg)')
-    if (!alt && !base) continue
-    out.push({ id: id ?? `section#${index}`, surface: alt ? 'alt' : 'base' })
-  }
-  return out
-}
+/** The page's own sections, parsed the same way the per-section suite parses one. */
+const sections = () => renderedSections(html)
 
 describe('page rhythm', () => {
   it('renders the sections it is supposed to', () => {

@@ -23,7 +23,9 @@ import { NETWORKS_HEADER, NETWORK_LABELS } from '../content'
  * derivation test would stay green. So this renders the real section and
  * reads the chain facts back out of the markup.
  */
-const html = renderToStaticMarkup(<Networks />)
+// The surface is handed down by the page (#55); this suite is about the
+// section's content, so either value renders the same table.
+const html = renderToStaticMarkup(<Networks surface="base" />)
 
 describe('supported networks section', () => {
   it('renders a card for every mainnet chain in the manifest', () => {

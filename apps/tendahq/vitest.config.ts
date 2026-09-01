@@ -56,7 +56,18 @@ export default defineConfig({
       //   - `src/hooks` and `src/api` are network effects. Their one piece of
       //     pure logic, `toPercent`, has its own test; instrumenting the
       //     fetch/useEffect bodies around it would measure a mock.
-      include: ['src/content/**', 'src/lib/**'],
+      //   - `src/components/**` is markup, with ONE named exception below.
+      // That exception is the page rhythm (#55): `landing-sections.ts` holds no
+      // markup at all — it is the ordered spine plus the pure function that
+      // derives each section's surface from its position, which is derivation
+      // of exactly the kind this scope exists to measure. It lives under
+      // `components/` because that is where the sections it orders live, not
+      // because it renders anything.
+      include: [
+        'src/content/**',
+        'src/lib/**',
+        'src/components/sections/landing-sections.ts',
+      ],
       // The barrel is re-exports only; test files must not instrument themselves.
       exclude: ['src/content/index.ts', '**/__tests__/**'],
       thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },

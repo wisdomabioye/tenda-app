@@ -1,4 +1,4 @@
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { ECOSYSTEM_PANELS, ECOSYSTEMS_HEADER } from '@/content'
 import { EcosystemPanel } from './EcosystemPanel'
@@ -7,9 +7,9 @@ import { EcosystemPanel } from './EcosystemPanel'
  * §06 Ecosystems — one panel per supported chain, identity derived from the
  * shared chain manifest.
  */
-export function Ecosystems() {
+export function Ecosystems({ surface }: LandingSectionProps) {
   return (
-    <SectionShell id="ecosystems" surface="base" padY="lg">
+    <SectionShell id="ecosystems" surface={surface} padY="lg">
       <div className="mb-12 flex max-w-[62ch] flex-col gap-4">
         <Eyebrow tone="brand" dot>
           {ECOSYSTEMS_HEADER.eyebrow}

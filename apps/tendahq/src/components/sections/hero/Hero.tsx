@@ -1,5 +1,5 @@
 import { Download } from 'lucide-react'
-import { SectionShell } from '@/components/ui/SectionShell'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
 import { Pill } from '@/components/ui/Pill'
 import { Button } from '@/components/ui/Button'
 import { LiveDot } from '@/components/ui/LiveDot'
@@ -17,10 +17,10 @@ import { TaskDeck } from './TaskDeck'
  *                   stat row · dual CTA · chain badges.
  *   - Right column: TaskDeck — example gigs swiping up through a card stack.
  */
-export function Hero() {
+export function Hero({ surface }: LandingSectionProps) {
   return (
     <SectionShell
-      surface="base"
+      surface={surface}
       padY="lg"
       noReveal
       className="overflow-hidden pt-32 md:pt-40"
