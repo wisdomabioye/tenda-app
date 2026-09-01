@@ -5,6 +5,7 @@ import {
   DEFAULT_COMPLETION_SECONDS,
   PROOF_NOTE,
   composerProofSubmission,
+  composerWalletGate,
   defaultGigChainId,
   draftFromProofParams,
   getGigMissingRequirement,
@@ -123,6 +124,11 @@ export function useGigForm(
   // namespace was pointed at another and only found out at signing.
   const chainId = pickedChainId ?? defaultGigChainId(chainOptions, defaultChainId)
 
+  // #59: whether this composer can be FINISHED, read off the same options the
+  // picker renders. The server has always known; it just said so at the
+  // signature, after the form was filled.
+  const walletGate = composerWalletGate(chainOptions)
+
   // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
   const asset = gigAssetByChain(chainId) ?? gigAssetByChain(defaultChainId) ?? 'USDC_SOL'
   const assetSymbol = ASSET_META[asset]?.symbol ?? asset
@@ -209,6 +215,9 @@ export function useGigForm(
     warnSheetOpen, setWarnSheetOpen,
     homeCountry,
     chainOptions,
+    walletGate,
+    /** Re-run the wallets[] load after it failed (#59 notice's retry). */
+    retryWallets: refreshMe,
     asset,
     assetSymbol,
     moderation,

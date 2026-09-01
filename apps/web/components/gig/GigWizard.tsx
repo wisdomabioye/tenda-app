@@ -25,6 +25,7 @@ import {
   ProofTakingStep,
   WhereWhenStep,
 } from './gig-form/steps'
+import { ComposerWalletNotice } from './gig-form/ComposerWalletNotice'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { PriceWarningDialog } from '@/components/moderation/PriceWarningDialog'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -106,6 +107,9 @@ export function GigWizard({
       </div>
 
       <section className="min-w-0 rounded-card border border-border-subtle bg-surface-card p-5 shadow-sm sm:p-7">
+        {/* Above the step, so it is read on step ONE rather than discovered at
+            the signature — the whole point of #59. */}
+        <ComposerWalletNotice gate={form.walletGate} onRetry={() => void form.retryWallets()} />
         <Eyebrow className="font-bold">{stepCounter(index)}</Eyebrow>
         <h1 className="mt-3 text-balance font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
           {step.title}

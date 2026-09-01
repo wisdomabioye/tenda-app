@@ -14,6 +14,7 @@ import {
   DEFAULT_COMPLETION_SECONDS,
   PROOF_NOTE,
   composerProofSubmission,
+  composerWalletGate,
   draftFromProofParams,
   defaultGigChainId,
   gigAssetByChain,
@@ -48,6 +49,7 @@ export function useGigForm(
   const wallets = useAuthStore((s) => s.wallets)
   const walletsStatus = useAuthStore((s) => s.walletsStatus)
   const ensureWallets = useAuthStore((s) => s.ensureWallets)
+  const refreshWallets = useAuthStore((s) => s.refreshWallets)
 
   // Chain eligibility below reads wallets[]; without this a chain shows
   // "(link a wallet)" to a user who linked one, until some other surface
@@ -124,6 +126,11 @@ export function useGigForm(
   // on a constant is the #58 wall one step later: a user who linked only one
   // namespace was pointed at another and only found out at signing.
   const chainId = pickedChainId ?? defaultGigChainId(chainOptions, defaultChainId)
+
+  // #59: whether this composer can be FINISHED, read off the same options the
+  // picker renders. The server has always known; it just said so at the
+  // signature, after the form was filled.
+  const walletGate = composerWalletGate(chainOptions)
 
   // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
   const asset = gigAssetByChain(chainId) ?? gigAssetByChain(defaultChainId) ?? 'USDC_SOL'
@@ -211,6 +218,9 @@ export function useGigForm(
     warnSheetOpen, setWarnSheetOpen,
     homeCountry,
     chainOptions,
+    walletGate,
+    /** Re-run the wallets[] load after it failed (#59 notice's retry). */
+    retryWallets: refreshWallets,
     asset,
     assetSymbol,
     moderation,

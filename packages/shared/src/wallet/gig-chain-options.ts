@@ -1,5 +1,11 @@
 /**
- * Which chains a gig composer may offer, and which one it opens on (#58).
+ * What a gig composer may offer, and what it must say about it.
+ *
+ * Two questions, one source: WHICH chains are offerable and which one the
+ * composer opens on (#58), and whether it can be finished at all (#59). Both
+ * are read off the same option list, which is the point — the wall a wallet-
+ * less poster hit at the signature was always derivable from what the picker
+ * was already rendering.
  *
  * ONE owner for both clients. Web and mobile each carried this inline and
  * character-identical, and what shipped gated only EVM:
@@ -31,6 +37,14 @@
 import type { LinkedWallet } from '../api/contracts/auth.contract'
 import type { ChainRegistryEntry } from '../api/contracts/platform.contract'
 import { gigAssetByChain } from '../chains'
+import {
+  COMPOSER_WALLET_BODY,
+  COMPOSER_WALLET_CTA,
+  COMPOSER_WALLET_RETRY,
+  COMPOSER_WALLET_TITLE,
+  COMPOSER_WALLET_UNAVAILABLE_BODY,
+  COMPOSER_WALLET_UNAVAILABLE_TITLE,
+} from '../constants/gig-composer'
 import { verifiedWalletsOn } from './wallet-address'
 import type { WalletsStatus } from './section-state'
 
@@ -119,6 +133,92 @@ function chainOptionState(
   // puts the one message that must be EARNED on the screen for free.
   if (walletsStatus !== 'ready') return 'wallets_loading'
   return 'needs_wallet'
+}
+
+/**
+ * Whether the composer can be COMPLETED at all, read off the same options the
+ * picker renders (#59).
+ *
+ * Before this, the only thing that knew a wallet was missing was the server,
+ * and it said so at `Review and sign` — after the whole form was filled, and
+ * by way of a redirect that took the form with it. The facts were on screen
+ * the entire time; nothing asked them the question.
+ *
+ * `unknown` is the load-bearing state and it renders NOTHING. There are two
+ * ways to have no answer yet — the wallet list has not settled, or the chain
+ * registry has not landed (an empty `options`) — and neither earns the right
+ * to tell someone they have no wallet. That is the same rule the option
+ * states carry, applied one level up: a claim about the USER is only made
+ * from a settled, non-empty list.
+ */
+export type ComposerWalletGate = 'ok' | 'unknown' | 'needs_wallet' | 'unavailable'
+
+/**
+ * What a composer's wallet notice says, and which control it offers — or null
+ * when it must stay silent.
+ *
+ * TOTAL over the gate union on purpose, the same reason `TX_LABEL` is total
+ * over EscrowTxType: a fifth state then breaks the BUILD here instead of
+ * quietly inheriting "you have no wallet", which is the one claim in this
+ * whole feature that must be earned. It is shared for the second reason too —
+ * web and mobile were each choosing this copy with their own ternaries, so a
+ * reworded `unavailable` on one client would silently not reach the other.
+ */
+export interface ComposerWalletNoticeCopy {
+  title: string
+  body: string
+  cta: string
+  /** `link` goes to the wallet settings; `retry` re-runs the wallets load. */
+  action: 'link' | 'retry'
+}
+
+const COMPOSER_WALLET_NOTICE: Record<ComposerWalletGate, ComposerWalletNoticeCopy | null> = {
+  ok: null,
+  unknown: null,
+  needs_wallet: {
+    title: COMPOSER_WALLET_TITLE,
+    body: COMPOSER_WALLET_BODY,
+    cta: COMPOSER_WALLET_CTA,
+    action: 'link',
+  },
+  unavailable: {
+    title: COMPOSER_WALLET_UNAVAILABLE_TITLE,
+    body: COMPOSER_WALLET_UNAVAILABLE_BODY,
+    cta: COMPOSER_WALLET_RETRY,
+    action: 'retry',
+  },
+}
+
+/**
+ * The notice for a gate state, or null when the composer must say nothing.
+ *
+ * `?? null` is not belt-and-braces: a Record lookup answers `undefined` for a
+ * key outside the union, and both notices guard with `=== null`, so an
+ * undefined would sail past the guard into `notice.title` and blank the
+ * composer. The signature promises `| null`; this makes that true of the
+ * VALUE and not just of the type.
+ */
+export function composerWalletNotice(gate: ComposerWalletGate): ComposerWalletNoticeCopy | null {
+  return COMPOSER_WALLET_NOTICE[gate] ?? null
+}
+
+export function composerWalletGate(options: readonly GigChainOption[]): ComposerWalletGate {
+  // No options at all = the registry has not answered. Nothing is known about
+  // this user's wallets from an empty list, so say nothing.
+  if (options.length === 0) return 'unknown'
+  if (options.some((o) => o.enabled)) return 'ok'
+  // Every option is disabled — now WHY, and the answer must be the honest one
+  // even when the states are mixed. A chain still checking outranks a failure,
+  // and both outrank "you have no wallet": the last is the only one that
+  // accuses the user of something, so it is the last one we are allowed to
+  // reach for.
+  if (options.some((o) => o.state === 'wallets_loading')) return 'unknown'
+  if (options.some((o) => o.state === 'wallets_unavailable')) return 'unavailable'
+  // EVERY, not a bare fallthrough. "You have no wallet" is the one claim in
+  // this feature that has to be earned, so it is stated only when every
+  // option actually says so — a state this function does not recognise falls
+  // to silence rather than inheriting the accusation.
+  return options.every((o) => o.state === 'needs_wallet') ? 'needs_wallet' : 'unknown'
 }
 
 /**

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native'
 import { formatAssetAmount, formatDuration } from '@tenda/shared'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
+import { ComposerWalletNotice } from './gig-form/ComposerWalletNotice'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { GigComposerNavigation } from './gig-form/GigComposerNavigation'
 import { GigComposerProgress } from './gig-form/GigComposerProgress'
@@ -55,6 +56,9 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Above the step, so it is read on step ONE rather than discovered at
+            the signature — the whole point of #59. */}
+        <ComposerWalletNotice gate={form.walletGate} onRetry={() => void form.retryWallets()} />
         <GigStep step={step} form={form} />
       </ScrollView>
 

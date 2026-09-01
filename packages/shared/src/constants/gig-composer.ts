@@ -33,6 +33,30 @@ export const CATEGORY_HINTS: Record<GigCategory, string> = {
 /** Appended to every description hint — proof is required to complete any gig. */
 export const PROOF_NOTE = 'Proof required before the gig can be considered completed.'
 
+// ---------- the wallet precondition (#59) ---------------------------------
+//
+// Posting needs a wallet, and the composer used to let that surface only at
+// the signature — as a redirect that took the filled form with it. This copy
+// is said UP FRONT instead, and it is deliberately not phrased as a refusal:
+// nothing here blocks composing, so the notice explains and offers a way to
+// fix it rather than standing in the way.
+
+export const COMPOSER_WALLET_TITLE = 'Posting needs a linked wallet'
+/** Says what the wallet is FOR, so it reads as a reason and not a hoop. */
+export const COMPOSER_WALLET_BODY =
+  'The wallet you link signs the escrow that locks your budget, and it is where the refund goes if nobody takes the gig. Fill this in now if you like; you will need one to post.'
+export const COMPOSER_WALLET_CTA = 'Link a wallet'
+
+/**
+ * The wallets[] load FAILED. Distinct copy on purpose: "you have no wallet"
+ * is a claim about the user, and we have not earned it — all we know is that
+ * we could not look.
+ */
+export const COMPOSER_WALLET_UNAVAILABLE_TITLE = 'Could not check your wallets'
+export const COMPOSER_WALLET_UNAVAILABLE_BODY =
+  'We could not read your linked wallets just now. Posting needs one, so try again before you sign.'
+export const COMPOSER_WALLET_RETRY = 'Try again'
+
 export interface GigFormValues {
   title: string
   description: string

@@ -54,6 +54,7 @@ const CHAINS = [
 beforeEach(() => {
   jest.clearAllMocks()
   mockAuthState.walletsStatus = 'ready'
+  mockAuthState.wallets = [{ chain_ns: 'eip155', verified_at: '2026-01-01' }]
   mockChains.mockResolvedValue({ data: CHAINS } as Awaited<ReturnType<typeof api.platform.chains>>)
 })
 
@@ -73,6 +74,28 @@ it('asks for the wallets when they have not been loaded, and not when they have'
   renderHook(() => useGigForm(undefined, jest.fn()))
   await waitFor(() => expect(mockChains).toHaveBeenCalled())
   expect(mockAuthState.refreshMe).not.toHaveBeenCalled()
+})
+
+it('derives whether this composer can be finished at all (#59)', async () => {
+  // The question the composer used to ask only at the signature. It reads the
+  // SAME options the picker renders — no second source to drift.
+  const { result, unmount } = renderHook(() => useGigForm(undefined, jest.fn()))
+  await waitFor(() => expect(result.current.chainOptions).toHaveLength(2))
+  // This account holds an EVM wallet, so it can post.
+  expect(result.current.walletGate).toBe('ok')
+  unmount()
+
+  mockAuthState.wallets = []
+  const noWallet = renderHook(() => useGigForm(undefined, jest.fn()))
+  await waitFor(() => expect(noWallet.result.current.chainOptions).toHaveLength(2))
+  expect(noWallet.result.current.walletGate).toBe('needs_wallet')
+  noWallet.unmount()
+
+  // ...but an UNSETTLED list earns nothing: silence, not an accusation.
+  mockAuthState.walletsStatus = 'loading'
+  const loading = renderHook(() => useGigForm(undefined, jest.fn()))
+  await waitFor(() => expect(loading.result.current.chainOptions).toHaveLength(2))
+  expect(loading.result.current.walletGate).toBe('unknown')
 })
 
 it('loads eligible networks and seeds account-aware defaults', async () => {

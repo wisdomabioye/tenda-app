@@ -7,7 +7,10 @@ export { evmRpc, evmRpcString, hexToDecimalString, addressWord, amountWord } fro
 export {
   gigChainOptions,
   chainOptionLabel,
+  composerWalletGate,
+  composerWalletNotice,
   defaultGigChainId,
+  type ComposerWalletGate,
   type GigChainOption,
   type ChainOptionState,
 } from './gig-chain-options'

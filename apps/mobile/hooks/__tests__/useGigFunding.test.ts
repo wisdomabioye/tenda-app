@@ -3,7 +3,8 @@
  * ahead of the permit signature and the draft. The ordering IS the feature: an
  * underfunded creator used to sign a permit, wait, and watch the create revert,
  * leaving a draft to retry. Also covers fail-open and the pre-existing paths
- * (moderation block, 9D gate) surviving the extraction from the screen.
+ * (moderation block) surviving the extraction from the screen. The 9D
+ * transaction gate has its own sibling, useGigFunding.gate.test.ts.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 import type { GigFormValues } from '@tenda/shared'
@@ -48,8 +49,6 @@ jest.mock('@/api/client', () => ({
 // Imports stay below mock declarations so their modules observe the test doubles.
 // The 9D gate is NOT mocked since its move to @tenda/shared: the tests throw
 // the real ApiClientError codes and the hook runs the real classifier.
-// eslint-disable-next-line import/first
-import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
 // eslint-disable-next-line import/first
 import { useGigFunding } from '@/hooks/useGigFunding'
 // eslint-disable-next-line import/first
@@ -150,25 +149,6 @@ test('a moderation block surfaces the dialog and discards the orphan draft', asy
   expect(mockSign).not.toHaveBeenCalled()
   await act(async () => { result.current.dismissBlocked() })
   expect(result.current.blockedMessage).toBeNull()
-})
-test('the 9D gate routes instead of dead-ending', async () => {
-  mockEscrowCreate.mockRejectedValue(
-    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
-  )
-  const { result } = renderHook(() => useGigFunding(ARGS))
-  await fund(result)
-  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.wallet_required)
-  expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
-})
-
-test('the contact gate routes to Sign-in & security', async () => {
-  mockEscrowCreate.mockRejectedValue(
-    new ApiClientError(403, 'Forbidden', 'no verified contact', 'CONTACT_REQUIRED'),
-  )
-  const { result } = renderHook(() => useGigFunding(ARGS))
-  await fund(result)
-  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.contact_required)
-  expect(mockPush).toHaveBeenCalledWith('/settings/security')
 })
 test('signing declined after the draft is saved keeps the draft', async () => {
   mockSign.mockRejectedValue(new Error('user declined'))

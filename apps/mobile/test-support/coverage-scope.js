@@ -165,7 +165,7 @@ module.exports = [
   // MyApplicationCard sat at 0% while the folder reported healthy numbers.
   'components/gig/gig-applications/*.{ts,tsx}',
   '!components/gig/gig-applications/index.ts',
-  'components/gig/gig-form/AcceptanceModePicker.tsx',
+  'components/gig/gig-form/{AcceptanceModePicker,ComposerWalletNotice}.tsx',
   // The fact card, its rows, the sheet host and its upload half, all
   // 100/100/100/100. Braced onto one line: this register is AT the 300 limit.
   'components/gig/GigMetaInfo.tsx',

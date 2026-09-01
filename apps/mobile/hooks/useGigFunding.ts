@@ -19,6 +19,7 @@ import {
   SECONDS_PER_HOUR,
 } from '@tenda/shared'
 import { api } from '@/api/client'
+import { useAuthStore } from '@/stores/auth.store'
 import { ApiClientError, checkEscrowTransitionApplied, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
 import { WalletError } from '@tenda/shared'
@@ -68,6 +69,10 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
   const [monitor, setMonitor] = useState<FundingMonitor | null>(null)
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
+
+  /** The wallets[] load, read off the store rather than subscribed to: this
+   *  hook renders nothing, so a subscription would only add re-renders. */
+  const refreshLinkedWallets = () => useAuthStore.getState().refreshMe()
 
   async function runFunding() {
     if (pendingValues === null || !pendingValues.category) return
@@ -179,13 +184,26 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       setMonitor({ signature: tx_ref, escrowId: created.escrow_id, chainId: chain_id })
     } catch (e) {
       setPhase('idle')
-      // 9D first-transaction gate: route to link-wallet / verify-contact. It
-      // surfaces from escrows.create() before escrow_id is set, so there is no
-      // orphan draft to clean up here.
+      // 9D first-transaction gate. It surfaces from escrows.create() before
+      // escrow_id is set, so there is no orphan draft to clean up here. The
+      // two halves part company at #59: the CONTACT gate still routes, the
+      // WALLET gate answers in place (see below).
       const gate = classifyTransactionGateError(e)
       if (gate !== null) {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
+        if (gate === 'wallet_required') {
+          // #59: the composer STAYS. This screen is a tab and does not
+          // unmount, so the old push did not destroy the fields the way web's
+          // route change did — it BURIED them under Settings, mid-compose,
+          // answering a fixable precondition by throwing the poster somewhere
+          // else. The notice at the top of the composer answers it in place
+          // instead, and refreshing wallets[] is what makes that notice
+          // appear: the server has just contradicted what this client
+          // believed, so the list it believed it from is the stale thing.
+          void refreshLinkedWallets()
+        } else {
+          router.push(transactionGateRoute(gate))
+        }
       } else if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
         // Stage-6: block verdicts get the full dialog, no retry path.
         setBlockedMessage(e.message)

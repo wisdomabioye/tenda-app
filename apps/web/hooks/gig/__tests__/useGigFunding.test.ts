@@ -1,16 +1,18 @@
 /**
  * useGigFunding (web) — port of mobile's suite: the balance pre-flight ahead
  * of the permit signature and the draft (the ordering IS the feature), the
- * moderation block, the 9D gate over the REAL shared classifier, draft
+ * moderation block, draft
  * survival on declined signing, composer-reset contracts, and acceptance-
- * mode forwarding. Web divergences under test: the explicit gig composer route
+ * mode forwarding. The 9D transaction gate has its own sibling,
+ * useGigFunding.gate.test.ts. Web divergences under test: the explicit gig composer route
  * clears the draft param, and no notification-prompt store exists.
  */
 import { act, renderHook, type RenderHookResult } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { ApiClientError, TRANSACTION_GATE_MESSAGE, type GigFormValues } from '@tenda/shared'
+import { ApiClientError, type GigFormValues } from '@tenda/shared'
 
-const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockEscrowCreate, mockEscrowDelete, mockGigCreate } = vi.hoisted(() => ({
+const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockEscrowCreate, mockEscrowDelete, mockGigCreate, mockRefreshWallets } = vi.hoisted(() => ({
+  mockRefreshWallets: vi.fn(async () => {}),
   mockPush: vi.fn(),
   mockReplace: vi.fn(),
   mockToast: vi.fn(),
@@ -27,6 +29,10 @@ const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsu
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }))
 vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
+// Loaded by the hook even when no gate fires.
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: { getState: () => ({ refreshWallets: mockRefreshWallets }) },
+}))
 vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
@@ -193,26 +199,6 @@ test('a moderation block surfaces the dialog and discards the orphan draft', asy
     result.current.dismissBlocked()
   })
   expect(result.current.blockedMessage).toBeNull()
-})
-
-test('the 9D gate routes instead of dead-ending (real shared classifier)', async () => {
-  mockEscrowCreate.mockRejectedValue(
-    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
-  )
-  const { result } = renderHook(() => useGigFunding(ARGS))
-  await fund(result)
-  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.wallet_required)
-  expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
-})
-
-test('the contact gate routes to Sign-in & security', async () => {
-  mockEscrowCreate.mockRejectedValue(
-    new ApiClientError(403, 'Forbidden', 'no verified contact', 'CONTACT_REQUIRED'),
-  )
-  const { result } = renderHook(() => useGigFunding(ARGS))
-  await fund(result)
-  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.contact_required)
-  expect(mockPush).toHaveBeenCalledWith('/settings/security')
 })
 
 test('signing declined after the draft is saved keeps the draft and lands on it', async () => {

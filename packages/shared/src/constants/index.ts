@@ -208,6 +208,12 @@ export {
   DEFAULT_COMPLETION_SECONDS,
   CATEGORY_HINTS,
   PROOF_NOTE,
+  // Only the strings a CLIENT asserts against are public. The rest of the
+  // notice copy is consumed by `composerWalletNotice` inside the package, and
+  // a barrel entry nothing imports is surface with no reader.
+  COMPOSER_WALLET_TITLE,
+  COMPOSER_WALLET_BODY,
+  COMPOSER_WALLET_UNAVAILABLE_TITLE,
   GIG_COMPOSER_STEPS,
   GIG_REQUIREMENTS,
   firstMissingRequirement,

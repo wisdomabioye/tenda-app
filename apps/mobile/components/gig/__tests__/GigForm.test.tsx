@@ -55,6 +55,14 @@ jest.mock('../gig-form/steps/GigDetailsStep', () => {
     ),
   }
 })
+jest.mock('../gig-form/ComposerWalletNotice', () => {
+  const { Text } = require('react-native')
+  return {
+    // Renders its gate so the wiring is observable; the notice's own copy and
+    // states are ComposerWalletNotice.test's job.
+    ComposerWalletNotice: ({ gate }: { gate: string }) => <Text>{`gate:${gate}`}</Text>,
+  }
+})
 jest.mock('../gig-form/steps/GigPaymentStep', () => ({ GigPaymentStep: () => null }))
 jest.mock('../gig-form/steps/GigDeliveryStep', () => ({ GigDeliveryStep: () => null }))
 
@@ -86,6 +94,10 @@ function controller() {
     warnSheetOpen: false, setWarnSheetOpen,
     homeCountry: 'NG',
     chainOptions: [],
+    // 'ok' so these tests exercise the composer proper; the notice's own
+    // states are covered by ComposerWalletNotice.test and the shared gate.
+    walletGate: 'ok' as const,
+    retryWallets: jest.fn(),
     asset: 'USDC_SOL',
     assetSymbol: 'USDC',
     moderation: null,
@@ -195,6 +207,20 @@ it('rechecks the whole form on the final step even when its own step passes', as
 
   fireEvent.press(screen.getByText('Post Gig'))
   expect(mockHandleSubmit).not.toHaveBeenCalled()
+  await settleSweep()
+})
+
+it('hands the wallet gate to the notice, on every step (#59)', async () => {
+  // Above the steps on purpose: a precondition discovered on step three is
+  // most of the way to discovering it at the signature.
+  mockUseGigForm.mockReturnValue({ ...controller(), walletGate: 'needs_wallet' as const })
+  render(<GigForm submitLabel="Post Gig" isLoading={false} onSubmit={jest.fn()} />)
+
+  expect(screen.getByText('gate:needs_wallet')).toBeTruthy()
+  fireEvent.press(screen.getByText('Continue'))
+  expect(screen.getByText('gate:needs_wallet')).toBeTruthy()
+  fireEvent.press(screen.getByText('Continue'))
+  expect(screen.getByText('gate:needs_wallet')).toBeTruthy()
   await settleSweep()
 })
 
