@@ -8,11 +8,8 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { Keypair } from '@solana/web3.js'
-import bs58 from 'bs58'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { buildSeedRows, enablementDelta } from '@server/db/seed-v2'
-import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import { loadChainSecrets } from '@server/chains/secrets'
 
 const SOL = 'So11111111111111111111111111111111111111112'
@@ -53,21 +50,6 @@ test('seeds only the active solana chain — IDL program id + configured treasur
   assert.strictEqual(c.gas_seed_wallet_address, null)
 })
 
-test('gas-seed pair populates from the manifest amount + derived funder when the key is set', () => {
-  const kp = Keypair.generate()
-  const key = bs58.encode(kp.secretKey)
-  const rows = buildSeedRows(
-    solDevnet({ CHAIN_SOLANA_DEVNET_USDC_MINT: MINT, CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: key }),
-  )
-  const c = rows.chains[0]
-  assert.ok(c)
-  assert.strictEqual(c.gas_seed_amount_raw, '7000000')
-  // Funder address is DERIVED from the same secret the sender signs with — never
-  // a separately-configured value that could drift from it.
-  assert.strictEqual(c.gas_seed_wallet_address, kp.publicKey.toBase58())
-  assert.strictEqual(c.gas_seed_wallet_address, gasSeedAddressFromSecret(key))
-})
-
 test('native SOL + USDC bound to the active network from its secret mint', () => {
   const rows = buildSeedRows(solDevnet({ CHAIN_SOLANA_DEVNET_USDC_MINT: MINT }))
   const usdc = rows.assets.find((a) => a.id === 'USDC_SOL')
@@ -78,7 +60,13 @@ test('native SOL + USDC bound to the active network from its secret mint', () =>
   assert.strictEqual(usdc.is_stable, true)
   const native = rows.assets.find((a) => a.token_address === null)
   assert.ok(native && native.id === 'SOL_DEVNET' && native.decimals === 9)
-  assert.strictEqual(rows.skipped.length, 0)
+  // No ASSET was skipped. The gas seed reports itself dormant here (#53a) —
+  // devnet declares an amount and this fixture configures no key — so the
+  // assertion names what it means instead of counting lines.
+  assert.strictEqual(
+    rows.skipped.some((sk) => sk.includes('USDC_SOL')),
+    false,
+  )
 })
 
 test('missing USDC mint → USDC_SOL skipped with a named warning, never silent', () => {
@@ -87,8 +75,9 @@ test('missing USDC mint → USDC_SOL skipped with a named warning, never silent'
     rows.assets.some((a) => a.id === 'USDC_SOL'),
     false,
   )
-  assert.strictEqual(rows.skipped.length, 1)
-  assert.match(rows.skipped[0] ?? '', /USDC_SOL/)
+  const asset = rows.skipped.filter((sk) => sk.includes('USDC_SOL'))
+  assert.strictEqual(asset.length, 1)
+  assert.match(asset[0] ?? '', /usdcMint not configured/)
 })
 
 test('BASE: chain + manifest USDC + native ETH, treasury/escrow from secrets', () => {

@@ -68,6 +68,14 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     // Relayer hot wallet for agent funding (#18): sends createEscrowFor and
     // pays its gas. 0x-hex secp256k1 private key; absent = RELAY_UNAVAILABLE.
     { key: 'relayerKey', envSuffix: 'RELAYER_KEY', required: false, kind: 'evmKey' },
+    // First-link native-gas seed (#53a): the hot wallet that pays a new user's
+    // one-time native grant on a `native-seed` chain. Its OWN key, never the
+    // relayer's, for the same reason `sweepEnabled` is its own switch — the
+    // relayer float serves a flow someone asked for, the seed is an open-ended
+    // outflow to every user who links a wallet, and one key must not be both.
+    // Solana keeps the same separation. Absent = the seed stays dormant: the
+    // chain's gas columns seed NULL and dispatch never sees the chain.
+    { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'evmKey' },
     // Abandoned-escrow sweeping (#43): pay gas to refund creators who never
     // came back for their own funds. Default OFF, and deliberately a SEPARATE
     // switch from `relayerKey` even though it spends the same wallet — relaying

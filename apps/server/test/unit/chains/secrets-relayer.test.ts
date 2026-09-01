@@ -1,7 +1,9 @@
 /**
- * The relayer hot-wallet secret (#18) on both namespaces — split from
- * secrets.test.ts, which sits at the 300-line ceiling, rather than grown into
- * it. Same fixtures: the minimal env that activates exactly one chain.
+ * The SERVER-HELD hot-wallet secrets on both namespaces — the relayer key
+ * (#18), the sweep switch it must not imply (#43), and the gas-seed key that
+ * is deliberately neither of them (#53a). Split from secrets.test.ts, which
+ * sits at the 300-line ceiling, rather than grown into it. Same fixtures: the
+ * minimal env that activates exactly one chain.
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
@@ -110,4 +112,45 @@ test('sweepEnabled (#43): the shared env boundary still owns whitespace and empt
   assert.equal(read(' true '), true, 'surrounding whitespace is trimmed, not rejected')
   assert.equal(read(''), false, 'a blank var is unset, and unset is off')
   assert.equal(read('   '), false)
+})
+
+test('gasSeedKey (#53a): the EVM seed key is captured when well-formed, refused by name when not', () => {
+  const key = `0x${'cd'.repeat(32)}`
+  const ok = loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_GAS_SEED_KEY: key })
+  const secret = ok.get('eip155:8453')
+  assert.equal(secret?.namespace === 'eip155' ? secret.gasSeedKey : undefined, key)
+  // Absent → undefined, and the chain's gas columns then seed NULL.
+  const none = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  assert.equal(none?.namespace === 'eip155' ? none.gasSeedKey : 'wrong-ns', undefined)
+  // Same evmKey shape as the relayer key: an address, a short key, a bare hex
+  // string are each a boot error naming THIS variable, not the other one.
+  for (const bad of [EVM_ADDR, `0x${'cd'.repeat(31)}`, 'cd'.repeat(32)]) {
+    assert.throws(
+      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_GAS_SEED_KEY: bad }),
+      /CHAIN_EIP155_8453_GAS_SEED_KEY/,
+    )
+  }
+})
+
+test('gasSeedKey (#53a): seed and relayer floats are separate keys, never one wallet by default', () => {
+  // The whole reason it is its own variable: relaying serves a flow an agent
+  // asked for, seeding is an open-ended outflow to every user who links a
+  // wallet. Configuring one must not enrol the other's wallet.
+  const relayer = `0x${'ab'.repeat(32)}`
+  const seed = `0x${'cd'.repeat(32)}`
+  const both = loadChainSecrets({
+    ...baseMainnetEnv(),
+    CHAIN_EIP155_8453_RELAYER_KEY: relayer,
+    CHAIN_EIP155_8453_GAS_SEED_KEY: seed,
+  }).get('eip155:8453')
+  assert.ok(both?.namespace === 'eip155')
+  assert.equal(both.relayerKey, relayer)
+  assert.equal(both.gasSeedKey, seed)
+
+  // Only the relayer configured: the seed stays dormant rather than inheriting.
+  const relayOnly = loadChainSecrets({
+    ...baseMainnetEnv(),
+    CHAIN_EIP155_8453_RELAYER_KEY: relayer,
+  }).get('eip155:8453')
+  assert.equal(relayOnly?.namespace === 'eip155' ? relayOnly.gasSeedKey : 'wrong-ns', undefined)
 })

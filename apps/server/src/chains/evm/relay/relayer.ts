@@ -7,17 +7,8 @@
  * them from the creator by signature), so its exposure is the native balance
  * it pays gas from — the same ops class as the Solana gas-seed wallet.
  */
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  type Abi,
-  type Chain,
-} from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
-import { chainById, nativeCurrencyOf } from '@tenda/shared'
-import { evmChainNumericId } from '@tenda/shared'
-import { DEFAULT_EVM_RPC_TIMEOUT_MS } from '../rpc'
+import { type Abi } from 'viem'
+import { evmHotWallet } from '../hot-wallet'
 import { RECEIVE_WITH_AUTHORIZATION_TYPEHASH } from './authorization'
 
 export interface EvmRelayCall {
@@ -49,21 +40,6 @@ const EIP3009_PROBE_ABI = [
   },
 ] as const satisfies Abi
 
-/**
- * The viem `Chain` a wallet client needs, from the manifest entry: the numeric
- * id, the display name and the native currency are the chain's own facts, the
- * RPC is this deployment's secret.
- */
-function relayChain(chain_id: string, rpc_url: string): Chain {
-  const entry = chainById(chain_id)
-  return {
-    id: evmChainNumericId(chain_id),
-    name: entry.displayName,
-    nativeCurrency: nativeCurrencyOf(entry),
-    rpcUrls: { default: { http: [rpc_url] } },
-  }
-}
-
 export function viemEvmRelayer(args: {
   rpc_url: string
   /** CAIP-2 id of a manifest EVM chain, e.g. `'eip155:84532'`. */
@@ -73,11 +49,7 @@ export function viemEvmRelayer(args: {
   /** Per-call budget; defaults to the read seam's DEFAULT_EVM_RPC_TIMEOUT_MS. */
   timeout_ms?: number
 }): EvmRelayer {
-  const account = privateKeyToAccount(args.private_key)
-  const chain = relayChain(args.chain_id, args.rpc_url)
-  const transport = http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS })
-  const reader = createPublicClient({ chain, transport })
-  const wallet = createWalletClient({ account, chain, transport })
+  const { account, reader, wallet } = evmHotWallet(args)
   return {
     address: account.address,
     async supportsReceiveWithAuthorization(token) {

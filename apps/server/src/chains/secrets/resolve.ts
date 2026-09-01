@@ -38,6 +38,8 @@ export type ResolvedChainSecret =
       paymasterUrl?: string
       webhookSecret?: string
       relayerKey?: string
+      /** Hot wallet funding the first-link native gas seed (#53a). */
+      gasSeedKey?: string
       /**
        * Is this chain allowed to spend the relayer float on abandoned-escrow
        * sweeps (#43)? Absent = NO. Separate from `relayerKey` on purpose: the
@@ -93,6 +95,7 @@ export function assemble(
     paymasterUrl: present.get('paymasterUrl'),
     webhookSecret: present.get('webhookSecret'),
     relayerKey: present.get('relayerKey'),
+    gasSeedKey: present.get('gasSeedKey'),
     // Validated as exactly 'true' | 'false', so this comparison is total —
     // and an absent var lands on `false` rather than on undefined-is-truthy.
     sweepEnabled: present.get('sweepEnabled') === 'true',

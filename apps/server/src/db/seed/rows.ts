@@ -7,8 +7,10 @@
  *   - EVM escrow + treasury    ← the chain's secrets
  *   - solana USDC mint         ← the chain's secret (`fromSecret`); skipped + warned if unset
  *   - gas-seed columns ← manifest `gasSeedAmountRaw` + the funder address DERIVED
- *     from the chain's hot-wallet secret; both stay NULL until BOTH exist (#40),
- *     the paired CHECK constraint requires both-or-neither.
+ *     from the chain's hot-wallet secret (chains/gas-seed-senders, any
+ *     namespace); both stay NULL until BOTH exist (#40), the paired CHECK
+ *     constraint requires both-or-neither, and a declared-but-unfunded seed is
+ *     reported through `skipped` rather than going quiet.
  *
  * The I/O half lives in ./apply.
  */
@@ -20,8 +22,10 @@ import { escrowAddressOf } from '@server/chains/registry-sync'
 // database), and the barrel pulls in the registry + boot probe, which import
 // drizzle and the db type.
 import { normalizeContractAddress } from '@server/chains/contracts/normalize'
-import { type ResolvedChainSecret } from '@server/chains/secrets'
-import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
+import { chainEnvPrefix, type ResolvedChainSecret } from '@server/chains/secrets'
+// Also a leaf by the rule above, despite living beside chains/index.ts: it
+// imports the two chain SENDERS plus types, and reaches no database.
+import { GAS_SEED_SUPPORT } from '@server/chains/gas-seed-senders'
 import {
   P2P_INTERNAL_ID,
   P2P_INTERNAL_CAPABILITIES,
@@ -50,7 +54,7 @@ export interface SeedRows {
    */
   chain_contracts: ChainContractRow[]
   fiat_providers: FiatProviderRow[]
-  /** Assets skipped because their config inputs are missing. */
+  /** Config that was declared but could not be applied, and why. */
   skipped: string[]
 }
 
@@ -79,16 +83,34 @@ function resolveAssetToken(
  * that funds it — otherwise both stay NULL, keeping the chain's seed dormant and
  * satisfying the `chains_gas_seed_paired_chk` (both-or-neither) constraint. The
  * funder address is DERIVED from the same secret the sender signs with (no drift).
+ *
+ * The `skipped` note is the answer to how this used to go wrong (#53a): the
+ * namespace check here was `=== 'solana'`, so an EVM chain that declared a seed
+ * amount silently seeded NULL, dispatch never saw the chain, and NOTHING said
+ * so — not at boot, not at seed time, not on the wire. A declared seed that
+ * cannot be paid is now reported wherever the seeder reports its other skips.
  */
 function resolveGasSeed(
   amount_raw: string | undefined,
   secret: ResolvedChainSecret,
-): { amount_raw: string | null; wallet_address: string | null } {
-  const key = secret.namespace === 'solana' ? secret.gasSeedKey : undefined
-  if (amount_raw === undefined || key === undefined) {
-    return { amount_raw: null, wallet_address: null }
+): { amount_raw: string | null; wallet_address: string | null; skipped: string | null } {
+  const key = secret.gasSeedKey
+  if (amount_raw === undefined) return { amount_raw: null, wallet_address: null, skipped: null }
+  if (key === undefined) {
+    return {
+      amount_raw: null,
+      wallet_address: null,
+      // The EXACT variable, built with the loader's own prefix helper — the #57
+      // lesson: the person who reads this is looking at container logs without
+      // the source, and a bare suffix costs them the hop.
+      skipped: `gas seed on ${secret.chainId} (${chainEnvPrefix(secret.chainId)}_GAS_SEED_KEY not configured)`,
+    }
   }
-  return { amount_raw, wallet_address: gasSeedAddressFromSecret(key) }
+  return {
+    amount_raw,
+    wallet_address: GAS_SEED_SUPPORT[secret.namespace].addressFromKey(key),
+    skipped: null,
+  }
 }
 
 export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>): SeedRows {
@@ -110,6 +132,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
   for (const secret of secrets.values()) {
     const entry = chainById(secret.chainId)
     const gasSeed = resolveGasSeed(entry.gasSeedAmountRaw, secret)
+    if (gasSeed.skipped !== null) skipped.push(gasSeed.skipped)
     chainRows.push({
       id: entry.id,
       namespace: entry.namespace,

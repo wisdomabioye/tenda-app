@@ -81,6 +81,12 @@ jobs:
       - name: Coverage gate >90 (escrow contract pinning)
         working-directory: apps/server
         run: pnpm test:coverage:contracts
+      # The gas seed spends a hot wallet on every new user, and its grant is
+      # one-shot per (user, chain) — a miss is money the user never gets. Held
+      # to the same higher bar, and for the same reason as the step above.
+      - name: 'Coverage gate >90 (EVM gas seed, #53a)'
+        working-directory: apps/server
+        run: pnpm test:coverage:gas-seed
 
   shared:
     runs-on: ubuntu-latest
