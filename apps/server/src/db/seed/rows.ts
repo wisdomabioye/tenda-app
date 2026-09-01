@@ -7,7 +7,7 @@
  *   - EVM escrow + treasury    ← the chain's secrets
  *   - solana USDC mint         ← the chain's secret (`fromSecret`); skipped + warned if unset
  *   - gas-seed columns ← manifest `gasSeedAmountRaw` + the funder address DERIVED
- *     from the chain's hot-wallet secret (chains/gas-seed-senders, any
+ *     from the chain's hot-wallet secret (features/gas-seed, any
  *     namespace); both stay NULL until BOTH exist (#40), the paired CHECK
  *     constraint requires both-or-neither, and a declared-but-unfunded seed is
  *     reported through `skipped` rather than going quiet.
@@ -23,9 +23,10 @@ import { escrowAddressOf } from '@server/chains/registry-sync'
 // drizzle and the db type.
 import { normalizeContractAddress } from '@server/chains/contracts/normalize'
 import { chainEnvPrefix, type ResolvedChainSecret } from '@server/chains/secrets'
-// Also a leaf by the rule above, despite living beside chains/index.ts: it
-// imports the two chain SENDERS plus types, and reaches no database.
-import { GAS_SEED_SUPPORT } from '@server/chains/gas-seed-senders'
+// The feature's public entry, and a leaf by the rule above: it exposes the two
+// senders plus types and reaches no database, so this pure builder stays pure.
+// Removing the gas seed makes THIS the only line here to delete.
+import { GAS_SEED_SUPPORT } from '@server/features/gas-seed'
 import {
   P2P_INTERNAL_ID,
   P2P_INTERNAL_CAPABILITIES,

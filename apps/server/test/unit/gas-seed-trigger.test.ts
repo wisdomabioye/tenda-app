@@ -19,7 +19,7 @@ import * as assert from 'node:assert'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '@tenda/shared/db/schema'
-import { fireRetroactiveGasSeed, type GasSeedHost } from '@server/lib/onboarding-deps'
+import { fireRetroactiveGasSeed, type GasSeedHost } from '@server/features/gas-seed'
 import { resetChainSecretsCache } from '@server/chains/secrets'
 
 /**

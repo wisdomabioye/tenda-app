@@ -2,8 +2,9 @@
  * EVM GasSeedSender (#53a): transfers the one-time native seed from the hot
  * wallet (`CHAIN_<ID>_GAS_SEED_KEY`) to a newly linked wallet.
  *
- * Kept as a leaf under chains/evm, exactly like its Solana twin: lib/gas-seed
- * orchestrates through the `GasSeedSender` interface and never touches viem.
+ * A leaf beside its Solana twin: ../dispatch orchestrates through the
+ * `GasSeedSender` interface and never touches viem, so the seed can be removed
+ * without the chain adapters noticing.
  *
  * IT WAITS FOR THE RECEIPT, and that is the whole design difference from a
  * naive port of the Solana sender. `sendAndConfirmTransaction` confirms;
@@ -22,8 +23,8 @@
 import { getAddress, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { chainById } from '@tenda/shared'
-import type { GasSeedSender } from '@server/lib/gas-seed'
-import { evmHotWallet } from './hot-wallet'
+import type { GasSeedSender } from '../dispatch'
+import { evmHotWallet } from '@server/chains/evm/hot-wallet'
 
 /**
  * The two chain operations the seed needs, as a port — the same seam
@@ -109,8 +110,8 @@ export function evmGasSeedSender(args: {
       // WORSE failure more likely, not less: while this promise waits, the
       // grant slot stays claimed and nobody can be paid twice. It is the
       // release on rejection that opens the double-pay window (see the header
-      // of lib/gas-seed.ts), so abandoning a tx sooner than the library does
-      // buys nothing and costs exactly that.
+      // of ../dispatch), so abandoning a tx sooner than the library does buys
+      // nothing and costs exactly that.
       const receipt = await reader.waitForTransactionReceipt({ hash, confirmations })
       return { status: receipt.status }
     },

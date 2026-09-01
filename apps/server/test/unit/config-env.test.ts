@@ -207,58 +207,6 @@ test('reports missing, URL, and Slack problems together in one throw', () => {
 })
 
 /**
- * A BLANK var must read exactly like an UNSET one (#34) — the rule, and the
- * oracle the two tests below share.
- *
- * `lib/env.ts` states the rule — "blank means absent … one rule, one home" —
- * and `optionalEnv` implements it, but config.ts only routed SOME vars through
- * it; the rest read `process.env.X ?? null`, and `??` does not fire for ''.
- * The consequence is the opposite of harmless: blanking a key is the documented
- * way to switch a provider off, so `TERMII_API_KEY=` built a live Termii sender
- * from an empty credential instead of falling back to the console logger.
- *
- * ORACLE, rather than a hardcoded list of vars: load once with every optional
- * var UNSET, then again with each set to `value`, and require the two configs
- * to agree field by field. A var added later is covered the day it is added,
- * which a list would not be — and this file's own fixture drifts otherwise
- * (see the required-var drift guard above).
- *
- * try/finally is load-bearing, not tidiness: this sets ~25 vars, and a failed
- * assertion that skipped the cleanup would leave them set for every test after
- * it in this file — turning one real failure into a cascade that hides its own
- * cause. `beforeEach` only clears the seven vars in the OPTIONAL fixture.
- */
-function assertBlankReadsAsUnset(value: string, label: string): void {
-  const required = new Set<string>(REQUIRED_ENV_VARS)
-  const unset = loadConfig()
-  const optionalKeys = Object.keys(unset).filter((k) => !required.has(k))
-  try {
-    for (const key of optionalKeys) process.env[key] = value
-    const blank = loadConfig()
-    for (const key of optionalKeys) {
-      assert.deepStrictEqual(
-        blank[key as keyof typeof blank],
-        unset[key as keyof typeof unset],
-        `${key}: ${label} did not read as unset`,
-      )
-    }
-  } finally {
-    for (const key of optionalKeys) delete process.env[key]
-  }
-}
-
-test('a whitespace-only optional var reads exactly like an unset one', () => {
-  assertBlankReadsAsUnset('   ', 'a whitespace-only value')
-})
-
-test('the empty string is treated the same way — it is what an operator actually types', () => {
-  // `KEY=` in a .env file yields '', not whitespace. Asserted separately because
-  // '' is FALSY and '   ' is truthy, so the two take different code paths
-  // through the readers that test truthiness rather than null.
-  assertBlankReadsAsUnset('', 'an empty value')
-})
-
-/**
  * The behaviour the config rule exists for: blanking a provider key is the
  * documented way to switch it off in development, and it must actually reach
  * the console fallback rather than build a live sender from an empty

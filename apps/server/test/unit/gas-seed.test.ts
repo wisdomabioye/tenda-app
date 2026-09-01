@@ -1,5 +1,5 @@
 /**
- * lib/gas-seed — claim-first idempotency, PER-CHAIN sender routing (#53a),
+ * features/gas-seed — claim-first idempotency, PER-CHAIN sender routing (#53a),
  * transfer-failure rollback, chain-driven configuration.
  */
 
@@ -11,7 +11,7 @@ import {
   type GasSeedSender,
   type GasSeedStore,
   type SeedableChain,
-} from '@server/lib/gas-seed'
+} from '@server/features/gas-seed'
 
 const SOLANA_CHAIN: SeedableChain = {
   chain_id: 'solana:devnet',

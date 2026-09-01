@@ -1,9 +1,10 @@
 /**
  * Solana GasSeedSender, transfers the one-time SOL seed from the hot
- * wallet (#40, SOLANA_GAS_SEED_WALLET_KEY) to a newly linked wallet.
+ * wallet (`CHAIN_<ID>_GAS_SEED_KEY`) to a newly linked wallet.
  *
- * Kept as a leaf under chains/solana: lib/gas-seed.ts orchestrates via the
- * GasSeedSender interface and never touches web3.js.
+ * A leaf beside its EVM twin: ../dispatch orchestrates via the GasSeedSender
+ * interface and never touches web3.js, so the seed can be removed without the
+ * chain adapters noticing.
  */
 
 import {
@@ -15,7 +16,7 @@ import {
   sendAndConfirmTransaction,
 } from '@solana/web3.js'
 import bs58 from 'bs58'
-import type { GasSeedSender } from '@server/lib/gas-seed'
+import type { GasSeedSender } from '../dispatch'
 import { commitmentFor } from '@server/chains/solana/rpc'
 import type { ChainId } from '@server/chains/types'
 

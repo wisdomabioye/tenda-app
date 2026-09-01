@@ -5,7 +5,7 @@
  * `chains.gas_seed_amount_raw IS NOT NULL` — which db:seed writes from the
  * manifest's `gasSeedAmountRaw` — so adding a future chain is a manifest
  * entry + its env secrets + a re-seed, with no code change here, for any
- * namespace chains/gas-seed-senders.ts supports (since #53a, both of them).
+ * namespace ./senders supports (since #53a, both of them).
  *
  * Idempotency: `gas_grants` PK (user_id, chain_id) + insert-before-send.
  * The grant row is claimed FIRST with a placeholder tx_ref; only the
@@ -17,10 +17,9 @@
  * that throws — including on a receipt timeout — releases the slot so the
  * user is not permanently marked seeded for a transfer that never landed,
  * and a tx that lands after that release would be paid a second time. The
- * senders bound that window rather than eliminating it (see the receipt
- * timeout in chains/evm/gas-seed-sender.ts); the alternative, keeping the
- * slot, strands the user instead. Losing one seed to a slow chain is the
- * cheaper failure.
+ * senders bound that window rather than eliminating it (see the receipt wait
+ * in ./senders/evm.ts); the alternative, keeping the slot, strands the user
+ * instead. Losing one seed to a slow chain is the cheaper failure.
  *
  * The transfer itself is behind `GasSeedSender` so tests run offline and
  * each chain's impl stays a leaf.
@@ -126,7 +125,7 @@ export function drizzleGasSeedStore(db: AppDatabase): GasSeedStore {
 export interface GasSeedDeps {
   store: GasSeedStore
   /**
-   * Sender per CHAIN ID (chains/gas-seed-senders.ts). Missing chain = that
+   * Sender per CHAIN ID (built by ./senders). Missing chain = that
    * chain configured no seed key → skip.
    *
    * Per chain rather than per namespace (#53a): a deployment runs one chain

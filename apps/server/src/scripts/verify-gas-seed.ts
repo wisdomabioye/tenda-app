@@ -30,7 +30,7 @@ import { gas_grants, user_wallets } from '@tenda/shared/db/schema/identity'
 import { loadConfig } from '@server/config'
 import { getChainSecrets, solanaSecret } from '@server/chains/secrets'
 import { commitmentFor } from '@server/chains/solana/rpc'
-import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
+import { gasSeedAddressFromSecret } from '@server/features/gas-seed'
 
 const PLACEHOLDER_PREFIX = 'pending:'
 

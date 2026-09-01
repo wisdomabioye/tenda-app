@@ -22,7 +22,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { chains } from '@tenda/shared/db/schema/chains'
 import { gas_grants, user_wallets } from '@tenda/shared/db/schema/identity'
-import { dispatchGasSeeds, drizzleGasSeedStore, type GasSeedSender } from '@server/lib/gas-seed'
+import { dispatchGasSeeds, drizzleGasSeedStore, type GasSeedSender } from '@server/features/gas-seed'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 

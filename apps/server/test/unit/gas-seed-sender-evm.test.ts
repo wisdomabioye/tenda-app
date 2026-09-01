@@ -1,5 +1,5 @@
 /**
- * chains/evm/gas-seed-sender — the decisions the sender makes ABOVE the node
+ * features/gas-seed/senders/evm — the decisions the sender makes ABOVE the node
  * (#53a), driven through its port so every branch is reachable offline. The
  * wiring to a real chain is proved by test/integration/evm-gas-seed.anvil.
  *
@@ -17,7 +17,7 @@ import {
   evmGasSeedSenderFromPort,
   gasSeedConfirmations,
   type EvmGasSeedPort,
-} from '@server/chains/evm/gas-seed-sender'
+} from '@server/features/gas-seed/senders/evm'
 
 const HASH = `0x${'ab'.repeat(32)}` as Hex
 /** A real checksummed address (Base USDC), used as the recipient throughout. */

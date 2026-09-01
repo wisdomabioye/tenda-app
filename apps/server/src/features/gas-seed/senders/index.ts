@@ -3,11 +3,12 @@
  * knows a seed on Solana is a SystemProgram transfer and a seed on EVM is a
  * value transfer.
  *
- * WHY IT EXISTS. lib/gas-seed.ts has always claimed that "adding a future
+ * WHY IT EXISTS. The dispatcher (../dispatch) has always claimed that "adding a future
  * chain is a DB row + env var, no code change". That was true only inside a
  * namespace that already had a sender, and until #53a only Solana did: two
- * separate places hardcoded `namespace === 'solana'` — the deps builder in
- * lib/onboarding-deps and the funder-address resolution in db/seed/rows. Both
+ * separate places hardcoded `namespace === 'solana'` — the deps builder (now
+ * ../trigger, then in lib/onboarding-deps) and the funder-address resolution in
+ * db/seed/rows. Both
  * now ask here, so a third namespace is ONE entry in this record and nothing
  * else, and the two can no longer disagree about which chains are seedable.
  *
@@ -17,16 +18,16 @@
  */
 
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
-import type { GasSeedSender } from '@server/lib/gas-seed'
+import type { GasSeedSender } from '../dispatch'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import {
   gasSeedAddressFromSecret,
   solanaGasSeedSender,
-} from '@server/chains/solana/gas-seed-sender'
+} from './solana'
 import {
   evmGasSeedAddressFromKey,
   evmGasSeedSender,
-} from '@server/chains/evm/gas-seed-sender'
+} from './evm'
 
 interface GasSeedNamespaceSupport {
   /** The funder's public address, derived from the hot-wallet secret. */

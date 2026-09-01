@@ -20,20 +20,20 @@
  * — and a deadline around the wait does not help, because the abandoned viem
  * poll keeps the process alive and the runner hangs anyway (both measured: 90s
  * and 100s). The depth is therefore guarded where it CAN fail fast, against the
- * manifest, in test/unit/chains/evm-gas-seed-sender.test.ts.
+ * manifest, in test/unit/gas-seed-sender-evm.test.ts.
  */
 import { after, before, test } from 'node:test'
 import * as assert from 'node:assert'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseEther } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { evmGasSeedSender } from '@server/chains/evm/gas-seed-sender'
+import { evmGasSeedSender } from '@server/features/gas-seed/senders/evm'
 import {
   dispatchGasSeeds,
   type GasSeedSender,
   type GasSeedStore,
   type SeedableChain,
-} from '@server/lib/gas-seed'
+} from '@server/features/gas-seed'
 import {
   ANVIL_CHAIN_ID,
   anvilSkip,

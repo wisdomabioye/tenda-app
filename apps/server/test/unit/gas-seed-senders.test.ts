@@ -1,5 +1,5 @@
 /**
- * chains/gas-seed-senders — the namespace registry and the per-CHAIN sender map
+ * features/gas-seed/senders — the namespace registry and the per-CHAIN sender map
  * built from it (#53a).
  *
  * What is worth testing here is not that viem and web3.js work; it is the two
@@ -13,7 +13,7 @@ import * as assert from 'node:assert'
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { privateKeyToAccount } from 'viem/accounts'
-import { GAS_SEED_SUPPORT, buildGasSeedSenders } from '@server/chains/gas-seed-senders'
+import { GAS_SEED_SUPPORT, buildGasSeedSenders } from '@server/features/gas-seed'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 
 const EVM_KEY = `0x${'cd'.repeat(32)}` as const

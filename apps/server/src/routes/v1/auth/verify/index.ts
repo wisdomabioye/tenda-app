@@ -15,7 +15,7 @@ import { isAuthMethod, type VerifyProof } from '@server/lib/auth/strategy'
 import { buildAuthStrategies } from '@server/lib/auth/registry'
 import { resolveOrLink, type UserBootstrap } from '@server/lib/auth/orchestrator'
 import { mintAuthResponse } from '@server/lib/auth/session'
-import { fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
+import { fireRetroactiveGasSeed } from '@server/features/gas-seed'
 
 interface Body {
   method?: unknown
