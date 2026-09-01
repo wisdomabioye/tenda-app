@@ -116,7 +116,7 @@ function GigStep({ step, form }: { step: GigComposerStep; form: GigFormControlle
       <GigPaymentStep
         chainOptions={form.chainOptions}
         chainId={form.chainId}
-        onChainChange={form.setChainId}
+        onChainChange={form.selectChain}
         asset={form.asset}
         assetSymbol={form.assetSymbol}
         paymentRaw={form.paymentRaw}

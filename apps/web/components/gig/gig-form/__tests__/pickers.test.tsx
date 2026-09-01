@@ -5,15 +5,31 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
-import { FILE_PROOF_TYPES, PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
+import {
+  FILE_PROOF_TYPES,
+  PROOF_TYPES,
+  PROOF_TYPE_LABEL,
+  type ChainOptionState,
+  type GigChainOption as ChainOption,
+  type ProofType,
+} from '@tenda/shared'
 import { AcceptDeadlinePicker } from '@/components/gig/gig-form/AcceptDeadlinePicker'
 import { AcceptanceModePicker } from '@/components/gig/gig-form/AcceptanceModePicker'
 import { NetworkPicker } from '@/components/gig/gig-form/NetworkPicker'
 import { ProofRequirementPicker } from '@/components/gig/gig-form/ProofRequirementPicker'
 
+/**
+ * Mirrors the shared factory's one invariant — `enabled` is DERIVED from the
+ * state, never chosen — so no fixture here can describe an option
+ * gigChainOptions could not produce (e.g. enabled while needing a wallet).
+ */
+function option(id: string, label: string, state: ChainOptionState): ChainOption {
+  return { id, label, state, enabled: state === 'ready' }
+}
+
 const OPTIONS = [
-  { id: 'solana:devnet', label: 'Solana', enabled: true },
-  { id: 'eip155:84532', label: 'Base Sepolia', enabled: false },
+  option('solana:devnet', 'Solana', 'ready'),
+  option('eip155:84532', 'Base Sepolia', 'needs_wallet'),
 ]
 
 test('NetworkPicker renders nothing with a single eligible chain (no choice to make)', () => {
@@ -32,6 +48,34 @@ test('an EVM chain without a linked wallet is visible but disabled with the link
   expect(onSelect).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Solana' }))
   expect(onSelect).toHaveBeenCalledWith('solana:devnet')
+})
+
+test('a disabled chain says WHY, and only a real absence says "link a wallet"', () => {
+  // Three causes disable a chip. Saying "link a wallet" while the trust list
+  // is still loading, or after it failed, is the dead end ApplyWalletPicker
+  // was built to remove — so each state gets its own note.
+  const cases: [ChainOptionState, string][] = [
+    ['needs_wallet', 'Base Sepolia (link a wallet)'],
+    ['wallets_loading', 'Base Sepolia (checking wallets)'],
+    ['wallets_unavailable', 'Base Sepolia (wallets unavailable)'],
+  ]
+  for (const [state, name] of cases) {
+    const { unmount } = render(
+      <NetworkPicker
+        options={[OPTIONS[0], option('eip155:84532', 'Base Sepolia', state)]}
+        selected="solana:devnet"
+        onSelect={vi.fn()}
+        assetSymbol="USDC"
+      />,
+    )
+    expect(screen.getByRole('button', { name })).toBeDisabled()
+    unmount()
+  }
+})
+
+test('a ready chain carries no parenthetical at all', () => {
+  render(<NetworkPicker options={OPTIONS} selected="solana:devnet" onSelect={vi.fn()} assetSymbol="USDC" />)
+  expect(screen.getByRole('button', { name: 'Solana' })).toBeEnabled()
 })
 
 test('AcceptDeadlinePicker offers the shared options and reports hours', () => {

@@ -72,7 +72,7 @@ function controller() {
   return {
     title: 'Deliver a package', setTitle: setter,
     description: 'Handle carefully', setDescription: setter,
-    chainId: 'solana:devnet', setChainId: setter,
+    chainId: 'solana:devnet', selectChain: setter,
     paymentRaw: '10000000', setPaymentRaw: setter,
     completionDuration: 86_400, setCompletionDuration: setter,
     selectedCategory: 'delivery' as const, setSelectedCategory: setter,

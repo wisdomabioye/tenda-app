@@ -7,7 +7,7 @@
  * stays presentational. Validation and the form-value contract are SHARED
  * (constants/gig-composer), so what a valid gig is cannot fork per client.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ASSET_META,
   CATEGORY_HINTS,
@@ -15,10 +15,12 @@ import {
   PROOF_NOTE,
   composerProofSubmission,
   draftFromProofParams,
+  defaultGigChainId,
   gigAssetByChain,
   getGigMissingRequirement,
+  gigChainOptions,
   solanaChainId,
-  verifiedWalletsOn,
+  type GigChainOption,
   type ChainRegistryEntry,
   type GigCategory,
   type GigFormValues,
@@ -31,12 +33,12 @@ import { getBrowserCountry } from '@/lib/browser-country'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/gig/useModerationPreview'
 
-/** One selectable settlement chain, produced here, rendered by NetworkPicker. */
-export interface ChainOption {
-  id: string
-  label: string
-  enabled: boolean
-}
+/**
+ * One selectable settlement chain, rendered by NetworkPicker. The shape and
+ * the rule that fills it are SHARED (#58) — web and mobile each had their own
+ * copy and both shipped the same defect.
+ */
+export type ChainOption = GigChainOption
 
 export function useGigForm(
   initialValues: Partial<GigFormValues> | undefined,
@@ -44,9 +46,10 @@ export function useGigForm(
 ) {
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
   const wallets = useAuthStore((s) => s.wallets)
+  const walletsStatus = useAuthStore((s) => s.walletsStatus)
   const ensureWallets = useAuthStore((s) => s.ensureWallets)
 
-  // Chain eligibility below reads wallets[]; without this an EVM chain shows
+  // Chain eligibility below reads wallets[]; without this a chain shows
   // "(link a wallet)" to a user who linked one, until some other surface
   // happened to load the list. Load-once, deduped.
   useEffect(() => {
@@ -60,7 +63,14 @@ export function useGigForm(
     : defaultChainId
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [description, setDescription] = useState(initialValues?.description ?? '')
-  const [chainId, setChainId] = useState(initialChainId)
+  // The chain the PERSON chose, or null while they have not. NOT the current
+  // selection: the registry and the wallet list both land after first paint,
+  // so the selection is DERIVED below rather than seeded at mount and synced.
+  // A repost's stored chain counts as chosen only if it survived validation —
+  // a chain since dropped from the manifest is not a choice anyone made.
+  const [pickedChainId, setPickedChainId] = useState<string | null>(
+    initialChainId === requestedChainId ? initialChainId : null,
+  )
   const [paymentRaw, setPaymentRaw] = useState(initialValues?.paymentRaw ?? '')
   const [registry, setRegistry] = useState<ChainRegistryEntry[]>([])
   const [completionDuration, setCompletionDuration] = useState(
@@ -95,7 +105,9 @@ export function useGigForm(
   // CO5: chain options come from the SERVER registry (never CHAIN_MANIFEST —
   // the server 400s chains it doesn't run); a chain is gig-eligible when the
   // shared gigAssetByChain policy names an asset the registry actually
-  // carries. EVM chains stay disabled until the user links an eip155 wallet.
+  // carries. Whether the user can SIGN on it is a separate question, owned
+  // by gigChainOptions: since #58 a chain of ANY namespace stays disabled
+  // until a verified wallet is linked on that same namespace.
   useEffect(() => {
     api.platform
       .chains()
@@ -103,17 +115,15 @@ export function useGigForm(
       .catch(() => setRegistry([])) // silent: the Solana default still works
   }, [])
 
-  const hasEvmWallet = verifiedWalletsOn('eip155', wallets).length > 0
-  const chainOptions: ChainOption[] = registry
-    .filter((c) => {
-      const gigAsset = gigAssetByChain(c.id)
-      return gigAsset !== null && c.assets.some((a) => a.id === gigAsset)
-    })
-    .map((c) => ({
-      id: c.id,
-      label: c.display_name,
-      enabled: c.namespace !== 'eip155' || hasEvmWallet,
-    }))
+  const chainOptions: ChainOption[] = useMemo(
+    () => gigChainOptions({ registry, wallets, walletsStatus }),
+    [registry, wallets, walletsStatus],
+  )
+
+  // Until the person picks, follow the wallets. Leaving an untouched composer
+  // on a constant is the #58 wall one step later: a user who linked only one
+  // namespace was pointed at another and only found out at signing.
+  const chainId = pickedChainId ?? defaultGigChainId(chainOptions, defaultChainId)
 
   // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
   const asset = gigAssetByChain(chainId) ?? gigAssetByChain(defaultChainId) ?? 'USDC_SOL'
@@ -186,7 +196,8 @@ export function useGigForm(
   return {
     title, setTitle,
     description, setDescription,
-    chainId, setChainId,
+    chainId,
+    selectChain: setPickedChainId,
     paymentRaw, setPaymentRaw,
     completionDuration, setCompletionDuration,
     selectedCategory, setSelectedCategory,

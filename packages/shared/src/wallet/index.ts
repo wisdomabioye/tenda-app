@@ -5,6 +5,13 @@ export { classifyConnectError, type ConnectErrorCopy } from './connect-error'
 export * from './balances'
 export { evmRpc, evmRpcString, hexToDecimalString, addressWord, amountWord } from './evm-rpc'
 export {
+  gigChainOptions,
+  chainOptionLabel,
+  defaultGigChainId,
+  type GigChainOption,
+  type ChainOptionState,
+} from './gig-chain-options'
+export {
   resolveWalletSection,
   isRegistryUsable,
   type WalletSectionState,

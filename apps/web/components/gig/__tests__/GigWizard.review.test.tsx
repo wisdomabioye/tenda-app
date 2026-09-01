@@ -42,12 +42,17 @@ vi.mock('@/stores/auth.store', () => ({
     selector: (s: {
       user: { country: string; is_seeker: boolean }
       wallets: unknown[]
+      // Declared, not omitted: without it the chain gate cannot tell "no
+      // wallet linked" from "not loaded yet", and the assertion below that a
+      // chain says "(link a wallet)" would pass for the wrong reason.
+      walletsStatus: string
       ensureWallets: () => Promise<void>
     }) => unknown,
   ) =>
     selector({
       user: { country: 'NG', is_seeker: false },
       wallets: walletsState.current,
+      walletsStatus: 'ready',
       ensureWallets: async () => {},
     }),
 }))
@@ -151,19 +156,58 @@ test('a warn verdict with Edit keeps the wizard and never submits', async () => 
 
 // ─────────────────────────── the money step ───────────────────────────
 
-test('EVM chains render disabled in the network picker until an eip155 wallet is linked', async () => {
+test('a wallet-less account can select NO chain — Solana included (#58)', async () => {
+  // The defect this suite exists to hold: the rule gated only eip155, so
+  // Solana came back enabled for an account with no wallet at all and sat
+  // pre-selected beside correctly-greyed EVM chips. One enabled chip among
+  // disabled ones reads as verified, and the refusal arrived at signing.
   await renderForm(VALID)
   await advance(4)
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Base Sepolia (link a wallet)' })).toBeDisabled(),
   )
+  expect(screen.getByRole('button', { name: 'Solana (link a wallet)' })).toBeDisabled()
 })
 
-test('a linked EVM wallet makes the chain selectable and swaps the policy asset', async () => {
+test('an EVM-only account OPENS on the chain it can sign on, without touching the picker', async () => {
+  // No click anywhere: the default follows the wallets. Before #58 this
+  // composer opened on the Solana constant and submitted it.
   walletsState.current = [{ chain_ns: 'eip155', verified_at: '2026-01-01' }]
   const onSubmit = await renderForm(VALID)
   await advance(4)
+  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
+  await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+  expect(onSubmit.mock.calls[0][0]).toMatchObject({ chainId: 'eip155:84532', asset: 'USDC_BASE' })
+})
+
+test('with both namespaces linked, PICKING a chain switches it and swaps the policy asset', async () => {
+  // Both linked, so the default is the first ready option (Solana) and the
+  // click is a real switch. With an EVM-only account the default already
+  // lands on Base, and this assertion would pass with selection wired to
+  // nothing — measured: neutering selectChain left the whole suite green.
+  walletsState.current = [
+    { chain_ns: 'solana', verified_at: '2026-01-01' },
+    { chain_ns: 'eip155', verified_at: '2026-01-01' },
+  ]
+  const onSubmit = await renderForm(VALID)
+  await advance(4)
+  expect(screen.getByRole('button', { name: 'Solana' })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(await screen.findByRole('button', { name: 'Base Sepolia' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
+  await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+  expect(onSubmit.mock.calls[0][0]).toMatchObject({ chainId: 'eip155:84532', asset: 'USDC_BASE' })
+})
+
+test('a reposted draft KEEPS the chain it was posted on, even unsignable here', async () => {
+  // The one branch that decides whether a person's own choice survives — and
+  // it was uncovered on web (mobile had it). The account can sign on Solana
+  // only, so the wallet-following default would move this repost to Solana;
+  // it must not. Silently reposting on another chain is a worse answer than
+  // showing the chain greyed and letting them change it.
+  walletsState.current = [{ chain_ns: 'solana', verified_at: '2026-01-01' }]
+  const onSubmit = await renderForm({ ...VALID, chainId: 'eip155:84532' })
+  await advance(4)
+  expect(screen.getByRole('button', { name: 'Base Sepolia (link a wallet)' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
   await waitFor(() => expect(onSubmit).toHaveBeenCalled())
   expect(onSubmit.mock.calls[0][0]).toMatchObject({ chainId: 'eip155:84532', asset: 'USDC_BASE' })

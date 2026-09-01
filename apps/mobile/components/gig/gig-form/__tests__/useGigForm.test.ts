@@ -10,12 +10,29 @@ jest.mock('@/hooks/useModerationPreview', () => ({
 }))
 jest.mock('@/lib/device', () => ({ getDeviceCountry: () => 'GH' }))
 jest.mock('@/wallet/config', () => ({ SOLANA_NETWORK: 'devnet' }))
-jest.mock('@/stores/auth.store', () => ({
-  useAuthStore: (select: (state: object) => object) => select({
-    user: { country: 'NG' },
-    wallets: [{ chain_ns: 'eip155', verified_at: '2026-01-01' }],
-  }),
-}))
+/**
+ * walletsStatus and refreshMe are DECLARED, not omitted (#58): the hook reads
+ * the status through getState() so its load-once effect does not re-fire as
+ * the status changes, and a chain's enabled-ness now depends on wallets[]
+ * being loaded rather than on its namespace. A mock without them makes both
+ * unobservable.
+ */
+const mockAuthState: {
+  user: { country: string }
+  wallets: { chain_ns: string; verified_at: string }[]
+  walletsStatus: string
+  refreshMe: jest.Mock
+} = {
+  user: { country: 'NG' },
+  wallets: [{ chain_ns: 'eip155', verified_at: '2026-01-01' }],
+  walletsStatus: 'ready',
+  refreshMe: jest.fn(),
+}
+jest.mock('@/stores/auth.store', () => {
+  const useAuthStore = (select: (state: object) => object) => select(mockAuthState)
+  useAuthStore.getState = () => mockAuthState
+  return { useAuthStore }
+})
 jest.mock('@/api/client', () => ({
   api: { platform: { chains: jest.fn() } },
 }))
@@ -36,7 +53,26 @@ const CHAINS = [
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockAuthState.walletsStatus = 'ready'
   mockChains.mockResolvedValue({ data: CHAINS } as Awaited<ReturnType<typeof api.platform.chains>>)
+})
+
+it('asks for the wallets when they have not been loaded, and not when they have', async () => {
+  // Load-bearing for #58 and guarded by nothing until now: chain eligibility
+  // reads wallets[], so a composer that never asks tells a user who HAS a
+  // linked wallet to link one — the exact inverse of the reported defect.
+  mockAuthState.walletsStatus = 'idle'
+  const { unmount } = renderHook(() => useGigForm(undefined, jest.fn()))
+  await waitFor(() => expect(mockAuthState.refreshMe).toHaveBeenCalledTimes(1))
+  unmount()
+
+  // ...and refreshMe is NOT deduped, so a loaded list must not be refetched
+  // every time the composer opens.
+  mockAuthState.refreshMe.mockClear()
+  mockAuthState.walletsStatus = 'ready'
+  renderHook(() => useGigForm(undefined, jest.fn()))
+  await waitFor(() => expect(mockChains).toHaveBeenCalled())
+  expect(mockAuthState.refreshMe).not.toHaveBeenCalled()
 })
 
 it('loads eligible networks and seeds account-aware defaults', async () => {
@@ -45,10 +81,25 @@ it('loads eligible networks and seeds account-aware defaults', async () => {
   expect(result.current.selectedCountry).toBe('NG')
   expect(result.current.chainId).toBe('solana:devnet')
   await waitFor(() => expect(result.current.chainOptions).toHaveLength(2))
+  // This account holds an EVM wallet and nothing else. Before #58 BOTH chains
+  // came back enabled — Solana unconditionally, because the rule only ever
+  // gated eip155 — and the composer stayed pointed at a chain it could not
+  // sign on, all the way to the 403 at signing.
   expect(result.current.chainOptions).toEqual([
-    { id: 'solana:devnet', label: 'Solana', enabled: true },
-    { id: 'eip155:84532', label: 'Base', enabled: true },
+    { id: 'solana:devnet', label: 'Solana', state: 'needs_wallet', enabled: false },
+    { id: 'eip155:84532', label: 'Base', state: 'ready', enabled: true },
   ])
+  // ...and the selection follows the wallet rather than the constant default.
+  await waitFor(() => expect(result.current.chainId).toBe('eip155:84532'))
+  expect(result.current.asset).toBe('USDC_BASE')
+})
+
+it('an explicit chain from a reposted draft is never re-derived away', async () => {
+  const { result } = renderHook(() => useGigForm({ chainId: 'solana:devnet' }, jest.fn()))
+  await waitFor(() => expect(result.current.chainOptions).toHaveLength(2))
+  // Solana is not signable for this account, but the person chose it; the
+  // composer must say so rather than silently reposting on another chain.
+  expect(result.current.chainId).toBe('solana:devnet')
 })
 
 it('keeps the default network usable when registry loading fails', async () => {
@@ -66,6 +117,9 @@ it('normalizes an obsolete draft chain to a valid chain and asset pair', async (
   expect(result.current.chainId).toBe('solana:devnet')
   expect(result.current.asset).toBe('USDC_SOL')
   await waitFor(() => expect(result.current.chainOptions).toHaveLength(2))
+  // A chain that was DROPPED is not a choice the person made, so it must not
+  // count as touched — otherwise the repost stays stranded on the fallback.
+  await waitFor(() => expect(result.current.chainId).toBe('eip155:84532'))
 })
 
 it('validates each stage and submits normalized remote values', async () => {

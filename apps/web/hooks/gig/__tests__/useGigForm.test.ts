@@ -7,7 +7,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-const { chainsMock } = vi.hoisted(() => ({ chainsMock: vi.fn() }))
+const { chainsMock, ensureWalletsMock } = vi.hoisted(() => ({
+  chainsMock: vi.fn(),
+  ensureWalletsMock: vi.fn(async () => {}),
+}))
 vi.mock('@/api/client', () => ({
   api: { platform: { chains: (...a: unknown[]) => chainsMock(...a) } },
 }))
@@ -16,8 +19,21 @@ vi.mock('@/lib/browser-country', () => ({ getBrowserCountry: () => 'NG' }))
 vi.mock('@/wallet/config', () => ({ SOLANA_NETWORK: 'devnet' }))
 vi.mock('@/stores/auth.store', () => ({
   useAuthStore: (
-    selector: (s: { user: { country: string }; wallets: unknown[]; ensureWallets: () => Promise<void> }) => unknown,
-  ) => selector({ user: { country: 'NG' }, wallets: [], ensureWallets: async () => {} }),
+    selector: (s: {
+      user: { country: string }
+      wallets: unknown[]
+      // DECLARED, not omitted: the real store always has it, and a mock that
+      // leaves it out is a fixture claiming a shape the producer cannot send.
+      walletsStatus: string
+      ensureWallets: () => Promise<void>
+    }) => unknown,
+  ) =>
+    selector({
+      user: { country: 'NG' },
+      wallets: [],
+      walletsStatus: 'ready',
+      ensureWallets: ensureWalletsMock,
+    }),
 }))
 
 import { useGigForm } from '@/hooks/gig/useGigForm'
@@ -25,6 +41,17 @@ import { useGigForm } from '@/hooks/gig/useGigForm'
 beforeEach(() => {
   vi.clearAllMocks()
   chainsMock.mockResolvedValue({ data: [] })
+})
+
+test('asks the store for the linked wallets on mount, exactly once', () => {
+  // Chain eligibility reads wallets[], so a composer that never asks shows
+  // "(link a wallet)" to a user who already linked one — the inverse of the
+  // #58 defect, and nothing caught the effect's removal before this.
+  const { rerender } = renderHook(() => useGigForm(undefined, vi.fn()))
+  expect(ensureWalletsMock).toHaveBeenCalledTimes(1)
+  // The store method is stable, so a re-render must not refetch.
+  rerender()
+  expect(ensureWalletsMock).toHaveBeenCalledTimes(1)
 })
 
 test('rebuilds the proof-param draft from a reposted draft gig — pin, radius and fields', () => {

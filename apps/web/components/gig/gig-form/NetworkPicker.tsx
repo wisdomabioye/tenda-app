@@ -6,6 +6,7 @@
  * only picks where the escrow lives. Renders null when there's a single
  * eligible chain (no choice to make).
  */
+import { chainOptionLabel } from '@tenda/shared'
 import { Chip } from '@/components/ui/Chip'
 import type { ChainOption } from '@/hooks/gig/useGigForm'
 
@@ -31,7 +32,7 @@ export function NetworkPicker({
         {options.map((opt) => (
           <Chip
             key={opt.id}
-            label={opt.enabled ? opt.label : `${opt.label} (link a wallet)`}
+            label={chainOptionLabel(opt)}
             selected={selected === opt.id}
             disabled={!opt.enabled}
             onClick={() => onSelect(opt.id)}

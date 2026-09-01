@@ -24,7 +24,7 @@ const addressesEqual = sameChainAddress
  * verified_at !== null`), which is how an unverified wallet ends up offered
  * on one surface and refused on the next.
  */
-export function verifiedWalletsOn(ns: ChainNamespace, wallets: LinkedWallet[]): LinkedWallet[] {
+export function verifiedWalletsOn(ns: ChainNamespace, wallets: readonly LinkedWallet[]): LinkedWallet[] {
   return wallets.filter((w) => w.chain_ns === ns && w.verified_at !== null)
 }
 

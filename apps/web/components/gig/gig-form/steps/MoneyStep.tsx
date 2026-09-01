@@ -40,7 +40,7 @@ export function MoneyStep({ form }: { form: GigFormController }) {
         <NetworkPicker
           options={form.chainOptions}
           selected={form.chainId}
-          onSelect={form.setChainId}
+          onSelect={form.selectChain}
           assetSymbol={form.assetSymbol}
         />
       </div>
