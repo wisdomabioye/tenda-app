@@ -3,12 +3,14 @@
  * deploy runbook documented BASE_*-era names long after the loader moved to
  * CHAIN_*; prose can't be tested, but the example file can):
  *   1. every CHAIN_* key it documents is a key the secrets loader reads,
- *   2. every boot-required var is documented, and
- *   3. SLACK_WEBHOOK_* agrees with the destination registry IN BOTH
+ *   2. every manifest chain has an entry, and every chain that DECLARES a
+ *      native gas seed documents the key that funds it,
+ *   3. every boot-required var is documented, and
+ *   4. SLACK_WEBHOOK_* agrees with the destination registry IN BOTH
  *      DIRECTIONS — an undocumented destination is a channel nobody knows to
  *      configure, which is exactly how an alert path stays quiet, and
- *   4. every OPTIONAL url var is documented, for the same reason as 3 rather
- *      than the same reason as 2: a missing REQUIRED var halts the boot and
+ *   5. every OPTIONAL url var is documented, for the same reason as 4 rather
+ *      than the same reason as 3: a missing REQUIRED var halts the boot and
  *      names itself, so it cannot stay secret. An optional one just degrades.
  */
 import { test } from 'node:test'
@@ -67,6 +69,33 @@ test('every chain in the manifest has an .env.example entry', () => {
     missing.map((m) => `${m.id} (${m.key})`),
     [],
     'manifest chains with no .env.example entry — an operator cannot configure them',
+  )
+})
+
+test("every 'native-seed' chain documents its GAS_SEED_KEY in .env.example", () => {
+  // The manifest already enforces `gasSeedAmountRaw iff gasPolicy ===
+  // 'native-seed'`, so a chain declaring that policy is declaring it PAYS. The
+  // key is what turns the declaration on, and it is optional — unset leaves the
+  // seed dormant, which looks exactly like a chain that never had one.
+  //
+  // Not caught by the RPC_URL test above, and that is the whole point: 16602
+  // had a complete, correct block here and ran a funded seed for a day with its
+  // own key undocumented. The sentinel has to be the field the policy implies,
+  // not the field every chain shares.
+  //
+  // Deliberately NOT generalised to "every optional field must be documented":
+  // this file omits PAYMASTER_URL and WEBHOOK_SECRET on the 0G and CELO chains
+  // on purpose, because their manifests support neither and documenting them
+  // would advertise something that does nothing. `gasPolicy` is the manifest's
+  // own statement about which chains are the exception.
+  const documented = documentedKeys()
+  const missing = CHAIN_MANIFEST.filter((c) => c.gasPolicy === 'native-seed')
+    .map((c) => ({ id: c.id, key: `${chainEnvPrefix(c.id)}_GAS_SEED_KEY` }))
+    .filter(({ key }) => !documented.has(key))
+  assert.deepStrictEqual(
+    missing.map((m) => `${m.id} (${m.key})`),
+    [],
+    'chains that declare a native gas seed but document no key to fund it with',
   )
 })
 

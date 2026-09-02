@@ -111,7 +111,11 @@ async function enqueueToChannel(
     // Checked here so an unconfigured channel costs no Redis round-trip and no
     // job that only exists to be skipped. ./deliver-alert re-checks rather than
     // trusting this, because the env can change between the two.
-    if (!channel.configured()) return false
+    //
+    // Per KIND, matching that re-check: a channel that routes its kinds to
+    // different rooms is configured for some and not others, and this ref only
+    // ever asks about its own.
+    if (!channel.configured(ref.kind)) return false
 
     await queue.enqueue(
       'alerts',

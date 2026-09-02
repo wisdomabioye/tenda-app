@@ -6,14 +6,13 @@
  * and putting it in the admin bell would file it next to work items and bury a
  * funding problem behind them.
  *
- * WHICH Slack room, stated rather than implied: the channel has exactly one
- * destination, `disputes`, so this lands in the MEDIATION team's room. That is
- * the same objection one step removed, and it is a compromise rather than a
- * design — the room is watched, which beats nowhere, and giving this kind its
- * own `ops` destination means a per-kind destination on the copy map plus a
- * `configured()` that can no longer answer channel-wide. Tracked separately.
- * Until then the runbook says what it means for an operator: whoever holds the
- * funding key has to be in that room.
+ * WHICH Slack room, stated rather than implied: the `ops` destination, not
+ * `disputes` — declared beside this copy in ../copy.ts. The two had shared one
+ * room, which was the same objection one step removed: a mediator cannot top up
+ * a hot wallet either, and the person who can was reading dispute context to
+ * find the notice. The operator consequence is now the plain one — whoever
+ * holds the funding key has to be in the `ops` room, and nobody else needs to
+ * be.
  *
  * The sentence an operator acts on is "N grants left", not a wei figure. Both
  * are shown — the count leads, the exact balance follows for whoever is topping

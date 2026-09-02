@@ -109,10 +109,21 @@ test('every advertised kind renders a non-empty title AND body', () => {
 // Unlike Slack this channel has no optional dependency — it writes to our own
 // notification centre. A deployment with no Slack must still alert someone, and
 // that only holds if this never opts itself out.
-test('configured: always true, for any environment', () => {
-  assert.strictEqual(inAppAlertChannel.configured(), true)
-  assert.strictEqual(inAppAlertChannel.configured({}), true)
-  assert.strictEqual(inAppAlertChannel.configured({ REDIS_URL: '' }), true)
+//
+// Slack answers `configured` PER KIND because it routes its kinds to different
+// rooms; this channel has no destination at all, so the parameter changes
+// nothing. Asserted across EVERY kind rather than one, so the day this channel
+// does grow a condition, a kind it silently drops fails here.
+test('configured: always true, for any kind and any environment', () => {
+  for (const kind of inAppAlertChannel.kinds) {
+    assert.strictEqual(inAppAlertChannel.configured(kind), true, `'${kind}' with no env`)
+    assert.strictEqual(inAppAlertChannel.configured(kind, {}), true, `'${kind}' with empty env`)
+    assert.strictEqual(
+      inAppAlertChannel.configured(kind, { REDIS_URL: '' }),
+      true,
+      `'${kind}' with a blank REDIS_URL`,
+    )
+  }
 })
 
 // ---------- the conflict rule ----------------------------------------------
