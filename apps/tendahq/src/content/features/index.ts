@@ -5,7 +5,7 @@
  */
 
 import { ACTIVE_GAS_POLICIES, chainByFamily } from '../chains'
-import { AGENT_FEATURE, AGENT_HIRE_FEATURE, WALLET_FEATURE } from './cards'
+import { AGENT_FEATURE, AGENT_HIRE_FEATURE, FIAT_ONRAMP_FEATURE, WALLET_FEATURE } from './cards'
 import { featureFor } from './gas-policies'
 import { statusFor, type OnboardingFeature } from './types'
 
@@ -55,6 +55,8 @@ export const ONBOARDING_FEATURES: readonly OnboardingFeature[] = (() => {
     ...built,
     { ...WALLET_FEATURE, chains: [] },
     ...roadmap,
+    // Last: a roadmap card that is about money in, not gas — see cards.ts.
+    { ...FIAT_ONRAMP_FEATURE, chains: [] },
   ]
 })()
 

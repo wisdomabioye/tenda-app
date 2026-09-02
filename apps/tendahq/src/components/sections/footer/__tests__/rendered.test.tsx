@@ -2,11 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { HealthResponse } from '@/api/platform'
+import { APP_INFO } from '@/content'
 import { asText } from '@/test-support/html-text'
 import { ThemeContext, type ThemeContextValue } from '@/theme/theme-context'
 import { Footer } from '../Footer'
 import { FooterStatus } from '../FooterStatus'
-import { FOOTER_COLUMNS, FOOTER_LEGAL } from '../content'
+import { FOOTER_COLUMNS, FOOTER_LEGAL, FOOTER_SOCIAL } from '../content'
 
 interface Health {
   data: HealthResponse | null
@@ -42,6 +43,28 @@ describe('the footer', () => {
       expect(tag.includes('rel="noreferrer"')).toBe(link.external === true)
       expect(html).toContain(`>${asText(link.label)}</a>`)
     }
+  })
+
+  /**
+   * The social links belong to the brand block, under the wordmark and the
+   * about line — they were in the Company column, where they read as pages
+   * of the site. Placement is asserted by markup order: every social href
+   * appears before the first sitemap column, and no column carries one.
+   */
+  it('puts the social links under the about line, not in a column', () => {
+    expect(FOOTER_SOCIAL.length).toBeGreaterThan(0)
+    const firstColumn = html.indexOf('<nav')
+    expect(firstColumn).toBeGreaterThan(-1)
+    for (const link of FOOTER_SOCIAL) {
+      const at = html.indexOf(`href="${link.href}"`)
+      expect(at).toBeGreaterThan(html.indexOf(asText(APP_INFO.about)))
+      expect(at).toBeLessThan(firstColumn)
+      const tag = html.slice(html.lastIndexOf('<a', at), html.indexOf('>', at))
+      expect(tag).toContain('target="_blank"')
+      expect(tag).toContain('rel="noreferrer"')
+    }
+    const columnHrefs = FOOTER_COLUMNS.flatMap((c) => c.links.map((l) => l.href))
+    for (const link of FOOTER_SOCIAL) expect(columnHrefs).not.toContain(link.href)
   })
 
   it('carries the release line and the disclaimer', () => {

@@ -78,20 +78,24 @@ export function Onboarding({ surface }: LandingSectionProps) {
             </MonoChip>
           </div>
 
-          <div className="flex flex-col gap-3.5">
-            <span className="eyebrow text-[var(--content-tertiary)]">{ONBOARDING_HEADER.whereLabel}</span>
-            <div className="flex flex-wrap gap-2">
-              {selected.chains.map((chain) => (
-                <MonoChip key={chain.id} className="text-[var(--content-secondary)]">
-                  {/* The chain's own colour, the one place a per-chain hue appears — as a micro-glyph, never as fill. */}
-                  <span aria-hidden className="text-[13px]" style={{ color: chain.color }}>
-                    {chain.glyph}
-                  </span>
-                  {chain.name}
-                </MonoChip>
-              ))}
+          {/* A cross-chain card (any wallet, the fiat on-ramp) runs nowhere in
+              particular; a heading over no chips read as a missing list. */}
+          {selected.chains.length > 0 && (
+            <div className="flex flex-col gap-3.5">
+              <span className="eyebrow text-[var(--content-tertiary)]">{ONBOARDING_HEADER.whereLabel}</span>
+              <div className="flex flex-wrap gap-2">
+                {selected.chains.map((chain) => (
+                  <MonoChip key={chain.id} className="text-[var(--content-secondary)]">
+                    {/* The chain's own colour, the one place a per-chain hue appears — as a micro-glyph, never as fill. */}
+                    <span aria-hidden className="text-[13px]" style={{ color: chain.color }}>
+                      {chain.glyph}
+                    </span>
+                    {chain.name}
+                  </MonoChip>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Sheet>
     </SectionShell>

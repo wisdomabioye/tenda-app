@@ -22,8 +22,7 @@ describe('onboarding features', () => {
   it('derives one card per gas policy that has copy, plus the wallet card', () => {
     const withChains = ONBOARDING_FEATURES.filter((f) => f.chains.length > 0)
     const crossChain = ONBOARDING_FEATURES.filter((f) => f.chains.length === 0)
-    expect(crossChain).toHaveLength(1)
-    expect(crossChain[0].id).toBe('any-wallet')
+    expect(crossChain.map((f) => f.id)).toEqual(['any-wallet', 'fiat-onramp'])
     for (const feature of withChains) {
       expect(ACTIVE_GAS_POLICIES).toContain(feature.chains[0].gasPolicy)
     }

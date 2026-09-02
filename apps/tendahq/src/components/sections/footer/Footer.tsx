@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import { APP_INFO } from '@/content'
-import { FOOTER_COLUMNS, FOOTER_LEGAL, type SitemapLink } from './content'
+import { FOOTER_COLUMNS, FOOTER_LEGAL, FOOTER_SOCIAL, type SitemapLink } from './content'
 import { FooterStatus } from './FooterStatus'
 
 /**
  * Footer — the colophon, on the alternate paper ground:
- *   1. Wordmark + about, then the three link columns (Product · Build · Company)
+ *   1. Wordmark + about + where to reach us, then the three link columns
+ *      (Product · Build · Company)
  *   2. The legal row: the release line and disclaimer, with the live status
  *      chip from /v1/health on the right.
  */
@@ -28,6 +29,13 @@ export function Footer() {
             <p className="mt-5 max-w-[48ch] text-[13.5px] leading-[22px] text-[var(--content-tertiary)]">
               {APP_INFO.about}
             </p>
+            <ul aria-label={FOOTER_SOCIAL_LABEL} className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+              {FOOTER_SOCIAL.map((link) => (
+                <li key={link.label}>
+                  <FooterLink link={link} />
+                </li>
+              ))}
+            </ul>
           </div>
 
           {FOOTER_COLUMNS.map((column) => (
@@ -59,6 +67,9 @@ export function Footer() {
     </footer>
   )
 }
+
+/** The accessible name of the brand block's link row. */
+const FOOTER_SOCIAL_LABEL = 'Reach us'
 
 function FooterLink({ link }: { link: SitemapLink }) {
   const cls =

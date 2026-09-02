@@ -54,7 +54,7 @@ export function AgentFlow({ surface }: LandingSectionProps) {
       </SectionHead>
 
       <div ref={ref} className="mt-[clamp(30px,4vw,52px)]">
-        {/* The lane bar: a segmented control, the play/pause, the lane's one-line note. */}
+        {/* The lane bar: a segmented control and the play/pause. */}
         <div className="flex flex-wrap items-center gap-3">
           <div
             role="group"
@@ -89,10 +89,13 @@ export function AgentFlow({ surface }: LandingSectionProps) {
           >
             {playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           </button>
-          <span className="eyebrow text-[var(--content-tertiary)]">
-            {lane.note} · {pinnedId === null ? LANE_PIN_HINT.cycling : LANE_PIN_HINT.pinned}
-          </span>
         </div>
+        {/* The lane's one-line note, on its own line: the two notes differ in
+            length, so beside the controls it wrapped on one lane and not the
+            other, and the bar jumped every time the lane switched. */}
+        <p className="eyebrow mt-3 text-[var(--content-tertiary)]">
+          {lane.note} · {pinnedId === null ? LANE_PIN_HINT.cycling : LANE_PIN_HINT.pinned}
+        </p>
 
         {/* Below phone width the scene keeps its size and scrolls sideways —
             see `.custody-scroll` — rather than shrinking its labels to 3px. */}

@@ -104,3 +104,20 @@ export const AGENT_HIRE_FEATURE: Omit<OnboardingFeature, 'chains' | 'status'> = 
   body: `On 0G, an AI agent posts a gig and funds escrow exactly as a person does — and it carries an “${AGENT_BADGE_LABEL}” badge everywhere it appears. You accept, do the work, submit proof, and the contract pays out.`,
   fact: 'same escrow as any gig · labelled, never hidden',
 }
+
+/**
+ * The fiat on-ramp — Onramp.money and Yellow Card, on the roadmap (user,
+ * 2026-09-02). Cross-chain like WALLET_FEATURE, hand-written like it, and
+ * declared `roadmap` rather than derived: it depends on a provider
+ * integration, not on any chain's deployment, so chain status has nothing to
+ * say about it. It reads Roadmap until the integration ships, and the copy
+ * promises no date.
+ */
+export const FIAT_ONRAMP_FEATURE: Omit<OnboardingFeature, 'chains'> = {
+  id: 'fiat-onramp',
+  tab: 'Fiat on-ramp',
+  status: 'roadmap',
+  title: 'Buy USDC with local money',
+  body: 'Top up in your own currency and start with USDC already in your wallet. We are integrating Onramp.money and Yellow Card; until that ships, bring USDC from an exchange or trade for it on the Tenda exchange.',
+  fact: 'Onramp.money · Yellow Card · on the roadmap',
+}

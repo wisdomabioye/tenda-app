@@ -42,7 +42,17 @@ export const FOOTER_COLUMNS: readonly SitemapColumn[] = [
       { label: 'FAQ',     href: '/#faq'    },
       { label: 'Privacy', href: '/privacy' },
       { label: 'Terms',   href: '/terms'   },
-      { label: 'Support', href: APP_INFO.whatsappUrl, external: true },
     ],
   },
+] as const
+
+/**
+ * Where to reach Tenda — under the wordmark and the about line, not in a
+ * sitemap column: a Telegram group for help, X for announcements. These are
+ * the brand's channels, so they sit with the brand; the columns stay a map of
+ * the site. WhatsApp was a one-to-one line nobody could join.
+ */
+export const FOOTER_SOCIAL: readonly SitemapLink[] = [
+  { label: 'Telegram', href: APP_INFO.telegramUrl, external: true },
+  { label: 'X',        href: APP_INFO.twitterUrl,  external: true },
 ] as const
