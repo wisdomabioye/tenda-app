@@ -38,7 +38,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="rounded-[var(--r-btn)] px-3 py-2 text-[14px] font-semibold text-[var(--content-secondary)] transition-colors hover:bg-[var(--surface-pressed)] hover:text-[var(--content-primary)]"
+              className="rounded-[var(--radius-button)] px-3 py-2 text-[14px] font-semibold text-[var(--content-secondary)] transition-colors hover:bg-[var(--surface-pressed)] hover:text-[var(--content-primary)]"
             >
               {link.label}
             </a>
@@ -66,7 +66,7 @@ export function Navbar() {
           aria-expanded={menuOpen}
           aria-controls="mobile-nav"
           onClick={() => setMenuOpen((v) => !v)}
-          className="rounded-[var(--r-btn)] p-2 text-[var(--content-primary)] transition-colors hover:bg-[var(--surface-pressed)] lg:hidden"
+          className="rounded-[var(--radius-button)] p-2 text-[var(--content-primary)] transition-colors hover:bg-[var(--surface-pressed)] lg:hidden"
         >
           {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -91,7 +91,7 @@ function ThemeToggle({ resolved, onToggle }: { resolved: 'light' | 'dark'; onTog
       aria-pressed={resolved === 'dark'}
       onClick={onToggle}
       className={cn(
-        'inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-btn)] border border-[var(--border-default)] text-[var(--content-secondary)] transition-colors',
+        'inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] border border-[var(--border-default)] text-[var(--content-secondary)] transition-colors',
         'hover:bg-[var(--surface-pressed)] hover:text-[var(--content-primary)]',
       )}
     >
@@ -127,7 +127,7 @@ function MobileSheet({
       <div className="container-page py-3">
         <p className="eyebrow mb-3 text-[var(--content-tertiary)]">{NAV_LABELS.mobileEyebrow}</p>
 
-        <div className="overflow-hidden rounded-[var(--r-card)] border border-[var(--border-default)] bg-[var(--surface-card)]">
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--surface-card)]">
           {NAV_LINKS.map((link, index) => (
             <a
               key={link.href}

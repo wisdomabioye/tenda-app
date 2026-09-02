@@ -92,7 +92,7 @@ function RouteRow({ route }: { route: ExitRoute }) {
       <span className="title text-[16px] text-[var(--content-primary)]">{route.name}</span>
       <p className="text-[14px] leading-[23px] text-[var(--content-secondary)]">
         <span className="text-[var(--content-primary)]">{route.trigger}</span>
-        <span aria-hidden className="px-[9px] font-[var(--font-mono)] font-semibold text-[var(--brand)]">→</span>
+        <span aria-hidden className="px-[9px] font-[var(--font-mono)] font-semibold text-[var(--brand-primary)]">→</span>
         <span className="sr-only">, then </span>
         {route.outcome}
       </p>

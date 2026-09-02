@@ -51,7 +51,7 @@ export function CopyChainId({ chainId }: Props) {
         visible to sighted users and to nobody else.
       */
       aria-label={`${copied ? COPY_LABELS.done : COPY_LABELS.idle} ${chainId}`}
-      className="inline-flex shrink-0 items-center rounded-md p-1 leading-none text-[var(--content-tertiary)] transition-colors hover:bg-[var(--surface-inset)] hover:text-[var(--content-primary)] data-[copied=true]:text-[var(--brand)]"
+      className="inline-flex shrink-0 items-center rounded-[var(--radius-xs)] p-1 leading-none text-[var(--content-tertiary)] transition-colors hover:bg-[var(--surface-inset)] hover:text-[var(--content-primary)] data-[copied=true]:text-[var(--brand-primary)]"
       data-copied={copied}
     >
       {copied ? <Check className="h-[13px] w-[13px]" /> : <Copy className="h-[13px] w-[13px]" />}

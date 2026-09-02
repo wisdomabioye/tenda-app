@@ -59,7 +59,7 @@ export function AgentFlow({ surface }: LandingSectionProps) {
           <div
             role="group"
             aria-label={LANE_GROUP_LABEL}
-            className="inline-flex flex-wrap rounded-[var(--r-btn)] bg-[var(--surface-inset)] p-[3px]"
+            className="inline-flex flex-wrap rounded-[var(--radius-button)] bg-[var(--surface-inset)] p-[3px]"
           >
             {FLOW_LANES.map((l) => {
               const showing = l.id === lane.id
@@ -85,7 +85,7 @@ export function AgentFlow({ surface }: LandingSectionProps) {
             type="button"
             onClick={() => setPlaying(!playing)}
             aria-label={playing ? PLAY_LABELS.pause : PLAY_LABELS.play}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--r-btn)] border border-[var(--border-default)] text-[var(--content-secondary)] transition-colors hover:bg-[var(--surface-pressed)] hover:text-[var(--content-primary)]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] border border-[var(--border-default)] text-[var(--content-secondary)] transition-colors hover:bg-[var(--surface-pressed)] hover:text-[var(--content-primary)]"
           >
             {playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           </button>

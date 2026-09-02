@@ -21,7 +21,7 @@ export function Footer() {
       seam on the page. Overlapping keeps one rule here whatever comes above
       — a ruled section on the landing, or plain prose on the legal pages.
     */
-    <footer className="-mt-px border-t border-[var(--border-default)] bg-[var(--surface-bg-alt)] pb-[clamp(30px,3.4vw,44px)] pt-[clamp(46px,5.4vw,72px)] text-[var(--content-primary)]">
+    <footer className="-mt-px border-t border-[var(--border-default)] bg-[var(--surface-background-alt)] pb-[clamp(30px,3.4vw,44px)] pt-[clamp(46px,5.4vw,72px)] text-[var(--content-primary)]">
       <div className="container-page">
         <div className="grid gap-[clamp(24px,3.6vw,48px)] sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,0.85fr))]">
           <div className="sm:col-span-2 lg:col-span-1">

@@ -44,9 +44,9 @@ describe('§08 the closer', () => {
   it('ends the one worded receipt on the brand period, and none of the numeric ones', () => {
     const worded = RECEIPTS.filter((r) => r.period)
     expect(worded).toHaveLength(1)
-    expect(html).toContain(`${worded[0].v}<span class="text-[var(--brand)]">.</span>`)
+    expect(html).toContain(`${worded[0].v}<span class="text-[var(--brand-primary)]">.</span>`)
     for (const r of RECEIPTS.filter((x) => !x.period)) {
-      expect(html).not.toContain(`${r.v}<span class="text-[var(--brand)]">.</span>`)
+      expect(html).not.toContain(`${r.v}<span class="text-[var(--brand-primary)]">.</span>`)
     }
   })
 })

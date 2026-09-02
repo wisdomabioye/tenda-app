@@ -37,8 +37,8 @@ const PAD_Y: Record<NonNullable<Props['padY']>, string> = {
 // Static class strings, because Tailwind reads them off the source; they
 // must name the same tokens as SURFACE_TOKEN in ./surface.ts.
 const SURFACE: Record<SectionSurface, string> = {
-  base: 'bg-[var(--surface-bg)]',
-  alt:  'bg-[var(--surface-bg-alt)] border-y border-[var(--border-subtle)]',
+  base: 'bg-[var(--surface-background)]',
+  alt:  'bg-[var(--surface-background-alt)] border-y border-[var(--border-subtle)]',
 }
 
 /**

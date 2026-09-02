@@ -38,7 +38,7 @@ export function EscrowReceipt() {
       <div
         role="img"
         aria-label={`Example escrow: ${ESCROW_PANEL.rows.map((r) => `${r.label} ${r.value}`).join(', ')}`}
-        className="w-full rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--surface-card-elevated)] px-[26px] pb-[22px] pt-6 shadow-[var(--shadow-elevated)] lg:max-w-[460px] lg:justify-self-end"
+        className="w-full rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-card-elevated)] px-[26px] pb-[22px] pt-6 shadow-[var(--shadow-elevated)] lg:max-w-[460px] lg:justify-self-end"
       >
         <header className="flex items-center gap-3 border-b border-[var(--border-default)] pb-[18px]">
           <span className="eyebrow text-[var(--content-secondary)]">{ESCROW_PANEL.eyebrow}</span>
@@ -72,7 +72,7 @@ export function EscrowReceipt() {
                 className={cn(
                   'ml-auto font-[var(--font-mono)] text-[13px] leading-[18px] tabular-nums',
                   'money' in row && row.money
-                    ? 'font-semibold text-[var(--money)]'
+                    ? 'font-semibold text-[var(--utility-money)]'
                     : 'font-medium text-[var(--content-primary)]',
                 )}
               >

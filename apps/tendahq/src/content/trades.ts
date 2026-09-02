@@ -1,5 +1,5 @@
 /**
- * Example P2P exchange corridors surfaced by the TradeDeck — each row is one
+ * Example P2P exchange corridors surfaced by the product sheet — each row is one
  * "crypto → local cash" movement: the asset side (what's locked in escrow, on
  * which chain) and the fiat side (what the counterparty receives, over which
  * payout rail).
@@ -75,7 +75,7 @@ export interface ExampleTrade {
 }
 
 export const EXAMPLE_TRADES: readonly ExampleTrade[] = [
-  // 0G leads the deck (launch positioning, 2026-08-27). Implied rates sit at
+  // 0G leads the rows (launch positioning, 2026-08-27). Implied rates sit at
   // the same levels as the sibling rows (~146 KES/USDC; the 0G row prices the
   // token near its market level the day it was added — marketing copy, rounded
   // to 2 significant figures like every other row, never a quote).

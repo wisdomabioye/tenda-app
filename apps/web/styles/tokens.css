@@ -111,7 +111,7 @@
   --numeric-negative:#CB3A3A;
   --numeric-neutral:#141721;
 
-/* ── Geometry: theme-independent ───────────────────────────── */
+/* ── Geometry + motion: theme-independent ──────────────────── */
   --radius-xs:8px;
   --radius-sm:12px;
   --radius-md:16px;
@@ -120,6 +120,8 @@
   --radius-control:16px;
   --radius-card:20px;
   --radius-sheet:24px;
+  --radius-button:12px;
+  --radius-button-lg:14px;
   --radius-full:9999px;
   --space-none:0px;
   --space-2xs:4px;
@@ -137,6 +139,15 @@
   --shadow-sheet:0px -24px 48px rgba(0,0,0,0.1);
   --shadow-modal:0px 24px 40px rgba(0,0,0,0.16);
   --shadow-fab:0px 10px 24px rgba(46,91,214,0.18);
+  --duration-instant:90ms;
+  --duration-fast:150ms;
+  --duration-normal:220ms;
+  --duration-slow:320ms;
+  --duration-emphasis:480ms;
+  --easing-standard:cubic-bezier(0.2, 0, 0, 1);
+  --easing-entrance:cubic-bezier(0, 0, 0, 1);
+  --easing-exit:cubic-bezier(0.4, 0, 1, 1);
+  --easing-emphasized:cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* ── Colour: dark (system preference) ──────────────────────── */
@@ -473,6 +484,8 @@
   --radius-control:var(--radius-control);
   --radius-card:var(--radius-card);
   --radius-sheet:var(--radius-sheet);
+  --radius-button:var(--radius-button);
+  --radius-button-lg:var(--radius-button-lg);
   --radius-full:var(--radius-full);
   --shadow-card:var(--shadow-card);
   --shadow-elevated:var(--shadow-elevated);

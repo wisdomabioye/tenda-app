@@ -103,7 +103,7 @@ export function displayFor(family: string, displayName: string): ChainDisplay {
   return {
     name: display?.name ?? displayName,
     glyph: display?.glyph ?? '●',
-    color: display?.color ?? 'var(--brand)',
+    color: display?.color ?? 'var(--brand-primary)',
     pitch: display?.pitch ?? '',
     strength: display?.strength ?? '',
   }

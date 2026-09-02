@@ -1,14 +1,28 @@
 /**
  * Pure rendering core for the design-token generator. No filesystem, no
  * process — main.ts owns the CLI. Kept separate so the transforms are unit-
- * testable (scripts/__tests__/gen-web-tokens.test.ts) while the CI drift gate
- * (`gen:tokens:check`) exercises the full pipeline for real.
+ * testable (scripts/__tests__/gen-web-tokens.test.ts) while the CI drift gates
+ * (`gen:tokens:check`, in web and in tendahq) exercise the full pipeline.
+ *
+ * Two targets share this file: web (three theme blocks plus a Tailwind map,
+ * `render` below) and tendahq (one light-dark() block, tendahq.ts). Every
+ * transform and the whole geometry set are shared; only the output shape
+ * differs, so a token added to mobile reaches both apps in one regenerate.
  */
-import { colors, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
+import { colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
 
 export const kebab = (value: string) => value.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
-/** Flattens the nested ColorScheme into ordered [--custom-property, value] pairs. */
+/**
+ * Flattens the nested ColorScheme into ordered [--custom-property, value] pairs.
+ *
+ * The walk is typed over `unknown` on purpose: ColorScheme is an INTERFACE,
+ * and an interface has no implicit index signature, so it cannot be handed to
+ * a recursive `{ [key]: string | Tree }` walker without a cast either way.
+ * Casting once at this boundary and narrowing each leaf with `typeof value
+ * === 'string'` keeps the walker generic over every group mobile adds, while
+ * `any` would have let a non-string leaf through as a token value.
+ */
 export function flattenScheme(scheme: ColorScheme): Array<[string, string]> {
   const pairs: Array<[string, string]> = []
   const walk = (node: Record<string, unknown>, path: string[]) => {
@@ -50,18 +64,44 @@ export function shadowToCss(shadow: ShadowToken): string {
   return `${shadow.shadowOffset.width}px ${shadow.shadowOffset.height}px ${shadow.shadowRadius}px rgba(${r},${g},${b},${shadow.shadowOpacity})`
 }
 
-function geometryBlock(): string {
-  const lines: string[] = []
+/** A CSS cubic-bezier from mobile's four-number easing tuple. */
+export function easingToCss(curve: readonly number[]): string {
+  if (curve.length !== 4) {
+    throw new Error(`easingToCss: expected 4 control points, got ${curve.length}`)
+  }
+  return `cubic-bezier(${curve.join(', ')})`
+}
+
+/**
+ * Every theme-independent token as ordered [--custom-property, value] pairs:
+ * radius, spacing, shadows, then motion — durations in ms, easings as
+ * cubic-bezier (the spring has no CSS form and stays mobile's). Both targets
+ * emit exactly this list.
+ */
+export function geometryPairs(): Array<[string, string]> {
+  const pairs: Array<[string, string]> = []
   for (const [key, value] of Object.entries(radius)) {
-    lines.push(`  --radius-${kebab(key)}:${value}px;`)
+    pairs.push([`--radius-${kebab(key)}`, `${value}px`])
   }
   for (const [key, value] of Object.entries(spacing)) {
-    lines.push(`  --space-${kebab(key)}:${value}px;`)
+    pairs.push([`--space-${kebab(key)}`, `${value}px`])
   }
   for (const [key, value] of Object.entries(shadows)) {
-    lines.push(`  --shadow-${kebab(key)}:${shadowToCss(value)};`)
+    pairs.push([`--shadow-${kebab(key)}`, shadowToCss(value)])
   }
-  return lines.join('\n')
+  for (const [key, value] of Object.entries(motion.duration)) {
+    pairs.push([`--duration-${kebab(key)}`, `${value}ms`])
+  }
+  for (const [key, value] of Object.entries(motion.easing)) {
+    pairs.push([`--easing-${kebab(key)}`, easingToCss(value)])
+  }
+  return pairs
+}
+
+function geometryBlock(): string {
+  return geometryPairs()
+    .map(([property, value]) => `  ${property}:${value};`)
+    .join('\n')
 }
 
 function colourLines(scheme: ColorScheme): string {
@@ -89,7 +129,9 @@ function themeMapBlock(): string {
   // spacing scale first, so `--spacing-5xl:64px` silently turns `max-w-5xl`
   // into 64 PIXELS. Mobile's spacing is Tailwind's default 4px rhythm, so
   // components use numeric utilities (p-4 = --space-md = 16px); the raw
-  // --space-* custom properties above stay available for plain CSS.
+  // --space-* custom properties above stay available for plain CSS. Motion
+  // is not mapped either: Tailwind's own --ease-* / --animate-* namespaces
+  // carry defaults, and nothing in web reads the mobile curves yet.
   for (const key of Object.keys(shadows)) {
     lines.push(`  --shadow-${kebab(key)}:var(--shadow-${kebab(key)});`)
   }
@@ -113,7 +155,7 @@ export function render(): string {
   color-scheme:light;
 ${light}
 
-/* ── Geometry: theme-independent ───────────────────────────── */
+/* ── Geometry + motion: theme-independent ──────────────────── */
 ${geometryBlock()}
 }
 

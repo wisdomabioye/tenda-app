@@ -13,7 +13,7 @@ export function Sheet({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
     <div
       {...rest}
       className={cn(
-        'overflow-hidden rounded-[var(--r-sheet)] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-card)]',
+        'overflow-hidden rounded-[var(--radius-sheet)] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-card)]',
         className,
       )}
     />

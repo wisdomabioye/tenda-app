@@ -10,6 +10,6 @@ export type SectionSurface = 'base' | 'alt'
  * exports a constant breaks Fast Refresh for the component.
  */
 export const SURFACE_TOKEN: Record<SectionSurface, string> = {
-  base: '--surface-bg',
-  alt: '--surface-bg-alt',
+  base: '--surface-background',
+  alt: '--surface-background-alt',
 }

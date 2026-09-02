@@ -13,6 +13,8 @@
 #   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
 #   6. docker image     → build-only assembly check of apps/server/Dockerfile
 #   7. scripts          → unit tests for scripts/ + the app-version drift gate
+#   8. tendahq          → token drift gate (generated from mobile) + eslint +
+#                         vitest coverage + tsc/vite build
 #
 # Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
 # stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
@@ -169,6 +171,37 @@ jobs:
       - name: E2E (Playwright vs stub API)
         working-directory: apps/web
         run: pnpm test:e2e
+
+  tendahq:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Anti-drift, as in the web job: src/styles/tokens.css is generated from
+      # apps/mobile/theme/tokens.ts by web's generator (`--target tendahq`).
+      - name: Design-token drift gate
+        working-directory: apps/tendahq
+        run: pnpm gen:tokens:check
+      - name: Lint
+        working-directory: apps/tendahq
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest)
+        working-directory: apps/tendahq
+        run: pnpm test:coverage
+      # `tsc -b` then `vite build`. src/env.ts throws at import without these
+      # two, and .env.development is dev-mode only; the values are placeholders
+      # for the type/bundle check, not a deployment.
+      - name: Typecheck + build
+        working-directory: apps/tendahq
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:3000
+          VITE_WEB_APP_URL: http://127.0.0.1:3200
+        run: pnpm build
 
   mobile:
     runs-on: ubuntu-latest

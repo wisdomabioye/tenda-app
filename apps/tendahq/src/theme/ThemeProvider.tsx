@@ -14,7 +14,7 @@ function readStoredMode(): ThemeMode {
   // Default is SYSTEM, matching apps/web (lib/theme.ts). It used to be 'dark',
   // which was the single biggest visual seam in the product: a visitor on a
   // light-mode machine met a dark landing, clicked "Open Web App", and landed
-  // on a light one. The tokens in styles/base.css are light-dark() pairs
+  // on a light one. The tokens in styles/tokens.css are light-dark() pairs
   // under `color-scheme: light dark` on the root, so the first paint already
   // follows the system before this provider has stamped it, and the stamp
   // then pins one side. The store is read through the guard in lib/storage:

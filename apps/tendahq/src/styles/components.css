@@ -28,35 +28,35 @@
    blue while the contract holds it and settled green once paid. */
 .custody .cs-dash { stroke: var(--border-subtle); stroke-width: 1; stroke-dasharray: 3 6; fill: none; }
 .custody .cs-axis { stroke: var(--border-default); stroke-width: 2; stroke-linecap: round; fill: none; }
-.custody .cs-run  { stroke: var(--brand); stroke-width: 2.5; stroke-linecap: round; fill: none; }
+.custody .cs-run  { stroke: var(--brand-primary); stroke-width: 2.5; stroke-linecap: round; fill: none; }
 .custody[data-lane='agent'] .cs-run { stroke-dasharray: 7 6; }
 
-.custody .cs-nd { fill: var(--surface-bg); stroke: var(--border-strong); stroke-width: 2;
-  transition: stroke 0.4s var(--ease-standard); }
+.custody .cs-nd { fill: var(--surface-background); stroke: var(--border-strong); stroke-width: 2;
+  transition: stroke 0.4s var(--easing-standard); }
 .custody .cs-nd.is-on { stroke: var(--content-primary); }
 
-.custody .cs-halo { fill: var(--brand); opacity: 0.18; }
-.custody .cs-head { fill: var(--brand); }
+.custody .cs-halo { fill: var(--brand-primary); opacity: 0.18; }
+.custody .cs-head { fill: var(--brand-primary); }
 
 .custody .cs-vault { fill: none; stroke: var(--border-strong); stroke-width: 1.5; stroke-dasharray: 6 6;
-  transition: stroke 0.5s var(--ease-standard), fill 0.5s var(--ease-standard); }
+  transition: stroke 0.5s var(--easing-standard), fill 0.5s var(--easing-standard); }
 .custody[data-state='holding'] .cs-vault { stroke: var(--content-primary); stroke-dasharray: none;
-  fill: var(--brand-surface); }
+  fill: var(--brand-primary-surface); }
 
 .custody text { font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.95px; }
 .custody .cs-lbl  { fill: var(--content-tertiary); font-size: 9.5px; }
 .custody .cs-num  { fill: var(--content-tertiary); font-size: 9.5px; }
 .custody .cs-vlbl { fill: var(--content-tertiary); font-size: 9.5px; text-transform: uppercase;
-  transition: fill 0.5s var(--ease-standard); }
+  transition: fill 0.5s var(--easing-standard); }
 .custody[data-state='holding'] .cs-vlbl { fill: var(--content-primary); }
 
 .custody .cs-tok rect { fill: var(--content-primary);
-  transition: fill 0.55s var(--ease-standard); }
-.custody .cs-tok text { fill: var(--surface-bg); font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
+  transition: fill 0.55s var(--easing-standard); }
+.custody .cs-tok text { fill: var(--surface-background); font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
 .custody .cs-tok.is-holding rect { fill: var(--brand-solid); }
-.custody .cs-tok.is-released rect { fill: var(--success); }
+.custody .cs-tok.is-released rect { fill: var(--feedback-success-base); }
 .custody .cs-tok.is-holding text,
-.custody .cs-tok.is-released text { fill: var(--brand-on); }
+.custody .cs-tok.is-released text { fill: var(--brand-on-primary); }
 
 /* A fixed viewBox scales with its box, and at phone width that put the
    scene's 9.5-unit labels at about 3px. Below 640px it keeps a readable
@@ -88,14 +88,14 @@
   padding: 4px 10px; white-space: nowrap;
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.95px; text-transform: uppercase;
   color: var(--content-tertiary);
-  animation: stage-stop 6.5s var(--ease-standard) infinite;
+  animation: stage-stop 6.5s var(--easing-standard) infinite;
 }
 .stage-line .stop:nth-child(2) { animation-delay: 0s; }
 .stage-line .stop:nth-child(3) { animation-delay: 1.7s; }
 .stage-line .stop:nth-child(4) { animation-delay: 3.4s; }
 .stage-line .stop:nth-child(5) {
   animation-name: stage-stop-last; animation-delay: 5.1s;
-  color: var(--success-text); border-color: color-mix(in srgb, var(--success) 42%, transparent);
+  color: var(--feedback-success-text); border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent);
 }
 @keyframes stage-stop {
   0%, 6%   { color: var(--content-tertiary); border-color: var(--border-default); }
@@ -103,13 +103,13 @@
   40%, 100% { color: var(--content-tertiary); border-color: var(--border-default); }
 }
 @keyframes stage-stop-last {
-  0%, 6%   { border-color: color-mix(in srgb, var(--success) 42%, transparent); }
-  9%, 30%  { border-color: var(--success); }
-  40%, 100% { border-color: color-mix(in srgb, var(--success) 42%, transparent); }
+  0%, 6%   { border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent); }
+  9%, 30%  { border-color: var(--feedback-success-base); }
+  40%, 100% { border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent); }
 }
 .stage-line .pip {
   position: absolute; top: 41px; z-index: 0; width: 8px; height: 8px; transform: translate(-50%, -50%);
-  border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px var(--brand-surface);
+  border-radius: 50%; background: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-primary-surface);
   animation: stage-pip 6.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 @keyframes stage-pip {

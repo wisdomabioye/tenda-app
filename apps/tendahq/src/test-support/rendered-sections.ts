@@ -23,10 +23,10 @@ export function renderedSections(html: string): RenderedSection[] {
     const [, id, className] = match
     index += 1
     // SectionShell renders exactly one of these two background tokens. The
-    // closing paren on `--surface-bg)` is what keeps it from also matching
-    // `--surface-bg-alt)`.
-    const alt = className.includes('--surface-bg-alt)')
-    const base = className.includes('--surface-bg)')
+    // closing paren on `--surface-background)` is what keeps it from also matching
+    // `--surface-background-alt)`.
+    const alt = className.includes('--surface-background-alt)')
+    const base = className.includes('--surface-background)')
     if (!alt && !base) continue
     out.push({ id: id ?? `section#${index}`, surface: alt ? 'alt' : 'base' })
   }

@@ -26,16 +26,16 @@ type Props = AsButton | AsAnchor
 const BASE = cn(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap border no-underline',
   'font-[var(--font-body)] text-[15px] leading-5 font-semibold tracking-[-0.15px]',
-  'transition-[background-color,border-color,color,transform] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)]',
-  'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]',
+  'transition-[background-color,border-color,color,transform] duration-[var(--duration-normal)] ease-[var(--easing-standard)]',
+  'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus-ring)]',
   'disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45',
   'active:translate-y-px',
 )
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: cn(
-    'border-transparent bg-[var(--brand-solid)] text-[var(--brand-on)] shadow-[var(--shadow-fab)]',
-    'hover:bg-[var(--brand-pressed)]',
+    'border-transparent bg-[var(--brand-solid)] text-[var(--brand-on-primary)] shadow-[var(--shadow-fab)]',
+    'hover:bg-[var(--brand-primary-pressed)]',
   ),
   outline: cn(
     'border-[var(--border-strong)] bg-transparent text-[var(--content-primary)]',
@@ -45,9 +45,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
 
 /** Button.tsx: sm 40 / md 48 / lg 52, radius 12 / 12 / 14. */
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-10 px-4 rounded-[var(--r-btn)] text-[14px]',
-  md: 'h-12 px-5 rounded-[var(--r-btn)]',
-  lg: 'h-[52px] px-6 rounded-[var(--r-btn-lg)]',
+  sm: 'h-10 px-4 rounded-[var(--radius-button)] text-[14px]',
+  md: 'h-12 px-5 rounded-[var(--radius-button)]',
+  lg: 'h-[52px] px-6 rounded-[var(--radius-button-lg)]',
 }
 
 export function Button({

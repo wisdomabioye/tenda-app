@@ -27,18 +27,18 @@ interface Props {
 
 const DOT: Record<PillTone, string> = {
   neutral: 'bg-[var(--content-tertiary)]',
-  brand:   'bg-[var(--brand)]',
-  live:    'bg-[var(--success)]',
-  warning: 'bg-[var(--warning)]',
-  danger:  'bg-[var(--danger)]',
+  brand:   'bg-[var(--brand-primary)]',
+  live:    'bg-[var(--feedback-success-base)]',
+  warning: 'bg-[var(--feedback-warning-base)]',
+  danger:  'bg-[var(--feedback-danger-base)]',
 }
 
 const CATEGORY: Record<CategoryId, string> = {
-  delivery: 'bg-[var(--cat-delivery-surface)] text-[var(--cat-delivery-text)]',
-  photo:    'bg-[var(--cat-photo-surface)] text-[var(--cat-photo-text)]',
-  errand:   'bg-[var(--cat-errand-surface)] text-[var(--cat-errand-text)]',
-  service:  'bg-[var(--cat-service-surface)] text-[var(--cat-service-text)]',
-  digital:  'bg-[var(--cat-digital-surface)] text-[var(--cat-digital-text)]',
+  delivery: 'bg-[var(--category-delivery-surface)] text-[var(--category-delivery-text)]',
+  photo:    'bg-[var(--category-photo-surface)] text-[var(--category-photo-text)]',
+  errand:   'bg-[var(--category-errand-surface)] text-[var(--category-errand-text)]',
+  service:  'bg-[var(--category-service-surface)] text-[var(--category-service-text)]',
+  digital:  'bg-[var(--category-digital-surface)] text-[var(--category-digital-text)]',
 }
 
 /**
@@ -69,7 +69,7 @@ export function Pill({
           className={cn(
             'relative inline-flex h-1.5 w-1.5 shrink-0 rounded-full',
             DOT[tone],
-            pulse && 'motion-safe:animate-[live-ping_2.8s_cubic-bezier(0.2,0,0,1)_infinite]',
+            pulse && 'motion-safe:animate-[live-ping_2.8s_var(--easing-standard)_infinite]',
           )}
         />
       )}

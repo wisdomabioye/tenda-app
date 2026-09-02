@@ -400,6 +400,14 @@ export const radius = {
   control: 16,
   card: 20,
   sheet: 24,
+  /**
+   * Buttons are tighter than `control`: 12 for sm/md, 14 for lg/xl. These
+   * were literals inside Button.tsx while every other radius was a token, so
+   * web and tendahq could only copy them by hand — and tendahq did. Read by
+   * Button.tsx and by the token generator (apps/web/scripts/gen-web-tokens).
+   */
+  button: 12,
+  buttonLg: 14,
   full: 9999,
 } as const
 

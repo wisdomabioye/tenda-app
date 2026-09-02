@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:tokens": "pnpm --filter web exec tsx scripts/gen-web-tokens/main.ts --target tendahq",
+    "gen:tokens:check": "pnpm --filter web exec tsx scripts/gen-web-tokens/main.ts --target tendahq --check"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",

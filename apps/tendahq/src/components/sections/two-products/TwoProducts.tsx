@@ -40,7 +40,7 @@ export function TwoProducts({ surface }: LandingSectionProps) {
           ))}
         </div>
 
-        <div className="flex items-center gap-[18px] border-t border-[var(--border-default)] bg-[var(--surface-bg-alt)] px-[clamp(26px,3.2vw,38px)] py-[18px]">
+        <div className="flex items-center gap-[18px] border-t border-[var(--border-default)] bg-[var(--surface-background-alt)] px-[clamp(26px,3.2vw,38px)] py-[18px]">
           {TWO_PRODUCTS_BRIDGE.map((word, i) => (
             <Fragment key={word}>
               {i !== 0 && <span aria-hidden className="h-px min-w-3 flex-1 bg-[var(--border-default)]" />}

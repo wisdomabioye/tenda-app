@@ -21,7 +21,7 @@ describe('section rules', () => {
     expect(headlines.length).toBeGreaterThan(5)
     for (const h of headlines) {
       const text = h.replace(/<[^>]+>/g, '')
-      if (text.endsWith('.')) expect(h).toContain('text-[var(--brand)]">.</span>')
+      if (text.endsWith('.')) expect(h).toContain('text-[var(--brand-primary)]">.</span>')
     }
   })
 })

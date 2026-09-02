@@ -65,5 +65,5 @@ export function SectionHead({ children, lede, className }: HeadProps) {
  * appears in running type nowhere else.
  */
 export function Period() {
-  return <span className="text-[var(--brand)]">.</span>
+  return <span className="text-[var(--brand-primary)]">.</span>
 }

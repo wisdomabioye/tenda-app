@@ -53,7 +53,7 @@ describe('landing chain registry', () => {
     const fallback = displayFor('not-a-family', 'Optimism')
     expect(fallback.name).toBe('Optimism')
     expect(fallback.glyph).toBe('●')
-    expect(fallback.color).toBe('var(--brand)')
+    expect(fallback.color).toBe('var(--brand-primary)')
     expect(fallback.pitch).toBe('')
     expect(fallback.strength).toBe('')
   })
@@ -210,7 +210,7 @@ describe('network reference accessors', () => {
       const display = displayFor(key, 'Optimism')
       expect(display.name).toBe('Optimism')
       expect(display.glyph).toBe('●')
-      expect(display.color).toBe('var(--brand)')
+      expect(display.color).toBe('var(--brand-primary)')
       expect(display.strength).toBe('')
     }
   })

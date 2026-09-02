@@ -25,9 +25,9 @@ export function Tab({ id, active, controls, onClick, children }: Props) {
       aria-controls={controls}
       onClick={onClick}
       className={cn(
-        'inline-flex h-10 items-center gap-2 rounded-[var(--r-btn)] border px-4 text-[13px] font-semibold leading-none transition-colors',
+        'inline-flex h-10 items-center gap-2 rounded-[var(--radius-button)] border px-4 text-[13px] font-semibold leading-none transition-colors',
         active
-          ? 'border-[var(--content-primary)] bg-[var(--content-primary)] text-[var(--surface-bg)]'
+          ? 'border-[var(--content-primary)] bg-[var(--content-primary)] text-[var(--surface-background)]'
           : 'border-[var(--border-default)] bg-transparent text-[var(--content-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--content-primary)]',
       )}
     >

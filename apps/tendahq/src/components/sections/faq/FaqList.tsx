@@ -47,8 +47,8 @@ export function FaqList({ categories }: Props) {
                 <span
                   aria-hidden
                   className={cn(
-                    'ml-auto shrink-0 font-[var(--font-mono)] text-[16px] leading-none text-[var(--content-tertiary)] transition-transform duration-[320ms] ease-[cubic-bezier(0.2,0,0,1)]',
-                    open && 'rotate-45 text-[var(--brand)]',
+                    'ml-auto shrink-0 font-[var(--font-mono)] text-[16px] leading-none text-[var(--content-tertiary)] transition-transform duration-[var(--duration-slow)] ease-[var(--easing-standard)]',
+                    open && 'rotate-45 text-[var(--brand-primary)]',
                   )}
                 >
                   +

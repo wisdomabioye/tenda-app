@@ -97,7 +97,7 @@ export function EcosystemPanel({ panel, id, labelledBy }: Props) {
                 href={chain.explorerUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="truncate text-[var(--brand)] hover:underline"
+                className="truncate text-[var(--brand-primary)] hover:underline"
               >
                 {explorerHost(chain.explorerUrl)}
               </a>

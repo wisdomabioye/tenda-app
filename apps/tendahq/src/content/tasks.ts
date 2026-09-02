@@ -1,5 +1,6 @@
 /**
- * Example gigs surfaced by the hero TaskDeck and the tasks-wall marquee.
+ * Example gigs surfaced by the tasks-wall ticker, the app-screen mock-ups and
+ * the product sheet.
  * EDIT THE SEEDS BELOW to add or change showcased tasks — they are the single
  * source for every example gig on the landing. Amounts are USDC (the gig asset
  * on every supported chain). Titles are bounded by MAX_TITLE_LENGTH below, so
@@ -53,7 +54,7 @@ const COUNTRY_FLAG: Readonly<Record<string, string>> = {
 }
 
 /**
- * The widest a title can be before the deck's cards wrap and break the grid.
+ * The widest a title can be before a ticker card wraps and breaks its row.
  *
  * Named here rather than left as prose plus a literal in the test: the rule was
  * stated as "under ~40 chars" in this docstring while showcase.test.ts asserted
