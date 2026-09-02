@@ -18,6 +18,7 @@ import { gasSeedLowBalancePartyIds } from '@server/features/alerts/channels/slac
 import type { AlertOf, AlertPartyNames } from '@server/features/alerts'
 import type { SlackMessage } from '@server/lib/slack'
 import { gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
+import { allText, sectionTexts } from '../helpers/slack-message'
 
 /** No people are involved in this alert, so the roster map is genuinely empty. */
 const NO_NAMES: AlertPartyNames = new Map()
@@ -34,20 +35,6 @@ function render(over: Partial<AlertOf<'gas-seed.low-balance'>> = {}): SlackMessa
   )
   assert.ok(msg !== null, 'gas-seed.low-balance must produce a message')
   return msg
-}
-
-function sectionTexts(msg: SlackMessage): string[] {
-  return (msg.blocks ?? []).flatMap((b) => (b.type === 'section' ? [b.text.text] : []))
-}
-
-function contextTexts(msg: SlackMessage): string[] {
-  return (msg.blocks ?? []).flatMap((b) =>
-    b.type === 'context' ? b.elements.map((e) => e.text) : [],
-  )
-}
-
-function allText(msg: SlackMessage): string {
-  return [msg.text, ...sectionTexts(msg), ...contextTexts(msg)].join('\n')
 }
 
 // ---------- the sentence an operator acts on --------------------------------
