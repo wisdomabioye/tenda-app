@@ -1,5 +1,6 @@
 # Tenda
 
+
 Tenda is a trustless mobile-first micro-task gig marketplace. Workers and
 posters transact through on-chain escrow — multichain (Solana + EVM), no
 middlemen, no custodial risk.
