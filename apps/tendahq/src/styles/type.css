@@ -1,8 +1,16 @@
 /* =============================================================================
- * Type atoms — mobile `typography.styles`, at mobile's own sizes. The three
- * display atoms scale by the hero's ratios (44/50, letter-spacing −1.2px)
- * because a landing headline runs larger than a phone's; everything else is
- * the exact px pair from tokens.ts.
+ * Type atoms — the landing's class names over the GENERATED `type-*`
+ * utilities in styles/tokens.css (mobile `typography.styles`, one utility
+ * per style, regenerated with `pnpm gen:tokens`).
+ *
+ * Two kinds of rule live here:
+ *   - EXACT atoms `@apply` their generated utility and add nothing — the
+ *     phone's px pair, weight, tracking and face role, by construction;
+ *   - LANDING-ONLY atoms are hand-kept: the three display sizes and the
+ *     large mono figure scale with the viewport through clamp() (a landing
+ *     headline runs larger than a phone's; each rule's comment names the
+ *     phone style it scales), and `.body-lg` has no mobile counterpart.
+ * Everything else that used to be typed here by hand is generated now.
  * =========================================================================== */
 @layer components {
   /* hero 44/50/700/−1.2 → lh 1.08, ls −.027em */
@@ -29,64 +37,22 @@
     font-weight: 600;
     letter-spacing: -0.01em;
   }
-  /* h3 20/26/600 */
-  .h3 {
-    font-family: var(--font-display);
-    font-size: 20px;
-    line-height: 26px;
-    font-weight: 600;
-  }
-  /* title 17/24/600 (body face) */
-  .title {
-    font-family: var(--font-body);
-    font-size: 17px;
-    line-height: 24px;
-    font-weight: 600;
-  }
+  .h3 { @apply type-h3; }
+  .title { @apply type-title; }
+  /* Landing-only: the hero lede. Mobile has no 17/27 body. */
   .body-lg {
     font-family: var(--font-body);
     font-size: 17px;
     line-height: 27px;
     font-weight: 400;
   }
-  .body {
-    font-family: var(--font-body);
-    font-size: 15px;
-    line-height: 22px;
-    font-weight: 400;
-  }
-  .body-sm {
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 400;
-  }
-  /* Eyebrow.tsx: mono 9.5 / 600 / +0.95 / uppercase */
-  .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    line-height: 12px;
-    font-weight: 600;
-    letter-spacing: 0.95px;
-    text-transform: uppercase;
-  }
-  /* label 12/16/600/.24 */
-  .label {
-    font-family: var(--font-body);
-    font-size: 12px;
-    line-height: 16px;
-    font-weight: 600;
-    letter-spacing: 0.24px;
-  }
-  /* caption 11/14/500/.12 */
-  .caption {
-    font-family: var(--font-body);
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 500;
-    letter-spacing: 0.12px;
-  }
-  /* monoLarge 40/44/600/−.2 */
+  .body { @apply type-body; }
+  .body-sm { @apply type-body-small; }
+  /* Eyebrow.tsx: mono 9.5 / 600 / +0.95 / uppercase — the uppercase is the component's. */
+  .eyebrow { @apply type-eyebrow uppercase; }
+  .label { @apply type-label; }
+  .caption { @apply type-caption; }
+  /* monoLarge 40/44/600/−.2, scaled */
   .mono-large {
     font-family: var(--font-mono);
     font-size: clamp(30px, 3.6vw, 40px);
@@ -95,30 +61,9 @@
     letter-spacing: -0.2px;
     font-variant-numeric: tabular-nums;
   }
-  /* monoMid 22/26/600 */
-  .mono-mid {
-    font-family: var(--font-mono);
-    font-size: 22px;
-    line-height: 26px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  /* mono 15/20/500 */
-  .mono {
-    font-family: var(--font-mono);
-    font-size: 15px;
-    line-height: 20px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-  }
-  /* monoSmall 12/16/500 */
-  .mono-sm {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 16px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-  }
+  .mono-mid { @apply type-mono-mid; }
+  .mono { @apply type-mono; }
+  .mono-sm { @apply type-mono-small; }
 
   .hairline { height: 1px; background: var(--border-subtle); }
   .container-page { width: min(100%, var(--maxw)); margin-inline: auto; padding-inline: 20px; }

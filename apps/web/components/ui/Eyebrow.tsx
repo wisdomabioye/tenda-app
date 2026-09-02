@@ -4,10 +4,17 @@
  * feed's market line — always with the same letterforms and always
  * subordinate to what it labels.
  *
- * The comps set it mono/0.13em; since spec-correction #44 (2026-08-24) it is
- * the body face at 0.08em — the mono-uppercase label everywhere was the
- * largest single contributor to the retired newsprint look, and the figures
- * keep mono to themselves.
+ * The letterforms are MOBILE's `Eyebrow.tsx` and tendahq's `.eyebrow`, through
+ * the generated `type-eyebrow` atom: mono, 9.5/12, 600, +0.95px, uppercase
+ * (#59c, 2026-09-02). Spec-correction #44 had moved this to the body face at
+ * 0.08em; the port takes the phone's letterforms back so the three apps
+ * label things the same way, and the atom carries size, line box, weight and
+ * tracking together, so none of them can drift here.
+ *
+ * `strong` was the comps' bolder 11px variant for a label carrying a count.
+ * Mobile has no such eyebrow; it has `label` (body face, 12/16, 600, +0.24),
+ * which is what a counted label is on the phone, so `strong` maps to the
+ * `type-label` atom — sentence case, not uppercase.
  *
  * A primitive rather than a repeated class string because the tracking is
  * the part that drifts: it was already written seventeen ways across this
@@ -38,6 +45,10 @@ const TONE_CLASSES: Record<EyebrowTone, string> = {
   input: 'text-control-input-label',
 }
 
+/** The two letterform sets, both generated atoms — see the header. */
+export const EYEBROW_ATOM = 'type-eyebrow uppercase'
+export const EYEBROW_STRONG_ATOM = 'type-label'
+
 export function Eyebrow({
   as: Tag = 'p',
   tone = 'tertiary',
@@ -49,7 +60,7 @@ export function Eyebrow({
 }: {
   as?: ElementType
   tone?: EyebrowTone
-  /** The comps' bolder 11px variant, used where the label carries a count. */
+  /** A label that carries a count: mobile's `label` style instead of the eyebrow. */
   strong?: boolean
   /** Only meaningful with `as="label"`; declared so it need not be spread in. */
   htmlFor?: string
@@ -62,17 +73,7 @@ export function Eyebrow({
     <Tag
       htmlFor={htmlFor}
       id={id}
-      className={cn(
-        'uppercase tracking-[0.08em]',
-        // leading-4 AFTER the size, never in the base string: tailwind-merge
-        // treats a later font-size as conflicting with an earlier leading-*
-        // (font-size can set line-height) and silently drops it — and
-        // text-[11px] brings no line-height of its own, so the strong label
-        // would inherit ~1.5 instead of the designed 16px box.
-        strong ? 'text-[11px] font-bold leading-4' : 'text-xs font-medium leading-4',
-        TONE_CLASSES[tone],
-        className,
-      )}
+      className={cn(strong ? EYEBROW_STRONG_ATOM : EYEBROW_ATOM, TONE_CLASSES[tone], className)}
     >
       {children}
     </Tag>

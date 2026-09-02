@@ -104,9 +104,6 @@
   --category-digital-text:#9A3E6C;
   --category-digital-border:rgba(224,87,157,0.22);
   --category-digital-solid:#E0579D;
-  --accent-primary:#E08A3C;
-  --accent-primary-surface:#FCEFDF;
-  --accent-primary-border:#F3D1A8;
   --numeric-positive:#197D55;
   --numeric-negative:#CB3A3A;
   --numeric-neutral:#141721;
@@ -117,7 +114,8 @@
   --radius-md:16px;
   --radius-lg:20px;
   --radius-xl:24px;
-  --radius-control:16px;
+  --radius-control:12px;
+  --radius-input:14px;
   --radius-card:20px;
   --radius-sheet:24px;
   --radius-button:12px;
@@ -252,9 +250,6 @@
     --category-digital-text:#FBCFE8;
     --category-digital-border:rgba(244,114,182,0.32);
     --category-digital-solid:#F472B6;
-    --accent-primary:#F0A365;
-    --accent-primary-surface:rgba(240,163,101,0.14);
-    --accent-primary-border:rgba(240,163,101,0.32);
     --numeric-positive:#3ACB8E;
     --numeric-negative:#F0706E;
     --numeric-neutral:#F4F2ED;
@@ -362,9 +357,6 @@
   --category-digital-text:#FBCFE8;
   --category-digital-border:rgba(244,114,182,0.32);
   --category-digital-solid:#F472B6;
-  --accent-primary:#F0A365;
-  --accent-primary-surface:rgba(240,163,101,0.14);
-  --accent-primary-border:rgba(240,163,101,0.32);
   --numeric-positive:#3ACB8E;
   --numeric-negative:#F0706E;
   --numeric-neutral:#F4F2ED;
@@ -470,9 +462,6 @@
   --color-category-digital-text:var(--category-digital-text);
   --color-category-digital-border:var(--category-digital-border);
   --color-category-digital-solid:var(--category-digital-solid);
-  --color-accent-primary:var(--accent-primary);
-  --color-accent-primary-surface:var(--accent-primary-surface);
-  --color-accent-primary-border:var(--accent-primary-border);
   --color-numeric-positive:var(--numeric-positive);
   --color-numeric-negative:var(--numeric-negative);
   --color-numeric-neutral:var(--numeric-neutral);
@@ -482,6 +471,7 @@
   --radius-lg:var(--radius-lg);
   --radius-xl:var(--radius-xl);
   --radius-control:var(--radius-control);
+  --radius-input:var(--radius-input);
   --radius-card:var(--radius-card);
   --radius-sheet:var(--radius-sheet);
   --radius-button:var(--radius-button);
@@ -492,4 +482,124 @@
   --shadow-sheet:var(--shadow-sheet);
   --shadow-modal:var(--shadow-modal);
   --shadow-fab:var(--shadow-fab);
+}
+
+/* ── Type atoms: mobile typography.styles ──────────────────── */
+@source inline("type-hero");
+@source inline("type-h1");
+@source inline("type-h2");
+@source inline("type-h3");
+@source inline("type-title");
+@source inline("type-body");
+@source inline("type-body-small");
+@source inline("type-label");
+@source inline("type-caption");
+@source inline("type-eyebrow");
+@source inline("type-button");
+@source inline("type-mono");
+@source inline("type-mono-mid");
+@source inline("type-mono-large");
+@source inline("type-mono-small");
+@utility type-hero {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 50px;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+}
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+@utility type-title {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+}
+@utility type-body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+}
+@utility type-body-small {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+}
+@utility type-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.24px;
+}
+@utility type-caption {
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.12px;
+}
+@utility type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 12px;
+  font-weight: 600;
+  letter-spacing: 0.95px;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-button {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+@utility type-mono {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-mid {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-large {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-small {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }

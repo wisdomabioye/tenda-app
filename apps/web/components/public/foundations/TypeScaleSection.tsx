@@ -1,69 +1,57 @@
 /**
- * The type scale (comp lines 784-794).
+ * The type scale (comp lines 784-794), DERIVED rather than listed — the same
+ * rule the palette section keeps.
  *
- * The rows are the sizes this app actually sets on its public surfaces, each
- * labelled with the spec a reader can grep for. Not every Tailwind step —
- * a scale nobody uses is a scale nobody maintains.
+ * Every row is one of mobile's `typography.styles`, read through the same
+ * `typeAtoms()` the generator runs to WRITE the `type-*` utilities into
+ * styles/tokens.css, so the page cannot show a size the app does not ship,
+ * and a style added on the phone appears here on the next regenerate. The
+ * spec column is what a reader greps for: role, size/line-height, tracking.
  */
+import { TYPE_CLASS_PREFIX, typeAtoms, type TypeAtom } from '../../../scripts/gen-web-tokens/typography'
 import { FoundationsSection } from './FoundationsSection'
 
-interface TypeRow {
-  /** The mono label: what to type to get this. */
-  spec: string
-  className: string
-  sample: string
+/** `display 44/50 -1.2` — the atom's spec, in the form the generator emits it. */
+export function typeSpec(atom: TypeAtom): string {
+  const tracking = atom.letterSpacing === null ? '' : ` ${atom.letterSpacing}`
+  return `${atom.role} ${atom.fontSize}/${atom.lineHeight}${tracking}`
 }
 
-const TYPE_ROWS: readonly TypeRow[] = [
-  {
-    spec: 'display 44/50 -1.2',
-    className: 'font-display text-[44px] font-bold leading-[50px] tracking-[-1.2px]',
-    sample: 'Page headline',
-  },
-  {
-    spec: 'display 32/38 -1.2',
-    className: 'font-display text-[32px] font-bold leading-[38px] tracking-[-1.2px]',
-    sample: 'Headline, small screen',
-  },
-  {
-    spec: 'display 22/28 -0.4',
-    className: 'font-display text-[22px] font-semibold leading-7 tracking-[-0.4px]',
-    sample: 'Section heading',
-  },
-  {
-    spec: 'display 17/24',
-    className: 'font-display text-[17px] font-semibold leading-6',
-    sample: 'Card title',
-  },
-  { spec: 'body 17/28', className: 'text-[17px] leading-7', sample: 'Lede and article prose' },
-  { spec: 'body 15/22', className: 'text-[15px] leading-[22px]', sample: 'Default body text' },
-  { spec: 'body 13/18', className: 'text-[13px] leading-[18px]', sample: 'Meta and captions' },
-  {
-    spec: 'label 12/16 .08em',
-    className: 'text-xs font-medium uppercase leading-4 tracking-[0.08em]',
-    sample: 'Eyebrow label',
-  },
-  {
-    spec: 'numeric 26/28',
-    className: 'font-numeric text-[26px] font-bold leading-7 tracking-[-0.5px]',
-    sample: '1,250.5',
-  },
-]
+const SAMPLE: Readonly<Record<string, string>> = {
+  hero: 'Page headline',
+  h1: 'Headline',
+  h2: 'Section heading',
+  h3: 'Panel heading',
+  title: 'Card title',
+  body: 'Default body text',
+  'body-small': 'Meta and captions',
+  label: 'Label with a count',
+  caption: 'Caption',
+  eyebrow: 'LOCKED IN ESCROW',
+  button: 'Button label',
+  mono: '1,250.50 USDC',
+  'mono-mid': '1,250.50',
+  'mono-large': '1,250.50',
+  'mono-small': '0x4a1f…9c02',
+}
 
-export function TypeScaleSection() {
+/** `atoms` defaults to the generator's list; a parameter so the sample fallback can be tested. */
+export function TypeScaleSection({ atoms = typeAtoms() }: { atoms?: readonly TypeAtom[] }) {
   return (
     <FoundationsSection title="Type scale">
       <div className="flex flex-col gap-5">
-        {TYPE_ROWS.map((row) => (
+        {atoms.map((atom) => (
           <div
-            key={row.spec}
+            key={atom.name}
             className="flex flex-col gap-2 border-b border-border-subtle pb-4 sm:flex-row sm:items-baseline sm:gap-8"
           >
-            <span className="shrink-0 font-numeric text-xs leading-4 text-content-tertiary sm:w-[150px]">
-              {row.spec}
+            <span className="shrink-0 type-mono-small text-content-tertiary sm:w-[150px]">
+              {typeSpec(atom)}
             </span>
-            <span className={`min-w-0 break-words text-content-primary ${row.className}`}>
-              {row.sample}
+            <span className={`min-w-0 break-words text-content-primary ${TYPE_CLASS_PREFIX}${atom.name}`}>
+              {/* Every atom the generator knows has a sample; the name itself
+                  is the fallback so a new style still renders, visibly unlabelled. */}
+              {SAMPLE[atom.name] ?? atom.name}
             </span>
           </div>
         ))}

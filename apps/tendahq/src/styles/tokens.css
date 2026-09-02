@@ -4,6 +4,8 @@
  *
  * Every colour once, as light-dark(light, dark). `color-scheme` on the root
  * picks the side; the stamps in styles/base.css override it either way.
+ * The type atoms (`type-*`) follow the root block; styles/type.css applies
+ * them to the landing's class names.
  */
 @layer base {
   :root {
@@ -118,7 +120,8 @@
     --radius-md: 16px;
     --radius-lg: 20px;
     --radius-xl: 24px;
-    --radius-control: 16px;
+    --radius-control: 12px;
+    --radius-input: 14px;
     --radius-card: 20px;
     --radius-sheet: 24px;
     --radius-button: 12px;
@@ -150,4 +153,124 @@
     --easing-exit: cubic-bezier(0.4, 0, 1, 1);
     --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
   }
+}
+
+/* ── Type atoms: mobile typography.styles ──────────────────── */
+@source inline("type-hero");
+@source inline("type-h1");
+@source inline("type-h2");
+@source inline("type-h3");
+@source inline("type-title");
+@source inline("type-body");
+@source inline("type-body-small");
+@source inline("type-label");
+@source inline("type-caption");
+@source inline("type-eyebrow");
+@source inline("type-button");
+@source inline("type-mono");
+@source inline("type-mono-mid");
+@source inline("type-mono-large");
+@source inline("type-mono-small");
+@utility type-hero {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 50px;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+}
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+@utility type-title {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+}
+@utility type-body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+}
+@utility type-body-small {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+}
+@utility type-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.24px;
+}
+@utility type-caption {
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.12px;
+}
+@utility type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 12px;
+  font-weight: 600;
+  letter-spacing: 0.95px;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-button {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+@utility type-mono {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-mid {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-large {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-mono-small {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }

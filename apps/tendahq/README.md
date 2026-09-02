@@ -61,9 +61,14 @@ CJS interop, and bundling source avoids a build-order dependency).
 
 Design tokens are GENERATED into `src/styles/tokens.css` from
 `apps/mobile/theme/tokens.ts` — every colour as one `light-dark(light, dark)`
-pair, plus radius, spacing, shadows and motion — by web's generator:
-`pnpm gen:tokens` rewrites it, `pnpm gen:tokens:check` is the CI drift gate,
-and the file is never edited by hand. `src/styles/base.css` keeps what mobile
+pair, plus radius, spacing, shadows, motion, and mobile's type styles as one
+`type-<name>` utility each — by web's generator: `pnpm gen:tokens` rewrites
+it, `pnpm gen:tokens:check` is the CI drift gate, and the file is never edited
+by hand. `src/styles/type.css` maps the landing's class names onto those
+utilities (`.label { @apply type-label; }`), keeping by hand only the
+viewport-scaled display sizes and the lede mobile has no style for;
+`src/__tests__/type-atoms.test.ts` fails if a class with an exact mobile twin
+restates its numbers. `src/styles/base.css` keeps what mobile
 has no source for: the web font stacks, the theme stamps that pick a side of
 each pair, and the element resets. The generated `--radius-xs…xl` share
 Tailwind's radius namespace on purpose, so `rounded-md` is mobile's 16px here

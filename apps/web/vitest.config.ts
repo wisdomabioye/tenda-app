@@ -224,7 +224,7 @@ export default defineConfig({
         'app/(app)/settings/page.tsx',
         'app/(app)/wallet/buy-sell/page.tsx',
         'app/(app)/wallet/intents/\\[id\\]/page.tsx',
-        'scripts/gen-web-tokens/core.ts',
+        'scripts/gen-web-tokens/{core,tendahq,naming,typography,faces}.ts',
         // The gate's OWN machinery (#80). These decide what everything above is
         // measured against, and nothing measured them: the resolver's suite
         // sits directly under the app root, so it resolves to no subject and

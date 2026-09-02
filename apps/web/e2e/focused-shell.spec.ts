@@ -149,8 +149,9 @@ test.describe('the focused shell (#14)', () => {
     // Measured, because only a browser resolves this: the shared control was
     // 14px, and iOS Safari zooms the viewport when a focused input is under
     // 16px — then does not zoom back. Every comp specifies 16px. The label is
-    // the shared Eyebrow — since #44 the body face (Inter), uppercase — in
-    // the darker of the two plausible tokens (see TextField).
+    // the shared Eyebrow — since #59c mobile's letterforms, the mono face
+    // (JetBrains Mono) uppercase through the generated `type-eyebrow` atom —
+    // in the darker of the two plausible tokens (see TextField).
     await page.goto('/signin/email')
     const control = await page.getByLabel(AUTH_COPY.email.label).evaluate((el) => {
       const label = el.closest('label')?.querySelector('p')
@@ -164,7 +165,7 @@ test.describe('the focused shell (#14)', () => {
     })
     expect(control.font).toBe('16px')
     expect(control.height).toBe(50)
-    expect(control.labelFamily).toContain('Inter')
+    expect(control.labelFamily).toContain('JetBrains Mono')
     expect(control.labelTransform).toBe('uppercase')
   })
 

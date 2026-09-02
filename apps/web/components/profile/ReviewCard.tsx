@@ -34,8 +34,10 @@ export function ReviewCard({
                 key={i}
                 size={12}
                 className={cn(
-                  'text-accent-primary',
-                  i < review.score ? 'fill-accent-primary' : 'fill-transparent',
+                  // Warning base, not the retired accent amber (#59e): the
+                  // palette's one gold that passes AA on the page.
+                  'text-feedback-warning-base',
+                  i < review.score ? 'fill-feedback-warning-base' : 'fill-transparent',
                 )}
                 strokeWidth={i < review.score ? 0 : 1.5}
               />

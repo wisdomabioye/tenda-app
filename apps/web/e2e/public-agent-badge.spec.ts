@@ -21,8 +21,11 @@ test.describe('agent badge — public feed', () => {
     const html = await (await request.get('/')).text()
     expect(html).toContain(AGENT_BADGE_LABEL)
     // Exactly the agent's card carries it. The badge follows the POSTER, and a
-    // label on every row would be worse than none.
-    expect(html.split(AGENT_BADGE_LABEL)).toHaveLength(2)
+    // label on every row would be worse than none. Counted as a whole word:
+    // the hero's product line says "hired by people and AI agents", and a
+    // substring split counted that sentence as a second badge.
+    const badges = html.match(new RegExp(`\\b${AGENT_BADGE_LABEL}\\b`, 'g')) ?? []
+    expect(badges).toHaveLength(1)
   })
 
   test('the badge sits on the agent-posted card, not on a human-posted one', async ({ page }) => {

@@ -7,8 +7,10 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { colors } from '../../../../../mobile/theme/tokens'
-import { flattenScheme } from '@/scripts/gen-web-tokens/core'
+import { flattenScheme, schemePairs } from '@/scripts/gen-web-tokens/core'
+import { typeAtoms } from '@/scripts/gen-web-tokens/typography'
 import { swatchGroups } from '@/lib/foundations/palette'
+import { typeSpec } from '@/components/public/foundations/TypeScaleSection'
 import { FoundationsSection } from '@/components/public/foundations/FoundationsSection'
 import { PaletteSection } from '@/components/public/foundations/PaletteSection'
 import { PrimitiveStates } from '@/components/public/foundations/PrimitiveStates'
@@ -18,16 +20,26 @@ describe('swatchGroups', () => {
   it('invents nothing — every swatch is a token the generator writes', () => {
     // Asserted as a SUBSET rather than by re-running the page's own colour
     // predicate, which would only prove the predicate equals itself.
-    const generated = new Set(flattenScheme(colors.light).map(([name]) => name))
+    const generated = new Set(schemePairs(colors.light).map(([name]) => name))
     const shown = swatchGroups().flatMap((group) => group.swatches.map((s) => s.name))
     expect(shown.length).toBeGreaterThan(0)
     for (const name of shown) expect(generated.has(name)).toBe(true)
   })
 
+  it('shows no swatch for a group the generator omits — a blank square is a lie', () => {
+    // The accent group is in the scheme and NOT in the sheet (#59e); listing
+    // it painted three squares with properties nothing defines — measured.
+    const omitted = flattenScheme(colors.light).filter(([name]) => name.startsWith('--accent-'))
+    expect(omitted.length).toBeGreaterThan(0)
+    const shown = new Set(swatchGroups().flatMap((group) => group.swatches.map((s) => s.name)))
+    for (const [name] of omitted) expect(shown.has(name)).toBe(false)
+    expect(swatchGroups().map((group) => group.title)).not.toContain('accent')
+  })
+
   it('drops no hex token — the palette proper is shown in full', () => {
     // A token added to mobile's theme appears here without an edit, and one
     // removed disappears.
-    const hex = flattenScheme(colors.light)
+    const hex = schemePairs(colors.light)
       .filter(([, value]) => value.startsWith('#'))
       .map(([name]) => name)
     const shown = new Set(swatchGroups().flatMap((group) => group.swatches.map((s) => s.name)))
@@ -69,10 +81,30 @@ describe('PaletteSection', () => {
 })
 
 describe('TypeScaleSection', () => {
-  it('labels each row with the spec a reader can grep for', () => {
+  it('shows one row per generated atom, labelled with the spec a reader can grep for', () => {
     render(<TypeScaleSection />)
+    // The hero: role, size/line-height, tracking, exactly as tokens.ts states it.
     expect(screen.getByText('display 44/50 -1.2')).toBeInTheDocument()
-    expect(screen.getByText('label 12/16 .08em')).toBeInTheDocument()
+    // No tracking on h3 → no trailing figure.
+    expect(screen.getByText('display 20/26')).toBeInTheDocument()
+    for (const atom of typeAtoms()) {
+      expect(screen.getByText(typeSpec(atom)).nextElementSibling?.className).toContain(`type-${atom.name}`)
+    }
+  })
+
+  it('renders a style it has no sample for under its own name, never blank', () => {
+    // A style added on the phone reaches this page on the next regenerate
+    // before anyone writes a sample for it; the row must still say what it is.
+    const atom = { name: 'subtitle', role: 'body' as const, fontSize: 14, lineHeight: 20, fontWeight: '500', letterSpacing: null }
+    render(<TypeScaleSection atoms={[atom]} />)
+    expect(screen.getByText('body 14/20').nextElementSibling).toHaveTextContent('subtitle')
+  })
+
+  it('invents no size — every row is a style the generator emits', () => {
+    render(<TypeScaleSection />)
+    // `[\d.]+`: the eyebrow is 9.5px, the one non-integer size on the scale.
+    const rows = screen.getAllByText(/^(display|body|mono) [\d.]+\/\d+/)
+    expect(rows).toHaveLength(typeAtoms().length)
   })
 })
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TextInput, View, type TextInputProps, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { typography } from '@/theme/tokens'
+import { radius, typography } from '@/theme/tokens'
 import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from './Text'
 
@@ -21,7 +21,7 @@ const s = StyleSheet.create({
 
   // Anatomy A, `inset` (canonical create-gig.html .input)
   insetContainer: {
-    borderRadius: 14,
+    borderRadius: radius.input,
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -38,12 +38,10 @@ const s = StyleSheet.create({
     flexDirection: 'column',
     gap: 2,
   },
+  // The inset label IS the eyebrow — the token style, not a second copy of
+  // its four numbers (#59c).
   insetLabel: {
-    fontFamily: typography.fonts.mono.semibold,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
+    ...typography.styles.eyebrow,
     textTransform: 'uppercase',
   },
   insetInput: {
@@ -73,7 +71,7 @@ const s = StyleSheet.create({
   },
   compactContainer: {
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.control,
     borderWidth: 1,
     paddingHorizontal: 14,
     flexDirection: 'row',

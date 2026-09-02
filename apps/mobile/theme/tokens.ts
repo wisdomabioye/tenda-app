@@ -397,14 +397,25 @@ export const radius = {
   md: 16,
   lg: 20,
   xl: 24,
-  control: 16,
+  /**
+   * The default control radius — chips, menus, the compact input, and every
+   * web control that is not a button or a text field (`rounded-control`).
+   * It was 16 while NOTHING on mobile read it: Button.tsx had 12/14
+   * literals and Input.tsx 14/12, so the one client that consumed the token
+   * drew every control 2–4px rounder than the phone. 12 is what the phone
+   * draws (#59b, 2026-09-02); the two tighter/looser cases have their own
+   * tokens below.
+   */
+  control: 12,
+  /** Input.tsx's inset field. The compact field is `control`. */
+  input: 14,
   card: 20,
   sheet: 24,
   /**
-   * Buttons are tighter than `control`: 12 for sm/md, 14 for lg/xl. These
-   * were literals inside Button.tsx while every other radius was a token, so
-   * web and tendahq could only copy them by hand — and tendahq did. Read by
-   * Button.tsx and by the token generator (apps/web/scripts/gen-web-tokens).
+   * Buttons: 12 for sm/md, 14 for lg/xl. These were literals inside
+   * Button.tsx while every other radius was a token, so web and tendahq could
+   * only copy them by hand — and tendahq did. Read by Button.tsx and by the
+   * token generator (apps/web/scripts/gen-web-tokens).
    */
   button: 12,
   buttonLg: 14,
@@ -518,6 +529,20 @@ export const typography = {
       lineHeight: 14,
       fontWeight: fontWeights.medium,
       letterSpacing: 0.12,
+    } satisfies TextStyleToken,
+
+    /**
+     * The section label — mono, uppercase in the component. These four
+     * numbers lived as literals in components/ui/Eyebrow.tsx, so web and
+     * tendahq could only copy them by hand (and did, three ways). A style
+     * here reaches all three apps through the token generator (#59c).
+     */
+    eyebrow: {
+      fontFamily: fonts.mono.semibold,
+      fontSize: 9.5,
+      lineHeight: 12,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 0.95,
     } satisfies TextStyleToken,
 
     button: {

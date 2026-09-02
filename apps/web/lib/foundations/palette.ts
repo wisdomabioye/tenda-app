@@ -4,9 +4,10 @@
  * The comp hardcodes its swatch list. A hardcoded list on this page would be
  * the one bug this page exists to prevent: the point of a foundations page is
  * that it shows what the app actually ships, so a swatch that stopped matching
- * `tokens.css` would make the page confidently wrong. `flattenScheme` is the
- * same transform `scripts/gen-web-tokens` runs to WRITE that file, so the
- * names here cannot disagree with the custom properties in it.
+ * `tokens.css` would make the page confidently wrong. `schemePairs` is the
+ * same transform `scripts/gen-web-tokens` runs to WRITE that file — the
+ * scheme minus the groups it omits — so the names here cannot disagree with
+ * the custom properties in it.
  *
  * The comp's page says "every value here is Appendix A verbatim". That is not
  * true of this app and shipping the sentence would be a lie: `tokens.css` is
@@ -20,7 +21,7 @@
  * one server render.
  */
 import { colors } from '../../../mobile/theme/tokens'
-import { flattenScheme } from '../../scripts/gen-web-tokens/core'
+import { schemePairs } from '../../scripts/gen-web-tokens/core'
 
 export interface Swatch {
   /** The CSS custom property, e.g. `--brand-primary`. */
@@ -45,7 +46,12 @@ export function swatchGroups(): SwatchGroup[] {
   // rgba today. A "is this paintable" guard was written here first and turned
   // out to reject nothing, which made its test vacuous as well as its branch
   // dead. If a non-colour token ever joins the scheme, the type changes first.
-  for (const [name] of flattenScheme(colors.light)) {
+  //
+  // `schemePairs`, not `flattenScheme`: the generator omits the dead accent
+  // group (#59e), and the unfiltered walk listed it here as three swatches
+  // painted with custom properties that no longer exist — blank squares,
+  // measured on the built page. This page shows what the sheet SHIPS.
+  for (const [name] of schemePairs(colors.light)) {
     const title = name.replace(/^--/, '').split('-')[0]
     const group = groups.find((candidate) => candidate.title === title)
     if (group === undefined) groups.push({ title, swatches: [{ name }] })

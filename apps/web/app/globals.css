@@ -5,13 +5,15 @@
  * (amounts, rates, dates, hashes) is set in mono with tabular numerals — the
  * design brief's one non-inherited rule.
  *
- * Both roles resolved to Inter from #44 (2026-08-24) until 2026-09-01, when
- * display took Outfit — the face apps/tendahq already ships, so the two apps
- * now share a display voice. This is exactly the one-line change the split
- * was kept for: no component moved. */
+ * The three roles are mobile's three families (#59a, 2026-09-02): Space
+ * Grotesk display, Manrope body, JetBrains Mono for figures — what
+ * `typography.fonts` in apps/mobile/theme/tokens.ts names, and what the
+ * generated `type-*` atoms in styles/tokens.css resolve through. Inter (#44)
+ * and the Outfit detour are gone. The binding is guarded by
+ * scripts/__tests__/faces.test.ts. */
 @theme inline {
-  --font-display: var(--font-outfit);
-  --font-body: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-manrope);
   --font-mono: var(--font-jetbrains-mono);
 }
 

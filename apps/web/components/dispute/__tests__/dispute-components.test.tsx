@@ -121,7 +121,7 @@ test('the header tints each party with ITS accent — poster accent, worker bran
   const { container } = render(<DisputeContextHeader context={CONTEXT} currentUserId="nobody" />)
 
   // The ringed avatar's parent is the chip, which also holds the party's name.
-  expect(ringedBy(container, 'ring-accent-primary').parentElement).toHaveTextContent('Ada Okafor')
+  expect(ringedBy(container, 'ring-feedback-warning-base').parentElement).toHaveTextContent('Ada Okafor')
   expect(ringedBy(container, 'ring-brand-primary').parentElement).toHaveTextContent('Bola Ade')
 })
 
@@ -140,21 +140,21 @@ test('the bubble stripes each incoming party with the SAME accent as its chip', 
   const { container, rerender } = render(
     <DisputeMessageBubble message={message} sender={{ kind: 'party', label: 'Ada', role: 'creator' }} />,
   )
-  expect(container.querySelector('.border-l-accent-primary')).not.toBeNull()
+  expect(container.querySelector('.border-l-feedback-warning-base')).not.toBeNull()
   expect(container.querySelector('.border-l-brand-primary')).toBeNull()
 
   rerender(
     <DisputeMessageBubble message={message} sender={{ kind: 'party', label: 'Bola', role: 'counterparty' }} />,
   )
   expect(container.querySelector('.border-l-brand-primary')).not.toBeNull()
-  expect(container.querySelector('.border-l-accent-primary')).toBeNull()
+  expect(container.querySelector('.border-l-feedback-warning-base')).toBeNull()
 
   // Negative: the mediator is nobody's party, so it gets neither accent —
   // a transparent stripe that keeps the text aligned with the party bubbles.
   rerender(
     <DisputeMessageBubble message={message} sender={{ kind: 'mediator', label: 'Mediator', role: null }} />,
   )
-  expect(container.querySelector('.border-l-accent-primary')).toBeNull()
+  expect(container.querySelector('.border-l-feedback-warning-base')).toBeNull()
   expect(container.querySelector('.border-l-brand-primary')).toBeNull()
   expect(container.querySelector('.border-l-transparent')).not.toBeNull()
 })

@@ -12,7 +12,12 @@ const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   danger: 'bg-feedback-danger-surface text-feedback-danger-text',
   info: 'bg-feedback-info-surface text-feedback-info-text',
   brand: 'bg-brand-primary-surface text-brand-primary',
-  accent: 'bg-accent-primary-surface text-accent-primary',
+  /**
+   * The vocabulary's `accent` slot is shared with mobile, where it is still
+   * amber. Web has no amber since #59e (the generator omits the group), so
+   * the slot draws in the warning tone — the palette's own AA-safe amber.
+   */
+  accent: 'bg-feedback-warning-surface text-feedback-warning-text',
   neutral: 'bg-surface-inset text-content-secondary',
 }
 

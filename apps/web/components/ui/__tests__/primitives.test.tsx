@@ -63,13 +63,14 @@ describe('TextField', () => {
 
   it('sets the label through the shared Eyebrow, not its own type', () => {
     // `Eyebrow` has carried `as`/`htmlFor` since it shipped without a single
-    // form using it; since #44 its letterforms are the body face at 0.08em.
-    // Class presence only; the computed treatment is asserted in e2e, where
-    // a real browser resolves the font.
+    // form using it; since #59c its letterforms are mobile's, through the
+    // generated `type-eyebrow` atom. Class presence only; the computed
+    // treatment is asserted in e2e, where a real browser resolves the font.
     render(<TextField label="First name" value="" onChange={() => {}} />)
     const label = screen.getByText('First name')
     expect(label.className).toContain('uppercase')
-    expect(label.className).toContain('tracking-[0.08em]')
+    // The shared eyebrow atom (#59c), not a tracking of its own.
+    expect(label.className).toContain('type-eyebrow')
     // Not the comps' `content-tertiary`: 5.12:1 against the page where the
     // generated label token is 7.19:1, and this one is read while typing.
     expect(label.className).toContain('text-control-input-label')

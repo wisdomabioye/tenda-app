@@ -16,36 +16,23 @@
  * scale), and the gate caught the one place tendahq relied on the default.
  */
 import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
-import { flattenScheme, geometryPairs } from './core'
+import { flattenScheme, geometryPairs, schemePairs } from './core'
+import { typeBlock } from './typography'
 
 /**
- * Colour groups tendahq does not receive. `accent` is the amber the landing
- * ruled out on 2026-09-01: the token is dead and leaves mobile in #59e, and
- * until it does, generating it here would put the one colour the page must
- * not use a single `var()` away. Drop the entry when the group leaves
- * tokens.ts: the generator itself omits nothing silently, and the test that
- * asserts the group still exists to omit is what fails that day.
- */
-export const TENDAHQ_OMITTED_GROUPS: readonly string[] = ['accent']
-
-function omitted(property: string): boolean {
-  return TENDAHQ_OMITTED_GROUPS.some((group) => property.startsWith(`--${group}-`))
-}
-
-/**
- * [property, light, dark] for every colour token tendahq receives. The light
- * scheme drives the set; a leaf with no dark counterpart is a token that
- * exists in one theme only — the exact "colour defined in a single theme
- * block" bug — and is refused rather than emitted half-blank. The schemes
- * are parameters (defaulting to mobile's) so that refusal can be tested.
+ * [property, light, dark] for every colour token tendahq receives — the
+ * scheme minus the omitted groups (naming.ts). The light scheme drives the
+ * set; a leaf with no dark counterpart is a token that exists in one theme
+ * only — the exact "colour defined in a single theme block" bug — and is
+ * refused rather than emitted half-blank. The schemes are parameters
+ * (defaulting to mobile's) so that refusal can be tested.
  */
 export function pairedScheme(
   light: ColorScheme = colors.light,
   darkScheme: ColorScheme = colors.dark,
 ): Array<[string, string, string]> {
   const dark = new Map(flattenScheme(darkScheme))
-  return flattenScheme(light)
-    .filter(([property]) => !omitted(property))
+  return schemePairs(light)
     .map(([property, light]) => {
       const counterpart = dark.get(property)
       if (counterpart === undefined) {
@@ -68,6 +55,8 @@ export function renderTendahq(): string {
  *
  * Every colour once, as light-dark(light, dark). \`color-scheme\` on the root
  * picks the side; the stamps in styles/base.css override it either way.
+ * The type atoms (\`type-*\`) follow the root block; styles/type.css applies
+ * them to the landing's class names.
  */
 @layer base {
   :root {
@@ -80,5 +69,6 @@ ${colours}
 ${geometry}
   }
 }
-`
+
+${typeBlock()}`
 }

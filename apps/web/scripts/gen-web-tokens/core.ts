@@ -6,12 +6,16 @@
  *
  * Two targets share this file: web (three theme blocks plus a Tailwind map,
  * `render` below) and tendahq (one light-dark() block, tendahq.ts). Every
- * transform and the whole geometry set are shared; only the output shape
- * differs, so a token added to mobile reaches both apps in one regenerate.
+ * transform, the whole geometry set, the omitted colour groups (naming.ts)
+ * and the type atoms (typography.ts) are shared; only the colour block's
+ * shape differs, so a token added to mobile reaches both apps in one
+ * regenerate.
  */
 import { colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
+import { kebab, omitted } from './naming'
+import { typeBlock } from './typography'
 
-export const kebab = (value: string) => value.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+export { kebab, OMITTED_GROUPS } from './naming'
 
 /**
  * Flattens the nested ColorScheme into ordered [--custom-property, value] pairs.
@@ -36,6 +40,11 @@ export function flattenScheme(scheme: ColorScheme): Array<[string, string]> {
   }
   walk(scheme as unknown as Record<string, unknown>, [])
   return pairs
+}
+
+/** The colour tokens a target actually receives: the flattened scheme minus the omitted groups. */
+export function schemePairs(scheme: ColorScheme): Array<[string, string]> {
+  return flattenScheme(scheme).filter(([property]) => !omitted(property))
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
@@ -105,7 +114,7 @@ function geometryBlock(): string {
 }
 
 function colourLines(scheme: ColorScheme): string {
-  return flattenScheme(scheme)
+  return schemePairs(scheme)
     .map(([property, value]) => `  ${property}:${value};`)
     .join('\n')
 }
@@ -118,7 +127,7 @@ function colourLines(scheme: ColorScheme): string {
  */
 function themeMapBlock(): string {
   const lines: string[] = []
-  for (const [property] of flattenScheme(colors.light)) {
+  for (const [property] of schemePairs(colors.light)) {
     lines.push(`  --color-${property.slice(2)}:var(${property});`)
   }
   for (const key of Object.keys(radius)) {
@@ -176,5 +185,6 @@ ${dark
 ${dark}
 }
 
-${themeMapBlock()}`
+${themeMapBlock()}
+${typeBlock()}`
 }

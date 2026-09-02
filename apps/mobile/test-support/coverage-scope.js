@@ -178,6 +178,9 @@ module.exports = [
   // The read-back the on-chain digest is taken over. Measured before listing.
   'features/escrow-proofs/attachedProofUrls.ts',
   'components/ui/Input.tsx',
+  // #59: the card and the eyebrow got their first suites when their literals
+  // (radius 18, the eyebrow's four numbers) became tokens the other clients read.
+  'components/ui/{Card,Eyebrow}.tsx',
   // The money primitive. Its first suite came from the font-registration audit,
   // which found the headline naming a 500/600 face while declaring weight 700.
   'components/ui/MoneyText.tsx',

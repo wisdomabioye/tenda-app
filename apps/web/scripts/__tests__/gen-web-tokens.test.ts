@@ -10,8 +10,8 @@
  * drift gates compare apples to apples.
  */
 import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
-import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, render, shadowToCss } from '../gen-web-tokens/core'
-import { pairedScheme, renderTendahq, TENDAHQ_OMITTED_GROUPS } from '../gen-web-tokens/tendahq'
+import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
+import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'
 
 describe('kebab', () => {
   it('splits camelCase and lowercases', () => {
@@ -124,14 +124,14 @@ describe('tendahq target', () => {
 
   it('pairs every colour token as light-dark(light, dark), in mobile order', () => {
     const dark = new Map(flattenScheme(colors.dark))
-    const kept = light.filter(([property]) => !TENDAHQ_OMITTED_GROUPS.some((g) => property.startsWith(`--${g}-`)))
+    const kept = light.filter(([property]) => !OMITTED_GROUPS.some((g) => property.startsWith(`--${g}-`)))
     expect(pairedScheme()).toEqual(kept.map(([property, value]) => [property, value, dark.get(property)]))
     expect(css).toContain('--surface-background: light-dark(#F7F5F0, #0D1018);')
     expect(css).toContain('--brand-on-primary: light-dark(#FFFFFF, #FFFFFF);')
   })
 
   it('omits the dead accent group and nothing else', () => {
-    expect(TENDAHQ_OMITTED_GROUPS).toEqual(['accent'])
+    expect(OMITTED_GROUPS).toEqual(['accent'])
     expect(css).not.toContain('--accent')
     const omitted = light.filter(([property]) => property.startsWith('--accent-'))
     expect(omitted.length).toBeGreaterThan(0)
@@ -185,9 +185,16 @@ describe('render', () => {
     expect(css).toContain('--easing-exit:cubic-bezier(0.4, 0, 1, 1)')
   })
 
-  it('maps every colour token into the Tailwind theme block', () => {
-    for (const [property] of flattenScheme(colors.light)) {
+  it('maps every colour token it receives into the Tailwind theme block', () => {
+    for (const [property] of schemePairs(colors.light)) {
       expect(css).toContain(`--color-${property.slice(2)}:var(${property});`)
     }
+  })
+
+  it('omits the dead accent group from every block, like tendahq', () => {
+    expect(css).not.toContain('accent')
+    expect(schemePairs(colors.light)).toHaveLength(
+      flattenScheme(colors.light).length - flattenScheme(colors.light).filter(([p]) => p.startsWith('--accent-')).length,
+    )
   })
 })
