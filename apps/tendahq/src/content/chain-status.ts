@@ -102,7 +102,8 @@ export const CHAIN_STATUS_DISPLAY: Record<
  * each made this claim independently, in different words, from a chain list
  * that asserted nothing about deployment. Two hand-kept statements of the same
  * fact is how the disclaimer — of all the text on the page — ended up being
- * the most confidently wrong.
+ * the most confidently wrong. Every word of it moves with the manifest's
+ * per-chain `status`; nothing in it is typed.
  */
 export function mainnetStatusClause(
   live: readonly LandingChain[],

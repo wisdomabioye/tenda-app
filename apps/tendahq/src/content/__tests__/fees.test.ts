@@ -104,6 +104,5 @@ describe('fee facts', () => {
   it('labels each example row with its unit and the rate', () => {
     expect(FEE_EXAMPLE.locked).toBe(`${FEE_EXAMPLE.lockedAmount} USDC`)
     expect(FEE_EXAMPLE.payout).toBe(`${FEE_EXAMPLE.payoutAmount} USDC`)
-    expect(FEE_EXAMPLE.fee).toBe(`${FEE_EXAMPLE.feeAmount} USDC · ${FEE_PCT}%`)
   })
 })

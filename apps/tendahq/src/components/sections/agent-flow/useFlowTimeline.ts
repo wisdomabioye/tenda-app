@@ -8,9 +8,10 @@
  *
  * AUTO-ADVANCE, NOT A BARE TOGGLE. A landing visitor does not click, so a
  * control is the wrong way to reveal half the content: the lane flips itself
- * when the loop wraps, and a visitor who wants to stay on one pins it. That is
- * also why the section does not ship a tab rail — Onboarding sits directly
- * below and already is one.
+ * when the loop wraps, and a visitor who wants to stay on one pins it. Two
+ * more controls came with the Paper Landing: a play/pause, and a click on any
+ * step caption to seek the loop to that step (which also pauses it, since a
+ * click means "let me read this one").
  */
 import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -39,6 +40,28 @@ export function stepAt(lane: FlowLane, ms: number): { index: number; progress: n
   // Past the end: hold the last frame rather than wrapping here. Wrapping is
   // the caller's job, because that is where the lane changes.
   return { index: lane.steps.length - 1, progress: 1 }
+}
+
+/**
+ * The clock at which step `index` is nearly finished — where a seek lands so
+ * the step shows its settled state rather than its first frame. Clamped to
+ * the lane, so an index past the end seeks to the last step.
+ */
+export function clockForStep(lane: FlowLane, index: number): number {
+  const i = Math.max(0, Math.min(index, lane.steps.length - 1))
+  let acc = 0
+  for (let k = 0; k < i; k += 1) acc += lane.steps[k].ms
+  return acc + lane.steps[i].ms * 0.985
+}
+
+/**
+ * The cursor for a lane id, or -1 when no lane carries it. Pinning moves the
+ * cursor here so `advance` wraps on the PINNED lane's duration: the two lanes
+ * are not the same length, and wrapping on the other lane's clock cut the
+ * pinned lane's last step short by the difference.
+ */
+export function laneIndexOf(id: string): number {
+  return FLOW_LANES.findIndex((lane) => lane.id === id)
 }
 
 /**
@@ -71,6 +94,11 @@ export interface FlowTimeline {
   pinnedId: string | null
   /** Pin a lane, or unpin it by choosing the one already pinned. */
   togglePin(id: string): void
+  /** Whether the clock is running. */
+  playing: boolean
+  setPlaying(next: boolean): void
+  /** Jump to a step of the current lane and hold there. */
+  seek(index: number): void
 }
 
 export function useFlowTimeline(args: { running: boolean }): FlowTimeline {
@@ -81,16 +109,18 @@ export function useFlowTimeline(args: { running: boolean }): FlowTimeline {
   // lane twice per wrap.
   const [{ clock, cursor }, setPosition] = useState({ clock: 0, cursor: 0 })
   const [pinnedId, setPinnedId] = useState<string | null>(null)
+  const [playing, setPlaying] = useState(true)
   const raf = useRef(0)
   const last = useRef(0)
 
-  // `pinnedId` is a DEPENDENCY, not a ref read during render. Mirroring it into
-  // a ref is the usual trick for keeping a rAF closure fresh, but writing a ref
-  // while rendering is exactly what react-hooks/refs forbids — and there is no
-  // need here: pinning is a click, so restarting the loop on that click costs
-  // one frame and keeps the closure honest.
+  // `pinnedId` and `playing` are DEPENDENCIES, not refs read during render.
+  // Mirroring them into refs is the usual trick for keeping a rAF closure
+  // fresh, but writing a ref while rendering is exactly what react-hooks/refs
+  // forbids — and there is no need here: both change on a click, so
+  // restarting the loop on that click costs one frame and keeps the closure
+  // honest.
   useEffect(() => {
-    if (reduced || !args.running) return
+    if (reduced || !args.running || !playing) return
     const pinned = pinnedId !== null
     last.current = performance.now()
     const tick = (now: number) => {
@@ -101,12 +131,21 @@ export function useFlowTimeline(args: { running: boolean }): FlowTimeline {
     }
     raf.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf.current)
-  }, [reduced, args.running, pinnedId])
+  }, [reduced, args.running, pinnedId, playing])
 
-  const togglePin = (id: string): void => setPinnedId((current) => (current === id ? null : id))
+  const togglePin = (id: string): void => {
+    const cursorFor = laneIndexOf(id)
+    setPinnedId((current) => (current === id ? null : id))
+    if (cursorFor !== -1) setPosition((pos) => ({ ...pos, cursor: cursorFor }))
+  }
 
   const pinnedLane = pinnedId === null ? null : FLOW_LANES.find((l) => l.id === pinnedId) ?? null
   const lane = pinnedLane ?? laneAt(cursor)
+
+  const seek = (index: number): void => {
+    setPlaying(false)
+    setPosition((pos) => ({ ...pos, clock: clockForStep(lane, index) }))
+  }
 
   // Reduced motion holds the FINISHED frame: freezing at step 0 would hide five
   // of six steps from exactly the people least able to wait for a reveal.
@@ -117,9 +156,12 @@ export function useFlowTimeline(args: { running: boolean }): FlowTimeline {
       progress: 1,
       pinnedId,
       togglePin,
+      playing: false,
+      setPlaying,
+      seek,
     }
   }
 
   const { index, progress } = stepAt(lane, clock)
-  return { lane, activeIndex: index, progress, pinnedId, togglePin }
+  return { lane, activeIndex: index, progress, pinnedId, togglePin, playing, setPlaying, seek }
 }

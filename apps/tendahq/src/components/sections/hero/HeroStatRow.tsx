@@ -21,25 +21,21 @@ function useHeroStats(): readonly HeroStat[] {
   )
 }
 
+/**
+ * Four ruled figures under the hero — the Receipt's own idiom: a mono value
+ * over an eyebrow, separated by hairlines, running the full column width.
+ */
 export function HeroStatRow() {
   const stats = useHeroStats()
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4 sm:gap-x-8">
-      {stats.map((s, i) => (
-        <div key={s.label} className="relative flex flex-col gap-1">
-          {i !== 0 && (
-            <span
-              aria-hidden
-              className="pointer-events-none absolute left-[-1rem] top-1/2 hidden h-4 -translate-y-1/2 sm:block"
-              style={{
-                width: 1,
-                background:
-                  'linear-gradient(180deg, transparent, color-mix(in oklab, var(--brand) 50%, transparent), transparent)',
-              }}
-            />
-          )}
-          <span className="mono-mid text-[var(--content-primary)]">{s.value}</span>
-          <span className="caption uppercase text-[var(--content-tertiary)]">{s.label}</span>
+    <div className="mt-[clamp(44px,5.6vw,72px)] grid grid-cols-2 gap-y-6 border-t border-[var(--border-default)] pt-[26px] sm:grid-cols-4">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className="flex flex-col gap-2.5 pr-5 sm:border-r sm:border-[var(--border-subtle)] sm:last:border-r-0"
+        >
+          <span className="mono-large text-[var(--content-primary)]">{s.value}</span>
+          <span className="eyebrow text-[var(--content-tertiary)]">{s.label}</span>
         </div>
       ))}
     </div>

@@ -78,17 +78,6 @@ describe('rendered FAQ copy', () => {
     expect(answersText).toContain(needle)
   })
 
-  /**
-   * Every category's caption states its own question count. A mismatch is the
-   * kind of thing nobody re-checks after editing an answer in or out.
-   */
-  it('captions each category with its real question count', () => {
-    for (const category of FAQ_CATEGORIES) {
-      const n = category.questions.length
-      expect(category.caption).toBe(`${n} question${n === 1 ? '' : 's'}`)
-    }
-  })
-
   it('gives every question a unique id and a question mark', () => {
     const ids = FAQ_CATEGORIES.flatMap((c) => c.questions.map((q) => q.id))
     expect(new Set(ids).size).toBe(ids.length)

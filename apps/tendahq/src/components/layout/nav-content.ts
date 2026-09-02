@@ -6,34 +6,38 @@ export interface NavLink {
   href: string
 }
 
+/**
+ * Section IDs match each <SectionShell id="…"> in components/sections. The
+ * five links are the Paper Landing's: the app, the hire loop, the two
+ * products, the chains, and the questions. Gigs + Exchange are both covered
+ * by the single Two-Products section (#products).
+ */
 export const NAV_LINKS: readonly NavLink[] = [
-  // Section IDs match each <SectionShell id="…"> in components/sections.
-  // Gigs + Exchange are both covered by the single Two-Products section
-  // (#products), so we don't ship a separate top-nav link for each.
-  { label: 'Products',     href: '/#products'     },
-  { label: 'How it works', href: '/#how-it-works' },
-  { label: 'Onboarding',   href: '/#onboarding'   },
-  { label: 'Ecosystems',   href: '/#ecosystems'   },
-  { label: 'FAQ',          href: '/#faq'          },
+  { label: 'The app',    href: '/#app'        },
+  { label: 'Hire loop',  href: '/#hire-loop'  },
+  { label: 'Products',   href: '/#products'   },
+  { label: 'Multichain', href: '/#ecosystems' },
+  { label: 'FAQ',        href: '/#faq'        },
 ] as const
 
 /**
  * Hand-off to the web app (apps/web). NOT a member of NAV_LINKS: those are
  * same-page section anchors rendered as plain text links, this leaves the
- * landing site entirely and is rendered as a CTA button beside "Download App".
+ * landing site entirely and is rendered as the ONE filled button on the page.
  * The href is per-deployment (production vs Vercel preview), so it comes from
  * env rather than @/content — see ENV.webAppUrl.
  */
 export const WEB_APP_LINK: NavLink = {
-  label: 'Open Web App',
+  label: 'Open the web app',
   href: ENV.webAppUrl,
 }
 
 export const NAV_LABELS = {
   brandAlt: 'Tenda',
-  ctaDownload: 'Download App',
+  primaryNav: 'Primary',
+  ctaDownload: 'Download APK',
   toggleMenu: 'Toggle menu',
-  toggleTheme: 'Toggle theme',
+  toggleTheme: 'Switch theme',
   mobileEyebrow: 'Navigate',
   // Names the two products and the chains, and deliberately does NOT restate
   // the pitch: "Escrow-secured …" here was a seventh phrasing competing with

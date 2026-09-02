@@ -12,7 +12,6 @@ export {
   CHAIN_STRENGTHS_PROSE,
   EXCHANGE_ASSET_SYMBOLS_PROSE,
   EVM_CHAIN_NAMES_PROSE,
-  MORE_CHAINS_LABEL,
   chainByFamily,
   displayFor,
   explorerHost,
@@ -36,7 +35,6 @@ export {
 } from './currencies'
 export {
   CATEGORIES,
-  CATEGORY_LABELS_LINE,
   CATEGORY_LABELS_PROSE,
   GIG_CATEGORIES,
 } from './categories'
@@ -52,7 +50,9 @@ export {
   SEEKER_FEE_PCT,
   APPROVAL_WINDOW_HOURS,
   FEE_EXAMPLE,
+  GIG_ASSET_SYMBOL,
 } from './fees'
+export { EXAMPLE_ESCROW } from './escrow-example'
 export { EXAMPLE_TASKS, type ExampleTask } from './tasks'
 export { EXAMPLE_TRADES, type ExampleTrade, type TradeAssetSymbol } from './trades'
 export {
@@ -64,4 +64,11 @@ export {
   type OnboardingFeature,
   type FeatureStatus,
 } from './features'
-export { ECOSYSTEM_PANELS, ECOSYSTEMS_HEADER, type EcosystemPanel } from './ecosystems'
+export {
+  COPY_LABELS,
+  ECOSYSTEM_PANELS,
+  ECOSYSTEMS_HEADER,
+  NETWORK_LABELS,
+  PROOF_LABELS,
+  type EcosystemPanel,
+} from './ecosystems'

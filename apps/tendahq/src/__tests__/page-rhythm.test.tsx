@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LandingPage } from '../App'
-import { FOOTER_NAV_LINKS } from '@/components/sections/footer/content/sitemap'
+import { NAV_LINKS } from '@/components/layout/nav-content'
+import { FOOTER_COLUMNS } from '@/components/sections/footer/content/sitemap'
 import { renderedSections } from '@/test-support/rendered-sections'
 
 /**
@@ -26,7 +27,11 @@ const sections = () => renderedSections(html)
 describe('page rhythm', () => {
   it('renders the sections it is supposed to', () => {
     const ids = sections().map((s) => s.id)
-    expect(ids).toContain('networks')
+    // 'exits' replaced 'how-it-works' and 'networks' was folded into
+    // 'ecosystems'; both are named here so a section silently dropping out of
+    // the spine again fails rather than just shortening the page.
+    expect(ids).toContain('exits')
+    expect(ids).toContain('ecosystems')
     expect(ids).toContain('faq')
     expect(ids.length).toBeGreaterThan(5)
   })
@@ -47,20 +52,26 @@ describe('page rhythm', () => {
   })
 })
 
-describe('footer navigation', () => {
+describe('in-page navigation', () => {
   /**
-   * A footer anchor pointing at an id no section renders is a dead link that
-   * looks alive: clicking it simply does nothing, and nothing else in the suite
-   * would notice.
+   * An anchor pointing at an id no section renders is a dead link that looks
+   * alive: clicking it simply does nothing, and nothing else in the suite
+   * would notice. The navbar and the footer both carry such anchors.
    */
-  it('points every in-page anchor at a section that exists', () => {
+  const anchorsOf = (links: readonly { href: string }[]) =>
+    links.filter((l) => l.href.startsWith('/#')).map((l) => l.href.slice(2))
+
+  it('points every footer anchor at a section that exists', () => {
     const ids = new Set(sections().map((s) => s.id))
-    const anchors = FOOTER_NAV_LINKS.filter((l) => l.href.startsWith('/#')).map((l) =>
-      l.href.slice(2),
-    )
+    const anchors = anchorsOf(FOOTER_COLUMNS.flatMap((c) => c.links))
     expect(anchors.length).toBeGreaterThan(0)
-    for (const anchor of anchors) {
-      expect([...ids]).toContain(anchor)
-    }
+    for (const anchor of anchors) expect([...ids]).toContain(anchor)
+  })
+
+  it('points every navbar link at a section that exists', () => {
+    const ids = new Set(sections().map((s) => s.id))
+    const anchors = anchorsOf(NAV_LINKS)
+    expect(anchors).toHaveLength(NAV_LINKS.length)
+    for (const anchor of anchors) expect([...ids]).toContain(anchor)
   })
 })

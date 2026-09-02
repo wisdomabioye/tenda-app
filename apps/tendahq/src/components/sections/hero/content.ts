@@ -4,7 +4,7 @@
  * `HERO_STATS_FALLBACK` only renders if the API call fails or is in flight.
  */
 
-import { APP_INFO, FEE_PCT, TRADE_MARKET_COUNT } from '@/content'
+import { APP_INFO, EXAMPLE_ESCROW, FEE_PCT, TRADE_MARKET_COUNT } from '@/content'
 
 export interface HeroStat {
   value: string
@@ -23,20 +23,35 @@ export const HERO_CONTENT = {
      */
     liveLabel: `Built for ${APP_INFO.chains.networksLine}`,
   },
-  h1: {
-    line1: 'The escrow',
-    line2: 'does the',
-    line3: 'trusting.',
-  },
-  ribbon: [
-    'The money locks in an on-chain escrow the moment a gig posts or an offer goes live. Nobody holds your funds — not us, not the counterparty, not an exchange.',
-    'Proof releases. The contract settles.',
-  ] as const,
+  /** The brand line, minus its period — the page draws that in brand blue. */
+  h1: APP_INFO.tagline.replace(/\.$/, ''),
+  /**
+   * ONE lede, as the Paper Landing sets it. It was a two-paragraph "ribbon"
+   * with a rule between; the artifact runs it as a single paragraph and the
+   * port follows the artifact's wording exactly.
+   */
+  lede: 'The money locks in an on-chain escrow the moment a gig posts or an offer goes live. Nobody holds your funds — not us, not the counterparty, not an exchange. Proof releases. The contract settles.',
+  /**
+   * The web app leads, the APK follows (2026-09-01). The label for the primary
+   * lives in `nav-content.ts` as WEB_APP_LINK so the two CTAs cannot disagree.
+   */
   cta: {
-    primary: 'Download for Android',
+    secondary: 'Download for Android',
   },
-  /** Caption under the swipe deck. */
-  deckCaption: 'Example gigs · escrow releases on proof',
+  /** Caption under the hero's escrow receipt. */
+  deckCaption: 'Example escrow · every figure derives from the platform fee',
+} as const
+
+/**
+ * The hero's escrow receipt — one example escrow, mid-flight. Every figure
+ * is the shared example's (content/escrow-example.ts), which the phone's
+ * escrow screen in §00 draws too; the receipt only adds its eyebrow and the
+ * assurance the phone screen has no room for.
+ */
+export const ESCROW_PANEL = {
+  eyebrow: 'Escrow',
+  ...EXAMPLE_ESCROW,
+  custody: `${EXAMPLE_ESCROW.custody}. Neither party can move it.`,
 } as const
 
 /**
@@ -49,9 +64,7 @@ const FEE_STAT_LABEL = 'Flat fee'
  * Only the FEE cell is genuinely async — it waits on /v1/platform/config, so
  * it carries a static value for the loading and error paths. Every other cell
  * is either a constant or already known at build time, so they are final here
- * rather than "fallbacks" the row re-derives: the markets count used to be
- * written out as a literal AND overridden in HeroStatRow, which meant the
- * literal was dead and free to drift away from the payout registry unnoticed.
+ * rather than "fallbacks" the row re-derives.
  */
 export const HERO_STATS_FALLBACK: readonly HeroStat[] = [
   { value: '< 2s',  label: 'Escrow lock' },

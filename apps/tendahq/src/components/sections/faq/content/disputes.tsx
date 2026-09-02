@@ -25,10 +25,7 @@ import type { FaqCategory } from '../types'
  *     every chain and wrong for gigs on Solana too.
  */
 export const DISPUTES_CATEGORY: FaqCategory = {
-  num: '03',
-  slug: 'disputes',
   title: 'Disputes',
-  caption: '3 questions',
   questions: [
     {
       id: 'Q.10',

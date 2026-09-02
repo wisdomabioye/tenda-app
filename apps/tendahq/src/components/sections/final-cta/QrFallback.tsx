@@ -19,7 +19,7 @@ export function QrFallback() {
           {QR_FALLBACK.body}{' '}
           <code className="mono-sm text-[var(--content-secondary)]">{QR_FALLBACK.destination}</code>
         </p>
-        <Pill tone="warning" size="sm" className="mt-1.5 self-start">
+        <Pill tone="warning" dot className="mt-1.5 self-start">
           {QR_FALLBACK.pendingLabel}
         </Pill>
       </div>

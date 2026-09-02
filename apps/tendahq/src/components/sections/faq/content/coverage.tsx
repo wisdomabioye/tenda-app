@@ -16,10 +16,7 @@ import type { FaqCategory } from '../types'
  * counts are NOT interchangeable).
  */
 export const COVERAGE_CATEGORY: FaqCategory = {
-  num: '05',
-  slug: 'coverage',
   title: 'Coverage & access',
-  caption: '1 question',
   questions: [
     {
       id: 'Q.15',
@@ -29,7 +26,7 @@ export const COVERAGE_CATEGORY: FaqCategory = {
           <p>
             One escrow contract, built for {APP_INFO.chains.networksLine} —{' '}
             {MAINNET_STATUS_CLAUSE}. Each brings something different:{' '}
-            {CHAIN_STRENGTHS_PROSE}. More chains are on the way.
+            {CHAIN_STRENGTHS_PROSE}.
           </p>
           <p>
             Gig work is global by default — the contracts run wherever the chains do, and a gig

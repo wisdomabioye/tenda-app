@@ -22,10 +22,7 @@ import type { FaqCategory } from '../types'
  * when we can't.
  */
 export const CRYPTO_CATEGORY: FaqCategory = {
-  num: '04',
-  slug: 'crypto',
   title: 'Crypto basics',
-  caption: '2 questions',
   questions: [
     {
       id: 'Q.13',

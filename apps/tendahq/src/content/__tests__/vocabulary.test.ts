@@ -10,12 +10,7 @@ import {
   CATEGORY_LABELS,
 } from '@tenda/shared/constants/categories'
 import { CURRENCIES, SUPPORTED_CURRENCIES } from '../currencies'
-import {
-  CATEGORIES,
-  CATEGORY_LABELS_LINE,
-  CATEGORY_LABELS_PROSE,
-  GIG_CATEGORIES,
-} from '../categories'
+import { CATEGORIES, CATEGORY_LABELS_PROSE, GIG_CATEGORIES } from '../categories'
 import { LandingPage } from '../../App'
 
 /**
@@ -111,12 +106,6 @@ describe('gig categories', () => {
     }
   })
 
-  it('builds the panel stat line from labels, not from the enum keys', () => {
-    expect(CATEGORY_LABELS_LINE).toBe(SHARED_CATEGORIES.map((id) => CATEGORY_LABELS[id]).join(' · '))
-    expect(CATEGORY_LABELS_LINE).toContain('Creative')
-    expect(CATEGORY_LABELS_LINE).not.toContain('photo')
-  })
-
   it('offers the same set as sentence prose, lower-cased and conjoined', () => {
     expect(CATEGORY_LABELS_PROSE).toContain(' and ')
     expect(CATEGORY_LABELS_PROSE).not.toContain(' · ')
@@ -137,7 +126,11 @@ describe('gig categories', () => {
    */
   it('enumerates its categories from the shared labels, on the page', () => {
     expect(html).toContain(CATEGORY_LABELS_PROSE)
-    expect(html).toContain(CATEGORY_LABELS_LINE)
+    // The category CHIPS under the tasks ticker: one per shared category,
+    // carrying shared's label beside the landing's emoji.
+    for (const id of SHARED_CATEGORIES) {
+      expect(html).toContain(`${CATEGORIES[id].emoji} ${CATEGORY_LABELS[id]}`)
+    }
     expect(CATEGORY_LABELS_PROSE).toContain('creative')
   })
 

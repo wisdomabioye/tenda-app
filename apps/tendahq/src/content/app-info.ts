@@ -49,7 +49,7 @@ export const APP_INFO = {
    * "are built for", not "run on": CHAIN_NAMES_LINE is the list of chains the
    * landing TARGETS, which is not the same as the list it has deployed to.
    * Where the contracts actually are is MAINNET_STATUS_CLAUSE's job, stated
-   * once in the networks header and the legal disclaimer rather than a third
+   * once in the ecosystems header and the legal disclaimer rather than a third
    * time here.
    */
   about:
@@ -65,7 +65,6 @@ export const APP_INFO = {
   version: RELEASE.version,
   /** `v0.4.3` — the version without its release qualifier. */
   versionNumber: versionNumber(RELEASE.version),
-  buildLocation: 'Lagos',
 
   /** Chain identity surfaced in section metas + footer status. */
   chains: {

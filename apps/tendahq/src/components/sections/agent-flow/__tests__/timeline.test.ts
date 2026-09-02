@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FLOW_LANES, laneAt } from '@/content/agent-flow'
-import { advance, laneDuration, stepAt } from '../useFlowTimeline'
-import { fundStepOf, geometryFor } from '../circuit-paint'
+import { advance, clockForStep, laneDuration, laneIndexOf, stepAt } from '../useFlowTimeline'
 
 /**
  * The sequencing, tested where it is decidable. This project installs no React
@@ -37,6 +36,41 @@ describe('stepAt', () => {
       expect(progress).toBeGreaterThanOrEqual(0)
       expect(progress).toBeLessThanOrEqual(1)
     }
+  })
+})
+
+describe('laneIndexOf', () => {
+  it('finds each lane’s cursor, so a pin wraps on that lane’s own duration', () => {
+    // The two lanes are not the same length. Pinning the agent lane while the
+    // cursor still sat on the human lane wrapped on the human duration and cut
+    // the agent lane's last step short by the difference.
+    expect(laneDuration(HUMAN)).not.toBe(laneDuration(AGENT))
+    for (const [i, lane] of FLOW_LANES.entries()) {
+      expect(laneIndexOf(lane.id)).toBe(i)
+      expect(laneAt(laneIndexOf(lane.id)).id).toBe(lane.id)
+    }
+  })
+
+  it('answers -1 for an id no lane carries, rather than a lane', () => {
+    expect(laneIndexOf('not-a-lane')).toBe(-1)
+    expect(laneIndexOf('')).toBe(-1)
+  })
+})
+
+describe('clockForStep', () => {
+  it('lands inside the requested step, near its end', () => {
+    for (const [i, step] of HUMAN.steps.entries()) {
+      const at = stepAt(HUMAN, clockForStep(HUMAN, i))
+      expect(at.index).toBe(i)
+      expect(at.progress).toBeGreaterThan(0.9)
+      expect(at.progress).toBeLessThan(1)
+      expect(step.ms).toBeGreaterThan(0)
+    }
+  })
+
+  it('clamps an index past either end to the lane', () => {
+    expect(stepAt(HUMAN, clockForStep(HUMAN, 99)).index).toBe(HUMAN.steps.length - 1)
+    expect(stepAt(HUMAN, clockForStep(HUMAN, -5)).index).toBe(0)
   })
 })
 
@@ -80,43 +114,5 @@ describe('advance', () => {
     const { clock } = advance({ clock: 0, cursor: 0, deltaMs: laneDuration(laneAt(0)) * 3 + 7, pinned: false })
     expect(Number.isFinite(clock)).toBe(true)
     expect(clock).toBeGreaterThanOrEqual(0)
-  })
-})
-
-describe('circuit geometry', () => {
-  it('stacks below the breakpoint and spans above it', () => {
-    // A left-to-right circuit on a phone is an unreadable smear, so the narrow
-    // layout is a different arrangement rather than a shrunk copy.
-    expect(geometryFor(390).stacked).toBe(true)
-    expect(geometryFor(1100).stacked).toBe(false)
-  })
-
-  it('actually moves the actors, rather than only setting a flag', () => {
-    const narrow = geometryFor(390)
-    const wide = geometryFor(1100)
-    expect(narrow.left).not.toEqual(wide.left)
-    expect(narrow.right).not.toEqual(wide.right)
-  })
-
-  it('keeps every node inside the canvas in both arrangements', () => {
-    for (const width of [360, 620, 1280]) {
-      const g = geometryFor(width)
-      for (const point of [g.left, g.right, g.vault, g.feed]) {
-        expect(point.x).toBeGreaterThan(0)
-        expect(point.x).toBeLessThan(1)
-        expect(point.y).toBeGreaterThan(0)
-        expect(point.y).toBeLessThan(1)
-      }
-    }
-  })
-
-  it('knows which step funds the escrow in each lane', () => {
-    // The human signs and broadcasts on step 1; the agent's relayed funding is
-    // step 2, because it spends a step on the x402 signature first. Getting
-    // this wrong fills the vault before the money moves.
-    expect(fundStepOf(HUMAN)).toBe(1)
-    expect(fundStepOf(AGENT)).toBe(2)
-    expect(HUMAN.steps[fundStepOf(HUMAN)].gas).toBe('poster pays')
-    expect(AGENT.steps[fundStepOf(AGENT)].gas).toBe('relayer pays')
   })
 })

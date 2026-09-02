@@ -291,9 +291,6 @@ export const GIG_ASSET_IDS: readonly string[] = LANDING_CHAINS.map((c) =>
   gigAssetByChain(c.id),
 ).filter((id): id is string => id !== null)
 
-/** Trailing badge after the chain list. */
-export const MORE_CHAINS_LABEL = 'More coming'
-
 export function chainByFamily(family: string): LandingChain | undefined {
   return LANDING_CHAINS.find((c) => c.family === family)
 }

@@ -1,13 +1,13 @@
 import type { ComponentType } from 'react'
 import type { LandingSectionProps, SectionSurface } from '@/components/ui/SectionShell'
 import { Hero } from './hero/Hero'
+import { AppScreens } from './app-screens/AppScreens'
 import { AgentFlow } from './agent-flow'
 import { TaskWall } from './task-wall/TaskWall'
 import { TwoProducts } from './two-products/TwoProducts'
-import { HowEscrowWorks } from './how-escrow-works/HowEscrowWorks'
+import { EscrowExits } from './escrow-exits/EscrowExits'
 import { Onboarding } from './onboarding/Onboarding'
 import { Ecosystems } from './ecosystems/Ecosystems'
-import { Networks } from './networks/Networks'
 import { FAQ } from './faq/FAQ'
 import { FinalCTA } from './final-cta/FinalCTA'
 
@@ -25,26 +25,28 @@ export interface LandingSectionEntry {
  * renders nothing but a map over it — so the order cannot drift from a copy of
  * itself, and inserting a section is one line here.
  *
- * Two placements are deliberate and should survive a reshuffle:
+ * Two placements are deliberate and should survive a reshuffle (both the
+ * Paper Landing's order):
  *
- * The hire loop sits DIRECTLY under the hero, not late in the page: it is the
+ * The app screens sit DIRECTLY under the hero — the product itself, before
+ * any argument about it — and the hire loop follows at once: it is the
  * clearest statement of what Tenda does, and it was the thing a visitor had to
  * scroll past nine screens to find.
  *
- * Networks follows Ecosystems because Ecosystems argues WHY these chains, so
- * the reference table answering WHAT exactly am I connecting to reads as the
- * follow-up to that argument rather than as a spec sheet dropped between two
- * pitches.
+ * Ecosystems carries its own reference strip (chain id, gas token, wallet,
+ * explorer) on each panel; the retired Networks section that once followed it
+ * lives on there, beside the argument for each chain rather than after it.
  */
 export const LANDING_SECTIONS: LandingSectionEntry[] = [
   { key: 'hero', Section: Hero },
+  // §00: the product itself, before any argument about it (Paper Landing order).
+  { key: 'app', Section: AppScreens },
   { key: 'hire-loop', Section: AgentFlow },
   { key: 'tasks', Section: TaskWall },
   { key: 'products', Section: TwoProducts },
-  { key: 'how-it-works', Section: HowEscrowWorks },
+  { key: 'exits', Section: EscrowExits },
   { key: 'onboarding', Section: Onboarding },
   { key: 'ecosystems', Section: Ecosystems },
-  { key: 'networks', Section: Networks },
   { key: 'faq', Section: FAQ },
   { key: 'download', Section: FinalCTA },
 ]

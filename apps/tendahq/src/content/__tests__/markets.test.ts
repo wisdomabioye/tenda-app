@@ -5,8 +5,8 @@ import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payo
 import { SUPPORTED_CURRENCIES } from '../currencies'
 import { EXAMPLE_TRADES } from '../trades'
 import { LANDING_CHAINS } from '../chains'
-import { TradeDeck } from '@/components/sections/two-products/TradeDeck'
-import { TRADE_DECK_CAPTION } from '@/components/sections/two-products/content'
+import { PRODUCT_PANELS } from '@/components/sections/two-products/content'
+import { TwoProducts } from '@/components/sections/two-products/TwoProducts'
 import {
   DISPLAY_CURRENCY_COUNT,
   TRADE_COUNTRIES_PROSE,
@@ -110,15 +110,21 @@ describe('fiat markets', () => {
   })
 
   /**
-   * The other half of the same claim, read off the RENDERED deck rather than
-   * the constants: the card marks the figure approximate, and the caption says
-   * who prices the offer. A constant nobody renders proves nothing.
+   * The other half of the same claim, read off the RENDERED section rather
+   * than the constants: the exchange half prints NO fiat amount at all — its
+   * rows carry the currency code, so nothing on the page divides out to a
+   * rate — and its foot line says who prices the offer. A constant nobody
+   * renders proves nothing.
    */
-  it('renders the amounts as approximate and names who prices the offer', () => {
-    const html = renderToStaticMarkup(createElement(TradeDeck))
-    expect(html).toContain('≈')
-    expect(html).toContain(TRADE_DECK_CAPTION)
-    expect(TRADE_DECK_CAPTION.toLowerCase()).toContain('seller sets the rate')
+  it('prints no fiat figure, and names who prices the offer', () => {
+    const html = renderToStaticMarkup(createElement(TwoProducts, { surface: 'base' }))
+    const exchange = PRODUCT_PANELS.find((p) => p.id === 'exchange')
+    expect(exchange).toBeDefined()
+    expect(html).toContain(exchange?.foot)
+    expect(exchange?.foot.toLowerCase()).toContain('seller sets the rate')
+    for (const trade of EXAMPLE_TRADES) {
+      expect(html).not.toContain(trade.fiat.amount.toLocaleString('en-US'))
+    }
   })
 
   /**

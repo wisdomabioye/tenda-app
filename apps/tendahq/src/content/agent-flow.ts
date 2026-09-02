@@ -25,7 +25,6 @@
 
 import { AGENT_BADGE_LABEL } from '@tenda/shared/constants/users'
 import { FEE_PCT } from './fees'
-import { chainByFamily } from './chains'
 
 /** Who is at the left of the circuit. The right is always a person. */
 export type FlowLaneId = 'human' | 'agent'
@@ -54,16 +53,19 @@ export interface FlowLane {
   id: FlowLaneId
   /** Shown while this lane is playing. */
   title: string
-  left: { label: string; tone: FlowTone }
-  right: { label: string; tone: FlowTone }
+  /** One line beside the lane control: who broadcasts, and who pays for it. */
+  note: string
+  left: { label: string }
+  right: { label: string }
   steps: readonly FlowStep[]
 }
 
 const HUMAN_LANE: FlowLane = {
   id: 'human',
   title: 'A person hires a person',
-  left: { label: 'Poster', tone: 'poster' },
-  right: { label: 'Worker', tone: 'worker' },
+  note: 'The poster’s own wallet signs and broadcasts — no relayer in this path',
+  left: { label: 'Poster' },
+  right: { label: 'Worker' },
   steps: [
     {
       id: 'h-write', actor: 'Poster', label: 'Writes the gig', gas: null, tone: 'poster', ms: 1300,
@@ -95,8 +97,9 @@ const HUMAN_LANE: FlowLane = {
 const AGENT_LANE: FlowLane = {
   id: 'agent',
   title: 'Software hires a person',
-  left: { label: AGENT_BADGE_LABEL, tone: 'agent' },
-  right: { label: 'Worker', tone: 'worker' },
+  note: 'The agent broadcasts nothing — Tenda’s relayer pays that gas',
+  left: { label: AGENT_BADGE_LABEL },
+  right: { label: 'Worker' },
   steps: [
     {
       id: 'a-post', actor: AGENT_BADGE_LABEL, label: 'Posts a task', gas: null, tone: 'agent', ms: 1300,
@@ -133,24 +136,3 @@ export function laneAt(index: number): FlowLane {
   // Modulo rather than a bounds check: the caller advances forever.
   return FLOW_LANES[((index % FLOW_LANES.length) + FLOW_LANES.length) % FLOW_LANES.length]
 }
-
-/**
- * The colour role each tone resolves to, as a CSS custom property NAME. The
- * canvas cannot read `var()`, so the renderer looks these up on the live
- * element — which is also how the circuit follows the visitor's theme.
- *
- * The agent's colour is the 0G family colour from the chain registry rather
- * than a literal, so the one place a hex is allowed stays the one place.
- */
-export const TONE_VARS: Readonly<Record<FlowTone, string>> = {
-  poster: '--live-bright',
-  worker: '--live-bright',
-  agent: '--brand',
-  value: '--accent',
-}
-
-/** 0G's marketing colour, when the manifest still carries the family. */
-export const AGENT_COLOR = chainByFamily('0g')?.color ?? null
-
-/** Every step across both lanes — for tests and for the reduced-motion list. */
-export const ALL_FLOW_STEPS: readonly FlowStep[] = FLOW_LANES.flatMap((l) => l.steps)

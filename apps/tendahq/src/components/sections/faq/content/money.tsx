@@ -26,10 +26,7 @@ import type { FaqCategory } from '../types'
  * either count in prose: this comment said "Eight" until AED made it nine.
  */
 export const MONEY_CATEGORY: FaqCategory = {
-  num: '02',
-  slug: 'money',
   title: 'Money & fees',
-  caption: '4 questions',
   questions: [
     {
       id: 'Q.06',

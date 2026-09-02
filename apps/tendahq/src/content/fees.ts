@@ -62,6 +62,17 @@ const EXAMPLE_PRINCIPAL_USDC = 12
  */
 const USDC_BASE_UNITS = 10 ** ASSET_META[GIG_ASSET_IDS[0]].decimals
 
+/**
+ * The symbol gigs are escrowed in ('USDC'), from the same asset whose decimals
+ * scale the worked example above.
+ *
+ * Lives here rather than beside each surface that prints it: two surfaces now
+ * show a figure and its unit together — the hero's escrow panel and the hire
+ * loop's custody scene — and a symbol typed next to a derived number is one
+ * edit away from labelling it wrongly.
+ */
+export const GIG_ASSET_SYMBOL: string = ASSET_META[GIG_ASSET_IDS[0]].symbol
+
 function usdc(baseUnits: number): string {
   const whole = baseUnits / USDC_BASE_UNITS
   // Trailing zeros matter in a money column: 11.7 must read as 11.70.
@@ -91,8 +102,6 @@ export const FEE_EXAMPLE_RAW = {
 export const FEE_EXAMPLE = {
   /** '12 USDC' — what the poster locks. */
   locked: `${usdc(principalRaw)} USDC`,
-  /** '0.30 USDC · 2.5%' — what Tenda takes. */
-  fee: `${usdc(feeRaw)} USDC · ${FEE_PCT}%`,
   /** '11.70 USDC' — what the worker is credited. */
   payout: `${usdc(principalRaw - feeRaw)} USDC`,
   /** Bare numbers for prose that has to say them in a sentence. */

@@ -17,10 +17,7 @@ import type { FaqCategory } from '../types'
  *     (`claimStalledPayment`), never an automatic release.
  */
 export const TRUST_CATEGORY: FaqCategory = {
-  num: '01',
-  slug: 'trust',
   title: 'Trust & safety',
-  caption: '5 questions',
   questions: [
     {
       id: 'Q.01',

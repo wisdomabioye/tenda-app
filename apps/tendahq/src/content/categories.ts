@@ -60,23 +60,19 @@ export const CATEGORIES: Record<CategoryId, CategoryMeta> = Object.fromEntries(
   ]),
 ) as Record<CategoryId, CategoryMeta>
 
-/** "Delivery · Creative · Errand · Service · Digital" — the panel stat line. */
-export const CATEGORY_LABELS_LINE = GIG_CATEGORIES.map((id) => CATEGORY_LABELS[id]).join(' · ')
-
 /**
- * "delivery, creative, errand, service and digital" — the same set for RUNNING
- * PROSE, where middots read as a UI stamp rather than a sentence. Mirrors the
- * CHAIN_NAMES_LINE / CHAIN_NAMES_PROSE pair in chains.ts.
+ * "delivery, creative, errand, service and digital" — the set for RUNNING
+ * PROSE, where middots read as a UI stamp rather than a sentence. Mirrors
+ * CHAIN_NAMES_PROSE in chains.ts.
  *
  * This exists because the §03 gigs panel hand-listed its categories in body
  * copy as "delivery, photo, errands, services, digital" — printing `photo`,
- * the raw enum key, directly beside a stat line that had just been changed to
- * print "Creative". One panel, one category, two names: exactly the split
- * shared's CATEGORY_LABELS was consolidated to end, and more visible than the
- * version that was fixed.
+ * the raw enum key, directly beside chips reading "Creative". One page, one
+ * category, two names: exactly the split shared's CATEGORY_LABELS was
+ * consolidated to end.
  *
  * Lower-cased because these are common nouns inside a sentence; the labels
- * keep their title case wherever they are rendered as chips or stat lines.
+ * keep their title case wherever they are rendered as chips.
  */
 export const CATEGORY_LABELS_PROSE = prose(
   GIG_CATEGORIES.map((id) => CATEGORY_LABELS[id].toLowerCase()),
