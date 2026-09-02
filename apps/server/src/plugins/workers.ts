@@ -68,6 +68,10 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   // per queue, and the seed is rare enough that serialising ACROSS chains costs
   // nothing worth a queue per chain.
   'gas-seed': 1,
+  // One, like every repeatable: the handler walks a handful of chains
+  // sequentially and a second tick overlapping the first would read the same
+  // wallets and enqueue the same deduped alert.
+  'gas-seed-balance-check': 1,
 }
 
 interface RepeatableSpec<N extends JobName> {
@@ -99,6 +103,15 @@ export const REPEATABLES = [
   repeatable({ name: 'update-price-stats', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
   // Daily retention sweep: prunes stale personal notifications (unbounded growth).
   repeatable({ name: 'prune-notifications', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
+  // Every 15 minutes: a hot wallet drains in claims, not in seconds, and the
+  // ALERT's own dedup — keyed on the chain alone — is what decides how often an
+  // operator actually hears about it, so a brisk tick costs one RPC read per
+  // seeded chain rather than one notice.
+  repeatable({
+    name: 'gas-seed-balance-check',
+    every_ms: 15 * 60_000,
+    payload: { tick_id: 'cron' },
+  }),
 ] as const
 
 const workersPlugin: FastifyPluginAsync = async (fastify) => {

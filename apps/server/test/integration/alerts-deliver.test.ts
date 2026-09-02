@@ -24,6 +24,7 @@ import type {
   AlertDeps,
   AlertJob,
   AlertRef,
+  AlertRefOf,
 } from '@server/features/alerts'
 import { queueDouble } from '../helpers/queue-double'
 import {
@@ -110,7 +111,13 @@ function jobFor(ref: AlertRef, channel: AlertJob['channel'] = 'slack'): AlertJob
 }
 
 interface DisputedGig {
-  ref: AlertRef
+  /**
+   * Typed to the KIND it builds, not the union `AlertRef` became once a second
+   * kind existed. This helper cannot produce anything else, and the alternative
+   * — narrowing at every call site — asks each test to re-prove a fact this
+   * function already guarantees.
+   */
+  ref: AlertRefOf<'dispute.raised'>
   creator: TestUser
   worker: TestUser
 }
@@ -169,7 +176,11 @@ test('a configured channel that accepts the kind receives the RESOLVED alert', {
   assert.strictEqual(channel.delivered.length, 1)
   const alert = channel.delivered[0]
   // The channel gets facts, not the thin ref it was queued with.
-  assert.strictEqual(alert.kind, 'dispute.raised')
+  // `assert.ok` rather than `strictEqual`: it is an assertion function, so it
+  // NARROWS the union — which `Alert` became once a second kind existed. Every
+  // field below belongs to this kind alone, and asserting the kind is itself
+  // part of the claim: the resolver must not answer with another kind's shape.
+  assert.ok(alert.kind === 'dispute.raised')
   assert.strictEqual(alert.escrow_id, ref.escrow_id)
   assert.strictEqual(alert.escrow_title, 'Fix the roof')
   assert.strictEqual(alert.reason, 'No show')
@@ -210,7 +221,9 @@ test('the disputes row is the fallback when the chain names no known user', { sk
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
 
-  assert.strictEqual(channel.delivered[0].raised_by_id, creator.row.id)
+  const delivered = channel.delivered[0]
+  assert.ok(delivered.kind === 'dispute.raised')
+  assert.strictEqual(delivered.raised_by_id, creator.row.id)
 })
 
 // Neither source knows: an on-chain dispute with no triage row and an
@@ -221,7 +234,9 @@ test('an unknown raiser resolves to null rather than to a guess', { skip }, asyn
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
 
-  assert.strictEqual(channel.delivered[0].raised_by_id, null)
+  const delivered = channel.delivered[0]
+  assert.ok(delivered.kind === 'dispute.raised')
+  assert.strictEqual(delivered.raised_by_id, null)
 })
 
 // ---------- branches that must SKIP, never throw --------------------------------------

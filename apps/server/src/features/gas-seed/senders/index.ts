@@ -68,23 +68,23 @@ interface GasSeedChainArgs {
 }
 
 /**
- * The key arrives as `string`, because that is how a secret is stored, and the
- * two namespaces are NOT equally protected on the way in:
+ * The key arrives as `string`, because that is how a secret is stored, and BOTH
+ * namespaces are now validated on the way in — #53b closed the gap:
  *
  *  - eip155 declares `GAS_SEED_KEY` as `kind: 'evmKey'`, so a malformed value is
  *    a boot error naming the variable and cannot reach here. That is what makes
  *    the cast to viem's hex type at this boundary safe — the same cast
  *    plugins/chains.ts makes for the relayer key one layer up.
- *  - solana declares it as `kind: 'str'`, which only asks for a non-empty
- *    value. A malformed Solana key therefore DOES reach here and throws when
- *    `Keypair.fromSecretKey` decodes it.
+ *  - solana declares it as `kind: 'base58Key'`. It was `'str'`, which only asked
+ *    for a non-empty value, so a malformed Solana key reached here and threw
+ *    when `Keypair.fromSecretKey` decoded it — at the first claim rather than at
+ *    boot, on the one path a first-time user is on.
  *
  * That asymmetry used to be load-bearing: the auto-send trigger built its deps
  * inside a promise chain so a malformed Solana key could not turn a completed
  * wallet link into a 500. #53c-2 removed that path — construction now happens
  * inside a claim request, where a throw is simply that request's error and
- * nothing else is half-done. Tightening the Solana kind to `base58Key` is still
- * tracked with #53b; it is a behaviour change on a live deployment path.
+ * nothing else is half-done.
  */
 export const GAS_SEED_SUPPORT: Record<ChainNamespace, GasSeedNamespaceSupport> = {
   solana: {

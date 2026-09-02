@@ -145,3 +145,55 @@ export const CHAIN_NAMESPACE_LABEL: Record<ChainNamespace, string> = {
   solana: 'Solana',
   eip155: 'EVM',
 }
+
+/**
+ * OBSERVED native gas price per seed-bearing chain, in wei — the fact that
+ * turns a gas-seed amount from a guess into a measurement (#53b item 1).
+ *
+ * Nothing in this repo recorded a 0G gas price before this, which is why the
+ * first seed amount was a round placeholder with a comment admitting it. Each
+ * entry is a real reading from that chain's public RPC, with the date, so a
+ * reviewer can re-take it and see whether it still holds:
+ *
+ *   eip155:16602 (0G Galileo) — eth_gasPrice returned 4000000007 wei
+ *   (~4.0 gwei), identical across three consecutive reads, 2026-09-02.
+ *
+ * Rounded UP to 5 gwei. The reading is what the chain charges at rest; the
+ * grant has to survive the moment it is spent, which is not the moment it was
+ * measured.
+ *
+ * A chain listed here MUST declare `gasSeedAmountRaw`, and the amount must
+ * cover the measured lifecycle — both asserted by
+ * apps/server/test/integration/evm-gas-budget.anvil.test.ts against the real
+ * contract bytecode.
+ */
+export const OBSERVED_GAS_PRICE_WEI: Readonly<Record<string, bigint>> = {
+  'eip155:16602': 5_000_000_000n,
+}
+
+/**
+ * How many full lifecycles a seed should cover.
+ *
+ * Not 1. A user who can afford exactly one run is stranded by any retry — a
+ * dropped transaction, a wallet that resubmits, a gig they accept and unassign
+ * — and being one transaction short is exactly as blocking as having nothing,
+ * while the difference in cost to us is a fraction of a cent on a testnet and
+ * small on 0G. Three is the smallest number that survives an ordinary mishap.
+ */
+export const GAS_SEED_LIFECYCLE_MULTIPLE = 3n
+
+/**
+ * How few grants a seed wallet may be worth before an operator is warned.
+ *
+ * A count of GRANTS, not a wei floor, because that is the number the decision
+ * turns on: "top it up" is worth doing while people can still be paid, and a
+ * wei figure means something different on every chain and changes meaning the
+ * moment `gasSeedAmountRaw` does.
+ *
+ * Five. Refunding a hot wallet needs a human with the funding key, and the
+ * warning has to outlive the time that takes — a floor of one warns at the same
+ * moment the first user is refused, which is not a warning. Low enough that a
+ * healthy wallet is silent: a wallet holding five grants has already paid the
+ * overwhelming majority of what it was funded for.
+ */
+export const GAS_SEED_LOW_BALANCE_GRANTS = 5

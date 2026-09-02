@@ -80,8 +80,14 @@ const disputeRef: AlertRefOf<'dispute.raised'> = {
  * covering exactly the one already asserted above. This shape fails to COMPILE
  * until a new kind supplies a fixture.
  */
+const gasSeedRef: AlertRefOf<'gas-seed.low-balance'> = {
+  kind: 'gas-seed.low-balance',
+  chain_id: 'eip155:16602',
+}
+
 const REF_FIXTURES: { [K in AlertKind]: AlertRefOf<K> } = {
   'dispute.raised': disputeRef,
+  'gas-seed.low-balance': gasSeedRef,
 }
 
 // ---------- 1. which events raise an alert -------------------------------------------
@@ -105,10 +111,12 @@ test('the ref carries the EVENT ids, not defaults', () => {
   const a = alertRefForEscrowEvent(republishEvent('DisputeRaised'))
   const b = alertRefForEscrowEvent(republishEvent('DisputeRaised'))
 
-  assert.notStrictEqual(a, null)
-  assert.notStrictEqual(b, null)
-  assert.notStrictEqual(a?.escrow_id, b?.escrow_id)
-  assert.notStrictEqual(a?.tx_ref, b?.tx_ref)
+  // `assert.ok` narrows the union `AlertRef` became once a second kind existed;
+  // it also pins that this event maps to THIS kind, which the ids below assume.
+  assert.ok(a?.kind === 'dispute.raised')
+  assert.ok(b?.kind === 'dispute.raised')
+  assert.notStrictEqual(a.escrow_id, b.escrow_id)
+  assert.notStrictEqual(a.tx_ref, b.tx_ref)
 })
 
 /**

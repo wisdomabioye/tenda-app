@@ -29,6 +29,7 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token'
 import bs58 from 'bs58'
+import type { SolanaGasSeedPort } from '@server/features/gas-seed'
 import { FailedTransactionMetadata, LiteSVM } from 'litesvm'
 import { PROGRAM_ID, platformPda } from '@server/chains/solana/pdas'
 import type { SolanaRelayer } from '@server/chains/solana/relay/relayer'
@@ -202,6 +203,34 @@ export function litesvmRelayer(svm: LiteSVM, keypair: Keypair): SolanaRelayer {
       tx.sign([keypair])
     },
     async send(tx) {
+      const res = svm.sendTransaction(tx)
+      if (res instanceof FailedTransactionMetadata) {
+        throw new Error(`${res.err().toString()}\n${res.meta().logs().join('\n')}`)
+      }
+      return bs58.encode(res.signature())
+    },
+  }
+}
+
+/**
+ * A `SolanaGasSeedPort` backed by LiteSVM — the gas seed's transfer against the
+ * REAL Solana runtime, without a cluster.
+ *
+ * Sits beside `litesvmRelayer` and works the same way: adapt the in-process VM
+ * to the seam the production code already takes. The seed's port is one method,
+ * so this is short — but it is the difference between "the transfer is built
+ * correctly" and "the lamports arrived", and only the second is worth funding a
+ * hot wallet on.
+ */
+export function litesvmGasSeedPort(svm: LiteSVM, keypair: Keypair): SolanaGasSeedPort {
+  return {
+    async transfer({ to, lamports }) {
+      const tx = new Transaction().add(
+        SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
+      )
+      tx.recentBlockhash = svm.latestBlockhash()
+      tx.feePayer = keypair.publicKey
+      tx.sign(keypair)
       const res = svm.sendTransaction(tx)
       if (res instanceof FailedTransactionMetadata) {
         throw new Error(`${res.err().toString()}\n${res.meta().logs().join('\n')}`)

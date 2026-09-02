@@ -138,5 +138,12 @@ export interface JobPayload {
    * the user was actually promised and config may have moved since.
    */
   'gas-seed': GasSeedClaimJob
+  /**
+   * #53b: read every gas-seed hot wallet and alert on the ones running low.
+   * Tick id only, like the other repeatables — the handler derives its work
+   * list from the `chains` rows, because a chain that stopped carrying a seed
+   * between two ticks has no wallet to warn about.
+   */
+  'gas-seed-balance-check': { tick_id: string }
 }
 

@@ -34,7 +34,7 @@ import {
   inAppPartyIds,
 } from '@server/features/alerts/channels/in-app/copy'
 import { inAppAlertChannel } from '@server/features/alerts/channels/in-app'
-import { disputeRaisedAlert } from '../helpers/alert-fixtures'
+import { disputeRaisedAlert, gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { testChannelContract } from '../helpers/alert-channel-contract'
 
 const CREATOR_ID = randomUUID()
@@ -61,6 +61,7 @@ function disputeAlert(
 /** One alert per kind, keyed so the COMPILER forces an entry for a new kind. */
 const ALERT_FIXTURES: { [K in AlertKind]: AlertOf<K> } = {
   'dispute.raised': disputeAlert(),
+  'gas-seed.low-balance': gasSeedLowBalanceAlert(),
 }
 
 function notice(over: Partial<AlertOf<'dispute.raised'>> = {}) {
@@ -71,7 +72,14 @@ function notice(over: Partial<AlertOf<'dispute.raised'>> = {}) {
 
 // ---------- which kinds the channel accepts -------------------------------
 
-const DELIBERATELY_NOT_IN_APP: Partial<Record<AlertKind, string>> = {}
+const DELIBERATELY_NOT_IN_APP: Partial<Record<AlertKind, string>> = {
+  // The bell is the DISPUTE ROSTER's feed: this channel pages mediators, and it
+  // routes every notice to an escrow. A drained hot wallet is neither — no
+  // mediator can top it up, there is no escrow to open, and the remedy is an
+  // operator with the funding key. Paging the roster would train them to
+  // dismiss a notice they cannot act on, which costs the alerts they can.
+  'gas-seed.low-balance': 'an operator/funding concern, not a mediator one — Slack carries it',
+}
 
 // The per-channel properties from the shared contract — kind coverage, the
 // derived-kinds agreement, and reachability through the registry — so a third

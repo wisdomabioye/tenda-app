@@ -19,6 +19,10 @@ import { ALERT_KINDS } from '../../types'
 import type { AlertKind, AlertOf } from '../../types'
 import type { SlackMessage } from '@server/lib/slack'
 import { disputeRaisedMessage, disputeRaisedPartyIds } from './kinds/dispute-raised'
+import {
+  gasSeedLowBalanceMessage,
+  gasSeedLowBalancePartyIds,
+} from './kinds/gas-seed-low-balance'
 
 /**
  * Everything the channel needs for one kind: whose names to load, and what to
@@ -45,6 +49,12 @@ const SLACK_COPY: { [K in AlertKind]?: SlackAlertCopy<K> } = {
   'dispute.raised': {
     partyIds: disputeRaisedPartyIds,
     build: disputeRaisedMessage,
+  },
+  // Slack ONLY. This is an operations fact — see the kind's own header for why
+  // the admin bell is the wrong place for it.
+  'gas-seed.low-balance': {
+    partyIds: gasSeedLowBalancePartyIds,
+    build: gasSeedLowBalanceMessage,
   },
 }
 

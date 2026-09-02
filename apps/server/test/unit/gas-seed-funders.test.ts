@@ -18,9 +18,12 @@ import {
   buildGasSeedFunders,
   buildGasSeedSenders,
   cachedFunders,
+  gasSeedFunders,
   gasSeedJobId,
+  resetGasSeedFunderCache,
   type GasSeedFunder,
 } from '@server/features/gas-seed'
+import { seededChainBalance } from '@server/features/alerts'
 import { evmGasSeedFunder } from '@server/features/gas-seed/senders/evm'
 import { solanaGasSeedFunder } from '@server/features/gas-seed/senders/solana'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
@@ -198,6 +201,47 @@ test('each chain caches independently', () => {
 test('caching preserves the address, which is local and never stale', () => {
   const { funder } = countingFunder([1n])
   assert.strictEqual(cachedFunders(new Map([['c', funder]])).get('c')?.address, '0xfunder')
+})
+
+// ---------- ONE map for the process, and for BOTH readers -------------------------
+
+test('gasSeedFunders returns the SAME map every call', () => {
+  // The cache is only a cache if the map survives the call. An earlier version
+  // of the claim deps rebuilt it per request, so the 30s balance window never
+  // once hit and every availability poll paid its RPC round trip — a defect no
+  // test of `cachedFunders` itself can see, because it exercises the wrapper
+  // rather than the call site.
+  resetGasSeedFunderCache()
+  const first = gasSeedFunders()
+  assert.strictEqual(gasSeedFunders(), first)
+  assert.strictEqual(gasSeedFunders(), first)
+})
+
+test('resetting the cache is what makes a second map possible', () => {
+  // Pins that the identity above comes from the CACHE and not from
+  // `buildGasSeedFunders` happening to return something shared. Without this,
+  // a rewrite that memoised at the wrong level would pass the test above.
+  resetGasSeedFunderCache()
+  const first = gasSeedFunders()
+  resetGasSeedFunderCache()
+  assert.notStrictEqual(gasSeedFunders(), first)
+})
+
+test('the ALERT monitor reads the same map the claim surface does', () => {
+  // #53b's hot-wallet monitor and the availability endpoint report on the same
+  // wallets. Two maps would mean two sets of RPC clients and two TTLs, so the
+  // two surfaces could state different balances for one wallet at one moment —
+  // which is precisely the disagreement the alert exists to report on.
+  //
+  // Asserted through BEHAVIOUR rather than by inspecting an import: a chain with
+  // no configured seed key is absent from the shared map, and the reader must
+  // answer null (unreadable) rather than 0n (an alarming reading) for it.
+  resetGasSeedFunderCache()
+  const absent = 'eip155:999999'
+  assert.strictEqual(gasSeedFunders().has(absent), false)
+  return seededChainBalance(absent).then((balance) => {
+    assert.strictEqual(balance, null)
+  })
 })
 
 // ---------- the queue's dedup key ------------------------------------------------

@@ -91,6 +91,15 @@ const REF_BY_KIND: { [K in AlertKind]: AlertRefOf<K> } = {
     // is what keeps the three-part id at three parts.
     tx_ref: '5xj4nQ4abcDEF',
   },
+  'gas-seed.low-balance': {
+    kind: 'gas-seed.low-balance',
+    // A CAIP-2 id, which CARRIES A COLON of its own — the case that makes this
+    // kind's REF_KEY strip them. Spelled here as the real thing rather than a
+    // colon-free stand-in: a fixture like 'galileo' would pass this test while
+    // production ids were rejected at enqueue, inside a guarded catch, as a
+    // generic warn.
+    chain_id: 'eip155:16602',
+  },
 }
 
 test('alertJobId produces ids BullMQ accepts, for every kind x channel', () => {

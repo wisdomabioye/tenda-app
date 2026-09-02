@@ -33,7 +33,22 @@
  *      it fails the type check;
  *   4. delete the `GAS_SEED_SUPPORT` import in `db/seed/rows.ts` and let the
  *      gas columns seed NULL;
- *   5. optionally delete `packages/shared/src/db/schema/gas-seed.ts` (both
+ *   5. delete the seed's ALERT — `features/alerts/kinds/gas-seed-low-balance.ts`,
+ *      `kinds/gas-seed-balance-reader.ts`, `monitors/gas-seed-balance.ts`, the
+ *      `channels/slack/kinds/gas-seed-low-balance.ts` copy and their registry
+ *      entries, plus that monitor's own FOUR queue lines for
+ *      `'gas-seed-balance-check'` — the payload, the WORKER_CONCURRENCY entry,
+ *      the processor, and (unlike the claim queue, which is event-driven) a
+ *      REPEATABLES entry, because the monitor is scheduled. Miss the last one
+ *      and `test/unit/worker-schedule.test.ts` fails, which is the point of it.
+ *      It lives under features/alerts rather than
+ *      here ON PURPOSE, so the dependency between the two features runs ONE
+ *      way: alerts reads this barrel (from ONE file,
+ *      `features/alerts/kinds/gas-seed-balance-reader.ts`, which is the whole
+ *      of the seam), and nothing here reads alerts. The other arrangement
+ *      closes the loop and costs both features their recipe — the price is
+ *      this line;
+ *   6. optionally delete `packages/shared/src/db/schema/gas-seed.ts` (both
  *      tables live there, and only there) plus the two gas columns on `chains`,
  *      in a generated migration. NOT required — an unread table costs nothing,
  *      and the grant history is worth keeping even after the feature stops.
@@ -73,13 +88,20 @@ export {
 } from './senders'
 
 /**
- * Namespace-specific, but public on purpose: `scripts/verify-gas-seed.ts`
- * derives the funder from the configured secret to check it against what the
- * seeder recorded. Exported HERE rather than imported from `senders/solana`
- * directly, so the removal recipe above stays a directory delete plus known
- * lines — a reach past this barrel is the thing that would break it.
+ * `gasSeedAddressFromSecret` USED to be re-exported here, for
+ * `scripts/verify-gas-seed.ts` — which derived the funder from the configured
+ * secret to check it against what the seeder recorded. #53b removed that need:
+ * the audit reads each grant's OWN `funder_address`, falling back to the
+ * chain's recorded `gas_seed_wallet_address`, because checking history against
+ * the currently configured key flags every grant an older key paid. Nothing in
+ * `src/` reaches for it any more (the module-boundary guard is what noticed),
+ * so it is gone from this surface rather than left as a barrel entry whose
+ * justification no longer holds. It is still used INSIDE the feature, by
+ * `senders/index.ts`, and by seed-v2-gas-seed.test.ts against the module.
+ *
+ * `SolanaGasSeedPort` stays: the LiteSVM helper implements it (#53b item 5).
  */
-export { gasSeedAddressFromSecret } from './senders/solana'
+export type { SolanaGasSeedPort } from './senders/solana'
 
 // ---------- the claim surface (#53c-1) ------------------------------------------
 
@@ -113,6 +135,7 @@ export {
   buildGasSeedClaimDeps,
   buildGasSeedJobDeps,
   cachedFunders,
+  gasSeedFunders,
   gasSeedJobId,
   resetGasSeedFunderCache,
   type GasSeedClaimHost,

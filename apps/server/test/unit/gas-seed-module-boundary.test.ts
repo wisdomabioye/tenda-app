@@ -71,8 +71,13 @@ test('the feature is reached from exactly the places the removal recipe names', 
     'workers/processors.ts',
     // 4. the seeder's funder derivation
     'db/seed/rows.ts',
-    // the audit script, which the barrel exports gasSeedAddressFromSecret for
-    'scripts/verify-gas-seed.ts',
+    // 5. the hot-wallet monitor's balance reader (#53b). ONE file, and that is
+    //    the point: features/alerts owns the seed's low-balance alert, so the
+    //    dependency runs one way and this is the whole of the seam. The audit
+    //    script USED to be on this list; it now reads the funder from the
+    //    chains row instead of deriving it from the secret, so it no longer
+    //    touches the feature at all.
+    'features/alerts/kinds/gas-seed-balance-reader.ts',
   ]
   const actual = tsFilesUnder(SRC)
     .filter((file) => !file.startsWith(FEATURE_DIR))

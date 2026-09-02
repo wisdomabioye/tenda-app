@@ -117,6 +117,21 @@ export function resetGasSeedFunderCache(): void {
 }
 
 /**
+ * The process-wide funder map — the ONLY way to get one.
+ *
+ * Exported because the claim surface is no longer the only reader: #53b's
+ * hot-wallet monitor reads the same balances every 15 minutes, and building its
+ * own map would mean a second set of RPC clients per chain and a second
+ * balance-cache TTL. Two caches for one fact is how the availability endpoint
+ * and the monitor come to disagree about what a wallet holds — which is exactly
+ * the disagreement the alert would be reporting on.
+ */
+export function gasSeedFunders(): ReadonlyMap<string, GasSeedFunder> {
+  funderCache ??= cachedFunders(buildGasSeedFunders(getChainSecrets()))
+  return funderCache
+}
+
+/**
  * The queue's de-duplication key for one claim.
  *
  * Derived from the grant's PRIMARY KEY, so two jobs for the same (user, chain)
@@ -134,11 +149,10 @@ export function gasSeedJobId(job: GasSeedClaimJob): string {
 }
 
 export function buildGasSeedClaimDeps(host: GasSeedClaimHost): GasSeedClaimDeps {
-  funderCache ??= cachedFunders(buildGasSeedFunders(getChainSecrets()))
   return {
     seed: drizzleGasSeedStore(host.db),
     claim: drizzleGasSeedClaimStore(host.db),
-    funders: funderCache,
+    funders: gasSeedFunders(),
     // No Redis means no worker, and a claim whose transfer nothing will run is
     // worse than a refused one — see `GasSeedClaimDeps.enqueue`.
     enqueue:

@@ -43,7 +43,20 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     // Optional: enables the admin sign pre-flight check when set.
     { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'base58' },
     { key: 'usdcMint', envSuffix: 'USDC_MINT', required: false, kind: 'base58' },
-    { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'str' },
+    /**
+     * `base58Key`, matching `relayerKey` below — NOT the `str` it was (#53b).
+     *
+     * `str` asked only for a non-empty value, so a malformed key passed boot and
+     * threw far away, inside `Keypair.fromSecretKey`. That used to be contained:
+     * the auto-send trigger built its senders inside a promise chain so a wallet
+     * link could not 500 on it. #53c-2 deleted that path, and the construction
+     * now happens inside a CLAIM request — where the same throw is a 500 on a
+     * user pressing a button, rather than a boot error naming the variable.
+     *
+     * The two Solana secrets are the same shape (a base58 64-byte secret), so
+     * validating one and not the other was never a decision, only an omission.
+     */
+    { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'base58Key' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
     // Relayer hot wallet for agent funding (#18): fee payer of relayed
     // creates. base58 64-byte secret (the shape GAS_SEED_KEY has, checked

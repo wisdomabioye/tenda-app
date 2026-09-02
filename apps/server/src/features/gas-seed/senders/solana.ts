@@ -53,6 +53,46 @@ export function solanaGasSeedFunder(args: {
   }
 }
 
+/**
+ * The one chain operation the Solana seed needs, as a port — the same seam
+ * `evmGasSeedSenderFromPort` uses, and for the same reason.
+ *
+ * Without it the whole body of `send` was unreachable from a test: it builds a
+ * `Connection` from an RPC URL and calls `sendAndConfirmTransaction`, so
+ * proving that it moves lamports needed a live cluster. Its EVM twin sat at
+ * 100% while this sat at 66% of its functions — the transfer that actually
+ * pays a user was the untested part.
+ *
+ * Behind the port sits web3.js on a real cluster; in the suite sits LiteSVM
+ * running the same runtime, so "the lamports arrived" is proved rather than
+ * assumed.
+ */
+export interface SolanaGasSeedPort {
+  /** Move `lamports` from the hot wallet to `to`, confirmed. Returns the signature. */
+  transfer(args: { to: PublicKey; lamports: bigint }): Promise<string>
+}
+
+/**
+ * The sender's DECISIONS, over any port: parse the destination, convert the
+ * amount, hand back the signature as the tx_ref.
+ *
+ * `new PublicKey(to_address)` is the guard worth naming — a malformed address
+ * throws HERE, named, rather than inside web3.js several frames down, and the
+ * caller (`dispatchGasSeeds`, or the claim job) releases the slot on that throw
+ * so the user is not marked seeded for a transfer that never happened.
+ */
+export function solanaGasSeedSenderFromPort(port: SolanaGasSeedPort): GasSeedSender {
+  return {
+    async send({ to_address, amount_raw }) {
+      const tx_ref = await port.transfer({
+        to: new PublicKey(to_address),
+        lamports: BigInt(amount_raw),
+      })
+      return { tx_ref }
+    },
+  }
+}
+
 export function solanaGasSeedSender(args: {
   rpc_url: string
   chain_id: ChainId
@@ -63,19 +103,15 @@ export function solanaGasSeedSender(args: {
   const connection = new Connection(args.rpc_url, commitment)
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
 
-  return {
-    async send({ to_address, amount_raw }) {
+  return solanaGasSeedSenderFromPort({
+    async transfer({ to, lamports }) {
       const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: keypair.publicKey,
-          toPubkey: new PublicKey(to_address),
-          lamports: BigInt(amount_raw),
-        }),
+        SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
       )
-      const tx_ref = await sendAndConfirmTransaction(connection, tx, [keypair], {
-        commitment,
-      })
-      return { tx_ref }
+      // `sendAndConfirmTransaction` CONFIRMS, unlike viem's `sendTransaction` —
+      // which is why the EVM twin has to wait for a receipt explicitly and this
+      // does not. Both return only once the transfer is on-chain.
+      return sendAndConfirmTransaction(connection, tx, [keypair], { commitment })
     },
-  }
+  })
 }

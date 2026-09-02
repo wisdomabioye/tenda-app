@@ -26,7 +26,18 @@ function sysTransfer(source: string, destination: string, lamports: number | str
 }
 
 function grant(overrides: Partial<GrantRow> = {}): GrantRow {
-  return { user_id: 'u1', amount_raw: '7000000', tx_ref: 'sig-abc', granted_at: new Date(), ...overrides }
+  return {
+    user_id: 'u1',
+    chain_id: 'solana:devnet',
+    amount_raw: '7000000',
+    tx_ref: 'sig-abc',
+    // Null by default: the audit then falls back to the chain's CURRENT funder,
+    // which is how every grant written before #53c-1 added the column reads.
+    funder_address: null,
+    wallet_address: null,
+    granted_at: new Date(),
+    ...overrides,
+  }
 }
 
 const fetcherReturning = (view: ParsedTxView | null): FetchParsedTx => () => Promise.resolve(view)
@@ -116,7 +127,7 @@ test('checkGrant: wrong funder → fails', async () => {
   const view = okView([sysTransfer(OTHER, WALLET, 7000000)])
   const r = await checkGrant(fetcherReturning(view), grant(), FUNDER, walletsAlways([WALLET]))
   assert.strictEqual(r.ok, false)
-  assert.match(r.detail, /not the configured seed wallet/)
+  assert.match(r.detail, /not the recorded seed wallet/)
 })
 
 test('checkGrant: wrong amount → fails', async () => {

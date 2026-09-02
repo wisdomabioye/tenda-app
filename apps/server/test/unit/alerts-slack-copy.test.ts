@@ -37,7 +37,7 @@ import { RAISED_BY_PREFIX } from '@server/features/alerts/channels/slack/kinds/d
 import { SLACK_TEXT_MAX, slackEnvKey } from '@server/lib/slack'
 import type { SlackMessage } from '@server/lib/slack'
 import { ADMIN_DASHBOARD_URL_ENV } from '@server/config'
-import { disputeRaisedAlert } from '../helpers/alert-fixtures'
+import { disputeRaisedAlert, gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { testChannelContract } from '../helpers/alert-channel-contract'
 
 // ---------- fixtures -----------------------------------------------------
@@ -80,6 +80,7 @@ function disputeAlert(
  */
 const ALERT_FIXTURES: { [K in AlertKind]: AlertOf<K> } = {
   'dispute.raised': disputeAlert(),
+  'gas-seed.low-balance': gasSeedLowBalanceAlert(),
 }
 
 // ---------- reading a message ---------------------------------------------

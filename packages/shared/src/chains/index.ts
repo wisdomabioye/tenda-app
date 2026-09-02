@@ -21,6 +21,9 @@ export {
   evmManifestEntries,
   firstEvmChainIdByKind,
   CHAIN_NAMESPACE_LABEL,
+  OBSERVED_GAS_PRICE_WEI,
+  GAS_SEED_LIFECYCLE_MULTIPLE,
+  GAS_SEED_LOW_BALANCE_GRANTS,
 } from './manifest-queries'
 export {
   CHAIN_FALLBACK_GLYPH,

@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import bs58 from 'bs58'
+import { Keypair } from '@solana/web3.js'
 import {
   loadChainSecrets,
   chainEnvPrefix,
@@ -12,6 +14,7 @@ import {
 // Verified, well-formed sample values per namespace (real-shape, not the live
 // deployment's secrets). base58 = a 44-char Solana pubkey; evmAddr = 0x+40hex.
 const SOL_PUBKEY = '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
+const SOL_SECRET_KEY = bs58.encode(Keypair.generate().secretKey)
 const EVM_ADDR = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const RPC = 'https://api.devnet.solana.com'
 const EVM_RPC = 'https://base-sepolia.example/v2/key'
@@ -73,13 +76,16 @@ test('optional fields are captured when present', () => {
   const env = {
     ...solanaDevnetEnv(),
     CHAIN_SOLANA_DEVNET_USDC_MINT: SOL_PUBKEY,
-    CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: 'someBase58SecretKeyValue',
+    // A REAL base58 64-byte secret: the kind was tightened from `str` to
+    // `base58Key` (#53b), so a placeholder is now a boot error — which is the
+    // whole point of the change.
+    CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: SOL_SECRET_KEY,
     CHAIN_SOLANA_DEVNET_WEBHOOK_SECRET: 'whsec_abc',
   }
   const sol = loadChainSecrets(env).get('solana:devnet')
   assert.ok(sol && sol.namespace === 'solana')
   assert.equal(sol.usdcMint, SOL_PUBKEY)
-  assert.equal(sol.gasSeedKey, 'someBase58SecretKeyValue')
+  assert.equal(sol.gasSeedKey, SOL_SECRET_KEY)
   assert.equal(sol.webhookSecret, 'whsec_abc')
 })
 
