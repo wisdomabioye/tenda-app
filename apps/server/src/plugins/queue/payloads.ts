@@ -27,6 +27,10 @@ import type { OtpMessage } from '@server/lib/otp'
 // run through the file containing the plugin body, and now runs through a file
 // whose emitted JS is empty.
 import type { AlertJob } from '@server/features/alerts'
+// Type-only, like the two above. The gas seed is a removable feature
+// (features/gas-seed/index.ts carries the recipe) and this is one of the three
+// lines that removal deletes.
+import type { GasSeedClaimJob } from '@server/features/gas-seed'
 
 /**
  * Every queue this app runs — DERIVED from `JobPayload`, never hand-listed.
@@ -127,5 +131,12 @@ export interface JobPayload {
    * fan-out is per channel rather than one job that loops them.
    */
   alerts: AlertJob
+  /**
+   * #53c-1: pay one gas seed a user CLAIMED. Carries the pair that identifies
+   * the grant and nothing else — the amount and the destination wallet are read
+   * from the `gas_grants` row inside the handler, because the row records what
+   * the user was actually promised and config may have moved since.
+   */
+  'gas-seed': GasSeedClaimJob
 }
 

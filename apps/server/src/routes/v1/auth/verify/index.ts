@@ -14,7 +14,7 @@ import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors
 import { isAuthMethod, type VerifyProof } from '@server/lib/auth/strategy'
 import { buildAuthStrategies } from '@server/lib/auth/registry'
 import { resolveOrLink, type UserBootstrap } from '@server/lib/auth/orchestrator'
-import { mintAuthResponse } from '@server/lib/auth/session'
+import { mintAuthResponse, sessionClientFromHeaders } from '@server/lib/auth/session'
 import { fireRetroactiveGasSeed } from '@server/features/gas-seed'
 
 interface Body {
@@ -93,7 +93,10 @@ const route: FastifyPluginAsync = async (fastify) => {
       // signups), so firing is safe.
       if (body.method === 'phone') fireRetroactiveGasSeed(fastify, user.id)
 
-      return { ...mintAuthResponse(fastify, user), is_new: isNew }
+      return {
+        ...mintAuthResponse(fastify, user, sessionClientFromHeaders(request.headers)),
+        is_new: isNew,
+      }
     },
   )
 }

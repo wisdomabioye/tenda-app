@@ -27,7 +27,7 @@ import * as assert from 'node:assert'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseEther } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { evmGasSeedSender } from '@server/features/gas-seed/senders/evm'
+import { evmGasSeedFunder, evmGasSeedSender } from '@server/features/gas-seed/senders/evm'
 import {
   dispatchGasSeeds,
   type GasSeedSender,
@@ -178,4 +178,27 @@ test('end to end: dispatchGasSeeds stamps the grant with the REAL on-chain tx', 
   const receipt = await fx.pub.getTransactionReceipt({ hash: stamped as `0x${string}` })
   assert.strictEqual(receipt.status, 'success')
   assert.strictEqual(await fx.pub.getBalance({ address: recipient }), BigInt(SEED_AMOUNT))
+})
+
+test('the funder reports the hot wallet\'s real balance, from the same key', { skip }, async () => {
+  // The availability read refuses a claim the hot wallet cannot cover, and this
+  // is the number that decision rests on. A unit fake proves the comparison;
+  // only a node proves the READ — that `balance()` asks the right chain about
+  // the right address and answers in the base units the amount is denominated
+  // in (wei here, not ether).
+  //
+  // Runs last, after the funding transfer above, so the balance is a real
+  // non-zero value rather than the zero every fresh account reports.
+  const funder = evmGasSeedFunder({
+    rpc_url: fx.rpc_url,
+    chain_id: ANVIL_CHAIN_ID,
+    private_key: seedKey,
+  })
+
+  assert.strictEqual(funder.address, seedAddress, 'the funder named a different wallet than it reads')
+  const observed = await funder.balance()
+  assert.strictEqual(observed, await fx.pub.getBalance({ address: seedAddress }))
+  // Funded with 1 ether and drained by three seeds plus gas — still well above
+  // a single grant, which is the comparison availability actually makes.
+  assert.ok(observed > BigInt(SEED_AMOUNT), `funder balance ${observed} cannot cover a grant`)
 })

@@ -24,6 +24,7 @@ import { getAddress, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { chainById } from '@tenda/shared'
 import type { GasSeedSender } from '../dispatch'
+import type { GasSeedFunder } from './index'
 import { evmHotWallet } from '@server/chains/evm/hot-wallet'
 
 /**
@@ -89,6 +90,30 @@ export function evmGasSeedSenderFromPort(port: EvmGasSeedPort): GasSeedSender {
       }
       return { tx_ref: hash }
     },
+  }
+}
+
+/**
+ * The paying wallet, as the claim surface needs it: who it is, and whether it
+ * can still cover a grant.
+ *
+ * Separate from `GasSeedSender` rather than bolted onto it (interface
+ * segregation, and it keeps #53a's fakes valid): dispatch only ever sends, and
+ * the availability read only ever looks. A sender forced to answer `balance()`
+ * would make every test double implement an RPC call it never uses.
+ */
+export function evmGasSeedFunder(args: {
+  rpc_url: string
+  chain_id: string
+  private_key: `0x${string}`
+}): GasSeedFunder {
+  const { reader } = evmHotWallet(args)
+  const address = evmGasSeedAddressFromKey(args.private_key)
+  return {
+    address,
+    // `getAddress` on a value privateKeyToAccount already checksummed would be
+    // redundant; viem returns the canonical form from the key itself.
+    balance: () => reader.getBalance({ address: address as `0x${string}` }),
   }
 }
 

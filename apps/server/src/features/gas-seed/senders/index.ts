@@ -22,18 +22,49 @@ import type { GasSeedSender } from '../dispatch'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import {
   gasSeedAddressFromSecret,
+  solanaGasSeedFunder,
   solanaGasSeedSender,
 } from './solana'
 import {
   evmGasSeedAddressFromKey,
+  evmGasSeedFunder,
   evmGasSeedSender,
 } from './evm'
 
+/**
+ * The hot wallet that pays a chain's seeds, as the CLAIM surface needs it
+ * (#53c-1): which address pays, and whether it can still cover a grant.
+ *
+ * Its own port rather than methods on `GasSeedSender`, because the two are used
+ * by different callers for different reasons — `dispatchGasSeeds` only sends,
+ * availability only looks — and widening the sender would force every test
+ * double in the feature to implement an RPC call it never calls.
+ *
+ * `address` is a value, not a promise: it is derived locally from the same
+ * secret the sender signs with, contacting nothing. That is what lets the job
+ * stamp `gas_grants.funder_address` without an extra round trip.
+ */
+export interface GasSeedFunder {
+  address: string
+  /** Native base units currently held. Lamports on Solana, wei on eip155. */
+  balance(): Promise<bigint>
+}
+
+/** What one namespace must supply for its chains to pay a seed. */
 interface GasSeedNamespaceSupport {
   /** The funder's public address, derived from the hot-wallet secret. */
   addressFromKey(key: string): string
   /** The sender that signs and broadcasts this chain's seed transfer. */
-  buildSender(args: { chain_id: string; rpc_url: string; key: string }): GasSeedSender
+  buildSender(args: GasSeedChainArgs): GasSeedSender
+  /** The same wallet, read-only: who pays, and what is left. */
+  buildFunder(args: GasSeedChainArgs): GasSeedFunder
+}
+
+/** Everything a namespace needs to reach one chain, from that chain's secret. */
+interface GasSeedChainArgs {
+  chain_id: string
+  rpc_url: string
+  key: string
 }
 
 /**
@@ -59,12 +90,35 @@ export const GAS_SEED_SUPPORT: Record<ChainNamespace, GasSeedNamespaceSupport> =
     addressFromKey: (key) => gasSeedAddressFromSecret(key),
     buildSender: ({ chain_id, rpc_url, key }) =>
       solanaGasSeedSender({ rpc_url, chain_id, secret_key_base58: key }),
+    buildFunder: ({ chain_id, rpc_url, key }) =>
+      solanaGasSeedFunder({ rpc_url, chain_id, secret_key_base58: key }),
   },
   eip155: {
     addressFromKey: (key) => evmGasSeedAddressFromKey(key as `0x${string}`),
     buildSender: ({ chain_id, rpc_url, key }) =>
       evmGasSeedSender({ rpc_url, chain_id, private_key: key as `0x${string}` }),
+    buildFunder: ({ chain_id, rpc_url, key }) =>
+      evmGasSeedFunder({ rpc_url, chain_id, private_key: key as `0x${string}` }),
   },
+}
+
+/**
+ * The chains that configured a seed key, with the arguments to reach them.
+ *
+ * Extracted because `buildGasSeedSenders` and `buildGasSeedFunders` walk the
+ * same secrets under the same rule ("a key is what makes a chain payable"), and
+ * two copies of that walk is how one of them ends up including a chain the
+ * other skips — a funder map with an entry the sender map lacks would report a
+ * seed as available and then refuse to pay it.
+ */
+function* seedableChainArgs(
+  secrets: ReadonlyMap<string, ResolvedChainSecret>,
+): Generator<{ secret: ResolvedChainSecret; args: GasSeedChainArgs }> {
+  for (const secret of secrets.values()) {
+    const key = secret.gasSeedKey
+    if (key === undefined) continue
+    yield { secret, args: { chain_id: secret.chainId, rpc_url: secret.rpcUrl, key } }
+  }
 }
 
 /**
@@ -87,17 +141,25 @@ export function buildGasSeedSenders(
   secrets: ReadonlyMap<string, ResolvedChainSecret>,
 ): ReadonlyMap<string, GasSeedSender> {
   const senders = new Map<string, GasSeedSender>()
-  for (const secret of secrets.values()) {
-    const key = secret.gasSeedKey
-    if (key === undefined) continue
-    senders.set(
-      secret.chainId,
-      GAS_SEED_SUPPORT[secret.namespace].buildSender({
-        chain_id: secret.chainId,
-        rpc_url: secret.rpcUrl,
-        key,
-      }),
-    )
+  for (const { secret, args } of seedableChainArgs(secrets)) {
+    senders.set(secret.chainId, GAS_SEED_SUPPORT[secret.namespace].buildSender(args))
   }
   return senders
+}
+
+/**
+ * One funder per ACTIVE chain that configured a seed key — the same key set as
+ * `buildGasSeedSenders`, by construction (see `seedableChainArgs`).
+ *
+ * A Map for the reason the sender map is one: chain ids are data, and a plain
+ * object answers `'constructor'` with an inherited function.
+ */
+export function buildGasSeedFunders(
+  secrets: ReadonlyMap<string, ResolvedChainSecret>,
+): ReadonlyMap<string, GasSeedFunder> {
+  const funders = new Map<string, GasSeedFunder>()
+  for (const { secret, args } of seedableChainArgs(secrets)) {
+    funders.set(secret.chainId, GAS_SEED_SUPPORT[secret.namespace].buildFunder(args))
+  }
+  return funders
 }

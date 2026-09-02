@@ -27,7 +27,7 @@
 
 import { and, eq } from 'drizzle-orm'
 import { chains } from '@tenda/shared/db/schema/chains'
-import { gas_grants } from '@tenda/shared/db/schema/identity'
+import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import type { AppDatabase } from '@server/plugins/db'
@@ -37,6 +37,28 @@ import type { AppDatabase } from '@server/plugins/db'
 export interface GasSeedSender {
   /** Transfer `amount_raw` native units to `address`; returns the tx_ref. */
   send(args: { to_address: string; amount_raw: string }): Promise<{ tx_ref: string }>
+}
+
+/**
+ * The prefix a CLAIMED-but-unfinished grant's tx_ref carries.
+ *
+ * One definition, because three things read it: the claim slot is written with
+ * it here, the claim surface derives `in_progress` from it
+ * (claim/eligibility.ts), and `scripts/verify-gas-seed.ts` reports a row still
+ * carrying it as "claimed but never finalized". A second literal anywhere is
+ * how one of those three starts disagreeing about what a finished grant is.
+ */
+export const PENDING_TX_REF_PREFIX = 'pending:'
+
+/**
+ * The placeholder tx_ref for a claimed slot.
+ *
+ * Derived from the PRIMARY KEY, because `tx_ref` carries its own UNIQUE
+ * constraint: a constant placeholder would let one user's claim collide with
+ * another's and fail the insert as though the slot were already taken.
+ */
+export function pendingTxRef(user_id: string, chain_id: string): string {
+  return `${PENDING_TX_REF_PREFIX}${user_id}:${chain_id}`
 }
 
 // ---------- store abstraction ---------------------------------------------------
@@ -64,6 +86,15 @@ export interface GasSeedStore {
     chain_id: string
     amount_raw: string
     tx_ref: string
+    /**
+     * Which wallet is being paid, and which hot wallet pays — both OPTIONAL,
+     * and that is deliberate rather than lazy. The claim path (#53c-1) knows
+     * both at claim time and records them; this auto-send path does not record
+     * the funder, and is removed with #53c-2 rather than grown. Optional also
+     * keeps every existing test double for this store valid.
+     */
+    wallet_address?: string
+    funder_address?: string
   }): Promise<boolean>
   /** Stamp the real tx_ref after the transfer lands. */
   finalizeGrant(user_id: string, chain_id: string, tx_ref: string): Promise<void>
@@ -171,14 +202,14 @@ export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Prom
       continue
     }
 
-    // Claim first: the placeholder tx_ref must be unique per slot (tx_ref
-    // has a UNIQUE constraint), derive it from the PK.
-    const placeholder = `pending:${user_id}:${chain.chain_id}`
+    // Claim first — see `pendingTxRef` for why the placeholder is derived from
+    // the primary key rather than being a constant.
     const claimed = await deps.store.claimGrant({
       user_id,
       chain_id: chain.chain_id,
       amount_raw: chain.gas_seed_amount_raw,
-      tx_ref: placeholder,
+      tx_ref: pendingTxRef(user_id, chain.chain_id),
+      wallet_address: address,
     })
     if (!claimed) {
       result.skipped.push({ chain_id: chain.chain_id, reason: 'already granted' })

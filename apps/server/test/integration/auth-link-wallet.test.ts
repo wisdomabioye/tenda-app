@@ -12,7 +12,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
-import { gas_grants, user_identities, user_wallets } from '@tenda/shared/db/schema/identity'
+import { user_identities, user_wallets } from '@tenda/shared/db/schema/identity'
+import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
 import { walletFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,

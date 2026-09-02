@@ -17,6 +17,7 @@ import {
 } from '@solana/web3.js'
 import bs58 from 'bs58'
 import type { GasSeedSender } from '../dispatch'
+import type { GasSeedFunder } from './index'
 import { commitmentFor } from '@server/chains/solana/rpc'
 import type { ChainId } from '@server/chains/types'
 
@@ -28,6 +29,28 @@ import type { ChainId } from '@server/chains/types'
  */
 export function gasSeedAddressFromSecret(secret_key_base58: string): string {
   return Keypair.fromSecretKey(bs58.decode(secret_key_base58)).publicKey.toBase58()
+}
+
+/**
+ * The paying wallet on Solana — see `evmGasSeedFunder` for why this is a port
+ * of its own rather than a method on the sender.
+ *
+ * `getBalance` answers in lamports, which is already the base unit the grant's
+ * `amount_raw` is denominated in, so no scaling happens here (and must not:
+ * scaling in one namespace and not the other is exactly how a seed of the
+ * wrong magnitude gets sent).
+ */
+export function solanaGasSeedFunder(args: {
+  rpc_url: string
+  chain_id: ChainId
+  secret_key_base58: string
+}): GasSeedFunder {
+  const connection = new Connection(args.rpc_url, commitmentFor(args.chain_id))
+  const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
+  return {
+    address: keypair.publicKey.toBase58(),
+    balance: async () => BigInt(await connection.getBalance(keypair.publicKey)),
+  }
 }
 
 export function solanaGasSeedSender(args: {

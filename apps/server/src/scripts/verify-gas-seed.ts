@@ -26,7 +26,8 @@ import {
   type PartiallyDecodedInstruction,
 } from '@solana/web3.js'
 import { chains } from '@tenda/shared/db/schema/chains'
-import { gas_grants, user_wallets } from '@tenda/shared/db/schema/identity'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
 import { loadConfig } from '@server/config'
 import { getChainSecrets, solanaSecret } from '@server/chains/secrets'
 import { commitmentFor } from '@server/chains/solana/rpc'

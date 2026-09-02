@@ -267,6 +267,13 @@
       "when": 1788097967180,
       "tag": "0037_natural_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788305168910,
+      "tag": "0038_hard_orphan",
+      "breakpoints": true
     }
   ]
 }

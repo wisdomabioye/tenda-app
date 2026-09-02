@@ -59,6 +59,15 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   // so it parallelises. Lower than notifications because the volume is orders
   // of magnitude smaller: one dispute, not one per subscriber.
   alerts: 4,
+  // ONE. Claims cluster — a push, a launch, a tweet — and every send on a chain
+  // is signed by the SAME hot wallet, so two in flight race for one nonce and
+  // the loser's broadcast is refused. Auto-send (#53a) could leave this
+  // unserialised because signups arrive spread out; claims do not.
+  //
+  // One worker for the queue rather than one per chain: BullMQ concurrency is
+  // per queue, and the seed is rare enough that serialising ACROSS chains costs
+  // nothing worth a queue per chain.
+  'gas-seed': 1,
 }
 
 interface RepeatableSpec<N extends JobName> {

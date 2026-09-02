@@ -28,6 +28,7 @@ import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 import { deliverAlert } from '@server/features/alerts'
+import { buildGasSeedJobDeps, handleGasSeedClaim } from '@server/features/gas-seed'
 import { buildOtpSenders } from '@server/lib/onboarding-deps'
 import { deliverOtp } from '@server/lib/otp'
 import {
@@ -239,5 +240,11 @@ export function buildProcessors(
         { db: fastify.db, queue: fastify.queue, log: fastify.log, env: process.env },
         payload,
       ),
+
+    // The transfer half of a claimed gas seed (#53c-1). A thin binding, and one
+    // of the three lines that removing the feature deletes — the handler owns
+    // every decision about releasing or holding the claim, so a try/catch here
+    // would override the one place that knows which failures are safe to retry.
+    'gas-seed': (payload) => handleGasSeedClaim(buildGasSeedJobDeps(fastify), payload),
   }
 }

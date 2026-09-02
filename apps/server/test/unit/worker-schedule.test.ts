@@ -31,6 +31,10 @@ const EVENT_DRIVEN: Partial<Record<JobName, string>> = {
   alerts: 'enqueued by the escrow fan-out when a dispute is raised on-chain',
   'fanout-subscribers':
     'enqueued by the escrow fan-out on escrow.created, one job per new gig',
+  // Demand-driven by definition (#53c-1): a user asks for their gas seed and
+  // the endpoint enqueues the transfer. Scheduling it would be the automatic
+  // send this feature exists to replace.
+  'gas-seed': 'enqueued by POST /v1/wallet/gas-seed when a user claims their seed',
 }
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {

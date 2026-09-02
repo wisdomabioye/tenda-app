@@ -7,7 +7,7 @@
  * re-exports everything here, so no call site changed.
  */
 
-import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull, or, sql } from 'drizzle-orm'
 import { user_identities, user_wallets, users } from '@tenda/shared/db/schema'
 import type { ChainNamespace } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -21,6 +21,25 @@ import type { AppDatabase } from '@server/plugins/db'
  * will bake (`escrows.assigned_counterparty_address`): two copies of this
  * query is how the recorded wallet and the baked wallet would drift apart.
  * Null when the user has no wallet on the namespace.
+ *
+ * FULLY ORDERED, and it was not (#53c-1). `is_primary DESC` alone leaves ties
+ * unbroken, and ties are the COMMON case rather than an exotic one: the partial
+ * unique index allows one primary per USER across every namespace, so a user
+ * whose primary is a Solana wallet has NO primary on eip155 at all. With two
+ * EVM wallets linked, the row this returned was whatever Postgres happened to
+ * scan first — free to differ between two calls, which is how the wallet an
+ * escrow RECORDS and the wallet its transaction BAKES come apart, and how a gas
+ * seed funds a wallet the user never signs with (the grant's (user_id,
+ * chain_id) key then makes that the only seed they ever get).
+ *
+ * The tiebreak is FIRST LINKED, then address: the oldest verified wallet on the
+ * chain is the one a returning user is most likely to still hold, and the
+ * address is a total order that settles the remaining tie of two wallets
+ * verified in the same transaction — a millisecond timestamp is not unique
+ * enough to be a sort key on its own.
+ *
+ * `verified_at` is NOT NULL (it defaults to now() on link), so no row sorts
+ * ahead of the others by being null.
  */
 export async function resolvePrimaryWalletAddress(
   db: AppDatabase,
@@ -31,7 +50,7 @@ export async function resolvePrimaryWalletAddress(
     .select({ address: user_wallets.address })
     .from(user_wallets)
     .where(and(eq(user_wallets.user_id, userId), eq(user_wallets.chain_ns, chainNs)))
-    .orderBy(desc(user_wallets.is_primary))
+    .orderBy(desc(user_wallets.is_primary), asc(user_wallets.verified_at), asc(user_wallets.address))
     .limit(1)
   return rows[0]?.address ?? null
 }

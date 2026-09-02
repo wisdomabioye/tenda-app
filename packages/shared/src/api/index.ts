@@ -97,6 +97,13 @@ export type {
   ModerationReason,
   ModerationPreviewBody,
   ModerationPreviewResponse,
+  WalletContract,
+  GasSeedState,
+  GasSeedUnavailableReason,
+  GasSeedAvailability,
+  GasSeedAvailabilityResponse,
+  GasSeedClaimBody,
+  GasSeedClaimResponse,
 } from './contracts'
 export {
   WS_PATH,

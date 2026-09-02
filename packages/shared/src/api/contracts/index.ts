@@ -15,6 +15,7 @@ import type { FiatContract } from './fiat.contract'
 import type { DisputesContract } from './disputes.contract'
 import type { ApplicationsContract } from './applications.contract'
 import type { AgentContract } from './agent.contract'
+import type { WalletContract } from './wallet.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -34,6 +35,7 @@ export interface ApiContract {
   exchange: ExchangeContract
   moderation: ModerationContract
   fiat: FiatContract
+  wallet: WalletContract
 }
 
 export { parseWsServerFrame } from './parse-ws-server-frame'
@@ -107,6 +109,15 @@ export type {
 export type { PlatformContract, PlatformConfig, ExchangeRates, ChainRegistryEntry } from './platform.contract'
 export type { ConversationsContract } from './conversations.contract'
 export type { NotificationsContract } from './notifications.contract'
+export type {
+  WalletContract,
+  GasSeedState,
+  GasSeedUnavailableReason,
+  GasSeedAvailability,
+  GasSeedAvailabilityResponse,
+  GasSeedClaimBody,
+  GasSeedClaimResponse,
+} from './wallet.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
 export type { ExchangeContract } from './exchange.contract'

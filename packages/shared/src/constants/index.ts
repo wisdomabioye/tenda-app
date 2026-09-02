@@ -14,6 +14,12 @@ export { MESSAGE_MAX_LENGTH } from './chat'
 export { NAME_MAX_LENGTH, AGENT_BADGE_LABEL } from './users'
 export { ErrorCode } from './errors'
 export {
+  SESSION_CLIENT_HEADER,
+  SESSION_CLIENTS,
+  parseSessionClient,
+  type SessionClient,
+} from './session'
+export {
   X402_VERSION,
   X_PAYMENT_HEADER,
   X_PAYMENT_RESPONSE_HEADER,

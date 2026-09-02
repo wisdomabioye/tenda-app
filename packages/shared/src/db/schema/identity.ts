@@ -259,27 +259,3 @@ export const email_otps = pgTable(
   },
   (t) => [index('email_otps_email_idx').on(t.email, t.created_at)],
 )
-
-// First-link native-gas seed grants. PRIMARY KEY (user_id, chain_id) keeps
-// the grant idempotent across wallet rotations on the same chain.
-export const gas_grants = pgTable(
-  'gas_grants',
-  {
-    user_id: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'restrict' }),
-    chain_id: text('chain_id')
-      .notNull()
-      .references(() => chains.id, { onDelete: 'restrict' }),
-    amount_raw: numeric('amount_raw', { precision: 78, scale: 0 }).notNull(),
-    // UNIQUE so a retried insert with the same on-chain ref is rejected at
-    // the DB layer — defence in depth on top of the (user_id, chain_id) PK.
-    tx_ref: text('tx_ref').notNull().unique('gas_grants_tx_ref_uq'),
-    granted_at: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.user_id, t.chain_id] }),
-    index('gas_grants_chain_idx').on(t.chain_id),
-  ],
-)
-

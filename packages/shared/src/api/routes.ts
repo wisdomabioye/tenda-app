@@ -132,4 +132,11 @@ export const apiRoutes: {
     create: '/v1/exchange',
     get: '/v1/exchange/:id',
   },
+  wallet: {
+    // One path, two methods: GET asks what is on offer, POST takes it. Not
+    // `/claim` — `/v1/escrows/:id/claim` already means claiming a stalled
+    // payment, and the two must not read alike where money moves.
+    gasSeedAvailability: '/v1/wallet/gas-seed',
+    claimGasSeed: '/v1/wallet/gas-seed',
+  },
 }
