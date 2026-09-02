@@ -112,3 +112,29 @@ export function preferredWalletAddress(
   }
   return primaryOrFirst(verified)
 }
+
+/**
+ * THE wallet that represents a user in the UI — a drawer handle, a profile
+ * header — as opposed to the one that signs on a given chain.
+ *
+ * Since #42 a user can hold a main wallet on EVERY chain family at once, so
+ * `wallets.find(w => w.is_primary)` returns whichever the list happened to
+ * order first. Two surfaces did exactly that, and the handle they showed could
+ * change between loads for no reason the reader could see.
+ *
+ * The rule: main wallets first, in `chain_ns` order, then any linked wallet in
+ * the same order, then the caller's fallback (the connected session wallet).
+ * WHICH family wins matters far less than it never changing — this is a
+ * recognisable label, not a chain-scoped fact, and a surface that needs the
+ * signer for a chain must call `resolvePrimaryWalletAddress` on the server
+ * instead of reading this.
+ */
+export function displayWalletAddress(
+  wallets: readonly LinkedWallet[],
+  fallback: string | null = null,
+): string | null {
+  const ordered = [...wallets].sort(
+    (a, b) => a.chain_ns.localeCompare(b.chain_ns) || a.address.localeCompare(b.address),
+  )
+  return ordered.find((w) => w.is_primary)?.address ?? ordered[0]?.address ?? fallback
+}

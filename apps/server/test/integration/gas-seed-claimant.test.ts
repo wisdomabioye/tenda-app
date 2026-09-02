@@ -86,11 +86,11 @@ test('one user\'s device token does not make ANOTHER user look app-installed', {
 // ---------- the deterministic signing wallet (DoD 7) -------------------------------
 
 test('with NO primary on the chain, the wallet resolves to the first linked — stably', { skip }, async () => {
-  // The common case, not an exotic one: the partial unique index allows one
-  // primary per USER across every namespace, so a user whose primary is a
-  // Solana wallet has none on eip155 at all. Before the tiebreak this returned
-  // whichever row postgres scanned first, free to differ between two calls —
-  // which is how a gas seed funds a wallet the user never signs with.
+  // Still reachable after #42 made the main wallet per-chain: a user who has
+  // linked EVM wallets but never chosen one for that family has no primary
+  // there, and the tiebreak is what decides. Before it, this returned whichever
+  // row postgres scanned first, free to differ between two calls — which is how
+  // a gas seed funds a wallet the user never signs with.
   const app = getApp()
   const user = await createUser(app)
   const older = evmAddress()

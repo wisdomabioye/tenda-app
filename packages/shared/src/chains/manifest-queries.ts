@@ -7,6 +7,7 @@
  */
 
 import { CHAIN_MANIFEST, isNativeAsset, type ChainAsset, type ChainManifestEntry } from './manifest'
+import type { ChainNamespace } from '../db/schema/chains'
 import { getAssetMeta } from '../constants/assets'
 
 /** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
@@ -127,4 +128,20 @@ export function evmManifestEntries(): ChainManifestEntry[] {
  */
 export function firstEvmChainIdByKind(kind: ChainManifestEntry['kind']): string | undefined {
   return evmManifestEntries().find((c) => c.kind === kind)?.id
+}
+
+/**
+ * What to call a chain FAMILY in user-facing copy.
+ *
+ * Namespaces, not chains: the main-wallet choice is per `chain_ns` (#42), so
+ * "your main EVM wallet" covers Base, Celo and 0G at once — which is the
+ * honest granularity, because one EVM address signs on all of them.
+ *
+ * Shared rather than per client, because mobile had a private copy and web had
+ * none, so the same choice was named two different things — or not at all — on
+ * the two screens that make it.
+ */
+export const CHAIN_NAMESPACE_LABEL: Record<ChainNamespace, string> = {
+  solana: 'Solana',
+  eip155: 'EVM',
 }

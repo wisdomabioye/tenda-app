@@ -274,6 +274,13 @@
       "when": 1788305168910,
       "tag": "0038_hard_orphan",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1788310344321,
+      "tag": "0039_mysterious_tarot",
+      "breakpoints": true
     }
   ]
 }

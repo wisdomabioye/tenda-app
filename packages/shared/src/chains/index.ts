@@ -20,6 +20,7 @@ export {
   nativeCurrencyOf,
   evmManifestEntries,
   firstEvmChainIdByKind,
+  CHAIN_NAMESPACE_LABEL,
 } from './manifest-queries'
 export {
   CHAIN_FALLBACK_GLYPH,

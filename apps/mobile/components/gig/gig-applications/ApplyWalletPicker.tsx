@@ -126,7 +126,10 @@ export function ApplyWalletPicker({
             <Text size={14} weight={isSelected ? 'semibold' : 'regular'}>
               {truncateWallet(wallet.address)}
             </Text>
-            {wallet.is_primary && <Badge label="Primary" variant="neutral" size="sm" />}
+            {/* "Main", not "Primary": the marker is per chain family (#42). No chain
+                name on it because every row in this picker is the gig's own chain,
+                so naming it on each would be noise the reader already has. */}
+            {wallet.is_primary && <Badge label="Main" variant="neutral" size="sm" />}
           </Pressable>
         )
       })}

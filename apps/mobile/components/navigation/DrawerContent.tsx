@@ -11,7 +11,7 @@ import { Text, Avatar } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 import { typography } from '@/theme/tokens';
 import { isSeekerDevice } from '@/lib/device';
-import { truncateWallet, formatFullName } from '@tenda/shared';
+import { displayWalletAddress, truncateWallet, formatFullName } from '@tenda/shared';
 
 interface NavItem {
   name: string;
@@ -63,8 +63,10 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
 
   const fullName = formatFullName(user?.first_name ?? null, user?.last_name ?? null) || 'Anonymous';
 
-  // v2 identity is multi-wallet: prefer the primary linked wallet.
-  const primaryWallet = wallets.find((w) => w.is_primary)?.address ?? walletAddress;
+  // The drawer handle, by the ONE shared rule. Since #42 a user can hold a main
+  // wallet on every chain family at once, so picking with `find` returned
+  // whichever the list ordered first and the handle could change between loads.
+  const primaryWallet = displayWalletAddress(wallets, walletAddress);
   const handle = primaryWallet ? truncateWallet(primaryWallet) : null;
   const isSeeker = isSeekerDevice();
 

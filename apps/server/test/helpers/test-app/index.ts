@@ -65,6 +65,8 @@ export {
   createEscrow,
   createTransactableUser,
   createUser,
+  linkWallet,
+  testEvmAddress,
   makeTransactable,
   testWalletAddress,
   type GigDetailsOverrides,

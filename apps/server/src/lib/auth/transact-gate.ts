@@ -23,14 +23,18 @@ import type { AppDatabase } from '@server/plugins/db'
  * Null when the user has no wallet on the namespace.
  *
  * FULLY ORDERED, and it was not (#53c-1). `is_primary DESC` alone leaves ties
- * unbroken, and ties are the COMMON case rather than an exotic one: the partial
- * unique index allows one primary per USER across every namespace, so a user
- * whose primary is a Solana wallet has NO primary on eip155 at all. With two
- * EVM wallets linked, the row this returned was whatever Postgres happened to
+ * unbroken, and the row this returned was then whatever Postgres happened to
  * scan first — free to differ between two calls, which is how the wallet an
  * escrow RECORDS and the wallet its transaction BAKES come apart, and how a gas
  * seed funds a wallet the user never signs with (the grant's (user_id,
  * chain_id) key then makes that the only seed they ever get).
+ *
+ * Ties used to be the COMMON case: the partial unique index allowed one primary
+ * per USER across every namespace, so a user whose main wallet was Solana had
+ * none at all on eip155. #42 made that index (user_id, chain_ns), so a user can
+ * now choose per chain family and the tiebreak below is the FALLBACK for a
+ * namespace where they have not — still reachable, and still the thing that
+ * makes two reads agree, but no longer the ordinary path.
  *
  * The tiebreak is FIRST LINKED, then address: the oldest verified wallet on the
  * chain is the one a returning user is most likely to still hold, and the

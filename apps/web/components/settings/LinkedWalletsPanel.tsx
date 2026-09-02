@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
+  CHAIN_NAMESPACE_LABEL,
   ApiClientError,
   ErrorCode,
   SUPPORT_TOPICS,
@@ -76,12 +77,12 @@ export function LinkedWalletsPanel() {
     setFeedback(null)
     try {
       await api.auth.setPrimaryWallet({ chain_ns: w.chain_ns, address: w.address })
-      setFeedback({ tone: 'success', message: 'Primary wallet updated' })
+      setFeedback({ tone: 'success', message: `Main ${CHAIN_NAMESPACE_LABEL[w.chain_ns]} wallet updated` })
       await refreshWallets()
     } catch (e) {
       setFeedback({
         tone: 'error',
-        message: e instanceof ApiClientError ? e.message : 'Could not update the primary wallet',
+        message: e instanceof ApiClientError ? e.message : 'Could not update your main wallet',
       })
     }
   }
@@ -99,7 +100,7 @@ export function LinkedWalletsPanel() {
     } catch (e) {
       // Same guard copy as mobile — the server enforces, we translate.
       if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IS_PRIMARY) {
-        setFeedback({ tone: 'error', message: 'Make another wallet your primary first, then unlink this one' })
+        setFeedback({ tone: 'error', message: 'Make another wallet the main one for this chain first, then unlink this one' })
       } else if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IN_USE) {
         setFeedback({ tone: 'error', message: 'This wallet is part of an active escrow, finish or cancel it first' })
       } else {
@@ -118,7 +119,8 @@ export function LinkedWalletsPanel() {
       <header className="flex flex-col gap-1">
         <h1 className="font-display text-3xl font-bold text-content-primary">Linked wallets</h1>
         <p className="text-sm text-content-secondary">
-          Any linked wallet can sign you in. The primary wallet receives payments by default.
+          Any linked wallet can sign you in. You pick a main wallet for each chain,
+          and payments on that chain go to it by default.
         </p>
       </header>
 

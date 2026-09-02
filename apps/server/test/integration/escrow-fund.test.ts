@@ -48,9 +48,10 @@ const PAYMENT = Buffer.from(
 /** A transactable user who ALSO holds an eip155 wallet — the agent. */
 async function createAgent(app: ReturnType<typeof getApp>) {
   const agent = await createTransactableUser(app)
-  // One primary per USER (not per namespace): the Solana wallet
-  // makeTransactable linked holds it, and the eip155 resolver falls back to
-  // the only linked wallet of its namespace — which is the production shape.
+  // The eip155 wallet is linked but not chosen as that family's main one (#42
+  // made the marker per chain_ns), so the resolver falls back to the only
+  // linked wallet of the namespace — which is the production shape for a user
+  // who has linked an EVM wallet and never picked a main one there.
   await app.db.insert(user_wallets).values({
     chain_ns: 'eip155',
     address: AGENT_WALLET,

@@ -20,7 +20,7 @@ import {
 } from '@tenda/shared/db/schema'
 import { bank_accounts } from '@tenda/shared/db/schema/fiat'
 import type { ProofParams, ProofType } from '@tenda/shared'
-import { userFixture, escrowFixture, type UserRow, type EscrowRow } from '../fixtures'
+import { userFixture, escrowFixture, walletFixture, type UserRow, type EscrowRow } from '../fixtures'
 import { TEST_ASSET, TEST_CHAIN_ID } from './fake-chain'
 
 export interface TestUser {
@@ -81,6 +81,48 @@ export function testWalletAddress(userId: string): string {
  * (`assertCanTransact`). The wallet address is derived from the user id so it
  * stays unique under the (chain_ns, address) constraint across many users.
  */
+/**
+ * Link one wallet row for a user, returning the row that was written.
+ *
+ * Shared because two suites now need it: `auth-wallets` (unlink guards) and
+ * `auth-main-wallet` (the per-chain main marker, #42) were one file until the
+ * 300-line ceiling split them, and a copied inserter is how the two would start
+ * building subtly different wallets for the same scenario.
+ *
+ * The address is generated per call from a module counter, so a suite can link
+ * several wallets to one user without colliding on the (chain_ns, address)
+ * primary key. Test files run in their own database, so the counter needs no
+ * coordination across them.
+ */
+export async function linkWallet(
+  app: FastifyInstance,
+  userId: string,
+  over: Partial<ReturnType<typeof walletFixture>> = {},
+): Promise<ReturnType<typeof walletFixture>> {
+  linkedWalletSeq += 1
+  const row = walletFixture({
+    user_id: userId,
+    address: `SolWallet${linkedWalletSeq}1111111111111111111111111`,
+    ...over,
+  })
+  await app.db.insert(user_wallets).values(row)
+  return row
+}
+let linkedWalletSeq = 0
+
+/**
+ * A fresh, syntactically valid EVM address — for suites that link an eip155
+ * wallet directly (the `linkWallet` default builds a Solana one).
+ *
+ * Counter-derived rather than random so a failure is reproducible, and shared
+ * so two suites cannot mint the same address and collide on `user_wallets`'
+ * (chain_ns, address) primary key.
+ */
+export function testEvmAddress(): `0x${string}` {
+  linkedWalletSeq += 1
+  return `0x${linkedWalletSeq.toString(16).padStart(40, '0')}`
+}
+
 export async function makeTransactable(app: FastifyInstance, userId: string): Promise<void> {
   await app.db.insert(user_wallets).values({
     chain_ns: 'solana',

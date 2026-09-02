@@ -127,7 +127,7 @@ test('each linked wallet is offered, with the primary marked', () => {
   expect(screen.getByText(APPLY_WALLET_LABEL)).toBeTruthy()
   expect(screen.getByText(APPLY_WALLET_HINT)).toBeTruthy()
   expect(screen.getAllByRole('radio')).toHaveLength(2)
-  expect(screen.getByText('Primary')).toBeTruthy()
+  expect(screen.getByText('Main')).toBeTruthy()
 })
 
 test('the selected row is the one reported as selected, and only it', () => {
