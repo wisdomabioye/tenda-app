@@ -64,6 +64,15 @@ jest.mock('@/components/ui', () => {
     Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
   }
 })
+// The gas claim mounts here now (#53c-2) and fetches availability on mount.
+// Stubbed to render nothing: this suite is about which WALLET section shows,
+// and an unstubbed fetch would make the screen's test depend on a network call
+// failing — plus it settles after the test ends, which is what produced
+// "update not wrapped in act" noise across every case in the file.
+jest.mock('@/features/gas-claim', () => ({
+  GasClaimSection: () => null,
+  gasClaimWalletByChain: () => ({}),
+}))
 jest.mock('@/components/reputation', () => ({ RestrictionBanner: () => null }))
 jest.mock('@/components/sync/FailedSyncPanel', () => ({ FailedSyncPanel: () => null }))
 jest.mock('@/components/wallet', () => {

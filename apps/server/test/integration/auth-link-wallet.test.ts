@@ -204,24 +204,15 @@ test('link-wallet: re-linking a LEGACY mixed-case wallet (any case) is rejected 
   assert.strictEqual(rows.length, 1) // still just the one legacy row
 })
 
-test('link-wallet: a phone-verified user still links cleanly — the gas-seed trigger is fire-and-forget (#109)', { skip }, async () => {
-  // The ONE branch of this route with no coverage: `if (await
-  // hasVerifiedPhone(...)) fireRetroactiveGasSeed(...)` on a successful link.
-  // Nothing in the suite linked a wallet as a phone-verified user, because
-  // `makeTransactable` attaches an EMAIL identity, so the call never ran.
+test('link-wallet NO LONGER seeds gas — the claim replaced it (#53c-2)', { skip }, async () => {
+  // This case used to pin the auto-send trigger's fire-and-forget contract: a
+  // phone-verified user linking a wallet fired `fireRetroactiveGasSeed`, and a
+  // synchronous throw inside it turned a successful link into a 500.
   //
-  // WHAT THIS CAN AND CANNOT ASSERT, measured rather than assumed. The trigger
-  // is deliberately fire-and-forget — "linking must not block on an RPC
-  // transfer" — and `dispatchGasSeeds` exits before touching the database
-  // unless a chain carries `gas_seed_amount_raw` AND a sender key is
-  // configured, neither of which the harness sets. So the dispatcher's own
-  // behaviour is not observable from here; it is unit-tested against a fake
-  // sender in test/unit/gas-seed.test.ts, which is where it belongs.
-  //
-  // What IS observable, and is exactly what the fire-and-forget design
-  // promises, is that eligibility cannot break the link: a synchronous throw
-  // inside the trigger turns a successful link into a 500. MEASURED — a mutant
-  // that throws from `fireRetroactiveGasSeed` fails this case and nothing else.
+  // That path is GONE. The seed is claimed, not sent, so what needs pinning
+  // now is the opposite fact: linking a wallet as a fully eligible user grants
+  // NOTHING. If some future change reintroduces an automatic send, this fails —
+  // which is the only way the removal stays removed.
   const app = getApp()
   const u = await createUser(app)
   await app.db.insert(user_identities).values({
@@ -241,10 +232,8 @@ test('link-wallet: a phone-verified user still links cleanly — the gas-seed tr
     .select({ address: user_wallets.address })
     .from(user_wallets)
     .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'solana')))
-  assert.deepStrictEqual(rows, [{ address }], 'the wallet is linked, seed or no seed')
+  assert.deepStrictEqual(rows, [{ address }], 'the wallet is linked')
 
-  // No grant row either, and that is the measurement behind the note above: the
-  // dispatcher found no seedable chain, so it never reached its claim.
   const grants = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, u.row.id))
-  assert.deepStrictEqual(grants, [], 'no seedable chain is configured in the harness')
+  assert.deepStrictEqual(grants, [], 'linking a wallet must not grant gas — it is claimed now')
 })

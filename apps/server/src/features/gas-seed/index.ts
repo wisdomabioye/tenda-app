@@ -6,12 +6,16 @@
  * which hot wallet pays are all configuration (the shared CHAIN_MANIFEST plus
  * `CHAIN_<ID>_GAS_SEED_KEY`); this directory is the mechanism.
  *
- * TWO TRIGGERS, one mechanism. `./trigger` fires automatically on wallet-link
- * and phone-verify (#53a); `./claim` is the user-initiated endpoint (#53c-1),
- * which is what auto-send is being REPLACED by — sending crypto nobody asked
- * for has gray area a claim does not. Both take the same slot, through the same
- * `(user_id, chain_id)` primary key, so they cannot double-pay each other.
- * `./trigger` and its two call sites disappear with #53c-2.
+ * ONE TRIGGER: the user asks. `./claim` is the whole entry point, and the
+ * automatic first-link send it replaced is GONE (#53c-2 removed `./trigger`
+ * and its two call sites in auth/link-wallet and auth/verify). Sending crypto
+ * nobody asked for has gray area a claim does not — the recipient may not
+ * notice it, may not want it, and the spend landed on everyone who ever linked
+ * a wallet rather than on the people who came back.
+ *
+ * `dispatchGasSeeds` survives that removal on purpose: it is the mechanism the
+ * claim's background job drives, and its claim-before-send ordering is what
+ * makes a double pay impossible.
  *
  * WHY IT LIVES IN ONE PLACE. The seed must be removable without unpicking it
  * from a dozen files — the same property `features/alerts` and
@@ -27,11 +31,9 @@
  *      and its `WORKER_CONCURRENCY` entry in `plugins/workers.ts` — that last
  *      one is not optional, the map is `Record<JobName, number>` and omitting
  *      it fails the type check;
- *   4. delete the two call sites of `fireRetroactiveGasSeed` (auth/link-wallet,
- *      auth/verify) — these disappear anyway with #53c-2;
- *   5. delete the `GAS_SEED_SUPPORT` import in `db/seed/rows.ts` and let the
+ *   4. delete the `GAS_SEED_SUPPORT` import in `db/seed/rows.ts` and let the
  *      gas columns seed NULL;
- *   6. optionally delete `packages/shared/src/db/schema/gas-seed.ts` (both
+ *   5. optionally delete `packages/shared/src/db/schema/gas-seed.ts` (both
  *      tables live there, and only there) plus the two gas columns on `chains`,
  *      in a generated migration. NOT required — an unread table costs nothing,
  *      and the grant history is worth keeping even after the feature stops.
@@ -78,8 +80,6 @@ export {
  * lines — a reach past this barrel is the thing that would break it.
  */
 export { gasSeedAddressFromSecret } from './senders/solana'
-
-export { buildGasSeedDeps, fireRetroactiveGasSeed, type GasSeedHost } from './trigger'
 
 // ---------- the claim surface (#53c-1) ------------------------------------------
 

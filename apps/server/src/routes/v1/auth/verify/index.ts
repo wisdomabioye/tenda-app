@@ -15,7 +15,6 @@ import { isAuthMethod, type VerifyProof } from '@server/lib/auth/strategy'
 import { buildAuthStrategies } from '@server/lib/auth/registry'
 import { resolveOrLink, type UserBootstrap } from '@server/lib/auth/orchestrator'
 import { mintAuthResponse, sessionClientFromHeaders } from '@server/lib/auth/session'
-import { fireRetroactiveGasSeed } from '@server/features/gas-seed'
 
 interface Body {
   method?: unknown
@@ -86,12 +85,6 @@ const route: FastifyPluginAsync = async (fastify) => {
         country: typeof body.country === 'string' ? body.country : null,
       }
       const { user, isNew } = await resolveOrLink(fastify.db, outcome, bearerUserId, bootstrap)
-
-      // A verified phone is the gas-seed eligibility signal (decision #16).
-      // This is the sole trigger now that the /verify-phone-otp shim is gone.
-      // No-op when the user has no wallet on a seedable chain (new phone
-      // signups), so firing is safe.
-      if (body.method === 'phone') fireRetroactiveGasSeed(fastify, user.id)
 
       return {
         ...mintAuthResponse(fastify, user, sessionClientFromHeaders(request.headers)),

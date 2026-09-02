@@ -18,6 +18,7 @@ import { Button } from '@/components/ui'
 import { EmptyPanel, EMPTY_ACTION_CLASS } from '@/components/ui/EmptyPanel'
 import { WalletActions } from './WalletActions'
 import { WalletBalanceGrid } from './WalletBalanceGrid'
+import { GasClaimNotice } from './GasClaimNotice'
 import { WalletHeroCard } from './WalletHeroCard'
 import { TxFeed } from './TxFeed'
 import { WALLET_COPY } from './copy'
@@ -99,6 +100,9 @@ export function WalletScreen() {
             isLoading={screen.section === 'loading' || screen.isLoading}
           />
           {screen.section === 'ready' && <WalletBalanceGrid balances={screen.balances} />}
+          {/* The gas grant exists and is claimed in the app (#53c-2). Under the
+              balances, where a reader has just seen how little gas they hold. */}
+          <GasClaimNotice />
           <WalletActions />
         </div>
       )}

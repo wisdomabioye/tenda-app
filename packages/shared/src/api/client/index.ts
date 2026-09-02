@@ -38,6 +38,7 @@ import {
   createReportsApi,
   createUploadApi,
 } from './platform'
+import { createWalletApi } from './wallet'
 import type { ApiRequest } from './types'
 
 export type { ApiRequest, ApiRequestOptions } from './types'
@@ -67,6 +68,9 @@ export function createApiClient(request: ApiRequest) {
     notifications: createNotificationsApi(request),
     subscriptions: createSubscriptionsApi(request),
     reports: createReportsApi(request),
+    // The gas-seed claim (#53c). Removing the feature client-side is this line
+    // plus ./wallet.ts.
+    wallet: createWalletApi(request),
   }
 }
 

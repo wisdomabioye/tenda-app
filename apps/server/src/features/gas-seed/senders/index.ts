@@ -79,11 +79,12 @@ interface GasSeedChainArgs {
  *    value. A malformed Solana key therefore DOES reach here and throws when
  *    `Keypair.fromSecretKey` decodes it.
  *
- * That asymmetry is why `fireRetroactiveGasSeed` builds its deps inside the
- * promise chain: construction can throw, and a throw on the caller's stack
- * would turn a completed wallet link into a 500. Tightening the Solana kind is
- * tracked with #53b; it is a behaviour change on a live deployment path, not a
- * drive-by. `test/unit/gas-seed-trigger.test.ts` pins the containment.
+ * That asymmetry used to be load-bearing: the auto-send trigger built its deps
+ * inside a promise chain so a malformed Solana key could not turn a completed
+ * wallet link into a 500. #53c-2 removed that path — construction now happens
+ * inside a claim request, where a throw is simply that request's error and
+ * nothing else is half-done. Tightening the Solana kind to `base58Key` is still
+ * tracked with #53b; it is a behaviour change on a live deployment path.
  */
 export const GAS_SEED_SUPPORT: Record<ChainNamespace, GasSeedNamespaceSupport> = {
   solana: {

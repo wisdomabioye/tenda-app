@@ -65,13 +65,11 @@ test('the feature is reached from exactly the places the removal recipe names', 
   const expected = [
     // 2. the autoloaded route folder
     'routes/v1/wallet/gas-seed/index.ts',
-    // 3. the two registry lines that survive as imports
+    // 3. the two registry lines that survive as imports (the third,
+    //    WORKER_CONCURRENCY, is a bare map entry with no import)
     'plugins/queue/payloads.ts',
     'workers/processors.ts',
-    // 4. the auto-send call sites (removed with #53c-2)
-    'routes/v1/auth/link-wallet/index.ts',
-    'routes/v1/auth/verify/index.ts',
-    // 5. the seeder's funder derivation
+    // 4. the seeder's funder derivation
     'db/seed/rows.ts',
     // the audit script, which the barrel exports gasSeedAddressFromSecret for
     'scripts/verify-gas-seed.ts',

@@ -4,7 +4,7 @@ export { selectAssets } from './select-assets'
 export { toBigIntOrNull } from './raw-amount'
 export { evmBalanceReader } from './evm-reader'
 export { solanaBalanceReader } from './solana-reader'
-export { DEFAULT_READERS, readWalletBalances, sumUsdcRaw } from './read'
+export { DEFAULT_READERS, nativeAssetIdOf, readWalletBalances, sumUsdcRaw } from './read'
 export { readAssetBalance } from './read-asset'
 export { readSpendableBalance } from './spendable'
 export {

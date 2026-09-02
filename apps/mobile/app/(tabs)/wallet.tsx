@@ -13,6 +13,7 @@ import {
   WalletEmptyState,
   WalletLoadError,
 } from '@/components/wallet'
+import { GasClaimSection, gasClaimWalletByChain } from '@/features/gas-claim'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
 import { END_REACHED_THRESHOLD } from '@tenda/shared'
 
@@ -45,6 +46,11 @@ export default function WalletScreen() {
       <>
         <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
         <WalletBalanceRows balances={balances} />
+        {/* The gas claim (#53c-2). One line: the feature owns its own fetch,
+            states and copy — see features/gas-claim. Placed under the balances
+            so a user who has just seen "0 gas" on a chain reads the offer
+            next, and above the actions because it is what unblocks them. */}
+        <GasClaimSection walletByChain={gasClaimWalletByChain(balances)} />
         <WalletActions />
         <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
       </>

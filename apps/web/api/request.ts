@@ -8,13 +8,18 @@
 // assertQueryShape), and a second local copy could drift from the one the
 // server's types actually satisfy — which is how the `as Record<string,
 // unknown>` casts got in.
-import { ApiClientError, type ApiError, type QueryParams } from '@tenda/shared'
+import { ApiClientError, type ApiError, type QueryParams,
+  SESSION_CLIENT_HEADER,
+} from '@tenda/shared'
 // Web deviation from the mobile original (see lib/api-config.ts): the base
 // URL must be resolved in app code for Next's env inlining to reach it.
 import { apiConfig } from '@/lib/config/api-config'
 import { getJwtToken } from '@/lib/storage'
 import { getEnv } from '@/lib/config/env'
 
+
+/** This app's session stamp (#53c-1). The app sends 'mobile'. */
+const WEB_CLIENT = 'web'
 
 const REQUEST_TIMEOUT_MESSAGE =
   'The server is taking longer than expected. Please check whether the action completed before retrying.'
@@ -85,6 +90,12 @@ export async function request<TResponse>(
   if (options?.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
+
+  // WHICH client is talking (#53c-1). Web stamps itself honestly rather than
+  // sending nothing: the gas-seed claim is app-only, and a session that says
+  // 'web' gets told to claim in the app instead of being refused for a reason
+  // the page cannot explain.
+  headers[SESSION_CLIENT_HEADER] = WEB_CLIENT
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
