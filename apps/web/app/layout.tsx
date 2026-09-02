@@ -1,16 +1,25 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Inter, JetBrains_Mono, Outfit } from 'next/font/google'
 import { APP_INFO } from '@tenda/shared'
 import { siteUrl } from '@/lib/config/site-url'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import { ToastHost } from '@/components/ui/Toast'
 import './globals.css'
 
-// Inter carries BOTH the display and body roles (spec-correction #44 — the
-// comps' Space Grotesk/Manrope pairing was replaced by user direction,
-// 2026-08-24). A variable font, so every weight the app sets is one file.
+// Inter carries the BODY role. It briefly carried display too (spec-correction
+// #44, 2026-08-24) after the comps' Space Grotesk/Manrope pairing was dropped;
+// display moved to Outfit on 2026-09-01 by user direction, to share a display
+// face with apps/tendahq. A variable font, so every weight is one file.
 const inter = Inter({
   variable: '--font-inter',
+  subsets: ['latin'],
+})
+
+// The DISPLAY role, and the face apps/tendahq already ships. Only `globals.css`
+// names it — every heading goes through the `font-display` utility, so this is
+// the one place the display face is chosen.
+const outfit = Outfit({
+  variable: '--font-outfit',
   subsets: ['latin'],
 })
 
@@ -30,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${outfit.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

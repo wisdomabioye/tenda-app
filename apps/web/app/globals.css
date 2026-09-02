@@ -5,11 +5,12 @@
  * (amounts, rates, dates, hashes) is set in mono with tabular numerals — the
  * design brief's one non-inherited rule.
  *
- * Display and body both resolve to Inter (spec-correction #44, 2026-08-24):
- * the two roles stay separate tokens on purpose, so a future display face is
- * a one-line change here rather than component churn. */
+ * Both roles resolved to Inter from #44 (2026-08-24) until 2026-09-01, when
+ * display took Outfit — the face apps/tendahq already ships, so the two apps
+ * now share a display voice. This is exactly the one-line change the split
+ * was kept for: no component moved. */
 @theme inline {
-  --font-display: var(--font-inter);
+  --font-display: var(--font-outfit);
   --font-body: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
 }

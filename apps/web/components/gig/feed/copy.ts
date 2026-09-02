@@ -3,18 +3,19 @@
  * copy rather than lorem, and it is the part most likely to be reworded by
  * someone who is not editing JSX.
  *
- * Product facts (name, markets, fees) are NOT written here: the name is
- * interpolated from shared `APP_INFO`, so a rename reaches this sentence.
+ * Product facts and PITCH strings are NOT written here. This file holds the
+ * feed's own mechanical copy — filter labels, empty states, error states. The
+ * brand line, the product summary and the guarantee belong to shared
+ * `APP_INFO`, and `FeedHero` reads them from there directly, so nothing in
+ * this file needs to import it any more.
  */
-import { APP_INFO } from '@tenda/shared'
 
 export const FEED_COPY = {
-  hero: {
-    title: 'Work that pays, because the money is already locked.',
-    lede: `Every gig on ${APP_INFO.name} is funded into escrow before anyone starts. You can see the amount, the city and the proof required before you apply — no account needed to look.`,
-    /** Prefixes the market list so the eyebrow states WHICH claim it is making. */
-    eyebrow: 'Escrow-secured work worldwide',
-  },
+  /**
+   * NO `hero` key. It held a title, lede and eyebrow that nothing ever
+   * rendered — a second pitch competing with the three roles shared already
+   * owns. `FeedHero` now reads APP_INFO directly; see its header for why.
+   */
   rail: {
     search: 'Search',
     // The comp promises "Title, city, trader". `q` is a tsvector over title +
