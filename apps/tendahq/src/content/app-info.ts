@@ -32,8 +32,8 @@ import { CHAIN_NAMES_LINE } from './chains'
  * Never edit them by hand; run `pnpm bump:version <patch|minor|major>`.
  */
 const RELEASE = {
-  version: 'v0.5.0-testnet',
-  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.5.0-testnet/0.5.0-testnet.apk',
+  version: 'v0.5.1',
+  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.5.1/0.5.1.apk',
 } as const
 
 export const APP_INFO = {
