@@ -108,9 +108,12 @@ type scale and every primitive in its real states. It is `noindex` and
 deliberately **not** in the public nav (spec-correction #21) — go to the URL.
 
 Nothing on it is hand-listed, and that is the rule to keep. Swatches come from
-`flattenScheme(colors.light)`, the same transform `scripts/gen-web-tokens` runs
-to WRITE `styles/tokens.css`, so the page cannot show a colour the app does not
-ship. The controls are the shipped components, not restyled copies, so a variant
+`schemePairs(colors.light)` and the type scale from `typeAtoms()`, the same
+transforms `scripts/gen-web-tokens` runs to WRITE `styles/tokens.css` (the
+scheme minus the omitted accent group; one `type-*` utility per mobile style),
+so the page cannot show a colour or a size the app does not ship — #59 caught
+it painting three blank swatches for a group the sheet no longer carried. The
+controls are the shipped components, not restyled copies, so a variant
 that regresses regresses here and one that is added and never wired up is
 visibly missing. A hardcoded list on this page would be the single bug it exists
 to prevent.

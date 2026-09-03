@@ -50,6 +50,27 @@ describe('Button', () => {
     // Outline reads at full contrast now that secondary took the quiet slot.
     expect(buttonVariants({ variant: 'outline' })).toContain('text-content-primary')
   })
+
+  it('draws mobile’s geometry and label by size: md 48px 12px 14/18, lg 52px 14px and the atom’s 15/20', () => {
+    // apps/mobile/components/ui/Button.tsx: HEIGHTS 48/52, RADII 12/12/14/14
+    // and LABEL_BY_SIZE 14/18 for sm/md, 15/20 for lg/xl — the atom
+    // (`type-button`) carries 15/20, so only md overrides it. Boundary-anchored:
+    // the override must be exactly the two classes, lg must carry neither, and
+    // the height is a fixed box, not padding (34/44px measured before #59).
+    const md = buttonVariants({ size: 'md' })
+    const lg = buttonVariants({ size: 'lg' })
+    for (const cls of [md, lg]) {
+      expect(cls).toMatch(/(?:^| )type-button(?: |$)/)
+      expect(cls).not.toMatch(/(?:^| )py-/)
+    }
+    expect(md).toMatch(/(?:^| )h-12(?: |$)/)
+    expect(md).toMatch(/(?:^| )rounded-button(?: |$)/)
+    expect(md).toMatch(/(?:^| )text-\[14px\](?: |$)/)
+    expect(md).toMatch(/(?:^| )leading-\[18px\](?: |$)/)
+    expect(lg).toMatch(/(?:^| )h-\[52px\](?: |$)/)
+    expect(lg).toMatch(/(?:^| )rounded-button-lg(?: |$)/)
+    expect(lg).not.toMatch(/text-\[|leading-\[/)
+  })
 })
 
 describe('TextField', () => {

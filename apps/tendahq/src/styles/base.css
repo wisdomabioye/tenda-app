@@ -1,12 +1,13 @@
 /* =============================================================================
  * Base — what the generated tokens do not carry, and the element resets.
  *
- * Every colour, radius, spacing, shadow and motion value on this page is in
- * styles/tokens.css, GENERATED from apps/mobile/theme/tokens.ts (regenerate
- * with `pnpm --filter tendahq gen:tokens`; CI refuses a stale copy). This
- * file keeps only what the generator has no source for: the web font stacks
- * (mobile registers native faces per weight), the page measure, and the
- * theme stamps that pick a side of every `light-dark()` pair.
+ * Every colour, radius, spacing, shadow, motion value and type style on this
+ * page is in styles/tokens.css, GENERATED from apps/mobile/theme/tokens.ts
+ * (regenerate with `pnpm --filter tendahq gen:tokens`; CI refuses a stale
+ * copy) — the type styles as `type-*` utilities that styles/type.css applies.
+ * This file keeps only what the generator has no source for: the web font
+ * stacks (mobile registers native faces per weight), the page measure, and
+ * the theme stamps that pick a side of every `light-dark()` pair.
  *
  * The generated --radius-xs…xl share Tailwind's radius namespace on purpose:
  * `rounded-md` here is mobile's 16px, as it is in web. Reach for a token
@@ -17,7 +18,7 @@
  * live pip. Green is limited to the two roles mobile gives it — a LiveChip
  * dot and a settled payout. The category tones colour gig categories and
  * nothing else. Accent amber is deliberately absent (ruling of 2026-09-01);
- * the generator's tendahq target omits the group.
+ * the generator omits the group for both web targets (#59e).
  * =========================================================================== */
 @layer base {
   :root {

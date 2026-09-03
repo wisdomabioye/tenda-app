@@ -57,6 +57,13 @@ describe('app/layout.tsx', () => {
     }
   })
 
+  it('pins no weights — mobile registers up to 800 and the atoms set 400–700', () => {
+    // A `weight: [...]` pin below a weight the app sets leaves the browser to
+    // synthesise it (faux bold on every bold figure, measured before #59).
+    // Every face is a variable font; loading the whole axis costs one file.
+    expect(layout).not.toMatch(/\bweight:/)
+  })
+
   it('calls no font loader the tokens do not name', () => {
     // The loader CALLS, not the prose: the comments may name the faces that
     // left. Every `Name({ variable:` in the file must be one of the three.

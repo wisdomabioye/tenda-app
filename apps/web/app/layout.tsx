@@ -23,10 +23,12 @@ const manrope = Manrope({
   subsets: ['latin'],
 })
 
+// No `weight` pin: mobile registers 400–800 faces for mono and the app sets
+// bold figures (`font-numeric font-bold`), which a 400–600 pin left the browser
+// to synthesise. Omitting `weight` loads the variable font's whole axis.
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
 })
 
 export const metadata: Metadata = {

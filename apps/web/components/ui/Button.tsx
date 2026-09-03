@@ -31,9 +31,15 @@ export const buttonVariants = cva(
           'border-[1.5px] border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base disabled:border-control-disabled-border disabled:text-control-disabled-text',
         ghost: 'text-content-secondary hover:text-content-primary disabled:text-control-disabled-text',
       },
+      // Mobile's Button.tsx by size — HEIGHTS 48/52, PAD_X 18/22 (the nearest
+      // Tailwind steps, 20/24), RADII 12/14 — and its LABEL_BY_SIZE override
+      // of the button atom: md reads 14/18, lg keeps the atom's 15/20. The md
+      // override is written here for the same reason it is a literal on
+      // mobile — it is not a token style. Fixed heights, not padding: a
+      // padded box drew md at 34px and lg at 44px against the phone's 48/52.
       size: {
-        md: 'rounded-button px-5 py-2',
-        lg: 'rounded-button-lg px-6 py-3',
+        md: 'h-12 rounded-button px-5 text-[14px] leading-[18px]',
+        lg: 'h-[52px] rounded-button-lg px-6',
       },
       fullWidth: {
         true: 'w-full',

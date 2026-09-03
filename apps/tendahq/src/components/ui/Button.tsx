@@ -17,15 +17,16 @@ type Props = AsButton | AsAnchor
 
 /**
  * Mobile's Button.tsx, in the DOM: the same geometry (RADII 12 / 12 / 14 and
- * HEIGHTS 40 / 48 / 52), the same face (body semibold 15/20, −0.15
- * tracking), and ONE filled variant. `primary` is the brand solid with the
- * FAB shadow; `outline` is a hairline on the page ground.
+ * HEIGHTS 40 / 48 / 52), the same face through the generated `type-button`
+ * atom (body semibold 15/20, −0.15 tracking) with mobile's per-size label
+ * override (sm and md read 14/18), and ONE filled variant. `primary` is the
+ * brand solid with the FAB shadow; `outline` is a hairline on the page ground.
  * Nothing here is a pill: pills are what chips are, and a control that is
  * not a chip keeps its corners.
  */
 const BASE = cn(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap border no-underline',
-  'font-[var(--font-body)] text-[15px] leading-5 font-semibold tracking-[-0.15px]',
+  'type-button',
   'transition-[background-color,border-color,color,transform] duration-[var(--duration-normal)] ease-[var(--easing-standard)]',
   'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus-ring)]',
   'disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45',
@@ -43,10 +44,10 @@ const VARIANTS: Record<ButtonVariant, string> = {
   ),
 }
 
-/** Button.tsx: sm 40 / md 48 / lg 52, radius 12 / 12 / 14. */
+/** Button.tsx: sm 40 / md 48 / lg 52, radius 12 / 12 / 14, label 14/18 · 14/18 · 15/20. */
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-10 px-4 rounded-[var(--radius-button)] text-[14px]',
-  md: 'h-12 px-5 rounded-[var(--radius-button)]',
+  sm: 'h-10 px-4 rounded-[var(--radius-button)] text-[14px] leading-[18px]',
+  md: 'h-12 px-5 rounded-[var(--radius-button)] text-[14px] leading-[18px]',
   lg: 'h-[52px] px-6 rounded-[var(--radius-button-lg)]',
 }
 

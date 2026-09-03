@@ -43,6 +43,19 @@ test('ReviewCard: anonymous reviewer reads Counterparty; stars carry the score',
   expect(screen.getByText('Great to work with')).toBeInTheDocument()
 })
 
+test('ReviewCard: the "about" caption is the shared Eyebrow, and absent when there is none', () => {
+  // Mobile's ReviewCard sets this caption in the eyebrow style; web drew it
+  // with a hand-rolled mono caption until #59c. The atom is the contract.
+  const { unmount } = render(<ReviewCard review={REVIEW} label="About the poster" />)
+  const caption = screen.getByText('About the poster')
+  expect(caption.className).toContain('type-eyebrow')
+  expect(caption.className).toContain('uppercase')
+  expect(caption.className).not.toMatch(/text-\[|tracking-wider|font-numeric/)
+  unmount()
+  render(<ReviewCard review={REVIEW} />)
+  expect(screen.queryByText('About the poster')).toBeNull()
+})
+
 test('StandingBadge: completion + Limited, expandable breakdown; New user below the floor', async () => {
   usersApi.standing.mockResolvedValue({
     completion_rate: 0.87,

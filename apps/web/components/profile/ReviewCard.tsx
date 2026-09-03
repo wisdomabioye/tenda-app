@@ -6,6 +6,7 @@
 import { Star } from 'lucide-react'
 import { formatFullName, type Review } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { RelativeTime } from '@/components/ui/RelativeTime'
 import { cn } from '@/lib/cn'
 
@@ -56,11 +57,9 @@ export function ReviewCard({
         {review.comment !== null && review.comment !== '' && (
           <p className="mt-1.5 text-[13px] leading-5 text-content-secondary">{review.comment}</p>
         )}
-        {label !== undefined && (
-          <p className="mt-1.5 font-numeric text-[10px] font-semibold uppercase tracking-wider text-content-tertiary">
-            {label}
-          </p>
-        )}
+        {/* The shared Eyebrow, not a hand-rolled mono caption: this was the
+            "seventeenth way" of writing the label's tracking (#59c). */}
+        {label !== undefined && <Eyebrow className="mt-1.5">{label}</Eyebrow>}
       </div>
     </div>
   )
