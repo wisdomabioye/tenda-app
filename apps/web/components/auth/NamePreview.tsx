@@ -40,7 +40,7 @@ export function NamePreview({
         >
           {shown}
         </p>
-        <p className="text-[13px] leading-[18px] text-content-tertiary">
+        <p className="type-body-small text-content-tertiary">
           {AUTH_COPY.profile.previewCaption}
         </p>
       </div>

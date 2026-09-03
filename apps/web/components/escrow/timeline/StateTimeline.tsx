@@ -66,7 +66,7 @@ export function StateTimeline({
               <div className="pt-px">
                 <p
                   className={cn(
-                    'font-display text-[17px] font-semibold leading-6',
+                    'font-display type-title',
                     reached ? 'text-content-primary' : 'text-content-tertiary',
                   )}
                 >
@@ -75,7 +75,7 @@ export function StateTimeline({
                       nothing when read aloud. */}
                   <span className="sr-only">{` — ${STATE_TIMELINE_COPY.state[node.state]}`}</span>
                 </p>
-                <p className="mt-0.5 max-w-[56ch] text-[13px] leading-[18px] text-content-secondary">
+                <p className="mt-0.5 max-w-[56ch] type-body-small text-content-secondary">
                   {STATE_TIMELINE_COPY.body[node.status]}
                 </p>
                 {node.stamp !== null && (
@@ -97,7 +97,7 @@ export function StateTimeline({
           <Eyebrow strong tone="warning">
             {STATUS_LABEL[branch]}
           </Eyebrow>
-          <p className="mt-1.5 max-w-[56ch] text-[13px] leading-[18px] text-feedback-warning-text">
+          <p className="mt-1.5 max-w-[56ch] type-body-small text-feedback-warning-text">
             {timelineBranchCopy(branch)}
           </p>
         </div>

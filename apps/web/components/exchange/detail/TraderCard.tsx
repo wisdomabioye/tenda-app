@@ -76,7 +76,7 @@ export function TraderCard({
           <div className="min-w-0 flex-1">
             <Link
               href={`/profile/${trader.id}`}
-              className="block truncate font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary hover:underline"
+              className="block truncate type-h2 text-content-primary hover:underline"
             >
               {isSelf ? TRADER_CARD_COPY.you : name}
             </Link>
@@ -84,13 +84,13 @@ export function TraderCard({
               {score !== null && (
                 <>
                   <RatingStars score={score} size={15} />
-                  <span className="font-numeric text-[13px] font-bold leading-[18px] text-content-secondary">
+                  <span className="font-numeric type-body-small font-bold text-content-secondary">
                     {score.toFixed(1)}
                   </span>
                 </>
               )}
               {country !== null && (
-                <span className="text-[13px] leading-[18px] text-content-tertiary">{country}</span>
+                <span className="type-body-small text-content-tertiary">{country}</span>
               )}
             </div>
             <div className="mt-1.5">

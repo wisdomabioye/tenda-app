@@ -59,7 +59,7 @@ export function MyGigsCard({ lists }: { lists: MyGigsState }) {
   return (
     <DashCard
       title={HOME_COPY.myGigs.title}
-      pill={<span className="text-[11px] font-medium leading-[14px] text-content-tertiary">{HOME_COPY.myGigs.recent}</span>}
+      pill={<span className="type-caption text-content-tertiary">{HOME_COPY.myGigs.recent}</span>}
       more={{ href: allHref, label: HOME_COPY.myGigs.all }}
     >
       <div role="tablist" aria-label={HOME_COPY.myGigs.title} className="mt-3.5 flex flex-wrap gap-1.5">

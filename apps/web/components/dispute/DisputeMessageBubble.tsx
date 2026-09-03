@@ -78,7 +78,7 @@ export function DisputeMessageBubble({
           </p>
         )}
         {showTime && (
-          <p className={cn('self-end text-[11px]', isMine ? 'text-white/70' : 'text-content-tertiary')}>
+          <p className={cn('self-end type-caption', isMine ? 'text-white/70' : 'text-content-tertiary')}>
             {formatConvoTime(message.created_at)}
           </p>
         )}

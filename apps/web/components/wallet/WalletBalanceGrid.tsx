@@ -62,14 +62,14 @@ export function WalletBalanceGrid({ balances }: { balances: WalletChainBalance[]
             key={`${balance.chainId}:${balance.address}`}
             className="rounded-card border border-border-subtle bg-surface-card p-5 shadow-card"
           >
-            <p className="truncate text-[13px] font-semibold leading-[18px] text-content-secondary">
+            <p className="truncate type-body-small font-semibold text-content-secondary">
               {balance.displayName}
             </p>
             <p className="mt-2 flex items-baseline gap-1.5">
               <span className="font-numeric text-[28px] font-bold leading-8 tracking-[-0.6px] text-content-primary">
                 {usdc?.value ?? '—'}
               </span>
-              <span className="font-numeric text-[13px] leading-[18px] text-content-tertiary">
+              <span className="font-numeric type-body-small text-content-tertiary">
                 {usdc?.unit ?? ''}
               </span>
             </p>

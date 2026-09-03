@@ -52,10 +52,10 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <header>
-        <h1 className="font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+        <h1 className="type-h1 text-content-primary">
           {SETTINGS_COPY.title}
         </h1>
-        <p className="mt-2 max-w-[62ch] text-[15px] leading-[22px] text-content-secondary">
+        <p className="mt-2 max-w-[62ch] type-body text-content-secondary">
           {SETTINGS_COPY.lead}
         </p>
       </header>
@@ -67,7 +67,7 @@ export default function SettingsPage() {
       />
 
       <section>
-        <h2 className="mb-4 font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+        <h2 className="mb-4 type-h2 text-content-primary">
           {SETTINGS_COPY.preferences}
         </h2>
         <div className="flex items-center gap-4 rounded-card border border-border-default bg-surface-card px-4 py-3.5">

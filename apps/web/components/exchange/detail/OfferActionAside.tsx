@@ -85,7 +85,7 @@ export function OfferActionAside({
 
       <div className="rounded-card border border-border-subtle bg-surface-inset p-4.5">
         <Eyebrow as="h2">{OFFER_DETAIL_COPY.events}</Eyebrow>
-        <ol className="mt-3 flex list-decimal flex-col gap-2 pl-5 text-[13px] leading-[18px] text-content-secondary">
+        <ol className="mt-3 flex list-decimal flex-col gap-2 pl-5 type-body-small text-content-secondary">
           {OFFER_DETAIL_COPY.steps[perspective].map((step) => (
             <li key={step}>{step}</li>
           ))}
@@ -109,7 +109,7 @@ function Figure({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] leading-[18px] text-content-secondary">{label}</span>
+        <span className="type-body-small text-content-secondary">{label}</span>
         <span
           className={
             money

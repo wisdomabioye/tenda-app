@@ -32,7 +32,7 @@ export function SupportFaqList() {
               className="shrink-0 text-content-tertiary transition-transform group-open:rotate-180"
             />
           </summary>
-          <p className="max-w-[62ch] pb-6 pl-1 pr-1 text-[15px] leading-6 text-content-secondary">
+          <p className="max-w-[62ch] pb-6 pl-1 pr-1 type-body text-content-secondary">
             {faq.answer}
           </p>
         </details>

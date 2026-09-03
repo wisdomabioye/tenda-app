@@ -32,7 +32,7 @@ export function AnnouncementBanner() {
   return (
     <div
       role="status"
-      className="mt-6 flex flex-wrap items-center gap-3 rounded-md border border-brand-primary-border bg-brand-primary-surface px-4 py-3 text-[13px] leading-[18px]"
+      className="mt-6 flex flex-wrap items-center gap-3 rounded-md border border-brand-primary-border bg-brand-primary-surface px-4 py-3 type-body-small"
     >
       <Eyebrow as="span" tone="brand">
         {HOME_COPY.announcement.label}
@@ -43,7 +43,7 @@ export function AnnouncementBanner() {
       </span>
       <Link
         href={ANNOUNCEMENTS_HREF}
-        className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-content-link"
+        className="ml-auto inline-flex items-center gap-1 whitespace-nowrap type-body-small font-semibold text-content-link"
       >
         {HOME_COPY.announcement.read}
         <ArrowRight size={13} aria-hidden />

@@ -7,7 +7,7 @@ import { formatRelativeDay } from '@tenda/shared'
 export function ChatTimestampGroup({ iso }: { iso: string }) {
   return (
     <div className="mb-1 mt-3 flex justify-center">
-      <span className="font-numeric text-[11px] font-medium tracking-wider text-content-tertiary">
+      <span className="font-numeric type-caption text-content-tertiary">
         {formatRelativeDay(iso)}
       </span>
     </div>

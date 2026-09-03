@@ -34,10 +34,10 @@ export function FeedHero() {
         <h1 className="type-h1 text-balance text-content-primary">
           <BrandPeriod text={APP_INFO.tagline} />
         </h1>
-        <p className="mt-2.5 max-w-[62ch] text-[15px] leading-[22px] text-content-secondary">
+        <p className="mt-2.5 max-w-[62ch] type-body text-content-secondary">
           {APP_INFO.description}
         </p>
-        <p className="mt-1.5 max-w-[56ch] text-[13px] leading-[18px] text-content-tertiary">
+        <p className="mt-1.5 max-w-[56ch] type-body-small text-content-tertiary">
           {APP_INFO.guarantee}
         </p>
       </div>

@@ -119,7 +119,7 @@ export function ExchangeDetailApp({
     <div className="mx-auto w-full max-w-[1080px] px-8 pb-20 pt-8">
       <Link
         href="/exchange"
-        className="inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
+        className="inline-flex items-center gap-2 type-body-small font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
       >
         <ChevronLeft size={16} aria-hidden />
         {OFFER_DETAIL_COPY.back}

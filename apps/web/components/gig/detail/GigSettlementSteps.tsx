@@ -22,14 +22,14 @@ export function GigSettlementSteps({ requiresApproval }: { requiresApproval: boo
   return (
     <div className="rounded-card border border-border-subtle bg-surface-inset p-5">
       <Eyebrow as="h2">{GIG_DETAIL_COPY.settleTitle}</Eyebrow>
-      <ol className="mt-3.5 flex list-decimal flex-col gap-2.5 pl-5 text-[13px] leading-[18px] text-content-secondary">
+      <ol className="mt-3.5 flex list-decimal flex-col gap-2.5 pl-5 type-body-small text-content-secondary">
         {steps.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
       <Link
         href="/support/escrow"
-        className="mt-4 inline-block text-[13px] font-semibold text-content-link"
+        className="mt-4 inline-block type-body-small font-semibold text-content-link"
       >
         {GIG_DETAIL_COPY.settleLink} →
       </Link>

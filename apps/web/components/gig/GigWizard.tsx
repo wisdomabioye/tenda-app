@@ -111,10 +111,10 @@ export function GigWizard({
             the signature — the whole point of #59. */}
         <ComposerWalletNotice gate={form.walletGate} onRetry={() => void form.retryWallets()} />
         <Eyebrow className="font-bold">{stepCounter(index)}</Eyebrow>
-        <h1 className="mt-3 text-balance font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+        <h1 className="mt-3 text-balance type-h1 text-content-primary">
           {step.title}
         </h1>
-        <p className="mt-3 max-w-[56ch] text-[15px] leading-[22px] text-content-secondary">
+        <p className="mt-3 max-w-[56ch] type-body text-content-secondary">
           {step.blurb}
         </p>
 

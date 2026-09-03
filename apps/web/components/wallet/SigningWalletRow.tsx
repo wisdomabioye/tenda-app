@@ -46,7 +46,7 @@ export function SigningWalletRow({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-3 rounded-card border border-border-subtle bg-surface-card px-3 py-1.5">
-        <p className="text-[13px] leading-5 text-content-secondary">
+        <p className="type-body-small text-content-secondary">
           {SIGNING_WALLET_COPY.prefix}{' '}
           <span className="font-numeric font-semibold text-content-primary">
             {signer.address !== null
@@ -69,7 +69,7 @@ export function SigningWalletRow({
         </Button>
       </div>
       {spend !== undefined && balance.funds === 'short' && balance.availableRaw !== null && (
-        <p role="alert" className="text-[13px] leading-5 text-feedback-danger-text">
+        <p role="alert" className="type-body-small text-feedback-danger-text">
           {SIGNING_WALLET_COPY.shortFunds(
             formatAssetAmount(balance.availableRaw, spend.assetId),
             formatAssetAmount(spend.amountRaw, spend.assetId),
@@ -77,7 +77,7 @@ export function SigningWalletRow({
         </p>
       )}
       {signer.error !== null && (
-        <p role="alert" className="text-[13px] leading-5 text-feedback-danger-text">
+        <p role="alert" className="type-body-small text-feedback-danger-text">
           {signer.error}
         </p>
       )}

@@ -41,7 +41,7 @@ export function RailLink({ href, label, icon: Icon, active = false, badgeCount =
       {expanded && (
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-left text-[15px] leading-5',
+            'min-w-0 flex-1 truncate text-left type-body',
             // Weight carries the selection alongside the tint, so the active
             // row survives being seen without colour.
             active ? 'font-semibold' : 'font-medium',

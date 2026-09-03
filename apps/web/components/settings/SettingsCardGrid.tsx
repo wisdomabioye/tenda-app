@@ -41,14 +41,14 @@ function Card({ card, Icon }: { card: SettingsCard; Icon: LucideIcon }) {
     >
       <Icon size={20} aria-hidden className="mt-0.5 shrink-0 text-content-secondary" />
       <span className="min-w-0 flex-1">
-        <span className="block font-display text-[15px] font-semibold text-content-primary">
+        <span className="block font-display type-body font-semibold text-content-primary">
           {card.title}
         </span>
-        <span className="mt-1 block text-[13px] leading-[18px] text-content-secondary">
+        <span className="mt-1 block type-body-small text-content-secondary">
           {card.blurb}
         </span>
         {card.badge !== undefined && (
-          <span className="mt-2.5 inline-block rounded-full border border-border-default bg-surface-inset px-2.5 py-0.5 text-[11px] font-semibold text-content-tertiary">
+          <span className="mt-2.5 inline-block rounded-full border border-border-default bg-surface-inset px-2.5 py-0.5 type-caption font-semibold text-content-tertiary">
             {card.badge}
           </span>
         )}

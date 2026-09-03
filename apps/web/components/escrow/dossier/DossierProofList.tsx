@@ -65,7 +65,7 @@ export function DossierProofList({
 }) {
   if (proofs.length === 0) {
     return (
-      <p className="text-[13px] leading-[18px] text-content-tertiary">{DOSSIER_COPY.noProofs}</p>
+      <p className="type-body-small text-content-tertiary">{DOSSIER_COPY.noProofs}</p>
     )
   }
   return (
@@ -73,7 +73,7 @@ export function DossierProofList({
       {proofs.map((proof) => (
         <li
           key={proof.id}
-          className="rounded-control border border-border-subtle bg-surface-card px-4 py-2.5 text-[13px] text-content-primary"
+          className="rounded-control border border-border-subtle bg-surface-card px-4 py-2.5 type-body-small text-content-primary"
         >
           {proof.href == null || proof.href === '' ? (
             proof.label
@@ -90,7 +90,7 @@ export function DossierProofList({
             </a>
           )}
           {proof.uploadedAt != null && (
-            <span className="ml-2 font-numeric text-[11px] text-content-tertiary">
+            <span className="ml-2 font-numeric type-caption text-content-tertiary">
               {formatStamp(proof.uploadedAt)}
             </span>
           )}
@@ -98,7 +98,7 @@ export function DossierProofList({
           {proof.payloadLines != null && proof.payloadLines.length > 0 && (
             <div className="mt-1 flex flex-col gap-0.5">
               {proof.payloadLines.map((line, index) => (
-                <p key={index} className="break-words text-[13px] text-content-secondary">
+                <p key={index} className="break-words type-body-small text-content-secondary">
                   {line.label !== null && (
                     <span className="text-content-tertiary">{line.label}: </span>
                   )}

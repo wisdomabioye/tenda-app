@@ -130,7 +130,7 @@ export function OfferSellPanel({
           OfferSellTab rule). */}
       {fiatTotal > 0 && Number.isFinite(fiatTotal) && currency !== null && (
         <div className="flex items-baseline justify-between gap-4 rounded-card border border-border-subtle bg-surface-inset px-5 py-4">
-          <span className="text-[13px] leading-[18px] text-content-secondary">
+          <span className="type-body-small text-content-secondary">
             {OFFER_SELL_COPY.total}
           </span>
           <span className="text-right font-numeric text-xl font-bold leading-[26px] text-utility-money">

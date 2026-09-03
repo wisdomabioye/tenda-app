@@ -77,7 +77,7 @@ export function ChatInput({
           placeholder="Message…"
           maxLength={MESSAGE_MAX_LENGTH}
           rows={1}
-          className="max-h-24 min-h-6 flex-1 resize-none bg-transparent text-[15px] leading-5 text-content-primary outline-none placeholder:text-content-tertiary"
+          className="max-h-24 min-h-6 flex-1 resize-none bg-transparent type-body text-content-primary outline-none placeholder:text-content-tertiary"
         />
 
         <button

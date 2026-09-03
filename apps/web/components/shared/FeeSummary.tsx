@@ -57,7 +57,7 @@ export function FeeSummary({
 
   return (
     <div className="rounded-card border border-border-default bg-surface-card px-4 py-3">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+      <p className="mb-2 type-caption font-semibold uppercase text-content-tertiary">
         Payment breakdown
       </p>
       <div className="flex items-baseline justify-between py-1.5">
@@ -74,7 +74,7 @@ export function FeeSummary({
       </div>
       <div className="mt-1.5 flex items-baseline justify-between border-t border-border-subtle pt-2.5">
         <span className="text-sm font-semibold text-content-primary">{copy.netLabel}</span>
-        <span className="font-mono text-[15px] font-bold text-content-primary">
+        <span className="type-mono font-bold text-content-primary">
           {netRaw != null ? formatAssetAmount(netRaw.toString(), asset) : '—'}
         </span>
       </div>

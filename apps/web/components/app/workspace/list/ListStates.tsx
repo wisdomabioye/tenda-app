@@ -32,10 +32,10 @@ export function ListError({ code, onRetry }: { code?: string | null; onRetry?: (
       role="alert"
       className="m-2 rounded-card border border-feedback-danger-border bg-feedback-danger-surface p-4.5"
     >
-      <p className="text-[15px] font-bold leading-[22px] text-feedback-danger-text">
+      <p className="type-body font-bold text-feedback-danger-text">
         {LIST_ERROR_COPY.title}
       </p>
-      <p className="mt-1.5 text-[13px] leading-[18px] text-feedback-danger-text opacity-85">
+      <p className="mt-1.5 type-body-small text-feedback-danger-text opacity-85">
         {LIST_ERROR_COPY.body}
       </p>
       {code !== undefined && code !== null && code !== '' && (
@@ -54,10 +54,10 @@ export function ListEmpty({ title, body }: { title: string; body: string }) {
   return (
     <div className="m-2 rounded-card border border-dashed border-border-strong px-5 py-9 text-center">
       <Inbox size={22} aria-hidden className="mx-auto text-content-tertiary" />
-      <p className="mt-3 font-display text-[17px] font-semibold leading-6 text-content-primary">
+      <p className="mt-3 font-display type-title text-content-primary">
         {title}
       </p>
-      <p className="mx-auto mt-1.5 max-w-[32ch] text-[13px] leading-[18px] text-content-secondary">
+      <p className="mx-auto mt-1.5 max-w-[32ch] type-body-small text-content-secondary">
         {body}
       </p>
     </div>

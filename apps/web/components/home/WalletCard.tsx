@@ -47,7 +47,7 @@ function ChainRow({ balance, primary }: { balance: WalletChainBalance; primary: 
         <ChainBadge chainId={balance.chainId} glyphOnly />
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate text-sm font-semibold leading-5 text-content-primary">{balance.displayName}</span>
-          <span className="font-numeric text-[11px] leading-[14px] text-content-tertiary">
+          <span className="font-numeric type-caption text-content-tertiary">
             {truncateWallet(balance.address)}
             {primary && ` · ${HOME_COPY.wallet.primary}`}
           </span>
@@ -59,7 +59,7 @@ function ChainRow({ balance, primary }: { balance: WalletChainBalance; primary: 
             {usdc}
           </span>
         )}
-        {native !== null && <span className="font-numeric text-[11px] leading-[14px] text-content-tertiary">{native}</span>}
+        {native !== null && <span className="font-numeric type-caption text-content-tertiary">{native}</span>}
       </span>
     </li>
   )
@@ -99,7 +99,7 @@ export function WalletCard() {
       more={{ href: WALLET_HREF, label: HOME_COPY.wallet.open }}
     >
       {!walletsKnown && section === 'wallets-error' && (
-        <p className="mt-4 flex flex-wrap items-center gap-3 text-[13px] leading-[18px] text-content-tertiary">
+        <p className="mt-4 flex flex-wrap items-center gap-3 type-body-small text-content-tertiary">
           <span>{HOME_COPY.wallet.walletsError}</span>
           <button type="button" onClick={() => void retryWallets()} className="font-semibold text-content-link">
             {HOME_COPY.wallet.retry}
@@ -125,7 +125,7 @@ export function WalletCard() {
               </span>
             )}
           </p>
-          <div className="mt-3 flex flex-wrap gap-x-[22px] gap-y-1 text-[13px] leading-[18px]">
+          <div className="mt-3 flex flex-wrap gap-x-[22px] gap-y-1 type-body-small">
             <span>
               <span className="text-content-tertiary">{HOME_COPY.wallet.earned}</span>{' '}
               <span className="font-numeric font-medium text-utility-money">+{formatAmountOrUnknown(earnedUsdc, formatUsdcFigure)}</span>
@@ -136,7 +136,7 @@ export function WalletCard() {
             </span>
           </div>
           {section === 'balances-unavailable' && (
-            <p className="mt-3 text-[13px] leading-[18px] text-content-tertiary">{HOME_COPY.wallet.unavailable}</p>
+            <p className="mt-3 type-body-small text-content-tertiary">{HOME_COPY.wallet.unavailable}</p>
           )}
           {balances.length > 0 && (
             <ul className="mt-4 border-t border-border-default">
@@ -153,7 +153,7 @@ export function WalletCard() {
       )}
       {walletsKnown && (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border-strong px-3.5 py-3">
-          <span className="min-w-0 flex-1 text-[13px] leading-[18px] text-content-secondary">
+          <span className="min-w-0 flex-1 type-body-small text-content-secondary">
             {hasWallet ? HOME_COPY.wallet.linkHint : HOME_COPY.wallet.linkFirst}
           </span>
           <Link href={LINK_WALLET_HREF} className={buttonVariants({ variant: 'outline', size: 'md' })}>

@@ -93,7 +93,7 @@ export default function SignInEmailPage() {
       {/* Answers the question this step actually raises: someone who cannot
           remember whether they already signed up needs to know that typing
           the address is safe either way. */}
-      <p className="mt-4 text-[13px] leading-5 text-content-tertiary">
+      <p className="mt-4 type-body-small text-content-tertiary">
         {AUTH_COPY.email.collision}
       </p>
     </AuthPanel>

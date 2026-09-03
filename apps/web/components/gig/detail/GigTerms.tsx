@@ -92,7 +92,7 @@ export function GigTerms({ gig }: { gig: GigDetail }) {
     <dl className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-8 gap-y-[22px]">
       {gigTerms(gig).map((term) => (
         <div key={term.label}>
-          <dt className="mb-1 text-[13px] leading-[18px] text-content-tertiary">{term.label}</dt>
+          <dt className="mb-1 type-body-small text-content-tertiary">{term.label}</dt>
           {/* `break-words`: Location carries `city`, which is free text a
               poster typed. A 57-character place name painted 176px outside
               this 190px-minimum grid track and scrolled the whole document

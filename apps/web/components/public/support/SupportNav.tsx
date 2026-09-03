@@ -53,7 +53,7 @@ export function SupportNav({ current }: { current: string | null }) {
       {/* Plain <a>, not <Link>: `mailto:` and the WhatsApp invite leave the
           app, and routing them through the client router would do nothing but
           add a hydration cost to a link that never navigates in-app. */}
-      <div className="mt-6 border-t border-border-subtle pt-5 text-[13px] leading-[18px] text-content-tertiary">
+      <div className="mt-6 border-t border-border-subtle pt-5 type-body-small text-content-tertiary">
         <p>{SUPPORT_COPY.stuckNote}</p>
         <p className="mt-2 flex flex-col gap-1">
           <a

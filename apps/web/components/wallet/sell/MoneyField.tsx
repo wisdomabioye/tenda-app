@@ -35,13 +35,13 @@ export function MoneyField({
     <div>
       <label
         htmlFor={id}
-        className="block text-[13px] font-semibold leading-[18px] text-content-secondary"
+        className="block type-body-small font-semibold text-content-secondary"
       >
         {label}
       </label>
       <div className="mt-2 flex items-center gap-2 rounded-control border border-border-input bg-surface-card px-4 py-3 focus-within:border-border-input-active">
         {prefix !== undefined && (
-          <span className="shrink-0 font-numeric text-[15px] font-semibold leading-[22px] text-content-tertiary">
+          <span className="shrink-0 type-mono font-semibold text-content-tertiary">
             {prefix}
           </span>
         )}
@@ -55,7 +55,7 @@ export function MoneyField({
           className="min-w-0 flex-1 bg-transparent font-numeric text-[26px] font-bold leading-8 text-content-primary outline-none placeholder:text-content-tertiary"
         />
         {suffix !== undefined && (
-          <span className="shrink-0 font-numeric text-[15px] font-semibold leading-[22px] text-content-tertiary">
+          <span className="shrink-0 type-mono font-semibold text-content-tertiary">
             {suffix}
           </span>
         )}

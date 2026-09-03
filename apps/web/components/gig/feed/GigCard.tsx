@@ -124,7 +124,7 @@ export function GigCard({
         {/* A real space between the two halves: whitespace-only text between
             flex items is not rendered, but without it `textContent` reads
             "25USDC" to a copy-paste and any scraper. */}{' '}
-        <span className="ml-1.5 text-[11px] font-medium leading-4 tracking-[0.5px] text-content-tertiary">
+        <span className="ml-1.5 type-caption text-content-tertiary">
           {gig.displaySymbol}
         </span>
       </span>
@@ -145,7 +145,7 @@ export function GigCard({
 
       <span
         className={cn(
-          'flex min-w-0 items-center gap-2 text-[13px] leading-[18px] text-content-tertiary [grid-area:foot]',
+          'flex min-w-0 items-center gap-2 type-body-small text-content-tertiary [grid-area:foot]',
           !row && 'mt-2.5 border-t border-border-subtle pt-3',
         )}
       >

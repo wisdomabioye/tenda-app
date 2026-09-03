@@ -34,7 +34,7 @@ export function GigPosterCard({ creator }: { creator: UserRef }) {
         </div>
         <div className="shrink-0 text-right">
           {rating === null ? (
-            <p className="text-[13px] leading-[18px] text-content-tertiary">
+            <p className="type-body-small text-content-tertiary">
               {GIG_DETAIL_COPY.noRating}
             </p>
           ) : (
@@ -42,14 +42,14 @@ export function GigPosterCard({ creator }: { creator: UserRef }) {
               <p className="type-mono-mid text-content-primary">
                 {rating}
               </p>
-              <p className="text-[11px] font-medium leading-[14px] tracking-[0.12px] text-content-tertiary">
+              <p className="type-caption text-content-tertiary">
                 {GIG_DETAIL_COPY.ratingCaption}
               </p>
             </>
           )}
         </div>
       </div>
-      <p className="mt-3 max-w-[60ch] text-[13px] leading-[18px] text-content-tertiary">
+      <p className="mt-3 max-w-[60ch] type-body-small text-content-tertiary">
         {GIG_DETAIL_COPY.postedByNote}
       </p>
     </>

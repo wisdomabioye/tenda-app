@@ -50,7 +50,7 @@ export function ListHeader({
             // tech the real name rather than the two characters.
             aria-label="Open command palette"
             title="Command palette"
-            className="rounded-control border border-border-default px-2 py-[5px] font-numeric text-[11px] font-bold text-content-tertiary transition-colors duration-(--motion-fast) ease-(--motion-ease-standard) hover:bg-surface-inset hover:text-content-primary"
+            className="rounded-control border border-border-default px-2 py-[5px] font-numeric type-caption font-bold text-content-tertiary transition-colors duration-(--motion-fast) ease-(--motion-ease-standard) hover:bg-surface-inset hover:text-content-primary"
           >
             <span aria-hidden>⌘K</span>
           </button>
@@ -65,7 +65,7 @@ export function ListHeader({
               href={tab.href}
               aria-current={tab.current === true ? 'page' : undefined}
               className={cn(
-                'rounded-control px-2.5 py-1 text-[13px] font-semibold transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
+                'rounded-control px-2.5 py-1 type-body-small font-semibold transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
                 tab.current === true
                   ? 'bg-control-selected-background text-brand-primary'
                   : 'text-content-secondary hover:bg-surface-inset hover:text-content-primary',
@@ -73,7 +73,7 @@ export function ListHeader({
             >
               {tab.label}
               {tab.count !== undefined && (
-                <span className="ml-1.5 font-numeric text-[11px] opacity-70">{tab.count}</span>
+                <span className="ml-1.5 font-numeric type-caption opacity-70">{tab.count}</span>
               )}
             </Link>
           ))}

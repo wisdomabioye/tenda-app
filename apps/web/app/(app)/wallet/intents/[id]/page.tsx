@@ -56,13 +56,13 @@ export default function FiatIntentPage() {
     <div className="mx-auto w-full max-w-[720px] px-8 pb-20 pt-8">
       <Link
         href="/wallet"
-        className="inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
+        className="inline-flex items-center gap-2 type-body-small font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
       >
         <ChevronLeft size={16} aria-hidden />
         {INTENT_COPY.back}
       </Link>
 
-      <h1 className="mt-6 font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+      <h1 className="mt-6 type-h2 text-content-primary">
         {INTENT_COPY.heading(intent.direction)}
       </h1>
 

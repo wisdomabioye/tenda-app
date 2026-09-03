@@ -88,7 +88,7 @@ export function EscrowFeeCalculator() {
           "abc" and for "-5", which reads as "no fee" rather than "not a
           number" — the worst possible answer on a page about money. */}
       {typed && breakdown === null && (
-        <p id="fee-calc-error" role="alert" className="text-[13px] text-feedback-danger-text">
+        <p id="fee-calc-error" role="alert" className="type-body-small text-feedback-danger-text">
           Enter a plain amount, up to {USDC_DECIMALS} decimal places.
         </p>
       )}

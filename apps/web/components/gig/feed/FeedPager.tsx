@@ -65,7 +65,7 @@ export function FeedPager({
 
   return (
     <nav className="mt-[22px] flex flex-wrap items-center gap-3" aria-label="Feed pages">
-      <p className="font-numeric text-[13px] leading-[18px] text-content-tertiary">
+      <p className="font-numeric type-body-small text-content-tertiary">
         {FEED_COPY.pager.position(page, pages)}
       </p>
       <span className="ml-auto flex gap-2">

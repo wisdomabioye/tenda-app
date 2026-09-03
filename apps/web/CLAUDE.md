@@ -279,5 +279,11 @@ Consequences:
 - Tests co-located in `__tests__/`, positive AND negative cases, coverage >90 (the vitest
   coverage `include` list ratchets: porting a directory adds it there with its tests).
 - `styles/tokens.css` is GENERATED (`pnpm gen:tokens`); never hand-edit, CI diffs it.
+- **Text sizes are the generated `type-*` atoms, never `text-[Npx]`** (#63). An atom plus
+  ONE override (`type-body-small font-semibold`, `type-title font-numeric`) is fine — the
+  atoms sort before the core utilities, and `styles/__tests__/type-atoms.guard.test.ts`
+  proves it on the compiled stylesheet. A pixel size that genuinely has no atom (an
+  off-scale reading pair, a responsive heading, an 8/10/26/28px figure) goes in that
+  test's register with a reason; anywhere else it fails the suite.
 - `ConfirmDialog` for confirmations, toast for fire-and-forget — never `window.confirm()`.
 - After changing shared: `pnpm --filter @tenda/shared build`.

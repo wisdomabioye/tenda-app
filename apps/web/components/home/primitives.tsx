@@ -38,7 +38,7 @@ export function DashCard({
         {more !== undefined && (
           <Link
             href={more.href}
-            className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-content-secondary hover:text-content-primary"
+            className="ml-auto inline-flex items-center gap-1 whitespace-nowrap type-body-small font-semibold text-content-secondary hover:text-content-primary"
           >
             {more.label}
             <ArrowRight size={13} aria-hidden />
@@ -134,5 +134,5 @@ export function DashRow({
 
 /** A short line under a card head when a list has nothing in it. */
 export function DashEmpty({ children }: { children: ReactNode }) {
-  return <p className="mt-3 text-[13px] leading-[18px] text-content-tertiary">{children}</p>
+  return <p className="mt-3 type-body-small text-content-tertiary">{children}</p>
 }

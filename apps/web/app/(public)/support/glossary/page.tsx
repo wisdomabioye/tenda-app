@@ -12,10 +12,10 @@ export default function GlossaryPage() {
       <dl className="max-w-[66ch] border-t border-border-default">
         {SUPPORT_GLOSSARY.map((entry) => (
           <div key={entry.term} className="border-b border-border-default py-5">
-            <dt className="break-words font-display text-[17px] font-semibold leading-6 text-content-primary">
+            <dt className="break-words font-display type-title text-content-primary">
               {entry.term}
             </dt>
-            <dd className="mt-1.5 break-words text-[15px] leading-6 text-content-secondary">
+            <dd className="mt-1.5 break-words type-body text-content-secondary">
               {entry.definition}
             </dd>
           </div>

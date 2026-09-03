@@ -43,7 +43,7 @@ export function AttentionRows({ items }: { items: readonly AttentionItem[] }) {
               <span className="block truncate text-base font-semibold leading-[22px] text-content-primary">
                 {item.title}
               </span>
-              <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] leading-[18px] text-content-tertiary">
+              <span className="flex flex-wrap items-center gap-x-1.5 type-body-small text-content-tertiary">
                 <span>
                   {HOME_COPY.attention.posted} <RelativeTime iso={item.postedAt} className="font-numeric" />
                 </span>

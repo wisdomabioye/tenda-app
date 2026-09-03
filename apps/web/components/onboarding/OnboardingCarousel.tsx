@@ -43,7 +43,7 @@ export function OnboardingCarousel() {
             announced as two unrelated updates. */}
         <div aria-live="polite">
           <Eyebrow strong>{ONBOARDING_COPY.counter(index, ONBOARDING_SLIDES.length)}</Eyebrow>
-          <h1 className="mt-3.5 text-balance font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+          <h1 className="mt-3.5 text-balance type-h1 text-content-primary">
             {slide.title}
           </h1>
           <p className="mt-3 text-[17px] leading-[26px] text-content-secondary">{slide.body}</p>

@@ -46,7 +46,7 @@ export function FeedRailForm({ filters }: { filters: GigFeedFilters }) {
             name="q"
             defaultValue={filters.q ?? ''}
             placeholder={FEED_COPY.rail.searchPlaceholder}
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-control-input-text outline-none placeholder:text-control-input-placeholder"
+            className="min-w-0 flex-1 bg-transparent type-body-small text-control-input-text outline-none placeholder:text-control-input-placeholder"
           />
         </div>
       </RailSection>

@@ -81,7 +81,7 @@ export function RowChassis({
       <div className="flex min-w-0 items-center gap-2">
         {lead}
         {eyebrow !== undefined && (
-          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-[18px] text-content-secondary">
+          <span className="min-w-0 flex-1 truncate type-body-small font-semibold text-content-secondary">
             {eyebrow}
           </span>
         )}
@@ -110,12 +110,12 @@ export function RowChassis({
         <div className="mt-2 flex min-w-0 items-center gap-2.5">
           {badge}
           {subtitle !== undefined && (
-            <span className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-content-tertiary">
+            <span className="min-w-0 flex-1 truncate type-body-small text-content-tertiary">
               {subtitle}
             </span>
           )}
           {amount !== undefined && (
-            <span className="shrink-0 whitespace-nowrap font-numeric text-[17px] font-semibold leading-6 text-utility-money">
+            <span className="shrink-0 whitespace-nowrap font-numeric type-title text-utility-money">
               {amount}
             </span>
           )}

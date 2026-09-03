@@ -77,12 +77,12 @@ export default function NotificationDetailPage() {
           iso={notification.created_at}
           className="mt-2 block font-numeric text-xs leading-4 text-content-tertiary"
         />
-        <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[22px] text-content-secondary">
+        <p className="mt-5 whitespace-pre-wrap type-body text-content-secondary">
           {notification.body}
         </p>
         <div className="mt-7">
           {route === null ? (
-            <p className="text-[13px] leading-[18px] text-content-tertiary">
+            <p className="type-body-small text-content-tertiary">
               {NOTIFICATIONS_LIST_COPY.noRoute}
             </p>
           ) : (

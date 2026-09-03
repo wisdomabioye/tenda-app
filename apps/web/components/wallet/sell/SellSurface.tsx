@@ -40,7 +40,7 @@ export function SellSurface({ mode }: { mode: SellMode }) {
     <div className="mx-auto w-full max-w-[1080px] px-8 pb-20 pt-8">
       <Link
         href="/wallet"
-        className="inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
+        className="inline-flex items-center gap-2 type-body-small font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
       >
         <ChevronLeft size={16} aria-hidden />
         {SELL_COPY.back}
@@ -48,7 +48,7 @@ export function SellSurface({ mode }: { mode: SellMode }) {
 
       <div className="mt-6">
         <Eyebrow>{SELL_COPY.eyebrow}</Eyebrow>
-        <h1 className="mt-2 font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+        <h1 className="mt-2 type-h1 text-content-primary">
           {SELL_COPY.title}
         </h1>
       </div>
@@ -78,7 +78,7 @@ export function SellSurface({ mode }: { mode: SellMode }) {
         })}
       </div>
 
-      <p className="mt-4 max-w-[64ch] text-[15px] leading-[22px] text-content-secondary">
+      <p className="mt-4 max-w-[64ch] type-body text-content-secondary">
         {SELL_COPY.lede(mode)}
       </p>
 

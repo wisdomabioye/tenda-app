@@ -25,7 +25,7 @@ export function RuledFigures({ stats, reviewScore }: { stats: ProfileStats; revi
   const score = formatReviewScore(reviewScore)
   if (stats.status === 'error') {
     return (
-      <div className="mt-7 flex items-center gap-3 border-t border-border-default pt-5 text-[13px] text-content-tertiary">
+      <div className="mt-7 flex items-center gap-3 border-t border-border-default pt-5 type-body-small text-content-tertiary">
         <span>{HOME_COPY.figures.unavailable}</span>
         <button type="button" onClick={stats.reload} className="font-semibold text-content-link">
           {HOME_COPY.figures.retry}

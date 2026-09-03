@@ -58,6 +58,8 @@ const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
     'asserts a CONVENTION over the whole stores directory (#65) — its subject IS the directory',
   'styles/__tests__/motion-contract.test.ts': 'a style contract over generated tokens, not a module',
   'styles/__tests__/panes-contract.test.ts': 'a style contract over generated tokens, not a module',
+  'styles/__tests__/type-atoms.guard.test.ts':
+    'asserts a CONVENTION over the whole app tree (#63: every text size is a type-* atom, or registered with a reason) and a sort-order contract on the compiled stylesheet — its subject is the tree',
   'wallet/__tests__/config-guard.test.ts':
     'guards the wallet CONFIG against the chain manifest — a cross-file invariant with no single owner',
 }

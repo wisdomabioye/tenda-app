@@ -78,11 +78,11 @@ function CountdownFrame({
     >
       <Timer size={20} aria-hidden className="shrink-0" />
       <div className="min-w-0 flex-1">
-        <p className="font-numeric text-[22px] font-bold leading-7">
+        <p className="type-mono-mid font-bold">
           <span className="sr-only">{label}: </span>
           {value}
         </p>
-        <p className="mt-0.5 text-[13px] leading-[18px] opacity-90">{note}</p>
+        <p className="mt-0.5 type-body-small opacity-90">{note}</p>
       </div>
     </div>
   )

@@ -206,7 +206,7 @@ export default function SignInVerifyPage() {
             only useful next step is a new code — so it is said plainly rather
             than left for the server to answer with "invalid". */}
         {expired && (
-          <p role="alert" className="text-[13px] font-semibold text-feedback-danger-text">
+          <p role="alert" className="type-body-small font-semibold text-feedback-danger-text">
             {AUTH_COPY.verify.expired}
           </p>
         )}

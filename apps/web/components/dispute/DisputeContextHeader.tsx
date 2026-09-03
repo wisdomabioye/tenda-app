@@ -35,7 +35,7 @@ export function DisputeContextHeader({
   return (
     <section className="mx-4 mt-2 flex flex-col gap-1.5 rounded-xl border border-border-subtle bg-surface-inset p-4">
       <div className="flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-content-primary">{subject}</p>
+        <p className="min-w-0 flex-1 truncate type-body font-semibold text-content-primary">{subject}</p>
         <EscrowStatusBadge status={context.status} kind={context.kind} />
       </div>
 

@@ -70,7 +70,7 @@ export function MessageBubble({
         </div>
 
         {isSending && (
-          <span className="mt-1 self-end text-[11px] text-content-tertiary">Sending…</span>
+          <span className="mt-1 self-end type-caption text-content-tertiary">Sending…</span>
         )}
       </div>
     </div>

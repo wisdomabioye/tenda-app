@@ -29,7 +29,7 @@ function QuickLink({ href, icon: Icon, title, hint }: { href: string; icon: Luci
       <Icon size={20} aria-hidden className="text-content-secondary" strokeWidth={1.75} />
       <span>
         <span className="block text-base font-semibold leading-[22px] text-content-primary">{title}</span>
-        <span className="block text-[13px] leading-[18px] text-content-tertiary">{hint}</span>
+        <span className="block type-body-small text-content-tertiary">{hint}</span>
       </span>
     </Link>
   )

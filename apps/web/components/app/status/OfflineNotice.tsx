@@ -31,7 +31,7 @@ export function OfflineNotice() {
   return (
     <div
       role="status"
-      className="flex items-center justify-center gap-2 border-b border-feedback-warning-border bg-feedback-warning-surface px-4 py-2 text-[13px] font-semibold leading-[18px] text-feedback-warning-text"
+      className="flex items-center justify-center gap-2 border-b border-feedback-warning-border bg-feedback-warning-surface px-4 py-2 type-body-small font-semibold text-feedback-warning-text"
     >
       <WifiOff size={14} aria-hidden className="shrink-0" />
       <span>{OFFLINE_COPY.banner}</span>

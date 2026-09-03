@@ -38,13 +38,13 @@ export function NotificationRow({
       <span className="min-w-0">
         <span
           className={cn(
-            'block truncate text-[13px] leading-[18px]',
+            'block truncate type-body-small',
             unread ? 'font-semibold text-content-primary' : 'text-content-secondary',
           )}
         >
           {notification.title}
         </span>
-        <span className="mt-0.5 line-clamp-2 block text-[11px] font-medium leading-[14px] tracking-[0.12px] text-content-tertiary">
+        <span className="mt-0.5 line-clamp-2 block type-caption text-content-tertiary">
           {notification.body}
         </span>
       </span>

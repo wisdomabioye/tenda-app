@@ -55,10 +55,10 @@ export function SupportGuideGrid() {
               className="flex min-w-0 flex-col gap-2.5 rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:border-border-strong hover:shadow-elevated"
             >
               <Icon size={20} aria-hidden className="text-brand-primary" />
-              <span className="break-words font-display text-[17px] font-semibold leading-6 text-content-primary">
+              <span className="break-words font-display type-title text-content-primary">
                 {topic.title}
               </span>
-              <span className="text-[13px] leading-[18px] text-content-secondary">
+              <span className="type-body-small text-content-secondary">
                 {topic.description}
               </span>
             </Link>

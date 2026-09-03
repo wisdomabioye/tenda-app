@@ -35,7 +35,7 @@ function ChipRow({
 }) {
   return (
     <div>
-      <p className="text-[13px] font-semibold leading-[18px] text-content-secondary">{label}</p>
+      <p className="type-body-small font-semibold text-content-secondary">{label}</p>
       <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={label}>
         {options.map((option) => (
           <Chip

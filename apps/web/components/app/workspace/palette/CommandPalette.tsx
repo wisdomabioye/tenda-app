@@ -91,9 +91,9 @@ export function CommandPalette({
             setCursor(0)
           }}
           onKeyDown={onKeyDown}
-          className="min-w-0 flex-1 bg-transparent text-[17px] leading-6 text-control-input-text outline-none placeholder:text-content-placeholder"
+          className="min-w-0 flex-1 bg-transparent type-title font-normal text-control-input-text outline-none placeholder:text-content-placeholder"
         />
-        <kbd className="shrink-0 rounded-[5px] border border-border-default px-1.5 py-0.5 font-numeric text-[11px] text-content-tertiary">
+        <kbd className="shrink-0 rounded-[5px] border border-border-default px-1.5 py-0.5 font-numeric type-caption text-content-tertiary">
           esc
         </kbd>
       </div>
@@ -112,7 +112,7 @@ export function CommandPalette({
                 onMouseEnter={() => setCursor(index)}
                 onClick={() => go(command)}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-control border px-3 py-2.5 text-left text-[15px] font-semibold',
+                  'flex w-full items-center gap-2.5 rounded-control border px-3 py-2.5 text-left type-button',
                   isActive
                     ? 'border-control-selected-border bg-control-selected-background text-brand-primary'
                     : 'border-transparent text-content-primary',
@@ -120,7 +120,7 @@ export function CommandPalette({
               >
                 <Icon size={16} aria-hidden className="shrink-0 text-content-tertiary" />
                 <span className="min-w-0 flex-1 truncate">{command.label}</span>
-                <span className="shrink-0 font-numeric text-[11px] text-content-tertiary">
+                <span className="shrink-0 font-numeric type-caption text-content-tertiary">
                   {command.hint}
                 </span>
               </button>
@@ -128,7 +128,7 @@ export function CommandPalette({
           )
         })}
         {results.length === 0 && (
-          <p className="p-6 text-center text-[13px] leading-[18px] text-content-tertiary">
+          <p className="p-6 text-center type-body-small text-content-tertiary">
             {PALETTE_EMPTY_COPY}
           </p>
         )}

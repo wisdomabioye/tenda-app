@@ -39,7 +39,7 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
     <header className="rounded-card border border-border-subtle bg-surface-card px-5 py-5 shadow-card sm:px-7 sm:py-[26px]">
       <nav
         aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2 text-[13px] font-semibold leading-[18px] text-content-tertiary"
+        className="flex flex-wrap items-center gap-2 type-body-small font-semibold text-content-tertiary"
       >
         <Link href="/" className="hover:text-content-primary">
           {GIG_DETAIL_COPY.breadcrumbRoot}
@@ -51,7 +51,7 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
         <ChevronRight size={14} aria-hidden />
         {/* The escrow id is the thing a reader quotes to support, so it is
             shown in full and in mono rather than truncated to look tidy. */}
-        <span className="break-all font-numeric text-[11px] font-medium leading-4">{gig.escrow_id}</span>
+        <span className="break-all font-numeric type-caption">{gig.escrow_id}</span>
       </nav>
 
       <div className="mt-[22px] flex items-center gap-1.5">

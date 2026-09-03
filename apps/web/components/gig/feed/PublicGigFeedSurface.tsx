@@ -73,7 +73,7 @@ function PublicGigFeedState({ page, filters, query, facts }: {
           <h2 className="type-h2 text-content-primary">
             <BrandPeriod text={`${heading}.`} />
           </h2>
-          <p data-feed-facts className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13px] leading-[18px] text-content-tertiary">
+          <p data-feed-facts className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 type-body-small text-content-tertiary">
             <span className="font-numeric text-xs text-content-primary">{FEED_COPY.feed.count(live.total)}</span>
             {facts.chainIds.length > 0 && (
               <>
@@ -109,7 +109,7 @@ function PublicGigFeedState({ page, filters, query, facts }: {
           <GigsViewToggle />
         </div>
       </div>
-      <p className="mb-5 max-w-[78ch] text-[13px] leading-[18px] text-content-tertiary">{FEED_COPY.feed.amountNote}</p>
+      <p className="mb-5 max-w-[78ch] type-body-small text-content-tertiary">{FEED_COPY.feed.amountNote}</p>
       {live.items.length === 0 ? (
         live.total > 0
           ? <FeedPastEnd href={gigsHref(filters)} total={live.total} />

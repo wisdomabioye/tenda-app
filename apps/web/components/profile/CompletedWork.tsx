@@ -40,7 +40,7 @@ export function CompletedWork({ userId }: { userId: string }) {
         {work.map(({ category, count }) => (
           <li
             key={category}
-            className="flex items-center gap-[7px] rounded-full border border-border-subtle bg-surface-card px-3.5 py-[7px] text-[13px] font-semibold text-content-secondary"
+            className="flex items-center gap-[7px] rounded-full border border-border-subtle bg-surface-card px-3.5 py-[7px] type-body-small font-semibold text-content-secondary"
           >
             <span
               aria-hidden

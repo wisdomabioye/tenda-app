@@ -41,7 +41,7 @@ export function ExchangeSurface({
       <div className="mb-7 flex flex-wrap items-center gap-4">
         <div className="min-w-[260px] flex-1">
           <Eyebrow>{EXCHANGE_COPY.eyebrow}</Eyebrow>
-          <h1 className="mt-2 font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+          <h1 className="mt-2 type-h1 text-content-primary">
             {EXCHANGE_COPY.title(route.tab)}
           </h1>
         </div>
@@ -112,7 +112,7 @@ export function ExchangeSurface({
         )}
 
         {isMarket && market.items.length > 0 && (
-          <p className="mt-5 max-w-[70ch] text-[13px] leading-[18px] text-content-tertiary">
+          <p className="mt-5 max-w-[70ch] type-body-small text-content-tertiary">
             {EXCHANGE_COPY.ordering}
           </p>
         )}

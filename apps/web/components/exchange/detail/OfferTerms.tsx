@@ -101,12 +101,12 @@ export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
       <dl className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-8 gap-y-5">
         {rows.map((row) => (
           <div key={row.label}>
-            <dt className="mb-1 text-[13px] leading-[18px] text-content-tertiary">{row.label}</dt>
+            <dt className="mb-1 type-body-small text-content-tertiary">{row.label}</dt>
             <dd
               className={
                 row.mono
-                  ? 'font-numeric text-[15px] font-semibold leading-[22px] text-content-primary'
-                  : 'text-[15px] font-semibold leading-[22px] text-content-primary'
+                  ? 'type-mono font-semibold text-content-primary'
+                  : 'type-body font-semibold text-content-primary'
               }
             >
               {row.value}

@@ -56,7 +56,7 @@ export function SellAssetAmount({
           chip is what states the "you sell X on Y" fact before the number. */}
       {selection.options.length > 0 && (
         <div>
-          <p className="text-[13px] font-semibold leading-[18px] text-content-secondary">
+          <p className="type-body-small font-semibold text-content-secondary">
             {SELL_COPY.assetLabel}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={SELL_COPY.assetLabel}>

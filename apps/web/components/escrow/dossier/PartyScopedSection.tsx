@@ -112,7 +112,7 @@ export function PartyScopedSection({
       {/* Assigned but unnamed: a party may know the gig is taken without the
           assignee being resolvable on this wire. */}
       {!hasCounterparty && isAssigned && (
-        <p className="mb-7 text-[13px] leading-[18px] text-content-secondary">
+        <p className="mb-7 type-body-small text-content-secondary">
           {DOSSIER_COPY.assignedUnnamed}
         </p>
       )}

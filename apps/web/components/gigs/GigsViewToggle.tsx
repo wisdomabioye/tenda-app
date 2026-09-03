@@ -42,7 +42,7 @@ export function GigsViewToggle({
             title={compact ? label : undefined}
             onClick={() => setView(key)}
             className={cn(
-              'inline-flex h-[30px] items-center gap-1.5 rounded-[9px] px-2.5 text-[13px] font-semibold transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
+              'inline-flex h-[30px] items-center gap-1.5 rounded-[9px] px-2.5 type-body-small font-semibold transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
               pressed
                 ? 'bg-content-primary text-surface-background'
                 : 'text-content-tertiary hover:text-content-primary',

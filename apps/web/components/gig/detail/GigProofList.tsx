@@ -75,9 +75,9 @@ function ProofItem({
       </span>
       <div className="min-w-0">
         <p className="text-base font-semibold leading-[22px] text-content-primary">{title}</p>
-        <p className="text-[13px] leading-[18px] text-content-tertiary">{hint}</p>
+        <p className="type-body-small text-content-tertiary">{hint}</p>
         {detail !== null && (
-          <p className="mt-1 break-words text-[13px] font-medium leading-[18px] text-content-primary">
+          <p className="mt-1 break-words type-body-small font-medium text-content-primary">
             {detail}
           </p>
         )}

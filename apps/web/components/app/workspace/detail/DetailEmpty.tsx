@@ -12,7 +12,7 @@ export function DetailEmpty({ title, body }: { title: string; body: string }) {
       <p className="mt-4 font-display text-xl font-semibold leading-[26px] text-content-secondary">
         {title}
       </p>
-      <p className="mt-2 max-w-[38ch] text-[15px] leading-[22px] text-content-tertiary">{body}</p>
+      <p className="mt-2 max-w-[38ch] type-body text-content-tertiary">{body}</p>
     </div>
   )
 }

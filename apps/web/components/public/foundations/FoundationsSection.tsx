@@ -18,11 +18,11 @@ export function FoundationsSection({
 }) {
   return (
     <section className="mt-12 border-t border-border-default pt-8">
-      <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+      <h2 className="type-h2 text-content-primary">
         {title}
       </h2>
       {intro !== undefined && (
-        <p className="mt-2 max-w-[60ch] text-[15px] leading-[22px] text-content-secondary">
+        <p className="mt-2 max-w-[60ch] type-body text-content-secondary">
           {intro}
         </p>
       )}

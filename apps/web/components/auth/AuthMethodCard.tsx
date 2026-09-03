@@ -34,10 +34,10 @@ export function AuthMethodCard({
         <Icon size={18} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-display text-[17px] font-semibold leading-6 text-content-primary">
+        <span className="block font-display type-title text-content-primary">
           {label}
         </span>
-        <span className="block text-[13px] leading-[18px] text-content-secondary">{hint}</span>
+        <span className="block type-body-small text-content-secondary">{hint}</span>
       </span>
       <ChevronRight size={18} aria-hidden className="shrink-0 text-content-tertiary" />
     </Link>

@@ -28,7 +28,7 @@ export function SupportAccordion({
       className="group rounded-card border border-border-subtle bg-surface-card shadow-card"
     >
       <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-4 marker:hidden [&::-webkit-details-marker]:hidden">
-        <span className="min-w-0 flex-1 break-words font-display text-[17px] font-semibold leading-6 text-content-primary">
+        <span className="min-w-0 flex-1 break-words font-display type-title text-content-primary">
           {title}
         </span>
         <ChevronDown
@@ -54,23 +54,23 @@ export function GuideSteps({ steps }: { steps: readonly GuideStepData[] }) {
     <ol className="flex list-none flex-col gap-5 p-0">
       {steps.map((step, index) => (
         <li key={step.title} className="flex min-w-0 gap-4">
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary-surface font-numeric text-[13px] font-bold text-brand-primary">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary-surface font-numeric type-body-small font-bold text-brand-primary">
             {index + 1}
           </span>
           <div className="min-w-0">
             <p className="break-words font-semibold text-content-primary">{step.title}</p>
-            <p className="mt-1 max-w-[62ch] break-words text-[15px] leading-6 text-content-secondary">
+            <p className="mt-1 max-w-[62ch] break-words type-body text-content-secondary">
               {step.description}
             </p>
             {/* A warning is a thing that can cost the reader money, so it gets
                 the feedback tone rather than a bold sentence in the flow. */}
             {step.warning !== undefined && (
-              <p className="mt-2.5 rounded-control border border-feedback-warning-border bg-feedback-warning-surface px-3 py-2 text-[13px] leading-[18px] text-feedback-warning-text">
+              <p className="mt-2.5 rounded-control border border-feedback-warning-border bg-feedback-warning-surface px-3 py-2 type-body-small text-feedback-warning-text">
                 {step.warning}
               </p>
             )}
             {step.tip !== undefined && (
-              <p className="mt-2 text-[13px] leading-[18px] text-content-tertiary">
+              <p className="mt-2 type-body-small text-content-tertiary">
                 Tip: {step.tip}
               </p>
             )}
@@ -93,11 +93,11 @@ export function InfoCard({
 }) {
   return (
     <section className="flex flex-col gap-2.5 rounded-card border border-border-subtle bg-surface-inset p-5">
-      <h2 className="font-display text-[17px] font-semibold leading-6 text-content-primary">
+      <h2 className="font-display type-title text-content-primary">
         {label}
       </h2>
       {body !== undefined && (
-        <p className="max-w-[62ch] text-[15px] leading-6 text-content-secondary">{body}</p>
+        <p className="max-w-[62ch] type-body text-content-secondary">{body}</p>
       )}
       {children}
     </section>

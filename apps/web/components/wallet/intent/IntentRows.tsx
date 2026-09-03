@@ -35,8 +35,8 @@ export function IntentRows({ intent }: { intent: FiatIntentDetail }) {
       <dl className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-8 gap-y-5">
         {rows.map((row) => (
           <div key={row.label}>
-            <dt className="mb-1 text-[13px] leading-[18px] text-content-tertiary">{row.label}</dt>
-            <dd className="break-words font-numeric text-[15px] font-semibold leading-[22px] text-content-primary">
+            <dt className="mb-1 type-body-small text-content-tertiary">{row.label}</dt>
+            <dd className="break-words type-mono font-semibold text-content-primary">
               {row.value}
             </dd>
           </div>

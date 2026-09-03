@@ -39,16 +39,16 @@ export function MoneyBlock({
     <div className="mt-7 rounded-card border border-border-default bg-surface-card p-6 shadow-card">
       <Eyebrow>{DOSSIER_COPY.amountLabel}</Eyebrow>
       <div className="mt-2 flex items-end gap-2">
-        <span className="font-numeric text-[40px] font-bold leading-[44px] tracking-[-1px] text-utility-money">
+        <span className="type-mono-large font-bold text-utility-money">
           {amount}
         </span>
         {/* See GigCard: the space is for textContent, not for layout. */}
         {' '}
-        <span className="pb-1 font-numeric text-[15px] leading-[22px] text-content-tertiary">
+        <span className="pb-1 type-mono text-content-tertiary">
           {symbol}
         </span>
       </div>
-      <p className="mt-2 max-w-[52ch] text-[13px] leading-[18px] text-content-secondary">
+      <p className="mt-2 max-w-[52ch] type-body-small text-content-secondary">
         {DOSSIER_COPY.amountNote}
       </p>
 
@@ -57,7 +57,7 @@ export function MoneyBlock({
           {facts.map((fact) => (
             <div key={fact.label}>
               <dt className="mb-0.5 text-xs leading-4 text-content-tertiary">{fact.label}</dt>
-              <dd className="text-[15px] leading-[22px] text-content-primary">{fact.value}</dd>
+              <dd className="type-body text-content-primary">{fact.value}</dd>
             </div>
           ))}
         </dl>

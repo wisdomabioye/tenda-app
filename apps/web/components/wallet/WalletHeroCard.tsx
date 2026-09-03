@@ -63,7 +63,7 @@ export function WalletHeroCard({
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-[22px] gap-y-1 text-[13px] leading-[18px]">
+      <div className="mt-3 flex flex-wrap gap-x-[22px] gap-y-1 type-body-small">
         <span>
           <span className="text-content-tertiary">{WALLET_HERO_COPY.earned}</span>{' '}
           <span className="font-numeric font-medium text-numeric-positive">

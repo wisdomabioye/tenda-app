@@ -132,7 +132,7 @@ export default function OnboardingProfilePage() {
         </Button>
       </form>
 
-      <p className="mt-4 text-[13px] leading-5 text-content-tertiary">
+      <p className="mt-4 type-body-small text-content-tertiary">
         {AUTH_COPY.profile.photoNote}
       </p>
     </AuthPanel>

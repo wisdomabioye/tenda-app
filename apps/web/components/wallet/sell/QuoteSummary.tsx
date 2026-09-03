@@ -62,13 +62,13 @@ export function QuoteSummary({
       <dl className="flex flex-col gap-3">
         {lines.map((line) => (
           <div key={line.label} className="flex items-baseline justify-between gap-4">
-            <dt className="text-[13px] leading-[18px] text-content-secondary">{line.label}</dt>
+            <dt className="type-body-small text-content-secondary">{line.label}</dt>
             <dd
               className={cn(
                 'text-right font-numeric font-bold',
                 line.money
                   ? 'text-xl leading-[26px] text-utility-money'
-                  : 'text-[15px] leading-[22px] text-content-primary',
+                  : 'type-body text-content-primary',
               )}
             >
               {line.value}
@@ -79,18 +79,18 @@ export function QuoteSummary({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3.5">
         {expired ? (
-          <p className="text-[13px] leading-[18px] text-feedback-danger-base">
+          <p className="type-body-small text-feedback-danger-base">
             <span className="font-semibold">{SELL_COPY.quote.expired}</span>, {SELL_COPY.quote.expiredBody}
           </p>
         ) : (
-          <p className={cn('font-numeric text-[13px] leading-[18px]', EXPIRY_CLASS[tone])}>
+          <p className={cn('font-numeric type-body-small', EXPIRY_CLASS[tone])}>
             {SELL_COPY.quote.expires} <span className="font-bold">{expiresIn}s</span>
           </p>
         )}
         <button
           type="button"
           onClick={onRefresh}
-          className="inline-flex items-center gap-1.5 rounded-control border border-border-default px-3 py-1.5 text-[13px] font-semibold text-content-primary transition-colors duration-(--motion-fast) hover:border-border-strong"
+          className="inline-flex items-center gap-1.5 rounded-control border border-border-default px-3 py-1.5 type-body-small font-semibold text-content-primary transition-colors duration-(--motion-fast) hover:border-border-strong"
         >
           <RotateCw size={14} aria-hidden />
           {SELL_COPY.quote.refresh}

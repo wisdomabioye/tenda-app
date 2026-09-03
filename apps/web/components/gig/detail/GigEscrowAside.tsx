@@ -31,7 +31,7 @@ export function GigEscrowAside({ gig, actions }: { gig: GigDetail; actions?: Rea
       <div className="rounded-card border border-border-default bg-surface-card px-6 py-[22px] shadow-card">
         <Eyebrow tone="secondary">{GIG_DETAIL_COPY.locked}</Eyebrow>
         <div className="mt-2.5 flex items-end gap-2">
-          <span className="font-numeric text-[40px] font-semibold leading-[44px] tracking-[-1px] text-utility-money">
+          <span className="type-mono-large text-utility-money">
             {amount}
           </span>
           {/* See GigCard: the space is for textContent, not for layout. */}
@@ -60,7 +60,7 @@ export function GigEscrowAside({ gig, actions }: { gig: GigDetail; actions?: Rea
             aria-hidden
             className="mt-0.5 shrink-0 text-feedback-success-base"
           />
-          <p className="text-[13px] leading-[18px] text-content-secondary">
+          <p className="type-body-small text-content-secondary">
             {GIG_DETAIL_COPY.lockedOn(chainLabel(gig.chain_id))}
           </p>
         </div>

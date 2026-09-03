@@ -29,14 +29,14 @@ export function OfferHeadline({ offer }: { offer: ExchangeDetail }) {
       </div>
 
       <h1 className="mt-5 flex flex-wrap items-end gap-3">
-        <span className="font-numeric text-[44px] font-bold leading-[48px] tracking-[-1.2px] text-content-primary">
+        <span className="font-numeric type-hero text-content-primary">
           {formatRate(Number(offer.rate), offer.fiat_currency)}
         </span>
-        <span className="pb-1.5 font-numeric text-[15px] leading-[22px] text-content-tertiary">
+        <span className="pb-1.5 type-mono text-content-tertiary">
           {OFFER_DETAIL_COPY.rateUnit(offer.fiat_currency, offer.asset)}
         </span>
       </h1>
-      <p className="mt-2.5 max-w-[56ch] text-[15px] leading-[22px] text-content-secondary">
+      <p className="mt-2.5 max-w-[56ch] type-body text-content-secondary">
         {OFFER_DETAIL_COPY.rateNote}
       </p>
     </header>

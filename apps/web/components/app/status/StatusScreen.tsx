@@ -45,9 +45,9 @@ export function StatusScreen({
       <h1 className="mt-5 font-display text-[26px] font-bold leading-8 tracking-[-0.6px] text-content-primary sm:text-[30px] sm:leading-9">
         {title}
       </h1>
-      <p className="mt-3 text-[15px] leading-[22px] text-content-secondary">{body}</p>
+      <p className="mt-3 type-body text-content-secondary">{body}</p>
       {meta !== undefined && meta !== '' && (
-        <p className="mt-4 break-words font-numeric text-[13px] leading-[18px] text-content-tertiary">
+        <p className="mt-4 break-words font-numeric type-body-small text-content-tertiary">
           {meta}
         </p>
       )}

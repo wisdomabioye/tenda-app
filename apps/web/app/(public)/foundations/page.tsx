@@ -34,8 +34,8 @@ export default function FoundationsPage() {
       </h1>
       <p className="mt-5 max-w-[64ch] text-[17px] leading-7 text-content-secondary">
         Everything here is read from what the app ships. Colours are the custom
-        properties in <code className="font-numeric text-[15px]">styles/tokens.css</code>,
-        generated from <code className="font-numeric text-[15px]">apps/mobile/theme/tokens.ts</code>;
+        properties in <code className="type-mono">styles/tokens.css</code>,
+        generated from <code className="type-mono">apps/mobile/theme/tokens.ts</code>;
         the controls are the components themselves. Toggle the theme in the header
         and this page follows without a reload.
       </p>
@@ -45,7 +45,7 @@ export default function FoundationsPage() {
       <PrimitiveStates />
 
       <FoundationsSection title="What this page is for">
-        <p className="max-w-[66ch] text-[15px] leading-6 text-content-secondary">
+        <p className="max-w-[66ch] type-body text-content-secondary">
           A visual companion to the drift gate. CI already fails when{' '}
           <code className="font-numeric">styles/tokens.css</code> stops matching its
           generator; this is where you see whether the values still look right

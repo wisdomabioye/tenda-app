@@ -146,7 +146,7 @@ export function EscrowRow({
             {creator !== undefined && creatorName !== undefined && (
               <>
                 <Avatar size="sm" name={creatorName} src={creator.avatar_url} />
-                <span className="min-w-0 truncate text-[13px] font-semibold leading-[18px] text-content-secondary">
+                <span className="min-w-0 truncate type-body-small font-semibold text-content-secondary">
                   {creatorName}
                 </span>
                 {rating !== null && (

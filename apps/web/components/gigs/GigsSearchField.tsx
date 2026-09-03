@@ -37,7 +37,7 @@ export function GigsSearchField({ className }: { className?: string }) {
   return (
     <label
       className={cn(
-        'flex h-[38px] items-center gap-2 rounded-sm bg-control-input-background px-3 text-[13px] text-content-tertiary focus-within:ring-2 focus-within:ring-brand-focus-ring',
+        'flex h-[38px] items-center gap-2 rounded-sm bg-control-input-background px-3 type-body-small text-content-tertiary focus-within:ring-2 focus-within:ring-brand-focus-ring',
         className,
       )}
     >
@@ -48,7 +48,7 @@ export function GigsSearchField({ className }: { className?: string }) {
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={FEED_COPY.rail.searchPlaceholder}
-        className="min-w-0 flex-1 bg-transparent text-[13px] text-control-input-text outline-none placeholder:text-control-input-placeholder"
+        className="min-w-0 flex-1 bg-transparent type-body-small text-control-input-text outline-none placeholder:text-control-input-placeholder"
       />
     </label>
   )

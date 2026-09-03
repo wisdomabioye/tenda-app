@@ -98,7 +98,7 @@ export function MyGigsListColumn() {
         {drafts.hasFetched && drafts.total > 0 && (
           <Link
             href={MY_GIGS_COPY.draftsHref}
-            className="mx-3 mb-2 mt-1 flex items-center gap-2.5 rounded-card border border-border-subtle bg-surface-inset px-3 py-2.5 text-[13px] text-content-primary transition-colors hover:border-border-strong"
+            className="mx-3 mb-2 mt-1 flex items-center gap-2.5 rounded-card border border-border-subtle bg-surface-inset px-3 py-2.5 type-body-small text-content-primary transition-colors hover:border-border-strong"
           >
             <FileClock size={15} aria-hidden className="shrink-0 text-content-secondary" />
             <span className="flex-1">{MY_GIGS_COPY.drafts(drafts.total)}</span>

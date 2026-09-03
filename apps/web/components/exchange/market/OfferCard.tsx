@@ -68,7 +68,7 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
         <div className="flex min-w-0 gap-3.5">
           <Avatar name={sellerName} src={offer.creator.avatar_url} size="md" />
           <div className="flex min-w-0 flex-col gap-2">
-            <p className="truncate font-display text-[17px] font-semibold leading-6 text-content-primary">
+            <p className="truncate font-display type-title text-content-primary">
               {sellerName}
             </p>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -105,7 +105,7 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
             {rate}
           </p>
           <div className="mt-3 flex flex-col gap-0.5">
-            <span className="font-numeric text-[13px] leading-[18px] text-content-secondary">
+            <span className="font-numeric type-body-small text-content-secondary">
               {OFFER_CARD_COPY.forSale(formatAssetAmount(offer.amount_raw, offer.asset))}
             </span>
             <span className="font-numeric text-xs leading-[18px] text-content-tertiary">

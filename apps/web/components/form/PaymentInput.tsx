@@ -53,7 +53,7 @@ export function PaymentInput({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline gap-2 rounded-card bg-surface-inset px-4 py-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-content-tertiary">
+        <span className="type-caption font-semibold uppercase text-content-tertiary">
           Budget
         </span>
         <input

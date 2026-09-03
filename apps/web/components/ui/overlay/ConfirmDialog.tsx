@@ -62,17 +62,17 @@ export function ConfirmDialog({
       initialFocus={destructive ? 'first' : 'last'}
       {...(busy ? {} : { onBackdropClick: onCancel })}
     >
-      <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+      <h2 className="type-h2 text-content-primary">
         {title}
       </h2>
       {/* pre-line: tx-gate copy separates its wallet note with a blank line */}
       {message !== undefined && (
-        <p className="whitespace-pre-line text-[15px] leading-[22px] text-content-secondary">
+        <p className="whitespace-pre-line type-body text-content-secondary">
           {message}
         </p>
       )}
       {figure !== undefined && figure !== '' && (
-        <p className="font-numeric text-[22px] font-bold leading-7 text-utility-money">{figure}</p>
+        <p className="type-mono-mid font-bold text-utility-money">{figure}</p>
       )}
       {extra}
       <div className="flex justify-end gap-2.5">

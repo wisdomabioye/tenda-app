@@ -27,7 +27,7 @@ export function SiteFooter() {
       <div className="mx-auto flex w-full max-w-content flex-wrap items-start gap-8 px-6 py-10">
         <div className="min-w-[220px] flex-1">
           <BrandLogo full />
-          <p className="mt-2 max-w-[40ch] text-[13px] leading-[18px] text-content-tertiary">
+          <p className="mt-2 max-w-[40ch] type-body-small text-content-tertiary">
             {/* The tagline ALONE. It used to be followed by a hand-written
                 sentence, which made the pair a fourth pitch nobody owned and
                 meant the tagline could not be changed without re-reading a
@@ -53,7 +53,7 @@ export function SiteFooter() {
   )
 }
 
-const FOOTER_LINK_CLASS = 'text-[13px] font-semibold text-content-secondary hover:text-content-primary'
+const FOOTER_LINK_CLASS = 'type-body-small font-semibold text-content-secondary hover:text-content-primary'
 
 function FooterNav({
   label,

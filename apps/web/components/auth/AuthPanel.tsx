@@ -46,7 +46,7 @@ export function AuthPanel({
       {back !== undefined && (
         <Link
           href={back.href}
-          className="mb-6 inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary"
+          className="mb-6 inline-flex items-center gap-2 type-body-small font-semibold text-content-tertiary hover:text-content-primary"
         >
           <ArrowLeft size={16} aria-hidden />
           {back.label}
@@ -70,7 +70,7 @@ export function AuthPanel({
       </h1>
 
       {lede !== undefined && (
-        <p className="mt-3 break-words text-[15px] leading-[22px] text-content-secondary">{lede}</p>
+        <p className="mt-3 break-words type-body text-content-secondary">{lede}</p>
       )}
 
       <div className="mt-7">{children}</div>
