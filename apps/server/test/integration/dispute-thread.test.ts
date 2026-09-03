@@ -10,7 +10,14 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { disputes } from '@tenda/shared/db/schema'
-import { TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader } from '../helpers/test-app'
+import {
+  TEST_DB_CONFIGURED,
+  useTestApp,
+  createUser,
+  createEscrow,
+  attachGigDetails,
+  authHeader,
+} from '../helpers/test-app'
 import { disputedEscrow } from '../helpers/escrow-states'
 
 const skip = !TEST_DB_CONFIGURED
@@ -18,6 +25,11 @@ const getApp = useTestApp()
 
 function threadUrl(escrowId: string, after?: string): string {
   return `/v1/escrows/${escrowId}/dispute/messages${after !== undefined ? `?after=${encodeURIComponent(after)}` : ''}`
+}
+
+/** A Cloudinary URL that lives under the sender's dispute-scoped folder. */
+function disputeAttachmentUrl(escrowId: string, userId: string): string {
+  return `https://res.cloudinary.com/demo/image/upload/v1/tenda/dispute/${escrowId}/${userId}/evidence.pdf`
 }
 
 test('thread: 404 without a dispute, 403 for strangers', { skip }, async () => {
@@ -84,6 +96,133 @@ test('thread: both parties + mediator share one conversation', { skip }, async (
   // the GET advanced the worker's read cursor
   const readers = thread.reads.map((r: { user_id: string }) => r.user_id)
   assert.ok(readers.includes(worker.row.id))
+})
+
+test('thread: full load carries escrow + party context, creator-first', { skip }, async () => {
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  await attachGigDetails(app, escrow.id, { title: 'Fix my leaking tap' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(worker.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const { context } = res.json()
+  assert.notStrictEqual(context, null)
+  assert.strictEqual(context.kind, 'gig')
+  assert.strictEqual(context.status, 'disputed')
+  assert.strictEqual(context.subject_title, 'Fix my leaking tap')
+  assert.strictEqual(context.reason, 'Work was never delivered as agreed')
+  assert.strictEqual(context.winner, null)
+  assert.strictEqual(context.resolved_at, null)
+  // creator-first ordering, kind-agnostic structural roles, raiser marked.
+  assert.deepStrictEqual(
+    context.parties.map((p: { role: string; user_id: string; raised_dispute: boolean }) => ({
+      role: p.role,
+      user_id: p.user_id,
+      raised_dispute: p.raised_dispute,
+    })),
+    [
+      { role: 'creator', user_id: creator.row.id, raised_dispute: true },
+      { role: 'counterparty', user_id: worker.row.id, raised_dispute: false },
+    ],
+  )
+})
+
+test('thread: a mediating admin gets the SAME named party list as a party', { skip }, async () => {
+  // The client labels each bubble by looking the sender up in this list, so a
+  // mediator who received a thinner list than the disputants (or one missing
+  // names) is exactly how the two counterparties collapsed into one identity.
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+
+  const [asParty, asMediator] = await Promise.all([
+    app.inject({ method: 'GET', url: threadUrl(escrow.id), headers: authHeader(worker.token) }),
+    app.inject({ method: 'GET', url: threadUrl(escrow.id), headers: authHeader(mediator.token) }),
+  ])
+  assert.strictEqual(asMediator.statusCode, 200)
+  assert.deepStrictEqual(asMediator.json().context.parties, asParty.json().context.parties)
+
+  // Every party is nameable and distinctly identified.
+  const parties: Array<{ user_id: string; first_name: string | null; last_name: string | null }> =
+    asMediator.json().context.parties
+  assert.strictEqual(parties.length, 2)
+  assert.deepStrictEqual(
+    parties.map((p) => p.user_id),
+    [creator.row.id, worker.row.id],
+  )
+  for (const party of parties) {
+    assert.ok(party.first_name !== null && party.first_name !== '')
+  }
+})
+
+test('thread: exchange context has a null subject_title (no gig details)', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const escrow = await createEscrow(app, {
+    kind: 'exchange',
+    creator_id: creator.row.id,
+    counterparty_id: worker.row.id,
+    status: 'disputed',
+  })
+  await app.db
+    .insert(disputes)
+    .values({ escrow_id: escrow.id, raised_by: worker.row.id, reason: 'Paid but the seller never released' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+  })
+  const { context } = res.json()
+  assert.strictEqual(context.kind, 'exchange')
+  assert.strictEqual(context.subject_title, null)
+  // Raiser marker follows the actual raiser (the worker here), not creator-first.
+  const worker_party = context.parties.find((p: { role: string }) => p.role === 'counterparty')
+  assert.strictEqual(worker_party.raised_dispute, true)
+})
+
+test('thread: ?after tail polls omit the context (client keeps the first copy)', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const first = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'opening statement' },
+  })
+  const cursor = first.json().created_at
+
+  const tail = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id, cursor),
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(tail.statusCode, 200)
+  assert.strictEqual(tail.json().context, null)
+})
+
+test('thread: resolved context reports winner + resolved_at', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow, dispute_id } = await disputedEscrow(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  await app.db
+    .update(disputes)
+    .set({ resolved_at: new Date(), resolved_by: admin.row.id, winner: 'creator' })
+    .where(eq(disputes.id, dispute_id))
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(worker.token),
+  })
+  const { context } = res.json()
+  assert.strictEqual(context.winner, 'creator')
+  assert.notStrictEqual(context.resolved_at, null)
 })
 
 test('thread: unclaimed admins read but cannot post', { skip }, async () => {
@@ -161,6 +300,64 @@ test('thread: ?after returns only the tail', { skip }, async () => {
     headers: authHeader(creator.token),
   })
   assert.strictEqual(bad.statusCode, 400)
+})
+
+test('thread: attachment-only message (empty body) accepted, fields echoed', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const url = disputeAttachmentUrl(escrow.id, creator.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: '', attachment_url: url, attachment_type: 'file', attachment_size: 4096 },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  const msg = res.json()
+  assert.strictEqual(msg.body, '')
+  assert.strictEqual(msg.attachment_url, url)
+  assert.strictEqual(msg.attachment_type, 'file')
+  assert.strictEqual(msg.attachment_size, 4096)
+})
+
+test('thread: body + attachment together accepted', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const url = disputeAttachmentUrl(escrow.id, creator.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'Here is the receipt.', attachment_url: url, attachment_type: 'image', attachment_size: 2048 },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  assert.strictEqual(res.json().attachment_type, 'image')
+})
+
+test('thread: attachment URL outside the sender folder rejected (replay guard)', { skip }, async () => {
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  // A URL scoped to the OTHER party's folder must not validate for the creator.
+  const foreign = disputeAttachmentUrl(escrow.id, worker.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: '', attachment_url: foreign, attachment_type: 'file', attachment_size: 4096 },
+  })
+  assert.strictEqual(res.statusCode, 400)
+})
+
+test('thread: partial attachment fields rejected', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'x', attachment_url: disputeAttachmentUrl(escrow.id, creator.row.id) },
+  })
+  assert.strictEqual(res.statusCode, 400)
 })
 
 test('thread: resolved disputes freeze read-only', { skip }, async () => {

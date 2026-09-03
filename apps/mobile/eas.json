@@ -4,13 +4,12 @@
     "appVersionSource": "local"
   },
   "build": {
-    "base": {
-      "prebuildCommand": "pnpm --filter @tenda/shared build"
-    },
     "development": {
       "distribution": "internal",
       "environment": "development",
-      "env": { "APP_ENV": "development" },
+      "env": {
+        "APP_ENV": "development"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -18,15 +17,31 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
-      "env": { "APP_ENV": "staging" },
+      "env": {
+        "APP_ENV": "staging"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "testnet": {
+      "extends": "preview"
+    },
+    "mainnet": {
+      "distribution": "internal",
+      "environment": "production",
+      "env": {
+        "APP_ENV": "production"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true,
       "environment": "production",
-      "env": { "APP_ENV": "production" },
+      "env": {
+        "APP_ENV": "production"
+      },
       "android": {
         "buildType": "app-bundle"
       }

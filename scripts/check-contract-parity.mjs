@@ -14,7 +14,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseSolidity, parseSolana, parseSharedConstants, assertSpecsEqual } from './lib/contract-parity.mjs'
+import {
+  parseSolidity,
+  parseSolana,
+  parseSharedConstants,
+  parseTestLimits,
+  assertSpecsEqual,
+  assertLimitsEqual,
+} from './lib/contract-parity.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => readFileSync(resolve(ROOT, p), 'utf8')
@@ -32,7 +39,13 @@ try {
     { label: 'shared', spec: parseSharedConstants(read('packages/shared/src/constants/escrow.ts')) },
   ]
   const spec = assertSpecsEqual(specs)
+  assertLimitsEqual(
+    spec.limits,
+    parseTestLimits(read('contracts/solana/tests/helpers.ts')),
+    'solana-tests',
+  )
   console.log('✓ contract parity: enum order + limits agree across solidity / solana / shared')
+  console.log('✓ litesvm test LIMITS mirror matches the on-chain constants')
   console.log(`  status: ${spec.status.join(', ')}`)
 } catch (err) {
   console.error(`✗ ${err.message}`)

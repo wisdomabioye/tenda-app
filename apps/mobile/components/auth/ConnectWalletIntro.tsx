@@ -1,10 +1,8 @@
 import { View, StyleSheet } from 'react-native'
-import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
 import { Wallet, ShieldCheck, Zap } from 'lucide-react-native'
 import { Text } from '@/components/ui/Text'
-
-const Logo = require('@/assets/images/logo.png')
+import { BrandLogo } from '@/components/ui/BrandLogo'
 
 const FEATURES = [
   { Icon: ShieldCheck, title: 'Secure escrow',         description: 'Payments locked until work is approved.' },
@@ -20,7 +18,7 @@ export function ConnectWalletIntro() {
       <View style={s.hero}>
         <View style={s.heroCircleWrap}>
           <View style={[s.heroCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
-            <Image source={Logo} style={s.heroLogo} contentFit="contain" />
+            <BrandLogo size={44} />
           </View>
         </View>
         <Text style={[s.heroTitle, { color: theme.colors.content.primary }]}>Connect your wallet</Text>
@@ -50,7 +48,6 @@ const s = StyleSheet.create({
   hero: { paddingTop: 8, paddingHorizontal: 28, paddingBottom: 16, alignItems: 'center' },
   heroCircleWrap: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   heroCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  heroLogo: { width: 44, height: 44 },
   heroTitle: {
     fontSize: 26,
     lineHeight: 31,

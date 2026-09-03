@@ -17,6 +17,8 @@ export type EscrowAccount = IdlAccounts<TendaEscrow>['escrow']
 export type PlatformStateAccount = IdlAccounts<TendaEscrow>['platformState']
 
 export const PROGRAM_ID = new PublicKey(ESCROW_IDL.address)
+/** Encoded once — `toBase58()` re-encodes on every call, and this is compared per account read. */
+const PROGRAM_ID_BASE58 = PROGRAM_ID.toBase58()
 
 function idlBytesConstant(name: string): Buffer {
   const entry = ESCROW_IDL.constants.find((c) => c.name === name)
@@ -48,6 +50,20 @@ export function tokenVaultPda(escrow_id_bytes: Buffer): PublicKey {
 /** Convenience: derive the escrow PDA straight from the DB UUID. */
 export function escrowPdaFromUuid(escrow_id: string): PublicKey {
   return escrowPda(uuidToBytes(escrow_id))
+}
+
+/**
+ * Is this account owned by the program we transact with?
+ *
+ * Must be checked before decoding ANY account: the Anchor discriminator comes
+ * from the account name, so it is byte-identical across program generations,
+ * and an account belonging to a superseded program decodes into a perfectly
+ * well-formed `EscrowAccount` that this program cannot touch. Callers decide
+ * the policy — a read probe treats a foreign account as absent, a transaction
+ * builder must refuse outright.
+ */
+export function isProgramOwned(account: { owner: string }): boolean {
+  return account.owner === PROGRAM_ID_BASE58
 }
 
 /**

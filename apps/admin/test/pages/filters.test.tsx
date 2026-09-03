@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { AdminEscrowRow } from '@tenda/shared'
 import { renderPage } from '../test-utils'
 import { adminApi } from '@/api/client'
 import { setSession } from '@/lib/auth'
@@ -79,6 +80,44 @@ test('escrows: kind and status selects feed the query', async () => {
   await waitFor(() => expect(adminApi.escrows.list).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'gig' })))
   await userEvent.selectOptions(screen.getAllByRole('combobox')[1]!, 'disputed')
   await waitFor(() => expect(adminApi.escrows.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'disputed' })))
+})
+
+function escrowRow(over: Partial<AdminEscrowRow> = {}): AdminEscrowRow {
+  return {
+    id: 'e1', kind: 'gig', status: 'disputed', chain_id: 'solana:devnet', asset: 'USDC_SOL',
+    amount_raw: '1000000', title: 'Paint the fence', fiat_currency: null,
+    creator_id: 'c1', counterparty_id: 'w1', accept_deadline: null, created_at: '2026-07-01T00:00:00.000Z',
+    hidden: false, country: 'NG', city: 'Lagos', creator_first_name: 'Cora', creator_last_name: 'Poster',
+    dispute_id: 'disp-1', ...over,
+  }
+}
+
+test('escrows: a disputed row links its status to the dispute', async () => {
+  vi.mocked(adminApi.escrows.list).mockResolvedValue({ data: [escrowRow()], total: 1, limit: 20, offset: 0 })
+  renderPage(<EscrowsPage />)
+  const link = await screen.findByRole('link', { name: /Disputed/i })
+  expect(link).toHaveAttribute('href', '/disputes/disp-1')
+})
+
+test('escrows: a row with no dispute renders the status without a link', async () => {
+  vi.mocked(adminApi.escrows.list).mockResolvedValue({
+    data: [escrowRow({ status: 'open', dispute_id: null })],
+    total: 1, limit: 20, offset: 0,
+  })
+  renderPage(<EscrowsPage />)
+  await screen.findByText('Paint the fence')
+  expect(screen.queryByRole('link', { name: /Open/i })).toBeNull()
+})
+
+test('escrows: a creator with no profile name falls back to the shortened id', async () => {
+  // The creator column formats through the shared displayName helper;
+  // hand-formatting the two columns rendered a bare space for a nameless user.
+  vi.mocked(adminApi.escrows.list).mockResolvedValue({
+    data: [escrowRow({ creator_id: 'abcdef12-3456-7890', creator_first_name: null, creator_last_name: null })],
+    total: 1, limit: 20, offset: 0,
+  })
+  renderPage(<EscrowsPage />)
+  expect(await screen.findByText('User abcdef12')).toBeInTheDocument()
 })
 
 test('fiat: the status select filters intents', async () => {

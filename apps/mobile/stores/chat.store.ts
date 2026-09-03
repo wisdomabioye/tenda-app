@@ -1,23 +1,25 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
+import {
+  accountGeneration,
+  ATTACHMENT_PREVIEW,
+  isSameAccount,
+  registerAccountReset,
+  type Conversation,
+  type Message,
+  type UploadedAttachment,
+} from '@tenda/shared'
 
 // A message optimistically added before server confirmation
 export type LocalMessage = Message & {
   _status?: 'sending' | 'sent' | 'failed'
 }
 
-/** Already-uploaded Cloudinary attachment riding along with a message. */
+/** The escrow (gig/exchange) a message is contextually attached to. */
 export interface EscrowContext {
   escrowId: string
   kind: 'gig' | 'exchange' | null
-}
-
-export interface MessageAttachment {
-  url: string
-  type: 'image' | 'file'
-  size: number
 }
 
 interface ChatState {
@@ -28,26 +30,46 @@ interface ChatState {
   fetchConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
-  sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: MessageAttachment) => Promise<void>
+  sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: UploadedAttachment) => Promise<void>
   retryMessage:       (conversationId: string, message: LocalMessage) => void
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
   receiveMessage:     (conversationId: string, message: Message) => void
+  /** Back to empty — every field in `INITIAL`, which is what the store
+   *  spreads, so a field added there is reset for free. One added directly in
+   *  the store body below is NOT, which is the one way to get this wrong. */
+  reset:              () => void
+}
+
+/** The store as the module defines it — the single source for `reset`. */
+const INITIAL = {
+  conversations: [] as Conversation[],
+  messages:      {} as Record<string, LocalMessage[]>,
+  unread:        0,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  messages:      {},
-  unread:        0,
+  ...INITIAL,
+
+  reset: () => set({ ...INITIAL }),
 
   fetchConversations: async () => {
+    // Snapshot BEFORE the await. Emptying the store is a moment; this request
+    // is already on its way and would otherwise write the previous account's
+    // threads — and their unread badge — back in after the clear (#65).
+    const gen = accountGeneration()
     const convs = await api.conversations.list()
+    if (!isSameAccount(gen)) return
     const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
     set({ conversations: convs, unread })
   },
 
   findOrCreate: async (userId) => {
+    const gen = accountGeneration()
     const conv = await api.conversations.findOrCreate({ user_id: userId })
+    // The caller still gets its conversation — the screen that asked is gone
+    // either way — but it must not be filed into the next account's inbox.
+    if (!isSameAccount(gen)) return conv
     set((s) => {
       const exists = s.conversations.find((c) => c.id === conv.id)
       return {
@@ -60,7 +82,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   fetchMessages: async (conversationId, beforeId) => {
+    const gen = accountGeneration()
     const fetched = await api.conversations.messages({ id: conversationId }, beforeId ? { before_id: beforeId } : undefined)
+    // The message bodies: the one write here that would put another account's
+    // private content on screen. The caller still gets its rows.
+    if (!isSameAccount(gen)) return fetched
     // Server returns newest-first; reverse for display (oldest first)
     const ordered = [...fetched].reverse()
 
@@ -107,8 +133,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     get().appendMessage(conversationId, optimistic)
 
+    const gen = accountGeneration()
+    // The try wraps the REQUEST and nothing else (#72). It used to wrap the
+    // swap below as well, so anything that handler threw was caught by the
+    // failure handler: the message was on the server, the thread showed it as
+    // failed, and the Retry beside it sent a second copy the server already
+    // had. A silent duplicate reported as a network error.
+    let sent: Message
     try {
-      const sent = await api.conversations.sendMessage(
+      sent = await api.conversations.sendMessage(
         { id: conversationId },
         {
           content,
@@ -118,6 +151,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : {}),
         },
       )
+    } catch {
+      // The send did not reach the server. Marking it failed is still a write
+      // into the thread list, so it is account-guarded like every other.
+      if (isSameAccount(gen)) {
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
+              m.id === tempId ? { ...m, _status: 'failed' as const } : m,
+            ),
+          },
+        }))
+      }
+      return
+    }
+
+    if (!isSameAccount(gen)) return
+    try {
       set((s) => {
         const existing = s.messages[conversationId] ?? []
         // The WS echo of our own message may land before this response,
@@ -127,15 +178,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : existing.map((m) => (m.id === tempId ? { ...sent, _status: 'sent' as const } : m))
         return { messages: { ...s.messages, [conversationId]: updated } }
       })
-    } catch {
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
-          ),
-        },
-      }))
+    } catch (e) {
+      // Contained, but NOT as a failed send: the server has the message, so the
+      // one thing this must never do is offer a Retry that duplicates it. The
+      // optimistic copy stays 'sending' — honest, since we could not reconcile
+      // it — and the warn is what tells a developer the handler broke.
+      //
+      // Contained HERE rather than left to propagate because all three callers
+      // are `void sendMessage(...)`: a rejection would surface as an unhandled
+      // one rather than reaching anybody who could act on it.
+      console.warn('[chat] send succeeded but the store update failed:', e)
     }
   },
 
@@ -160,6 +212,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     )
   },
 
+  // No generation guard, unlike every other async writer here: this one only
+  // REMOVES a row by id, and a conversation uuid belonging to the previous
+  // account cannot match anything in the next account's list. The write is a
+  // no-op after a switch rather than a leak (#65).
   closeConversation: async (conversationId) => {
     await api.conversations.close({ id: conversationId })
     set((s) => ({
@@ -203,3 +259,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
 }))
+
+// Private threads, their bodies and the unread badge: nothing here may outlive
+// the account that fetched it. Registered beside the state rather than listed
+// inside `logout`, because the list-in-logout is what left three stores out on
+// web (#25) — and mobile's copy of that list named only `notifications`, so
+// chat, gigs and escrow were never in it at all (#65).
+registerAccountReset(() => useChatStore.getState().reset())

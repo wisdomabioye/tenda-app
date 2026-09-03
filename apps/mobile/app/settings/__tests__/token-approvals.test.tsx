@@ -6,7 +6,7 @@
  * AllowanceRow + displayToAmountRaw so formatting and input parsing are
  * covered; only the RPC/wallet boundary is mocked.
  */
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
+import { act, render, fireEvent, waitFor, screen } from '@testing-library/react-native'
 
 jest.mock('expo-router', () => ({
   // Real useFocusEffect fires on focus; firing on mount (once) is the test
@@ -83,8 +83,10 @@ jest.mock('@/wallet/dispatch', () => ({
 jest.mock('@/wallet/adapters/walletconnect', () => ({
   sendEvmTransaction: jest.fn(),
 }))
-jest.mock('@/wallet/allowance', () => ({
-  ...jest.requireActual('@/wallet/allowance'),
+// The allowance module moved to @tenda/shared (2026-08-15): partial mock —
+// real pure helpers (displayToAmountRaw), spies for the RPC/wallet legs.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readAllowance: jest.fn(),
   sendApprove: jest.fn(),
   waitForReceipt: jest.fn(),
@@ -100,7 +102,7 @@ jest.mock('@/stores/chain-registry.store', () => {
 import TokenApprovalsScreen from '@/app/settings/token-approvals'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { resolveEvmFrom } from '@/wallet/dispatch'
-import { readAllowance, sendApprove, waitForReceipt } from '@/wallet/allowance'
+import { readAllowance, sendApprove, waitForReceipt } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import type { ChainRegistryEntry } from '@tenda/shared'
 
@@ -169,9 +171,14 @@ describe('TokenApprovalsScreen, states', () => {
     expect(screen.queryByText('No EVM chains are enabled right now.')).toBeNull()
   })
 
-  it('says so when only non-EVM chains are enabled', () => {
+  it('says so when only non-EVM chains are enabled', async () => {
     registryState.chains = [SOLANA_DEVNET]
     render(<TokenApprovalsScreen />)
+    // The effect still runs `Promise.allSettled([])` over an empty row list and
+    // calls setRows a second time when it resolves. Nothing on screen changes,
+    // so there is no text to waitFor — flush the microtask inside act, and
+    // assert against the render React has actually finished committing.
+    await act(async () => {})
     expect(screen.getByText('No EVM chains are enabled right now.')).toBeTruthy()
     expect(readAllowanceMock).not.toHaveBeenCalled()
   })
@@ -226,6 +233,9 @@ describe('TokenApprovalsScreen, set a custom limit', () => {
         spender: '0xEscrow',
         amountRaw: '12500000',
         from: OWNER,
+        // The screen binds its wallet transport into the shared module — the
+        // approve must ride the connected session, never a bare RPC.
+        sendTx: expect.any(Function),
       }),
     )
     // doneMsg captures the typed amount BEFORE the input resets.

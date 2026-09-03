@@ -1,19 +1,18 @@
 import { useState } from 'react'
 import {
   View,
-  Modal,
   FlatList,
   Pressable,
   TextInput,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   type ListRenderItemInfo,
 } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Search, Check } from 'lucide-react-native'
 import { radius, spacing, typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from '@/components/ui/Text'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 
 export interface SearchSheetItem {
   key: string
@@ -97,81 +96,44 @@ export function SearchSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        style={s.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={[s.sheet, { backgroundColor: theme.colors.surface.card }]}>
-          {/* Handle */}
-          <View style={[s.handle, { backgroundColor: theme.colors.border.subtle }]} />
-
-          {/* Title row */}
-          <View style={s.titleRow}>
-            <Text variant="subheading">{title}</Text>
-            {headerRight}
+    <BottomSheet
+      visible={visible}
+      onClose={handleClose}
+      title={title}
+      headerRight={headerRight}
+      scrollable={false}
+    >
+      <View style={[s.searchRow, { backgroundColor: theme.colors.control.inputBackground }]}>
+        <Search size={16} color={theme.colors.content.tertiary} />
+        <TextInput
+          maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={searchPlaceholder}
+          placeholderTextColor={theme.colors.content.tertiary}
+          style={[s.searchInput, { color: theme.colors.content.primary }]}
+          autoFocus
+        />
+      </View>
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.key}
+        renderItem={renderItem}
+        style={s.list}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={s.empty}>
+            <Text variant="body" color={theme.colors.content.tertiary}>
+              No results for &quot;{query}&quot;
+            </Text>
           </View>
-
-          {/* Search */}
-          <View style={[s.searchRow, { backgroundColor: theme.colors.control.inputBackground }]}>
-            <Search size={16} color={theme.colors.content.tertiary} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={searchPlaceholder}
-              placeholderTextColor={theme.colors.content.tertiary}
-              style={[s.searchInput, { color: theme.colors.content.primary }]}
-              autoFocus
-            />
-          </View>
-
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.key}
-            renderItem={renderItem}
-            style={s.list}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={s.empty}>
-                <Text variant="body" color={theme.colors.content.tertiary}>
-                  No results for &quot;{query}&quot;
-                </Text>
-              </View>
-            }
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        }
+      />
+    </BottomSheet>
   )
 }
 
 const s = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing['2xl'],
-    maxHeight: '75%',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',

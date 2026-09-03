@@ -7,6 +7,7 @@ import { useResolution } from '@/hooks/use-resolution'
 import { ProposeForm } from './propose-form'
 import { RejectAction } from './reject-action'
 import { SignAction } from './sign-action'
+import { ReownBoundary } from '@/providers/reown/boundary'
 
 const ACTIVE = new Set(['pending', 'executing'])
 
@@ -32,12 +33,14 @@ function ActiveProposal({
       </p>
       {canExecute && (
         <div className="flex flex-col gap-2">
-          <SignAction
-            resolutionId={resolution.id}
-            chainId={resolution.chain_id}
-            authority={resolution.dispute_admin_authority}
-            onSigned={onChanged}
-          />
+          <ReownBoundary>
+            <SignAction
+              resolutionId={resolution.id}
+              chainId={resolution.chain_id}
+              authority={resolution.dispute_admin_authority}
+              onSigned={onChanged}
+            />
+          </ReownBoundary>
           <RejectAction resolutionId={resolution.id} onRejected={onChanged} />
         </div>
       )}

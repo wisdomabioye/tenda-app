@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { winnerLabel, type ResolutionQueueRow } from '@tenda/shared'
 import { Badge } from '@/components/ui/badge'
+import { formatAdminDateTime } from '@/lib/date-format'
 import {
   Table,
   TableBody,
@@ -42,7 +43,7 @@ export function ResolutionQueueTable({ rows }: { rows: ResolutionQueueRow[] }) {
             </TableCell>
             <TableCell>{winnerLabel(r.kind, r.proposed_winner)}</TableCell>
             <TableCell className="text-muted-foreground">
-              {new Date(r.created_at).toLocaleString()}
+              {formatAdminDateTime(r.created_at)}
             </TableCell>
           </TableRow>
         ))}

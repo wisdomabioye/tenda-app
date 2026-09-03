@@ -4,16 +4,11 @@ import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { getConfig } from '@server/config'
+import { acquireBootLock } from '@server/lib/boot-lock'
 import type { FastifyBaseLogger } from 'fastify'
 
 // Anything with pino's info(), keeps tests from having to fake a full logger.
 type BootLogger = Pick<FastifyBaseLogger, 'info'>
-
-// Fixed app-wide advisory lock key (0x74656e6461, 'tenda' in hex). Concurrent
-// replicas serialize here: the first applies pending migrations, the rest
-// acquire the lock after it, find the journal current, and no-op. A string
-// (cast to bigint in SQL) because postgres.js's types reject bigint params.
-const MIGRATE_LOCK_KEY = '499917939809'
 
 /**
  * Image layout (/app/migrations, see the runtime stage COPY in the
@@ -46,7 +41,7 @@ export async function migrateOnBoot(log: BootLogger, databaseUrl?: string): Prom
   const sql = postgres(databaseUrl ?? getConfig().DATABASE_URL, { max: 1 })
   try {
     log.info({ folder }, 'MIGRATE_ON_BOOT: waiting for advisory lock')
-    await sql`select pg_advisory_lock(${MIGRATE_LOCK_KEY}::bigint)`
+    await acquireBootLock(sql)
     await migrate(drizzle(sql), { migrationsFolder: folder })
     log.info('MIGRATE_ON_BOOT: migrations current')
   } finally {

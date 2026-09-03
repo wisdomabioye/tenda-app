@@ -2,7 +2,7 @@ import { type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, type PressableProps, type GestureResponderEvent, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as Haptics from 'expo-haptics'
-import { shadows, typography } from '@/theme/tokens'
+import { radius, shadows, typography } from '@/theme/tokens'
 import { Text } from './Text'
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
@@ -19,7 +19,7 @@ interface ButtonProps extends Omit<PressableProps, 'children'> {
 
 const HEIGHTS: Record<Size, number> = { sm: 40, md: 48, lg: 52, xl: 56 }
 const PAD_X: Record<Size, number> = { sm: 14, md: 18, lg: 22, xl: 24 }
-const RADII: Record<Size, number> = { sm: 12, md: 12, lg: 14, xl: 14 }
+const RADII: Record<Size, number> = { sm: radius.button, md: radius.button, lg: radius.buttonLg, xl: radius.buttonLg }
 const LABEL_BY_SIZE: Record<Size, TextStyle> = {
   sm: { fontSize: 14, lineHeight: 18 },
   md: { fontSize: 14, lineHeight: 18 },
@@ -76,18 +76,18 @@ export function Button({
     }
     switch (variant) {
       case 'primary':
-        return { backgroundColor: theme.colors.brand.primary, ...shadows.fab }
+        return { backgroundColor: theme.colors.brand.solid, ...shadows.fab }
       case 'success':
         return {
-          backgroundColor: theme.colors.feedback.success.base,
+          backgroundColor: theme.colors.feedback.success.solid,
           ...shadows.fab,
-          shadowColor: theme.colors.feedback.success.base,
+          shadowColor: theme.colors.feedback.success.solid,
         }
       case 'danger':
         return {
-          backgroundColor: theme.colors.feedback.danger.base,
+          backgroundColor: theme.colors.feedback.danger.solid,
           ...shadows.fab,
-          shadowColor: theme.colors.feedback.danger.base,
+          shadowColor: theme.colors.feedback.danger.solid,
         }
       case 'secondary':
         return { backgroundColor: theme.colors.surface.inset }

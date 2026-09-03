@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 /** datetime-local value → ISO; '' → null. */
 function toIso(local: string): string | null {
@@ -136,7 +137,7 @@ export default function FeaturedPage() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.title ?? s.escrow_id}</TableCell>
                   <TableCell>
-                    {new Date(s.starts_at).toLocaleString()} → {new Date(s.ends_at).toLocaleString()}
+                    {formatAdminDateTime(s.starts_at)} → {formatAdminDateTime(s.ends_at)}
                   </TableCell>
                   <TableCell>{s.position}</TableCell>
                   <TableCell className="text-right">

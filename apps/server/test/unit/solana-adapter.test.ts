@@ -82,6 +82,7 @@ function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
 function decodeUnsigned(unsigned: UnsignedTx): {
   programId: string
   discriminator: Buffer
+  args: Buffer
   keys: string[]
   payer: string
   instructionCount: number
@@ -108,6 +109,7 @@ function decodeUnsigned(unsigned: UnsignedTx): {
   return {
     programId: keys[main.programIdIndex],
     discriminator: Buffer.from(main.data.slice(0, 8)),
+    args: Buffer.from(main.data.slice(8)),
     keys: main.accountKeyIndexes.map((i) => keys[i]),
     payer: keys[0],
     instructionCount: ixs.length,
@@ -152,6 +154,8 @@ const CREATE_PAYLOAD = {
   completion_duration_seconds: 7_200,
   dispute_bond_raw: '100000000',
   is_seeker: false,
+  requires_approval: false,
+  unassign_window_seconds: 0,
 }
 
 test('buildTx createEscrow (SOL): create_escrow_sol with escrow+vault PDAs, payer = creator wallet', async () => {
@@ -237,6 +241,77 @@ test('buildTx acceptEscrow: escrow + platform PDAs, signer wallet', async () => 
     platformPda().toBase58(),
   ])
   assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+})
+
+test('buildTx: a BOUND transition is built for the CHAIN address, never the primary guess', async () => {
+  // The signer contract's core promise. user-creator's primary resolves to
+  // CREATOR, but the on-chain counterparty is COUNTERPARTY — the tx must be
+  // payable only by the wallet the chain bound at accept. Reverting the
+  // builder to resolveWalletAddress(user_id) fails this (payer = CREATOR).
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { submitted: {} } })
+  const a = makeAdapter(rpc)
+  const unsigned = await a.buildTx({
+    action: 'claimStalledPayment',
+    user_id: 'user-creator', // primary would resolve to CREATOR
+    caller: 'counterparty',
+    payload: { escrow_id: ESCROW_UUID },
+  })
+  const d = decodeUnsigned(unsigned)
+  assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+  // …and the requirement is REPORTED on the wire for the client to enforce.
+  assert.strictEqual(unsigned.kind, 'solana-tx')
+  if (unsigned.kind === 'solana-tx') {
+    assert.strictEqual(unsigned.signer_address, COUNTERPARTY.toBase58())
+  }
+})
+
+test('buildTx: a transition on a SUPERSEDED program\'s escrow is refused, not built', async () => {
+  // The build path must be louder than the read path: this escrow decodes
+  // fine, but the configured program cannot sign for an account it does not
+  // own, so a built tx would revert on chain and burn the user's fee. 409 +
+  // ESCROW_MISMATCH names the owning program instead. See open_issues #89.
+  const rpc = fakeSolanaRpc()
+  rpc.stageAccount(
+    escrowPdaFromUuid(ESCROW_UUID),
+    await encodeEscrowAccount(escrowAccountFixture({ status: { open: {} }, counterparty: null })),
+    '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv', // a real predecessor
+  )
+  rpc.stageAccount(platformPda(), await encodePlatformState(platformStateFixture()))
+  await expectAppError(
+    makeAdapter(rpc).buildTx({
+      action: 'acceptEscrow',
+      user_id: 'user-counterparty',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+    409,
+    'ESCROW_MISMATCH',
+  )
+})
+
+test('buildTx: a superseded PLATFORM state is refused — fees would come from another deployment', async () => {
+  // Settlement is the path that reads platform state (it prices the fee), so
+  // it is the one where another deployment's fee_bps could be applied to a
+  // real payout. `acceptEscrow` never reads it.
+  const rpc = fakeSolanaRpc()
+  rpc.stageAccount(
+    escrowPdaFromUuid(ESCROW_UUID),
+    await encodeEscrowAccount(escrowAccountFixture({ status: { submitted: {} } })),
+  )
+  rpc.stageAccount(
+    platformPda(),
+    await encodePlatformState(platformStateFixture()),
+    '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv',
+  )
+  await expectAppError(
+    makeAdapter(rpc).buildTx({
+      action: 'approveCompletion',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+    500,
+    'INTERNAL_ERROR',
+  )
 })
 
 test('buildTx declineAssignedEscrow: decline instruction with mutation accounts', async () => {
@@ -774,6 +849,26 @@ test('fetchEscrowState: decodes a full snapshot', async () => {
   assert.strictEqual(s.is_seeker, false)
 })
 
+test('fetchEscrowState: an account owned by a SUPERSEDED program reads as absent', async () => {
+  // The trap this closes: Anchor's discriminator is derived from the account
+  // NAME, so a superseded deployment's escrow decodes into a perfectly
+  // well-formed snapshot. Byte-identical data — only the owner differs. Left
+  // unchecked, a stranded escrow (open_issues #89) would report as live state
+  // for a program that cannot sign for it.
+  const rpc = fakeSolanaRpc()
+  const addr = escrowPdaFromUuid(ESCROW_UUID)
+  const encoded = await encodeEscrowAccount(escrowAccountFixture())
+  const SUPERSEDED = '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv' // a real predecessor
+  rpc.stageAccount(addr, encoded, SUPERSEDED)
+  assert.strictEqual(await makeAdapter(rpc).fetchEscrowState(addr.toBase58()), null)
+
+  // Same bytes under the right owner DO decode — proves the rejection is the
+  // owner check and not a broken fixture.
+  const ours = fakeSolanaRpc()
+  ours.stageAccount(addr, encoded)
+  assert.notStrictEqual(await makeAdapter(ours).fetchEscrowState(addr.toBase58()), null)
+})
+
 test('fetchEscrowState: SPL escrow exposes the mint address', async () => {
   const rpc = fakeSolanaRpc()
   const addr = escrowPdaFromUuid(ESCROW_UUID)
@@ -860,4 +955,113 @@ test('computeFee: delegates to lib/escrow (standard + seeker)', () => {
     a.computeFee({ amount_raw: '1000000', is_seeker: true, fee_bps: 250, seeker_fee_bps: 100 }),
     '10000',
   )
+})
+
+// ---------- approval mode (stage 10) ---------------------------------------
+// The EVM builder has these; the Solana one shipped without, so the worker
+// resolution and the shared mutation-account shape were untested on this chain.
+
+test('buildTx assignAccept: creator signs, worker rides as an ARGUMENT not an account', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const resolved: string[] = []
+  const a = makeAdapter(rpc, resolved)
+  const unsigned = await a.buildTx({
+    action: 'assignAccept',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty' },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'assignAccept')
+  assert.deepStrictEqual(d.keys.slice(0, 2), [
+    escrowPdaFromUuid(ESCROW_UUID).toBase58(),
+    platformPda().toBase58(),
+  ])
+  // The CREATOR pays and signs — the whole point of approval mode is that the
+  // worker signs nothing, so their key must NOT appear in the account list.
+  assert.strictEqual(d.payer, CREATOR.toBase58())
+  assert.ok(!d.keys.includes(COUNTERPARTY.toBase58()), 'worker must not be an account')
+  // …but their wallet must still have been resolved, to ride as an argument.
+  assert.ok(resolved.includes('user-counterparty'))
+})
+
+test('buildTx assignAccept: an application-chosen worker_address is baked VERBATIM, resolver never asked', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const resolved: string[] = []
+  const a = makeAdapter(rpc, resolved)
+  // Distinct from every fixture wallet: proves the ARGUMENT is the choice.
+  const chosen = WALLETS['user-admin']
+  const unsigned = await a.buildTx({
+    action: 'assignAccept',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty', worker_address: chosen },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'assignAccept')
+  // The instruction argument IS the chosen wallet (32 bytes after the tag)…
+  assert.deepStrictEqual(Array.from(d.args.subarray(0, 32)), Array.from(bs58.decode(chosen)))
+  // …and the primary-first resolver was never consulted for the worker.
+  assert.ok(!resolved.includes('user-counterparty'), 'resolver must not run when the choice rides the payload')
+})
+
+test('buildTx assignAccept: a worker with no wallet on this chain fails cleanly', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const a = makeAdapter(rpc)
+  await expectAppError(
+    a.buildTx({
+      action: 'assignAccept',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-with-no-wallet' },
+    }),
+    404,
+    'USER_NOT_FOUND',
+  )
+})
+
+test('buildTx unassign: creator-signed mutation instruction', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { accepted: {} } })
+  const a = makeAdapter(rpc)
+  const unsigned = await a.buildTx({
+    action: 'unassign',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'unassign')
+  assert.deepStrictEqual(d.keys.slice(0, 2), [
+    escrowPdaFromUuid(ESCROW_UUID).toBase58(),
+    platformPda().toBase58(),
+  ])
+  assert.strictEqual(d.payer, CREATOR.toBase58())
+})
+
+// assignAccept and unassign are encoded in different branches of the action
+// switch (one carries an argument, one shares the single-arg shape), so the
+// discriminators are worth pinning against each other — a copy-paste between
+// the two branches would otherwise encode the wrong instruction silently.
+test('buildTx: assignAccept and unassign encode DISTINCT discriminators', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const a = makeAdapter(rpc)
+  const assign = decodeUnsigned(
+    await a.buildTx({
+      action: 'assignAccept',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty' },
+    }),
+  )
+
+  const rpc2 = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc2, { status: { accepted: {} } })
+  const unassign = decodeUnsigned(
+    await makeAdapter(rpc2).buildTx({
+      action: 'unassign',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+  )
+  assert.notDeepStrictEqual(assign.discriminator, unassign.discriminator)
 })

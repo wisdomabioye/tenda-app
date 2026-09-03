@@ -3,6 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Menu } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { APP_INFO } from '@tenda/shared'
 import { Text, Avatar } from '@/components/ui'
 
 interface DrawerHeaderProps {
@@ -10,6 +11,8 @@ interface DrawerHeaderProps {
   onMenuPress: () => void
   rightIcon?: LucideIcon
   onRightPress?: () => void
+  /** Unread count shown as a bubble over the right icon (hidden when 0). */
+  badgeCount?: number
   onAvatarPress?: () => void
   userImage?: string | null
   userName?: string
@@ -17,10 +20,11 @@ interface DrawerHeaderProps {
 }
 
 export function DrawerHeader({
-  title = 'Tenda',
+  title = APP_INFO.name,
   onMenuPress,
   rightIcon: RightIcon,
   onRightPress,
+  badgeCount = 0,
   onAvatarPress,
   userImage,
   userName,
@@ -68,6 +72,13 @@ export function DrawerHeader({
             accessibilityRole="button"
           >
             <RightIcon size={18} color={theme.colors.content.secondary} />
+            {badgeCount > 0 && (
+              <View style={[s.badge, { backgroundColor: theme.colors.brand.solid, borderColor: theme.colors.surface.background }]}>
+                <Text style={[s.badgeText, { color: theme.colors.brand.onPrimary }]} numberOfLines={1}>
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </Text>
+              </View>
+            )}
           </Pressable>
         )}
         {showAvatar && (
@@ -95,6 +106,23 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    lineHeight: 12,
   },
   center: {
     flex: 1,

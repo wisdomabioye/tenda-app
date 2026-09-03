@@ -11,7 +11,6 @@ import {
   type EscrowRow,
   buildContext,
   deriveCaller,
-  isUuidLike,
   requireCaller,
 } from '@server/lib/escrow-routes'
 
@@ -24,6 +23,7 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
   // check happens at each accessor site.
   return {
     id: 'escrow-1',
+    creation_operation_id: null,
     kind: 'gig',
     chain_id: 'solana:devnet',
     asset: 'USDC_SOL',
@@ -34,6 +34,11 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     status: 'open',
     hidden: false,
     escrow_ref: null,
+    escrow_contract: null,
+    creator_address: null,
+    counterparty_address: null,
+    assigned_counterparty_address: null,
+    accept_window_seconds: 7 * 24 * 3600,
     accept_deadline: T_FUTURE,
     completion_duration_seconds: 86400,
     completion_deadline: T_FUTURE,
@@ -41,54 +46,17 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     approval_deadline: T_FUTURE,
     dispute_bond_raw: '0',
     is_seeker: false,
+    requires_approval: false,
+    assigned_from_application: false,
+    assignment_released_at: null,
+    unassign_window_seconds: 0,
     sponsored_tx_used: 0,
+    public_feed_revision: '0',
     created_at: T0,
     updated_at: T0,
     ...over,
   }
 }
-
-// ---------- isUuidLike --------------------------------------------------
-
-test('isUuidLike: canonical lowercase UUID accepted', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-446655440000'),
-    true,
-  )
-})
-
-test('isUuidLike: uppercase hex accepted (case-insensitive)', () => {
-  assert.strictEqual(
-    isUuidLike('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'),
-    true,
-  )
-})
-
-test('isUuidLike: rejects garbage', () => {
-  assert.strictEqual(isUuidLike('garbage'), false)
-})
-
-test('isUuidLike: rejects empty string', () => {
-  assert.strictEqual(isUuidLike(''), false)
-})
-
-test('isUuidLike: rejects UUID missing a section', () => {
-  assert.strictEqual(isUuidLike('550e8400-e29b-41d4-a716'), false)
-})
-
-test('isUuidLike: rejects UUID with non-hex char', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-44665544000z'),
-    false,
-  )
-})
-
-test('isUuidLike: rejects UUID with extra trailing chars', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-446655440000-extra'),
-    false,
-  )
-})
 
 // ---------- deriveCaller ------------------------------------------------
 

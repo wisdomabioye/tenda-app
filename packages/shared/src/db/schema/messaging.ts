@@ -9,9 +9,14 @@
  *   - `messages.gig_id` / `messages.offer_id` collapse into a single
  *     `escrow_id` — gigs and exchanges are both escrows in v2, and the
  *     chat context divider only needs one reference.
- *   - timestamps follow the v2 convention (no timezone flag), matching
- *     every other table in this schema, and `updated_at` columns gain the
- *     v2 `$onUpdate` auto-bump.
+ *   - timestamps are `timestamptz`, matching every other table in this
+ *     schema, and `updated_at` columns gain the v2 `$onUpdate` auto-bump.
+ *     They were NAIVE until 2026-08-25 (`0033_sloppy_boomerang`): a bare
+ *     `timestamp` carries no zone, so postgres.js parses it with
+ *     `new Date(str)` — local time in whichever process reads it — and the
+ *     DB session's zone had to match the API container's or every instant
+ *     silently shifted. `packages/shared/test/db/timestamptz.test.ts` is
+ *     what keeps a naive column from coming back.
  *
  * NOTE: after editing run `pnpm --filter @tenda/shared build` and
  * `pnpm db:generate` (migrations are generated, never hand-written).
@@ -22,6 +27,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -30,6 +36,11 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import {
+  ANNOUNCEMENT_TARGETS,
+  NOTIFICATION_TITLE_MAX,
+  NOTIFICATION_BODY_MAX,
+} from '../../constants/notifications'
 import { escrows } from './escrow'
 import { users } from './identity'
 
@@ -51,9 +62,9 @@ export const conversations = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     status: conversationStatusEnum('status').notNull().default('active'),
     closed_by: uuid('closed_by').references(() => users.id),
-    closed_at: timestamp('closed_at'),
-    last_message_at: timestamp('last_message_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    closed_at: timestamp('closed_at', { withTimezone: true }),
+    last_message_at: timestamp('last_message_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('conversations_user_pair_unique').on(t.user_a_id, t.user_b_id),
@@ -84,8 +95,8 @@ export const messages = pgTable(
     attachment_url: text('attachment_url'),
     attachment_type: text('attachment_type', { enum: ['image', 'file'] }),
     attachment_size: integer('attachment_size'),
-    read_at: timestamp('read_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    read_at: timestamp('read_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     // Composite index covers the paginated history query:
@@ -108,8 +119,8 @@ export const device_tokens = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     token: text('token').notNull(),
     platform: devicePlatformEnum('platform').notNull().default('expo'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -130,7 +141,7 @@ export const gig_subscriptions = pgTable(
     // '*' means any city/category (sentinel instead of NULL to enable UNIQUE constraint)
     city: text('city').notNull().default('*'),
     category: text('category').notNull().default('*'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('gig_subscriptions_unique').on(t.user_id, t.city, t.category),
@@ -138,6 +149,41 @@ export const gig_subscriptions = pgTable(
     // Covers the fan-out query: WHERE city IN (data.city, '*') — filters by city first,
     // then category, avoiding a full-table scan as subscriber count grows.
     index('gig_subscriptions_city_category_idx').on(t.city, t.category),
+  ],
+)
+
+/**
+ * Personal in-app notifications (notification centre). One row per recipient
+ * for TARGETED notices (escrow lifecycle, reviews, fiat, disputes, new-gig
+ * matches); broadcasts do NOT fan out here — they live once in `announcements`
+ * and merge in at read time. Chat is excluded (it has its own read surface).
+ *
+ * `id` is stamped by the enqueue helper (lib/notify.ts) so it is stable across
+ * BullMQ retries → the delivery worker inserts with onConflictDoNothing and
+ * persistence is idempotent. Deliberately NO defaultRandom: an omitted id is a
+ * bug the insert type should catch, not paper over with a fresh random id.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: NOTIFICATION_TITLE_MAX }).notNull(),
+    body: varchar('body', { length: NOTIFICATION_BODY_MAX }).notNull(),
+    // Deep-link params ({ screen, escrowId, kind, ... }); null = non-routable.
+    data: jsonb('data').$type<Record<string, string>>(),
+    read_at: timestamp('read_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Feed query: WHERE user_id = X ORDER BY created_at DESC (cursor-paginated).
+    index('notifications_user_created_idx').on(t.user_id, t.created_at.desc()),
+    // Partial index for the unread-count badge and mark-all-read UPDATE.
+    index('notifications_user_unread_idx')
+      .on(t.user_id)
+      .where(sql`${t.read_at} IS NULL`),
   ],
 )
 
@@ -149,14 +195,19 @@ export const announcements = pgTable(
     body: varchar('body', { length: 2000 }).notNull(),
     // priority: higher = shown first. 0 = normal, 1 = important, 2 = urgent.
     priority: integer('priority').notNull().default(0),
+    // Audience: NULL target = everyone; a non-null target requires target_value
+    // (role name / country code / city name). Evaluated against the viewer at
+    // read time (fan-out-on-read) so a broadcast is one row, never N.
+    target: text('target', { enum: ANNOUNCEMENT_TARGETS }),
+    target_value: text('target_value'),
     is_active: boolean('is_active').notNull().default(true),
     // published_at: set when first made active (set once, never cleared).
-    published_at: timestamp('published_at'),
+    published_at: timestamp('published_at', { withTimezone: true }),
     // expires_at: null = never expires.
-    expires_at: timestamp('expires_at'),
+    expires_at: timestamp('expires_at', { withTimezone: true }),
     created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

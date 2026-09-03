@@ -21,7 +21,7 @@ import {
   loadEscrowOr404,
   requireCaller,
 } from '@server/lib/escrow-routes'
-import { assertCanTransition } from '@server/lib/escrow'
+import { assertCanTransition, buildEscrowTx, partyCaller } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
@@ -59,10 +59,10 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       // Map to the on-chain action name (1:1 with the contract IX).
       const action = transition === 'refund_expired' ? 'refundExpired' : 'reclaimAbandoned'
-      const adapter = fastify.chains.get(escrow.chain_id)
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action,
         user_id: request.user.id,
+        caller: partyCaller(caller),
         payload: { escrow_id: escrow.id },
       })
       return { unsigned }

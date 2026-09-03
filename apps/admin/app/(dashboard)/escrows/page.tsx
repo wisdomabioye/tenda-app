@@ -8,8 +8,9 @@
  */
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import type { AdminEscrowRow } from '@tenda/shared'
+import { displayName, type AdminEscrowRow } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -116,9 +117,21 @@ export default function EscrowsPage() {
                   </TableCell>
                   <TableCell className="capitalize">{row.kind}</TableCell>
                   <TableCell>
-                    {row.creator_first_name ?? ''} {row.creator_last_name ?? ''}
+                    {displayName(row.creator_first_name, row.creator_last_name, row.creator_id)}
                   </TableCell>
-                  <TableCell><EscrowStatusBadge status={row.status} /></TableCell>
+                  <TableCell>
+                    {row.dispute_id !== null ? (
+                      <Link
+                        href={`/disputes/${row.dispute_id}`}
+                        className="rounded-sm underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2"
+                        title="Open this dispute"
+                      >
+                        <EscrowStatusBadge status={row.status} />
+                      </Link>
+                    ) : (
+                      <EscrowStatusBadge status={row.status} />
+                    )}
+                  </TableCell>
                   <TableCell>
                     {row.hidden ? <Badge variant="destructive">hidden</Badge> : <Badge variant="outline">public</Badge>}
                   </TableCell>

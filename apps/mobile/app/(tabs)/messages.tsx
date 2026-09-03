@@ -98,7 +98,7 @@ export default function MessagesScreen() {
 
 const s = StyleSheet.create({
   groupHeader: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',

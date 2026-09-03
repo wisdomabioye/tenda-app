@@ -13,15 +13,28 @@ import { ErrorCode, type ResolutionWinner } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { AppDatabase } from '@server/plugins/db'
 import type { ChainRegistry, UnsignedTx } from '@server/chains/types'
+import {
+  resolveEscrowContract,
+  type ContractRegistry,
+  type EscrowContractRef,
+} from '@server/chains/contracts'
 
 export interface BuildResolveTxDeps {
   db: AppDatabase
   chains: ChainRegistry
+  contracts: ContractRegistry
 }
 
 export interface BuildResolveTxArgs {
-  escrow_id: string
-  chain_id: string
+  /**
+   * The escrow being resolved, carrying its pinned contract.
+   *
+   * The whole row reference rather than a bare `chain_id`: a dispute is exactly
+   * the case where an escrow outlives a redeploy — it is non-terminal for as
+   * long as it takes to adjudicate — so the resolve transaction must be built
+   * against the contract actually holding the funds and the bond.
+   */
+  escrow: EscrowContractRef
   winner: ResolutionWinner
   /** The signing admin's user id — attribution only, NOT the signer wallet. */
   signer_user_id: string
@@ -34,17 +47,17 @@ export async function buildResolveTx(
   const [dispute] = await deps.db
     .select({ raised_by: disputes.raised_by })
     .from(disputes)
-    .where(eq(disputes.escrow_id, args.escrow_id))
+    .where(eq(disputes.escrow_id, args.escrow.id))
     .limit(1)
   if (dispute === undefined) {
     throw new AppError(
       409,
       ErrorCode.ESCROW_WRONG_STATUS,
-      `escrow ${args.escrow_id} has no dispute record to resolve`,
+      `escrow ${args.escrow.id} has no dispute record to resolve`,
     )
   }
 
-  const adapter = deps.chains.get(args.chain_id)
+  const adapter = deps.chains.get(args.escrow.chain_id)
 
   // The resolve tx is authorised by the chain's dispute-resolution key, whose
   // public address rides the adapter (from its secret). It is the signer
@@ -56,7 +69,7 @@ export async function buildResolveTx(
     throw new AppError(
       409,
       ErrorCode.CHAIN_NOT_CONFIGURED,
-      `no dispute-resolution authority configured for ${args.chain_id}`,
+      `no dispute-resolution authority configured for ${args.escrow.chain_id}`,
     )
   }
 
@@ -64,6 +77,7 @@ export async function buildResolveTx(
     action: 'resolveDispute',
     user_id: args.signer_user_id,
     signer_address,
-    payload: { escrow_id: args.escrow_id, winner: args.winner, raiser_user_id: dispute.raised_by },
+    contract: resolveEscrowContract(args.escrow, deps.contracts),
+    payload: { escrow_id: args.escrow.id, winner: args.winner, raiser_user_id: dispute.raised_by },
   })
 }

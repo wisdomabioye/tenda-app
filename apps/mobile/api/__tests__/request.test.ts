@@ -10,7 +10,8 @@ jest.mock('@/lib/secure-store', () => ({
   getJwtToken: jest.fn(),
 }))
 
-import { request, ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
+import { request } from '@/api/request'
 import { getJwtToken } from '@/lib/secure-store'
 
 const getJwt = getJwtToken as jest.Mock
@@ -75,6 +76,65 @@ describe('request, Authorization header', () => {
   })
 })
 
+describe('request, timeout budget', () => {
+  it('maps an expired request deadline to a typed API timeout', async () => {
+    jest.useFakeTimers()
+    getJwt.mockResolvedValue(null)
+    global.fetch = jest.fn((_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('This operation was aborted', 'AbortError'))
+      })
+    })) as typeof fetch
+
+    const assertion = expect(request('GET', '/v1/gigs', { timeout: 25 })).rejects.toMatchObject({
+      name: 'ApiClientError',
+      statusCode: 408,
+      code: 'REQUEST_TIMEOUT',
+    })
+    await jest.advanceTimersByTimeAsync(25)
+    await assertion
+    jest.useRealTimers()
+  })
+
+  it('does not relabel an abort that was not caused by its deadline', async () => {
+    getJwt.mockResolvedValue(null)
+    global.fetch = jest.fn(async () => {
+      throw new DOMException('cancelled elsewhere', 'AbortError')
+    }) as typeof fetch
+
+    await expect(request('GET', '/v1/gigs', { timeout: 20_000 })).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+  })
+
+  it('honours a per-request timeout override (moderation-bearing calls)', async () => {
+    getJwt.mockResolvedValue(null)
+    mockFetch()
+    const spy = jest.spyOn(global, 'setTimeout')
+
+    await request('POST', '/v1/gigs', { body: {}, timeout: 20_000 })
+
+    const delays = spy.mock.calls.map((c) => c[1])
+    expect(delays).toContain(20_000)
+    spy.mockRestore()
+  })
+
+  it('falls back to the env default timeout when no override is given', async () => {
+    getJwt.mockResolvedValue(null)
+    mockFetch()
+    const spy = jest.spyOn(global, 'setTimeout')
+
+    await request('POST', '/v1/gigs', { body: {} })
+
+    const delays = spy.mock.calls.map((c) => c[1])
+    // The env default (5s dev / 10s staging / 15s prod) is the reason gig
+    // creation aborted mid-moderation — it must NOT silently pick 20s here.
+    expect(delays).not.toContain(20_000)
+    expect(delays.some((d) => typeof d === 'number' && d > 0)).toBe(true)
+    spy.mockRestore()
+  })
+})
+
 describe('request, error envelope', () => {
   it('maps a non-2xx ApiError envelope to ApiClientError with its code', async () => {
     getJwt.mockResolvedValue(null)
@@ -92,5 +152,83 @@ describe('request, error envelope', () => {
       code: 'UNAUTHORIZED',
       message: 'Invalid or missing token',
     })
+  })
+
+  it('forwards the envelope details, the half a wrong-wallet retry needs', async () => {
+    // `requiredWalletOf` reads details.required_address to re-target the
+    // signer. Dropped, an ESCROW_WRONG_WALLET refusal is a dead end.
+    getJwt.mockResolvedValue(null)
+    mockFetch(422, {
+      statusCode: 422,
+      error: 'Unprocessable Entity',
+      message: 'This escrow is signed by another wallet',
+      code: 'ESCROW_WRONG_WALLET',
+      details: { required_address: '0xabc' },
+    })
+
+    const pending = request('POST', '/v1/escrows/:id/submit', { params: { id: 'e1' } })
+    await expect(pending).rejects.toMatchObject({
+      code: 'ESCROW_WRONG_WALLET',
+      details: { required_address: '0xabc' },
+    })
+  })
+
+  it('leaves details undefined when the envelope carries none', async () => {
+    // The negative half: most refusals have no payload, and inventing an
+    // empty object there would make `err.details?.x` reads look answered.
+    getJwt.mockResolvedValue(null)
+    mockFetch(404, {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Escrow not found',
+      code: 'ESCROW_NOT_FOUND',
+    })
+
+    const pending = request('GET', '/v1/escrows/:id', { params: { id: 'e1' } })
+    await expect(pending).rejects.toMatchObject({ code: 'ESCROW_NOT_FOUND' })
+    await expect(pending).rejects.toHaveProperty('details', undefined)
+  })
+})
+
+describe('request, query serialisation', () => {
+  function sentUrl(fetchMock: jest.Mock): string {
+    return fetchMock.mock.calls[0][0] as string
+  }
+
+  it('serialises an array as ONE comma-separated value, not repeated keys', async () => {
+    // Load-bearing on both sides: the server parses `?status=a,b` with
+    // `raw.split(',')`. Repeated keys would arrive as an array there and throw
+    // inside the parser — a 500 on a list route, from a change that looks like
+    // a tidy-up here.
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs/:id/applications', {
+      params: { id: 'escrow-1' },
+      query: { status: ['open', 'passed'] },
+    })
+
+    expect(sentUrl(fetchMock)).toContain('?status=open%2Cpassed')
+    expect(sentUrl(fetchMock)).toContain('/v1/gigs/escrow-1/applications')
+  })
+
+  it('omits null and undefined rather than sending them as words', async () => {
+    // `status=undefined` is a 400 from the shared status guard, and
+    // `chain_id=null` would filter on a chain that does not exist.
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs', {
+      query: { limit: 20, chain_id: null, status: undefined, remote: false },
+    })
+
+    const url = sentUrl(fetchMock)
+    expect(url).toContain('limit=20')
+    // `false` is a real value and must survive; only null/undefined drop.
+    expect(url).toContain('remote=false')
+    expect(url).not.toMatch(/chain_id/)
+    expect(url).not.toMatch(/status/)
+  })
+
+  it('adds no query string at all when every value was dropped', async () => {
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs', { query: { chain_id: null } })
+    expect(sentUrl(fetchMock)).not.toContain('?')
   })
 })

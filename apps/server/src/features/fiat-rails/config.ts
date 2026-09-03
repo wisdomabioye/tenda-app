@@ -3,6 +3,7 @@
  * live in server env (config.ts), the fiat_providers.config jsonb only
  * carries non-secret routing hints.
  */
+import { P2P_PROVIDER_ID, EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS } from '@tenda/shared'
 
 /** Quote validity window, expired quotes are never honored (§ Risks). */
 export const QUOTE_TTL_MS = 10 * 60_000
@@ -30,7 +31,7 @@ export const P2P_INTERNAL_SPREAD_BPS = 100
 export const P2P_ONRAMP_MATCH_TOLERANCE_BPS = 1_000
 
 /** The always-available fallback provider id (§ Provider routing). */
-export const P2P_INTERNAL_ID = 'p2p_internal'
+export const P2P_INTERNAL_ID = P2P_PROVIDER_ID
 
 /**
  * Quote-routing fallback when the user has no stored country, Nigeria is
@@ -40,7 +41,7 @@ export const DEFAULT_FIAT_COUNTRY = 'NG'
 
 /**
  * Payment window stamped on p2p_internal exchange escrows (how long the
- * counterparty has to pay fiat after accepting). Mirrors the legacy
- * exchange default.
+ * counterparty has to pay fiat after accepting). Single-sourced from the
+ * shared exchange default so the manual-create and offramp paths never drift.
  */
-export const P2P_INTERNAL_PAYMENT_WINDOW_SECONDS = 24 * 60 * 60
+export const P2P_INTERNAL_PAYMENT_WINDOW_SECONDS = EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS

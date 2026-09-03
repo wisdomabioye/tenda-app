@@ -3,13 +3,18 @@ import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
 import type { ApiError } from '@tenda/shared'
 
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('Announcement not found'))
+
   // GET /v1/admin/announcements, all announcements (active and inactive)
   fastify.get<{
     Querystring: { limit?: number; offset?: number; active?: string }
@@ -58,14 +63,22 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     return row
   })
 
-  // POST /v1/admin/announcements, create
+  // POST /v1/admin/announcements, create a persistent in-app banner (optionally
+  // targeted). This does NOT push — pushing is the dedicated /admin/push/broadcast
+  // route (its own `push.broadcast` permission + rate limit), which also persists
+  // an announcement. Keeping push off this endpoint means `announcements.write`
+  // can never become a backdoor to broadcasting.
   fastify.post<{
-    Body:  { title: string; body: string; priority?: number; is_active?: boolean; expires_at?: string }
+    Body:  {
+      title: string; body: string; priority?: number; is_active?: boolean; expires_at?: string
+      target?: string; target_value?: string
+    }
     Reply: unknown | ApiError
   }>('/', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
-    const { title, body, priority = 0, is_active = true, expires_at } = requireBody(request.body)
+    const { title, body, priority = 0, is_active = true, expires_at, target, target_value } =
+      requireBody(request.body)
 
     if (!title || title.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'title is required')
@@ -82,28 +95,27 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'expires_at must be a valid ISO date')
     }
 
-    const [row] = await fastify.db
-      .insert(announcements)
-      .values({
-        title:        title.trim(),
-        body:         body.trim(),
-        priority,
-        is_active,
-        published_at: is_active ? new Date() : null,
-        expires_at:   expiresAt,
-        created_by:   request.user.id,
-      })
-      .returning()
+    const audience = normalizeTarget(target, target_value)
+    const { announcement } = await createAnnouncement(fastify.db, {
+      title:        title.trim(),
+      body:         body.trim(),
+      priority,
+      is_active,
+      target:       audience.target,
+      target_value: audience.target_value,
+      expires_at:   expiresAt,
+      created_by:   request.user.id,
+    })
 
     appEvents.emit('admin.create_announcement', {
       adminId:        request.user.id,
       adminRole:      request.user.role,
-      announcementId: row!.id,
-      title:          row!.title,
-      priority:       row!.priority,
+      announcementId: announcement.id,
+      title:          announcement.title,
+      priority:       announcement.priority,
     })
 
-    return row
+    return announcement
   })
 
   // PATCH /v1/admin/announcements/:id, update

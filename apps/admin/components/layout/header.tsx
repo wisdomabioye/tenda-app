@@ -3,7 +3,7 @@
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { MoonIcon, SunIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { useAdminTheme } from '@/providers/theme'
 import { Button } from '@/components/ui/button'
 
 interface AppHeaderProps {
@@ -11,7 +11,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title }: AppHeaderProps) {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useAdminTheme()
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">

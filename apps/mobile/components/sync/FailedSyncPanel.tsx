@@ -83,7 +83,7 @@ export function FailedSyncPanel() {
   }
 
   const noun = failed.length === 1 ? 'transaction needs' : `${failed.length} transactions need`
-  const warningTextColor = '#8D5209'
+  const warningTextColor = theme.colors.feedback.warning.text
 
   return (
     <>
@@ -174,7 +174,7 @@ const s = StyleSheet.create({
     gap: 2,
   },
   sig: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     lineHeight: 14,
     letterSpacing: 0.115,

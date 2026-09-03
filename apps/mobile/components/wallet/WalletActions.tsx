@@ -7,8 +7,9 @@ import { Text } from '@/components/ui'
 type RouterPush = Parameters<ReturnType<typeof useRouter>['push']>[0]
 
 /**
- * Wallet actions row, a full-width Buy/Sell entry point (Stage 8), lifted OUT
- * of the balance hero so it's no longer cramped/clipped inside a fixed card.
+ * Wallet actions row, a full-width Sell / cash-out entry point (Stage 8),
+ * lifted OUT of the balance hero so it's no longer cramped inside a fixed card.
+ * Buy (onramp) is retired until a licensed provider is live (#61).
  */
 export function WalletActions() {
   const { theme } = useUnistyles()
@@ -18,13 +19,13 @@ export function WalletActions() {
       onPress={() => router.push('/wallet/buy-sell' as RouterPush)}
       style={({ pressed }) => [
         s.button,
-        { backgroundColor: theme.colors.brand.primary },
+        { backgroundColor: theme.colors.brand.solid },
         pressed && { opacity: 0.85 },
       ]}
       accessibilityRole="button"
-      accessibilityLabel="Buy or sell"
+      accessibilityLabel="Sell or cash out"
     >
-      <Text style={[s.label, { color: theme.colors.brand.onPrimary }]}>Buy / Sell</Text>
+      <Text style={[s.label, { color: theme.colors.brand.onPrimary }]}>Sell / Cash out</Text>
     </Pressable>
   )
 }

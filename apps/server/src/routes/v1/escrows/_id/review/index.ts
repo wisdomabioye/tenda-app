@@ -112,7 +112,7 @@ const reviewEscrow: FastifyPluginAsync = async (fastify) => {
           title: details?.title ?? null,
         })
 
-        return reply.code(201).send(review)
+        return reply.code(201).send({ ...review, created_at: review.created_at.toISOString() })
       } catch (err: unknown) {
         // Postgres unique violation on reviews_escrow_reviewer_uq
         handleUniqueConflict(err, ErrorCode.REVIEW_ALREADY_EXISTS, 'You have already reviewed this escrow')

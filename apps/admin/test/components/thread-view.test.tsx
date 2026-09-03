@@ -19,10 +19,20 @@ const send = vi.mocked(adminApi.disputeThread.send)
 const err = vi.mocked(toast.error)
 
 function thread(over: Partial<DisputeThreadResponse> = {}): DisputeThreadResponse {
-  return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, messages: [], reads: [], ...over }
+  return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, context: null, messages: [], reads: [], ...over }
 }
 function msg(over: Partial<DisputeMessage> = {}): DisputeMessage {
-  return { id: 'm1', dispute_id: 'd1', sender_id: 'me', body: 'hi', created_at: '2026-06-10T00:00:00.000Z', ...over }
+  return {
+    id: 'm1',
+    dispute_id: 'd1',
+    sender_id: 'me',
+    body: 'hi',
+    attachment_url: null,
+    attachment_type: null,
+    attachment_size: null,
+    created_at: '2026-06-10T00:00:00.000Z',
+    ...over,
+  }
 }
 
 const PARTIES: DossierParty[] = [
@@ -49,28 +59,100 @@ test('first poll loads and renders thread messages', async () => {
   expect(await screen.findByText('hello there')).toBeInTheDocument()
 })
 
-test('labels each sender: own → You, mediator → Mediator, parties → role · name', async () => {
-  // Session id 'me' is also the claiming mediator (assigned_to_id default 'me').
+test('image evidence renders a thumbnail the mediator can open', async () => {
+  get.mockResolvedValue(
+    thread({
+      messages: [
+        msg({
+          id: 'm1',
+          body: '',
+          sender_id: 'other',
+          attachment_url: 'https://res.cloudinary.com/x/e.jpg',
+          attachment_type: 'image',
+          attachment_size: 2048,
+        }),
+      ],
+    }),
+  )
+  renderThread()
+  const img = await screen.findByRole('img', { name: 'Image evidence' })
+  expect(img).toHaveAttribute('src', 'https://res.cloudinary.com/x/e.jpg')
+})
+
+test('document evidence renders an openable link alongside the body', async () => {
+  get.mockResolvedValue(
+    thread({
+      messages: [
+        msg({
+          id: 'm1',
+          body: 'see attached',
+          sender_id: 'other',
+          attachment_url: 'https://res.cloudinary.com/x/e.pdf',
+          attachment_type: 'file',
+          attachment_size: 4096,
+        }),
+      ],
+    }),
+  )
+  renderThread()
+  const link = await screen.findByTitle('Document evidence')
+  expect(link).toHaveAttribute('href', 'https://res.cloudinary.com/x/e.pdf')
+  expect(screen.getByText('see attached')).toBeInTheDocument()
+})
+
+test('labels each sender: own → You, admins → Mediator, parties → role · name', async () => {
   get.mockResolvedValue(
     thread({
       assigned_to_id: 'med',
       messages: [
         msg({ id: 'a', sender_id: 'me', body: 'from me' }),
-        msg({ id: 'b', sender_id: 'med', body: 'from mediator' }),
+        msg({ id: 'b', sender_id: 'med', body: 'from the claim holder' }),
         msg({ id: 'c', sender_id: 'poster', body: 'from poster' }),
         msg({ id: 'd', sender_id: 'worker', body: 'from worker' }),
-        msg({ id: 'e', sender_id: 'ghost', body: 'from unknown' }),
+        // An admin who mediated earlier and has since handed the claim on.
+        msg({ id: 'e', sender_id: 'previous-mediator', body: 'from the previous mediator' }),
       ],
     }),
   )
   renderThread()
   expect(await screen.findByText('from worker')).toBeInTheDocument()
   expect(screen.getByText('You')).toBeInTheDocument()
-  expect(screen.getByText('Mediator')).toBeInTheDocument()
   expect(screen.getByText('Poster · Ada Lovelace')).toBeInTheDocument()
   expect(screen.getByText('Worker · Tunde Bello')).toBeInTheDocument()
-  // A sender who is neither the mediator nor a known party falls back.
+  // Both admin voices read as the mediator: identity is party MEMBERSHIP, so
+  // a handoff no longer demotes the earlier mediator to a bare "Participant".
+  expect(screen.getAllByText('Mediator')).toHaveLength(2)
+  expect(screen.queryByText('Participant')).not.toBeInTheDocument()
+})
+
+test('a party who holds the claim is labelled as a party, never as the mediator', async () => {
+  // An admin who is also a disputant used to be dressed up as the neutral
+  // arbiter to the person they were disputing with.
+  get.mockResolvedValue(
+    thread({
+      assigned_to_id: 'poster',
+      messages: [msg({ id: 'a', sender_id: 'poster', body: 'from the poster-admin' })],
+    }),
+  )
+  renderThread()
+  expect(await screen.findByText('from the poster-admin')).toBeInTheDocument()
+  expect(screen.getByText('Poster · Ada Lovelace')).toBeInTheDocument()
+  expect(screen.queryByText('Mediator')).not.toBeInTheDocument()
+})
+
+test('while the dossier is still loading, senders stay neutral', async () => {
+  // The page passes `dossier?.parties ?? []` — with no party list nothing can
+  // be placed, and guessing "Mediator" would be worse than saying so.
+  get.mockResolvedValue(
+    thread({
+      assigned_to_id: 'med',
+      messages: [msg({ id: 'a', sender_id: 'poster', body: 'from poster' })],
+    }),
+  )
+  renderThread({ parties: [] })
+  expect(await screen.findByText('from poster')).toBeInTheDocument()
   expect(screen.getByText('Participant')).toBeInTheDocument()
+  expect(screen.queryByText('Poster · Ada Lovelace')).not.toBeInTheDocument()
 })
 
 test('empty thread shows the no-messages placeholder', async () => {
@@ -124,4 +206,29 @@ test('a send rejected as DISPUTE_RESOLVED freezes the thread', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Send' }))
   await waitFor(() => expect(err).toHaveBeenCalledWith('Dispute resolved — the thread is read-only'))
   expect(await screen.findByText(/this thread is frozen/)).toBeInTheDocument()
+})
+
+test('own messages align right, everyone else left', async () => {
+  // Alignment and label are two readings of the same question; they are
+  // derived from one resolution so they can never disagree.
+  get.mockResolvedValue(
+    thread({
+      assigned_to_id: 'med',
+      messages: [
+        msg({ id: 'a', sender_id: 'me', body: 'mine' }),
+        msg({ id: 'b', sender_id: 'poster', body: 'theirs' }),
+      ],
+    }),
+  )
+  const { container } = renderThread()
+  expect(await screen.findByText('theirs')).toBeInTheDocument()
+
+  const rowOf = (body: string): Element => {
+    const row = screen.getByText(body).closest('.flex-col')
+    if (row === null) throw new Error(`no row for ${body}`)
+    return row
+  }
+  expect(rowOf('mine').className).toContain('items-end')
+  expect(rowOf('theirs').className).toContain('items-start')
+  expect(container.querySelectorAll('.items-end')).toHaveLength(1)
 })

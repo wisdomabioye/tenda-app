@@ -3,19 +3,21 @@
  * the Stage-0/2/8 handlers, every handler already exists and is
  * unit-tested; this layer only assembles their live deps from fastify.
  *
- * verify-tx republish (stage-2 § listener step 5) does both fan-outs:
- *   1. WS: `escrow:<id>` frame `{type:'escrow_event', event, tx_ref}`,
- *      the exact contract TransactionMonitor subscribes to (#42).
- *   2. Push: a 'notifications' job addressed to the party who needs to
- *      LEARN about the event (the non-actor), resolved from the escrow row.
+ * The verify-tx republish binding below hands off to `fanOutEscrowEvent`
+ * (workers/escrow-fanout), which OWNS the description of what that fan-out
+ * does. This header used to restate its steps, and the restatement went stale
+ * the first time a step was added — it still said "both fan-outs" and listed
+ * two after there were five. One module documents it; this one points at it.
  */
 
-import { and, eq, inArray, or } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
-import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
-import { channelName } from '@server/lib/ws'
+import { device_tokens } from '@tenda/shared/db/schema'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { expireApplicationsHandler } from '@server/jobs/expire-applications'
+import { drizzleApplicationStore } from '@server/features/applications/store'
+import { persistNotification } from '@server/lib/notify'
+import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from './escrow-fanout'
 import {
   buildPushServices,
   routePush,
@@ -25,6 +27,7 @@ import {
 import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'
+import { deliverAlert } from '@server/features/alerts'
 import { buildOtpSenders } from '@server/lib/onboarding-deps'
 import { deliverOtp } from '@server/lib/otp'
 import {
@@ -33,6 +36,10 @@ import {
   type VerifyTxDeps,
 } from '@server/jobs/verify-tx'
 import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/expire-escrows'
+import { drizzleSweepEscrowsStore, handleSweepEscrows } from '@server/jobs/sweep-escrows'
+import { drizzleTxAttemptsStore } from '@server/lib/tx-attempts'
+import { getPlatformConfig } from '@server/lib/platform'
+import { handleNotificationRetention } from '@server/workers/notification-retention'
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
 import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
 import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
@@ -41,163 +48,6 @@ import {
   updatePriceStatsHandler,
 } from '@server/features/moderation/jobs/update-price-stats'
 import type { JobName, JobPayload } from '@server/plugins/queue'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
-
-// ---------- escrow-event push fan-out ---------------------------------------
-
-interface EventNotice {
-  /** Which party learns about it, the one who didn't act. */
-  recipient: 'creator' | 'counterparty' | 'both'
-  title: string
-  body: string
-}
-
-/**
- * High-signal events only, lifecycle steps the OTHER party must react
- * to. Expiry notices ride the expire-escrows job; created/cancelled are
- * the actor's own doing.
- */
-const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
-  'escrow.accepted': {
-    recipient: 'creator',
-    title: 'Gig accepted',
-    body: 'A worker accepted your gig, work is underway.',
-  },
-  'escrow.declined': {
-    recipient: 'creator',
-    title: 'Assignment declined',
-    body: 'Your assigned worker declined. The gig is now open to everyone.',
-  },
-  'escrow.proof_submitted': {
-    recipient: 'creator',
-    title: 'Work submitted',
-    body: 'Proof of completion is in, review and approve to release payment.',
-  },
-  'escrow.approved': {
-    recipient: 'counterparty',
-    title: 'Payment released',
-    body: 'The poster approved your work. Funds are in your wallet.',
-  },
-  'escrow.payment_claimed': {
-    recipient: 'creator',
-    title: 'Payment auto-claimed',
-    body: 'The approval window passed, so the worker claimed payment.',
-  },
-  'escrow.abandoned': {
-    recipient: 'counterparty',
-    title: 'Escrow reclaimed',
-    body: 'The poster reclaimed the escrow after the completion window passed.',
-  },
-  'escrow.dispute_raised': {
-    recipient: 'both',
-    title: 'Dispute opened',
-    body: 'A dispute was raised on your escrow. Our team will review it.',
-  },
-  'escrow.dispute_resolved': {
-    recipient: 'both',
-    title: 'Dispute resolved',
-    body: 'Your dispute has been resolved, check the escrow for the outcome.',
-  },
-}
-
-/**
- * New-gig fan-out: when the on-chain create confirms (escrow → open),
- * notify gig_subscriptions matching the gig's city/category ('*' is the
- * any-value sentinel). Moved here from the legacy notifications plugin,
- * v2 has no publish route; "the gig went live" IS the created event.
- */
-async function fanOutNewGigToSubscribers(
-  fastify: FastifyInstance,
-  escrow_id: string,
-): Promise<void> {
-  const [gig] = await fastify.db
-    .select({
-      creator_id: escrows.creator_id,
-      title: gig_details.title,
-      city: gig_details.city,
-      category: gig_details.category,
-    })
-    .from(escrows)
-    .innerJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
-    .where(and(eq(escrows.id, escrow_id), eq(escrows.kind, 'gig')))
-    .limit(1)
-  // Exchange escrows have no gig_details row, nothing to fan out.
-  if (gig === undefined) return
-
-  // Remote gigs match wildcard-city subscribers only; local gigs match
-  // city + wildcard. Category filtered the same way.
-  const subs = await fastify.db
-    .select({ user_id: gig_subscriptions.user_id })
-    .from(gig_subscriptions)
-    .where(
-      and(
-        gig.city === null
-          ? eq(gig_subscriptions.city, '*')
-          : or(eq(gig_subscriptions.city, gig.city), eq(gig_subscriptions.city, '*')),
-        or(eq(gig_subscriptions.category, gig.category), eq(gig_subscriptions.category, '*')),
-      ),
-    )
-
-  const subscriberIds = [...new Set(subs.map((s) => s.user_id))].filter(
-    (uid) => uid !== gig.creator_id,
-  )
-  for (const user_id of subscriberIds) {
-    await fastify.queue.enqueue('notifications', {
-      user_id,
-      title: 'New Gig Posted',
-      body: `"${gig.title}" in ${gig.city ?? 'Remote'}`,
-      data: { screen: 'escrow', escrowId: escrow_id },
-    })
-  }
-}
-
-async function fanOutEscrowEvent(
-  fastify: FastifyInstance,
-  event: { internal_event: InternalEscrowEvent; escrow_id: string; tx_ref: string; wire_event: string },
-): Promise<void> {
-  // 1. Live WS frame, matches shared EscrowEventFrame exactly.
-  fastify.wsBroadcast.broadcast(channelName({ kind: 'escrow', id: event.escrow_id }), {
-    type: 'escrow_event',
-    escrow_id: event.escrow_id,
-    event: event.wire_event,
-    tx_ref: event.tx_ref,
-  })
-
-  // 2. New-gig subscriber fan-out (created = went live; the actor needs no
-  //    notice, subscribers do).
-  if (event.internal_event === 'escrow.created') {
-    await fanOutNewGigToSubscribers(fastify, event.escrow_id)
-    return
-  }
-
-  // 3. Push fan-out for high-signal events.
-  const notice = NOTICE_BY_EVENT[event.internal_event]
-  if (notice === undefined) return
-
-  const [row] = await fastify.db
-    .select({ creator_id: escrows.creator_id, counterparty_id: escrows.counterparty_id })
-    .from(escrows)
-    .where(eq(escrows.id, event.escrow_id))
-    .limit(1)
-  if (row === undefined) return
-
-  const recipients =
-    notice.recipient === 'both'
-      ? [row.creator_id, row.counterparty_id]
-      : notice.recipient === 'creator'
-        ? [row.creator_id]
-        : [row.counterparty_id]
-
-  for (const user_id of recipients) {
-    if (user_id === null) continue
-    await fastify.queue.enqueue('notifications', {
-      user_id,
-      title: notice.title,
-      body: notice.body,
-      data: { screen: 'escrow', escrowId: event.escrow_id },
-    })
-  }
-}
 
 // ---------- notifications delivery ---------------------------------------------
 
@@ -206,10 +56,41 @@ async function deliverNotification(
   services: Partial<Record<DevicePlatform, PushService>>,
   payload: JobPayload['notifications'],
 ): Promise<void> {
-  // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
-  // enqueue and delivery; resolving early pushes to stale devices). The push
-  // `services` are built ONCE in buildProcessors and reused, see the note
-  // there on why they must not be rebuilt per delivery.
+  // Persist + live WS FIRST, before the no-token early-return: a user with the
+  // in-app centre but no push device must still get the row + badge. Push is
+  // best-effort on top. Idempotent (onConflictDoNothing) so a retry is safe.
+  //
+  // A 'duplicate' STOPS THE PUSH TOO. The row is the only durable record that
+  // this notification already went out, and without consulting it a retried job
+  // re-pushes: the gig fan-out replays whole pages of subscribers when it fails
+  // part-way (the expansion is one job over many pages), so page 1 gets its
+  // "New Gig Posted" push again for every later page that fails. The persisted
+  // half was already idempotent; this is the transient half catching up.
+  //
+  // Honest limit: 'duplicate' means "a row exists", not "a push was sent". If a
+  // previous attempt inserted and then died BEFORE pushing, this skips a push
+  // that never happened. The user still has the row and the live WS frame from
+  // that attempt, so it is a lost buzz, not a lost notice — and that beats
+  // re-pushing every subscriber in the common case.
+  //
+  // The window is one DB read wide (the device_tokens SELECT below), but that
+  // rests on an invariant worth naming because it is NOT routePush's doing:
+  // routePush awaits `service.send` UNWRAPPED, and each service swallows its own
+  // provider failures — fcm.ts and apns.ts catch per token, expo delegates to
+  // sendPush which wraps the whole batch. A future channel that let a send
+  // reject would widen this window from one query to the whole delivery.
+  if (payload.persist) {
+    const outcome = await persistNotification(
+      { db: fastify.db, realtime: fastify.realtime },
+      payload,
+    )
+    if (outcome === 'duplicate') return
+  }
+
+  // Tokens resolve at DELIVERY time (see plugins/queue/payloads.ts: tokens
+  // churn between enqueue and delivery; resolving early pushes to stale
+  // devices). The push `services` are built ONCE in buildProcessors and
+  // reused, see the note there on why they must not be rebuilt per delivery.
   const rows = await fastify.db
     .select({ token: device_tokens.token, platform: device_tokens.platform })
     .from(device_tokens)
@@ -268,16 +149,49 @@ export function buildProcessors(
   return {
     'verify-tx': (payload) => verifyTxJobHandler(buildVerifyTxDeps(fastify), payload),
 
-    'expire-escrows': (payload) =>
-      handleExpireEscrows(
+    'expire-applications': async () => {
+      return expireApplicationsHandler({
+        store: drizzleApplicationStore(fastify.db),
+        now: () => new Date(),
+        log: fastify.log,
+      })
+    },
+    'expire-escrows': async (payload) => {
+      // Grace is admin-tunable, so it is resolved per tick (cached 5 min) and
+      // injected — the handler never reads config itself.
+      const cfg = await getPlatformConfig(fastify.db)
+      return handleExpireEscrows(
         {
           store: drizzleExpireEscrowsStore(fastify.db),
           queue: fastify.queue,
           log: fastify.log,
           now: () => new Date(),
+          grace_period_seconds: cfg.grace_period_seconds,
         },
         payload,
-      ),
+      )
+    },
+
+    'sweep-escrows': async (payload) => {
+      // Same grace value the notice job uses, resolved per tick for the same
+      // reason: it is admin-tunable and the handler stays I/O-free.
+      const cfg = await getPlatformConfig(fastify.db)
+      return handleSweepEscrows(
+        {
+          store: drizzleSweepEscrowsStore(fastify.db),
+          chains: fastify.chains,
+          attempts: {
+            store: drizzleTxAttemptsStore(fastify.db),
+            queue: fastify.queue,
+            log: fastify.log,
+          },
+          log: fastify.log,
+          now: () => new Date(),
+          grace_period_seconds: cfg.grace_period_seconds,
+        },
+        payload,
+      )
+    },
 
     reconcile: (payload) =>
       reconcileEscrowsHandler(
@@ -298,10 +212,32 @@ export function buildProcessors(
     'update-price-stats': () =>
       updatePriceStatsHandler({ store: drizzlePriceStatsStore(fastify.db), log: fastify.log }),
 
+    'prune-notifications': () =>
+      handleNotificationRetention({ db: fastify.db, log: fastify.log, now: () => new Date() }),
+
+    // The new-gig expansion, enqueued by step 3 of `fanOutEscrowEvent` instead
+    // of being run inside it. A thin binding on purpose: everything about which
+    // subscribers match and how the read is paged belongs to the fan-out module,
+    // so this layer only says which queue drives it.
+    'fanout-subscribers': (payload) => fanOutNewGigToSubscribers(fastify, payload.escrow_id),
+
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
 
     // Decoupled OTP delivery, a throw here propagates so BullMQ retries on the
     // queue's exponential backoff (well within the 10-min code TTL).
     'send-otp': (payload) => deliverOtp(otpSenders, payload),
+
+    // One alert, one channel. `deliverAlert` decides which failures are skips
+    // and which throw, so this stays a thin binding — a try/catch here would
+    // silently override that decision for every channel at once.
+    //
+    // `env` is threaded from process.env rather than read inside the channels:
+    // it is the one environment both `configured()` and `deliver()` see, so a
+    // channel cannot report itself set up against one and post against another.
+    alerts: (payload) =>
+      deliverAlert(
+        { db: fastify.db, queue: fastify.queue, log: fastify.log, env: process.env },
+        payload,
+      ),
   }
 }

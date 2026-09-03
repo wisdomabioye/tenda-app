@@ -1,6 +1,6 @@
 /**
  * useEscrowActions phase machine — drives the progress modal. Verifies the
- * lifecycle a transition steps through (preparing → signing → confirming), that
+ * lifecycle steps through preparing → signing → broadcasting → confirming, that
  * activeAction/pendingTxRef land, that clearPending resets, and that failures
  * (build reject, proof-upload reject) fall back to idle without a stuck spinner.
  * Native/UI deps are stubbed, same strategy as the gate test.
@@ -13,7 +13,22 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
-jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a) }))
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
+jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
+  signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
+  resolveSignersForChain: () => ['SIGNER'],
+}))
+
+// The balance pre-flight reaches the chain-registry store and the RPC readers;
+// stub it like dispatch. Sufficiency itself is covered in wallet/balances.
+const mockEnsureSufficientBalance = jest.fn()
+jest.mock('@/wallet/balances', () => ({
+  ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
+}))
 const mockBuildPermitFor = jest.fn()
 jest.mock('@/wallet/permit', () => ({ buildPermitFor: (...a: unknown[]) => mockBuildPermitFor(...a) }))
 
@@ -29,20 +44,27 @@ jest.mock('@/stores/escrow.store', () => ({
 }))
 
 const mockAddProofs = jest.fn()
+// The read-back leg the on-chain digest is taken over. It returns MORE than the
+// batch below on purpose: the seal must describe the escrow's whole stored set.
+const mockGetProofs = jest.fn()
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    code?: string
-    constructor(message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
+  return {
+    api: {
+      escrows: {
+        addProofs: (...a: unknown[]) => mockAddProofs(...a),
+        proofs: (...a: unknown[]) => mockGetProofs(...a),
+      },
+    },
+    ApiClientError,
   }
-  return { api: { escrows: { addProofs: (...a: unknown[]) => mockAddProofs(...a) } }, ApiClientError }
 })
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
+import { proofHashFor } from '@/hooks/escrow/proof-hash'
 
-const ARGS = { escrowId: 'e1', chainId: 'solana:devnet' }
+const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '2500000' }
 const UNSIGNED = { kind: 'solana-tx', tx_base64: 'AA==' }
 
 beforeEach(() => {
@@ -53,6 +75,8 @@ beforeEach(() => {
   mockRequestDispute.mockReset()
   mockAddProofs.mockReset()
   mockBuildPermitFor.mockReset()
+  mockSettleSignerFor.mockReset().mockResolvedValue(undefined)
+  mockDeclaredSignerFor.mockReset().mockReturnValue('DECLARED')
 })
 
 test('starts idle', () => {
@@ -102,6 +126,27 @@ test('sits in the signing phase while the wallet is open (before broadcast)', as
   expect(result.current.phase).toBe('confirming')
 })
 
+test('moves to broadcasting after Solana signing and before an RPC result exists', async () => {
+  mockRequestApprove.mockResolvedValue(UNSIGNED)
+  let resolveBroadcast: (value: string) => void = () => {}
+  mockSignSendAndReport.mockImplementation((args: { onSigned?: () => void }) => {
+    args.onSigned?.()
+    return new Promise<string>((resolve) => { resolveBroadcast = resolve })
+  })
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  let pending: Promise<boolean> = Promise.resolve(false)
+  await act(async () => {
+    pending = result.current.approve()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+  expect(result.current.phase).toBe('broadcasting')
+
+  await act(async () => { resolveBroadcast('sig-1'); await pending })
+  expect(result.current.phase).toBe('confirming')
+})
+
 test('a build failure returns to idle and never signs', async () => {
   mockRequestApprove.mockRejectedValue(new Error('boom'))
   const { result } = renderHook(() => useEscrowActions(ARGS))
@@ -131,6 +176,10 @@ test('submit: a proof-upload failure aborts before the chain and resets phase', 
 
 test('submit: uploads proofs then commits the digest on-chain (→ confirming)', async () => {
   mockAddProofs.mockResolvedValue(undefined)
+  // The escrow already held 'u0' from an earlier batch; 'u1' is what is being
+  // added now. The digest must cover BOTH — sealing only the new batch is the
+  // bug this leg exists to fix.
+  mockGetProofs.mockResolvedValue([{ url: 'u1' }, { url: 'u0' }])
   mockRequestSubmit.mockResolvedValue(UNSIGNED)
   mockSignSendAndReport.mockResolvedValue('sig-2')
   const { result } = renderHook(() => useEscrowActions(ARGS))
@@ -140,7 +189,9 @@ test('submit: uploads proofs then commits the digest on-chain (→ confirming)',
 
   expect(ok).toBe(true)
   expect(mockAddProofs).toHaveBeenCalledWith({ id: 'e1' }, { proofs: [{ url: 'u1', type: 'image' }] })
-  expect(mockRequestSubmit).toHaveBeenCalled()
+  // Sorted, so the seal does not depend on the order rows come back in — the
+  // endpoint declares none.
+  expect(mockRequestSubmit).toHaveBeenCalledWith('e1', proofHashFor(ARGS.chainId, ['u0', 'u1']))
   expect(result.current.phase).toBe('confirming')
   expect(result.current.activeAction).toBe('submit')
 })
@@ -150,10 +201,10 @@ test('dispute: a zero bond skips the permit and still confirms', async () => {
   mockSignSendAndReport.mockResolvedValue('sig-d')
   const { result } = renderHook(() => useEscrowActions(ARGS))
 
-  await act(async () => { await result.current.dispute('bad work', '0', 'solana:devnet/usdc') })
+  await act(async () => { await result.current.dispute('bad work', '0') })
 
   expect(mockBuildPermitFor).not.toHaveBeenCalled()
-  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '0', 'bad work', undefined)
+  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '0', 'bad work', undefined, 'DECLARED')
   expect(result.current.phase).toBe('confirming')
 })
 
@@ -163,14 +214,24 @@ test('dispute: a non-zero ERC-20 bond builds the permit first', async () => {
   mockSignSendAndReport.mockResolvedValue('sig-d2')
   const { result } = renderHook(() => useEscrowActions(ARGS))
 
-  await act(async () => { await result.current.dispute('bad work', '5000000', 'eip155:84532/usdc') })
+  await act(async () => { await result.current.dispute('bad work', '5000000') })
 
+  // The bond rides the escrow's own asset (both contracts collect it in
+  // `escrow.asset`), which the hook now owns rather than taking per call.
   expect(mockBuildPermitFor).toHaveBeenCalledWith({
     chain_id: 'solana:devnet',
-    asset: 'eip155:84532/usdc',
+    asset: 'USDC_SOL',
     value_raw: '5000000',
   })
-  expect(mockRequestDispute).toHaveBeenCalledWith('e1', '5000000', 'bad work', { signature: '0xpermit' })
+  // Signer LAST, and it is the same account the permit was signed by: the
+  // contract requires the permit's owner to be the eventual sender.
+  expect(mockRequestDispute).toHaveBeenCalledWith(
+    'e1',
+    '5000000',
+    'bad work',
+    { signature: '0xpermit' },
+    'DECLARED',
+  )
 })
 
 test('addProofs (supplementary, off-chain) toasts success and never signs', async () => {

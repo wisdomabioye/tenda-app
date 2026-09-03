@@ -27,16 +27,19 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
 
       const deps = await buildFiatDeps(fastify)
-      const intent = await deps.store.getIntent(intent_id)
-      if (intent !== null && intent.user_id === request.user.id && intent.direction !== 'offramp') {
-        throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'intent is not an offramp')
-      }
+      // Direction + currency guards live in initiateIntent (single read of the
+      // quote): it verifies the quote is an offramp and that the payout
+      // account's currency matches — a KES account can't back an NGN cash-out.
       return initiateIntent(deps, request.user.id, intent_id, {
+        expected_direction: 'offramp',
+        payout_country: account.country,
         bank_account: {
           bank_code: account.bank_code,
           account_number: account.account_number,
           account_name: account.account_name,
         },
+        // Persisted on the P2P offer so an accepted buyer sees where to pay.
+        payout_account_id: account.id,
       })
     },
   )

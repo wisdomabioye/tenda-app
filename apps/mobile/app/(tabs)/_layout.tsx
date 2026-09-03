@@ -15,7 +15,7 @@ import {
   useChatStore,
   usePendingSyncStore,
 } from '@/stores'
-import { useInboxRealtime } from '@/hooks'
+import { useInboxRealtime, useNotificationsRealtime } from '@/hooks'
 import { FabMenu } from '@/components/ui/FabMenu'
 
 const ICON_SIZE = 18
@@ -31,6 +31,7 @@ export default function TabsLayout() {
   const fabRotate    = useRef(new Animated.Value(0)).current
 
   useInboxRealtime()
+  useNotificationsRealtime()
 
   function toggleFab() {
     const toValue = fabOpen ? 0 : 1
@@ -53,7 +54,7 @@ export default function TabsLayout() {
     },
     {
       icon:    <Coins size={20} color={theme.colors.brand.primary} />,
-      label:   'Buy / Sell',
+      label:   'Sell / Cash out',
       onPress: () => router.navigate('/wallet/buy-sell' as never),
     },
   ]
@@ -76,7 +77,7 @@ export default function TabsLayout() {
             paddingVertical: 0,
           },
           tabBarBadgeStyle: {
-            backgroundColor: theme.colors.brand.primary,
+            backgroundColor: theme.colors.brand.solid,
             color: theme.colors.brand.onPrimary,
             fontFamily: typography.fonts.body.bold,
             fontSize: 9.5,
@@ -138,7 +139,7 @@ export default function TabsLayout() {
               <Animated.View
                 style={[
                   s.postIcon,
-                  { backgroundColor: theme.colors.brand.primary, transform: [{ rotate: fabSpin }] },
+                  { backgroundColor: theme.colors.brand.solid, transform: [{ rotate: fabSpin }] },
                 ]}
               >
                 <Plus color={theme.colors.brand.onPrimary} size={POST_ICON_SIZE} strokeWidth={2.8} />

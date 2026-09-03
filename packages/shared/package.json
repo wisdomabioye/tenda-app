@@ -1,6 +1,7 @@
 {
   "name": "@tenda/shared",
   "version": "0.0.1",
+  "license": "BUSL-1.1",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,10 +11,20 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./api/admin": {
+      "types": "./dist/api/admin-routes.d.ts",
+      "require": "./dist/api/admin-routes.js",
+      "default": "./dist/api/admin-routes.js"
+    },
     "./db/schema": {
       "types": "./dist/db/schema/index.d.ts",
       "require": "./dist/db/schema/index.js",
       "default": "./dist/db/schema/index.js"
+    },
+    "./db/schema/escrow": {
+      "types": "./dist/db/schema/escrow/index.d.ts",
+      "require": "./dist/db/schema/escrow/index.js",
+      "default": "./dist/db/schema/escrow/index.js"
     },
     "./idl": {
       "types": "./dist/idl/index.d.ts",
@@ -29,15 +40,20 @@
       "types": "./dist/db/schema/*.d.ts",
       "require": "./dist/db/schema/*.js",
       "default": "./dist/db/schema/*.js"
+    },
+    "./chains": {
+      "types": "./dist/chains/index.d.ts",
+      "require": "./dist/chains/index.js",
+      "default": "./dist/chains/index.js"
     }
   },
   "scripts": {
-    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
-    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
+    "build": "pnpm run clean && tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
+    "prepare": "pnpm run build",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
     "type-check:test": "tsc -p test/tsconfig.json",
-    "test": "node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "test": "tsc -p test/tsconfig.json && node --test -r ts-node/register \"test/**/*.test.ts\"",
     "test:coverage": "c8 node --test -r ts-node/register \"test/**/*.test.ts\"",
     "clean": "rm -rf dist coverage"
   },

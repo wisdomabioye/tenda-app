@@ -1,9 +1,11 @@
-import { View, StyleSheet } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
-import { Text } from '@/components/ui/Text'
-import { Chip } from '@/components/ui/Chip'
-import { SectionLabel } from '@/components/ui/SectionLabel'
-import { ACCEPT_DEADLINE_OPTIONS } from './constants'
+import { DurationChips, type DurationOption } from '@/components/ui/DurationChips'
+import { ACCEPT_DEADLINE_OPTIONS } from '@tenda/shared'
+
+// The shared picker is unit-agnostic; gigs measure the accept window in hours.
+const OPTIONS: readonly DurationOption[] = ACCEPT_DEADLINE_OPTIONS.map((o) => ({
+  label: o.label,
+  value: o.hours,
+}))
 
 /** How long the gig stays open for workers to accept (drives the refund window). */
 export function AcceptDeadlinePicker({
@@ -13,29 +15,13 @@ export function AcceptDeadlinePicker({
   value: number
   onChange: (hours: number) => void
 }) {
-  const { theme } = useUnistyles()
   return (
-    <>
-      <SectionLabel>Accept deadline</SectionLabel>
-      <Text style={[s.hint, { color: theme.colors.content.tertiary }]}>
-        How long the gig stays open for workers to accept.
-      </Text>
-      <View style={s.chipRow}>
-        {ACCEPT_DEADLINE_OPTIONS.map((opt) => (
-          <Chip
-            key={String(opt.hours)}
-            label={opt.label}
-            variant="form"
-            selected={value === opt.hours}
-            onPress={() => onChange(opt.hours)}
-          />
-        ))}
-      </View>
-    </>
+    <DurationChips
+      label="Accept deadline"
+      hint="How long the gig stays open for workers to accept."
+      options={OPTIONS}
+      value={value}
+      onChange={onChange}
+    />
   )
 }
-
-const s = StyleSheet.create({
-  hint: { fontSize: 12.5, lineHeight: 17, paddingHorizontal: 20, paddingBottom: 8, marginTop: -4 },
-  chipRow: { paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-})

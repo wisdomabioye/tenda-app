@@ -5,7 +5,9 @@ import userEvent from '@testing-library/user-event'
 // File-local dark-mode theme mock (overrides the light-mode setup mock) to
 // cover the header's dark branch: sun icon + toggle back to light.
 const setTheme = vi.fn()
-vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: 'dark', setTheme }) }))
+vi.mock('@/providers/theme', () => ({
+  useAdminTheme: () => ({ theme: 'dark', resolvedTheme: 'dark', setTheme }),
+}))
 
 import { AppHeader } from '@/components/layout/header'
 import { SidebarProvider } from '@/components/ui/sidebar'

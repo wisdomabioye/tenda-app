@@ -4,15 +4,24 @@
  * Verifies the no-session guard and the connect→sign→broadcast happy path.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { waitFor } from '@testing-library/react-native'
 
 jest.mock('../mwa-shared', () => ({
   withMwaRetry: jest.fn(),
   authorizeSession: jest.fn(),
 }))
 
+const mockBroadcast = jest.fn(async (_raw: Uint8Array, signature: string) => signature)
+jest.mock('@/wallet/solana-rpc', () => ({
+  // The classifier is NOT mocked since its move to @tenda/shared: the real
+  // one runs, and the test's TypeError is a genuine transport failure to it.
+  solanaRpcTransport: { broadcast: (...args: [Uint8Array, string]) => mockBroadcast(...args) },
+}))
+
 jest.mock('@solana/web3.js', () => {
   class VersionedTransaction {}
   class Transaction {
+    signature = new Uint8Array(64).fill(1)
     serialize() {
       return new Uint8Array([1, 2, 3])
     }
@@ -36,10 +45,10 @@ jest.mock('@solana/web3.js', () => {
 })
 
 import { signAndSendStored, authenticate } from '../solana-mwa'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { withMwaRetry, authorizeSession } from '../mwa-shared'
 import { Transaction } from '@solana/web3.js'
-import type { SpikeAccount } from '../../types'
+import type { WalletAccount } from '@tenda/shared'
 
 const STORAGE_KEY = 'wallet.solana-mwa.authToken'
 const withRetryMock = withMwaRetry as jest.Mock
@@ -49,15 +58,10 @@ beforeEach(async () => {
   await AsyncStorage.clear()
   withRetryMock.mockReset()
   authorizeMock.mockReset()
+  mockBroadcast.mockClear()
 })
 
 describe('signAndSendStored', () => {
-  it('throws a typed no_wallet error when there is no stored session', async () => {
-    const tx = new Transaction()
-    await expect(signAndSendStored(tx)).rejects.toBeInstanceOf(WalletError)
-    await expect(signAndSendStored(tx)).rejects.toMatchObject({ code: 'no_wallet' })
-  })
-
   it('signs with the stored token and returns the broadcast signature', async () => {
     await AsyncStorage.setItem(STORAGE_KEY, 'tok-1')
     const tx = new Transaction()
@@ -67,8 +71,57 @@ describe('signAndSendStored', () => {
 
     const ref = await signAndSendStored(tx)
 
-    expect(ref).toBe('broadcast-sig')
+    expect(ref).toBeTruthy()
+    expect(mockBroadcast).toHaveBeenCalledTimes(1)
     expect(withRetryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('announces signing completion before awaiting the RPC broadcast', async () => {
+    const tx = new Transaction()
+    withRetryMock.mockImplementation(async () => tx)
+    let releaseBroadcast: (() => void) | undefined
+    mockBroadcast.mockImplementationOnce(() => new Promise<string>((resolve) => {
+      releaseBroadcast = () => resolve('sig')
+    }))
+    const onSigned = jest.fn()
+
+    const pending = signAndSendStored(tx, onSigned)
+    await waitFor(() => expect(onSigned).toHaveBeenCalledTimes(1))
+
+    releaseBroadcast?.()
+    await expect(pending).resolves.toBe('sig')
+  })
+
+  it('maps exhausted transport failure to an ambiguous network outcome', async () => {
+    const tx = new Transaction()
+    withRetryMock.mockImplementation(async () => tx)
+    mockBroadcast.mockRejectedValueOnce(new TypeError('Network request failed'))
+
+    await expect(signAndSendStored(tx)).rejects.toMatchObject({
+      code: 'network',
+      message: expect.stringMatching(/could not confirm whether Solana received/i),
+    })
+  })
+
+  it('acquires a session on demand (fresh authorize) when the device has no stored token', async () => {
+    // No stored token: linkage is a wallets[] question resolved upstream, so
+    // the adapter must NOT dead-end — it authorizes fresh and signs in one visit.
+    const tx = new Transaction()
+    const wallet = {
+      signTransactions: jest.fn(async ({ transactions }: { transactions: Transaction[] }) => transactions),
+    }
+    // authorizeSession sees null (no stored token) and returns a fresh session.
+    authorizeMock.mockResolvedValue({ authToken: 'fresh-tok', addressBase64: 'AAAA' })
+    withRetryMock.mockImplementation((op: (w: typeof wallet) => Promise<unknown>) => op(wallet))
+
+    const ref = await signAndSendStored(tx)
+
+    expect(authorizeMock).toHaveBeenCalledWith(wallet, null)
+    expect(wallet.signTransactions).toHaveBeenCalled()
+    expect(ref).toBeTruthy()
+    expect(mockBroadcast).toHaveBeenCalledTimes(1)
+    // The fresh token is persisted for reuse on the next signature.
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe('fresh-tok')
   })
 })
 
@@ -91,7 +144,7 @@ describe('authenticate (one-shot, always-fresh)', () => {
     // buildMessage changes each call (mirrors buildAuthMessage's fresh Issued At)
     // so a build-once bug would surface as signed-message ≠ returned-message.
     let n = 0
-    const buildMessage = (a: SpikeAccount): string => `MSG:${a.address}:${n++}`
+    const buildMessage = (a: WalletAccount): string => `MSG:${a.address}:${n++}`
 
     const result = await authenticate(buildMessage)
     if (result === null) throw new Error('expected an AuthenticateResult')

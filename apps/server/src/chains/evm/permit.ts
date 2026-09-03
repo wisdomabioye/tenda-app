@@ -18,13 +18,14 @@
 import { hashDomain, parseSignature } from 'viem'
 import { ErrorCode, type PermitSignatureBody, type PermitTypedData } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { isRecord } from '@server/lib/validation'
 import { isAmountRaw, type AmountRaw } from '@server/chains/types'
 
 /** Permit deadline horizon: long enough to sign, short enough to limit replay. */
 export const PERMIT_DEADLINE_SECONDS = 15 * 60
 
 /** The standard 5-field EIP712Domain, what USDC (FiatTokenV2) implements. */
-const EIP712_DOMAIN_FIELDS = [
+export const EIP712_DOMAIN_FIELDS = [
   { name: 'name', type: 'string' },
   { name: 'version', type: 'string' },
   { name: 'chainId', type: 'uint256' },
@@ -49,15 +50,49 @@ function fail(status: number, code: ErrorCode, message: string): never {
   throw new AppError(status, code, message)
 }
 
-/** Split a 65-byte 0x-hex signature into {v, r, s}; 422 on malformed input. */
-export function parsePermitSignature(signature: string): ParsedPermitSignature {
-  if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) {
-    fail(422, ErrorCode.VALIDATION_ERROR, 'permit.signature must be a 65-byte 0x-hex string')
+/**
+ * viem's split, with its throws turned into the same 422 the shape check gives.
+ *
+ * The shape check says the 65 bytes are THERE; it says nothing about them being
+ * a signature. viem rejects a recovery byte outside {0, 1, 27, 28} and noble
+ * rejects an r or s outside the curve order, and both throw a plain Error — so
+ * before this, a wallet that emitted an unexpected v encoding got 500
+ * INTERNAL_ERROR for what is a bad request on the money path, and it paged
+ * whoever watches 5xx rates (#107).
+ *
+ * The try wraps ONLY the parse call. Widening it to cover the v-mapping below
+ * would turn a bug of ours into a client error, which is the shape #72 was.
+ */
+function parseOrRefuse(signature: `0x${string}`, refuse: (reason: string) => never): ReturnType<typeof parseSignature> {
+  try {
+    return parseSignature(signature)
+  } catch {
+    return refuse(
+      'is not a valid signature: r and s must be within the curve order ' +
+        'and the recovery byte must be 0, 1, 27 or 28',
+    )
   }
-  const sig = parseSignature(signature as `0x${string}`)
-  // viem may return yParity-only for compact forms; permit() takes legacy v.
+}
+
+/**
+ * Split a 65-byte 0x-hex secp256k1 signature into the contract's {v, r, s}.
+ * ONE splitter for every signature a route accepts — the EIP-2612 permit and
+ * the EIP-3009 authorization (relay/authorization.ts) — so the shape rule,
+ * the parse guard (#107) and the v-mapping cannot drift between them.
+ * `refuse` receives the reason WITHOUT the field name; the caller prefixes
+ * its own (`permit.signature …`, `signature …`) and picks the error code.
+ */
+export function splitSignature(signature: string, refuse: (reason: string) => never): ParsedPermitSignature {
+  if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) refuse('must be a 65-byte 0x-hex string')
+  const sig = parseOrRefuse(signature as `0x${string}`, refuse)
+  // viem may return yParity-only for compact forms; the contracts take legacy v.
   const v = sig.v !== undefined ? Number(sig.v) : sig.yParity + 27
   return { v, r: sig.r, s: sig.s }
+}
+
+/** The permit body's signature; 422 VALIDATION_ERROR naming the field on malformed input. */
+export function parsePermitSignature(signature: string): ParsedPermitSignature {
+  return splitSignature(signature, (reason) => fail(422, ErrorCode.VALIDATION_ERROR, `permit.signature ${reason}`))
 }
 
 /**
@@ -125,10 +160,6 @@ export function validateWirePermit(args: {
   return permit
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null
-}
-
 /** Assemble the full eth_signTypedData_v4 payload. Pure constructor. */
 export function buildPermitTypedData(args: {
   token_name: string
@@ -173,26 +204,27 @@ export function permitDomainMatches(
   typed_data: PermitTypedData,
   onchain_domain_separator: string,
 ): boolean {
+  return domainSeparatorMatches(typed_data.domain, onchain_domain_separator)
+}
+
+/**
+ * The check itself, over the 4-field domain both the permit and the EIP-3009
+ * authorization typed data declare (FiatTokenV2 signs both under one domain).
+ */
+export function domainSeparatorMatches(
+  domain: PermitTypedData['domain'],
+  onchain_domain_separator: string,
+): boolean {
   const computed = hashDomain({
     domain: {
-      name: typed_data.domain.name,
-      version: typed_data.domain.version,
-      chainId: BigInt(typed_data.domain.chainId),
-      verifyingContract: typed_data.domain.verifyingContract as `0x${string}`,
+      name: domain.name,
+      version: domain.version,
+      chainId: BigInt(domain.chainId),
+      verifyingContract: domain.verifyingContract as `0x${string}`,
     },
     // hashDomain hashes over the declared field list, pass OUR domain type
     // so the check hashes exactly what wallets will hash from typed_data.
     types: { EIP712Domain: [...EIP712_DOMAIN_FIELDS] },
   })
   return computed.toLowerCase() === onchain_domain_separator.toLowerCase()
-}
-
-/** The eip155 numeric reference of a CAIP-2 id ('eip155:84532' → 84532). */
-export function evmNumericChainId(chain_id: string): number {
-  const reference = chain_id.split(':')[1] ?? ''
-  const numeric = Number(reference)
-  if (!Number.isInteger(numeric) || numeric <= 0) {
-    throw new Error(`'${chain_id}' is not an eip155 CAIP-2 id`)
-  }
-  return numeric
 }

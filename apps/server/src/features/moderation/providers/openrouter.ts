@@ -30,12 +30,18 @@ export interface ChatTransport {
     system: string
     user: string
     timeout_ms: number
+    max_output_tokens: number
   }): Promise<string>
+}
+
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null &&
+    'name' in error && error.name === 'AbortError'
 }
 
 export function openRouterTransport(api_key: string): ChatTransport {
   return {
-    async complete({ model, system, user, timeout_ms }) {
+    async complete({ model, system, user, timeout_ms, max_output_tokens }) {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeout_ms)
       try {
@@ -52,6 +58,8 @@ export function openRouterTransport(api_key: string): ChatTransport {
               { role: 'user', content: user },
             ],
             temperature: 0,
+            max_tokens: max_output_tokens,
+            response_format: { type: 'json_object' },
           }),
           signal: controller.signal,
         })
@@ -70,6 +78,11 @@ export function openRouterTransport(api_key: string): ChatTransport {
           throw new AppError(502, ErrorCode.INTERNAL_ERROR, 'OpenRouter returned no content')
         }
         return content
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw new AppError(504, ErrorCode.SERVICE_UNAVAILABLE, 'OpenRouter moderation timed out')
+        }
+        throw error
       } finally {
         clearTimeout(timer)
       }
@@ -129,37 +142,48 @@ function reasonFrom(obj: Record<string, unknown>, code: string, severity: Verdic
   }
 }
 
+function hasValidResponseMetadata(obj: Record<string, unknown>): boolean {
+  const confidence = obj.confidence
+  const reason = obj.reason
+  return typeof confidence === 'number' &&
+    Number.isFinite(confidence) &&
+    confidence >= 0 &&
+    confidence <= 1 &&
+    (reason === undefined ||
+      (typeof reason === 'string' && reason.length <= moderationConfig.maxReasonCharacters))
+}
+
 // ---------- provider ------------------------------------------------------------------
 
-export function openRouterProvider(transport: ChatTransport): ModerationProvider {
+export interface OpenRouterModerationSettings {
+  model: string
+  timeoutMs: number
+  maxOutputTokens: number
+}
+
+export function openRouterProvider(
+  transport: ChatTransport,
+  settings: OpenRouterModerationSettings = {
+    model: moderationConfig.model,
+    timeoutMs: moderationConfig.timeoutMs,
+    maxOutputTokens: moderationConfig.maxOutputTokens,
+  },
+): ModerationProvider {
   async function classify(
     system: string,
     user: string,
   ): Promise<{ obj: Record<string, unknown>; model: string } | null> {
     const primary = await transport.complete({
-      model: moderationConfig.model,
+      model: settings.model,
       system,
       user,
-      timeout_ms: moderationConfig.timeoutMs,
+      timeout_ms: settings.timeoutMs,
+      max_output_tokens: settings.maxOutputTokens,
     })
-    let obj = parseJsonObject(primary)
-    let model: string = moderationConfig.model
-    const confidence = typeof obj?.confidence === 'number' ? obj.confidence : 1
-    if (obj !== null && confidence < moderationConfig.escalationConfidenceBelow) {
-      // Low confidence, escalate once to the stronger model.
-      const escalated = await transport.complete({
-        model: moderationConfig.escalationModel,
-        system,
-        user,
-        timeout_ms: moderationConfig.timeoutMs,
-      })
-      const escalatedObj = parseJsonObject(escalated)
-      if (escalatedObj !== null) {
-        obj = escalatedObj
-        model = moderationConfig.escalationModel
-      }
-    }
-    return obj === null ? null : { obj, model }
+    const obj = parseJsonObject(primary)
+    return obj === null || !hasValidResponseMetadata(obj)
+      ? null
+      : { obj, model: settings.model }
   }
 
   return {

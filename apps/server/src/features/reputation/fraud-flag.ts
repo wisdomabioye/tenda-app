@@ -11,10 +11,11 @@
  * Live disputes sit on neither side; the book is judged once closed.
  */
 
-import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm'
+import { and, inArray, isNotNull, sql } from 'drizzle-orm'
 import { escrows, TERMINAL_ESCROW_STATUSES } from '@tenda/shared/db/schema/escrow'
 import type { DisputeRateMetric } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
+import { isEscrowParty } from '@server/lib/escrow-party'
 import {
   DISPUTE_RATE_FLAG_THRESHOLD_BPS,
   DISPUTE_RATE_MIN_ENGAGEMENTS,
@@ -36,7 +37,7 @@ export async function computeDisputeRate(
     .from(escrows)
     .where(
       and(
-        or(eq(escrows.creator_id, user_id), eq(escrows.counterparty_id, user_id)),
+        isEscrowParty(user_id),
         isNotNull(escrows.counterparty_id),
         inArray(escrows.status, [...TERMINAL_ESCROW_STATUSES]),
       ),

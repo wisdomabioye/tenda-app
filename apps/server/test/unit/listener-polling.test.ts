@@ -4,6 +4,7 @@
  * advance contract when the queue dies mid-batch.
  */
 
+import { fakeCursorStore } from '../helpers/cursor-store'
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
@@ -19,24 +20,19 @@ function makeDeps(opts: {
   enqueueFailsAt?: string
 }): {
   deps: PollTickDeps
-  calls: { enqueued: string[]; cursors: number[] }
+  calls: { enqueued: string[]; cursors: readonly number[] }
 } {
-  const calls = { enqueued: [] as string[], cursors: [] as number[] }
-  let cursor = opts.cursor ?? 0
   const rpc = fakeSolanaRpc()
   rpc.stageSignatures(opts.signatures)
+  // The shared fake IS the cursor store — it already reads back what it wrote
+  // and records every write in order. Re-implementing that half by hand was the
+  // duplication `fakeCursorStore` exists to remove.
+  const cursors = fakeCursorStore({ live: opts.cursor ?? 0 })
+  const calls = { enqueued: [] as string[], cursors: cursors.live }
   const deps: PollTickDeps = {
     rpc,
     chain_id: 'solana:devnet',
-    cursors: {
-      async getCursor() {
-        return cursor
-      },
-      async setCursor(_chain, slot) {
-        cursor = slot
-        calls.cursors.push(slot)
-      },
-    },
+    cursors,
     queue: {
       async enqueue(_name, payload) {
         const p = payload as { tx_ref: string }
@@ -105,20 +101,21 @@ test('fresh start (cursor 0) sweeps the whole batch', async () => {
   assert.deepStrictEqual(calls.enqueued, ['s1', 's2'])
 })
 
-// ---------- listener lifecycle (the setInterval shim around pollTick) --------
+// ---------- listener lifecycle (the timer shim around pollTick) --------------
 
 test('createSolanaPollingListener: start ticks pollTick on the interval; stop halts it', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] })
+  // The skeleton schedules with a recursive setTimeout, not setInterval.
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   t.after(() => t.mock.timers.reset())
 
   const { deps, calls } = makeDeps({ signatures: [{ signature: 's1', slot: 5 }] })
   const listener = createSolanaPollingListener({ ...deps, interval_ms: 1000 })
 
   await listener.start()
-  assert.deepStrictEqual(calls.enqueued, []) // nothing before the first interval
+  assert.deepStrictEqual(calls.enqueued, []) // nothing before the first delay elapses
 
   t.mock.timers.tick(1000)
-  // pollTick is fire-and-forget inside the interval; flush its async chain.
+  // pollTick is fire-and-forget inside the timer; flush its async chain.
   await new Promise((r) => setImmediate(r))
   await new Promise((r) => setImmediate(r))
   assert.deepStrictEqual(calls.enqueued, ['s1'])

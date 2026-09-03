@@ -37,6 +37,7 @@ import { assert } from "chai";
 import * as path from "node:path";
 
 import IDL_JSON from "../target/idl/tenda_escrow.json";
+import { PLATFORM_STATE_LEN } from "../tests-common/idl-layout";
 import type { TendaEscrow } from "../target/types/tenda_escrow";
 
 // ---------------------------------------------------------------------------
@@ -67,7 +68,24 @@ export const LIMITS = {
   maxGracePeriodSeconds: 14 * 24 * 3_600,
   minCompletionDurationSeconds: 3_600,
   maxCompletionDurationSeconds: 180 * 24 * 3_600,
+  minUnassignWindowSeconds: 0,
+  maxUnassignWindowSeconds: 24 * 3_600,
 } as const;
+
+export {
+  PLATFORM_STATE_LEN,
+  idlAccountFields,
+  idlInstructionAccounts,
+} from "../tests-common/idl-layout";
+
+/**
+ * What `PlatformState` measured BEFORE #27 removed the reserved `total_volume:
+ * u64` that no instruction ever wrote. Every platform PDA initialized by an
+ * older deployment is still this size, which is precisely why it is migratable:
+ * `close_legacy_platform` closes any platform PDA whose length is not the
+ * current `LEN`.
+ */
+export const PLATFORM_STATE_LEN_PRE_27 = PLATFORM_STATE_LEN + 8;
 
 /** Platform defaults used by initPlatform unless a test overrides them. */
 export const PLATFORM_DEFAULTS = {
@@ -76,6 +94,69 @@ export const PLATFORM_DEFAULTS = {
   approvalWindowSeconds: 172_800, // 48h
   gracePeriodSeconds: 3_600, // 1h
 } as const;
+
+// ---------------------------------------------------------------------------
+// Upgrade authority (the gate on initialize_platform)
+// ---------------------------------------------------------------------------
+
+/**
+ * LiteSVM loads the program under BPFLoader2 with NO ProgramData account, but a
+ * real cluster deploys it under the upgradeable loader, where the deployer's key
+ * lives in a ProgramData account at a PDA of [program_id]. `initialize_platform`
+ * gates on that key, so the harness has to supply the account a real deployment
+ * would have.
+ *
+ * Layout is `UpgradeableLoaderState::ProgramData` (bincode):
+ *   u32 variant tag (3) | u64 slot | Option<Pubkey> authority (1 tag + 32)
+ * followed by the program ELF. The trailing bytes are written even though
+ * nothing reads them, because a header-only ProgramData account does not exist
+ * on any cluster — devnet's is 613,245 bytes — and a fixture the producer
+ * cannot emit proves nothing about the deserializer. Verified against the real
+ * thing: planting devnet's actual 613,245 bytes refuses with the same
+ * `NotUpgradeAuthority`, so bincode stops after the header and tolerates the rest.
+ */
+export const BPF_LOADER_UPGRADEABLE = new PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111",
+);
+
+export function programDataPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [programId.toBuffer()],
+    BPF_LOADER_UPGRADEABLE,
+  )[0];
+}
+
+/** Header bytes; on a real account the program ELF follows. */
+const PROGRAM_DATA_HEADER = 45;
+/** Enough trailing bytes to be a realistic account rather than a bare header. */
+const PROGRAM_DATA_ELF_STUB = 1_024;
+
+/**
+ * Install a ProgramData account naming `authority` as the upgrade authority.
+ * `null` writes `Option::None`, which is what a program made IMMUTABLE
+ * (`solana program set-upgrade-authority --final`) actually carries.
+ */
+export function setUpgradeAuthority(
+  ctx: TestCtx,
+  authority: PublicKey | null,
+): void {
+  const data = Buffer.alloc(PROGRAM_DATA_HEADER + PROGRAM_DATA_ELF_STUB);
+  data.writeUInt32LE(3, 0); // UpgradeableLoaderState::ProgramData
+  data.writeBigUInt64LE(0n, 4); // slot
+  if (authority !== null) {
+    data.writeUInt8(1, 12); // Option::Some
+    authority.toBuffer().copy(data, 13);
+  } // else leave the tag 0 = Option::None
+  const address = programDataPda(ctx.program.programId);
+  ctx.svm.setAccount(address, {
+    lamports: Number(
+      ctx.svm.minimumBalanceForRentExemption(BigInt(data.length)),
+    ),
+    data,
+    owner: BPF_LOADER_UPGRADEABLE,
+    executable: false,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Test context
@@ -128,7 +209,7 @@ export function newCtx(): TestCtx {
     [PLATFORM_SEED],
     program.programId,
   );
-  return {
+  const ctx: TestCtx = {
     svm,
     provider,
     program,
@@ -141,6 +222,10 @@ export function newCtx(): TestCtx {
     outsider,
     platformPda,
   };
+  // Mirror a real deployment: the fee payer is the upgrade authority, so the
+  // suites that call initPlatform behave as the deployer does.
+  setUpgradeAuthority(ctx, payer.publicKey);
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +420,8 @@ export interface CreateArgs {
   completionDurationSeconds: BN;
   disputeBond: BN;
   isSeeker: boolean;
+  requiresApproval: boolean;
+  unassignWindowSeconds: BN;
 }
 
 export interface SolEscrow {
@@ -348,6 +435,7 @@ export const DEFAULT_AMOUNT = new BN(LAMPORTS_PER_SOL); // 1 SOL
 export const DEFAULT_BOND = new BN(LAMPORTS_PER_SOL / 10); // 0.1 SOL
 export const DEFAULT_ACCEPT_WINDOW = 24 * 3_600; // 1 day from now
 export const DEFAULT_COMPLETION_DURATION = 7_200; // 2h (≥ on-chain min)
+export const DEFAULT_UNASSIGN_WINDOW = 6 * 3_600; // 6h (≤ on-chain max)
 
 export function createArgs(
   ctx: TestCtx,
@@ -362,7 +450,25 @@ export function createArgs(
     completionDurationSeconds: new BN(DEFAULT_COMPLETION_DURATION),
     disputeBond: DEFAULT_BOND,
     isSeeker: false,
+    // Instant mode by default — every pre-existing suite assumes it. The
+    // approval-mode suite opts in through `approvalArgs` below.
+    requiresApproval: false,
+    unassignWindowSeconds: new BN(0),
     ...overrides,
+  };
+}
+
+/**
+ * Overrides that put an escrow in APPROVAL mode: `accept_escrow` is closed,
+ * only the creator can move it via `assign_accept`, and the assignment can be
+ * withdrawn for `unassignWindowSeconds` afterwards.
+ */
+export function approvalArgs(
+  unassignWindowSeconds = DEFAULT_UNASSIGN_WINDOW,
+): Partial<CreateArgs> {
+  return {
+    requiresApproval: true,
+    unassignWindowSeconds: new BN(unassignWindowSeconds),
   };
 }
 
@@ -403,6 +509,31 @@ export async function acceptedSolEscrow(
       signer: ctx.counterparty.publicKey,
     })
     .signers([ctx.counterparty])
+    .rpc();
+  return e;
+}
+
+/**
+ * Drive an APPROVAL-mode SOL escrow to Accepted via the creator's
+ * `assign_accept` (counterparty = ctx.counterparty, who signs nothing).
+ */
+export async function assignedSolEscrow(
+  ctx: TestCtx,
+  overrides: Partial<CreateArgs> = {},
+  worker: PublicKey = ctx.counterparty.publicKey,
+): Promise<SolEscrow> {
+  const e = await createSolEscrow(ctx, {
+    ...approvalArgs(),
+    ...overrides,
+  });
+  await ctx.program.methods
+    .assignAccept(worker)
+    .accountsPartial({
+      escrow: e.escrow,
+      platformState: ctx.platformPda,
+      signer: ctx.creator.publicKey,
+    })
+    .signers([ctx.creator])
     .rpc();
   return e;
 }

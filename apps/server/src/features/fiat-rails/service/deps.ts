@@ -6,6 +6,7 @@
 
 import type { ProviderRegistryRow } from '../routing'
 import type { FiatStore } from '../store'
+import type { QuoteCache } from '../quote-cache'
 import type { FiatProvider, FiatIntentRow } from '../types'
 
 export interface FiatEvent {
@@ -25,6 +26,8 @@ export interface FiatEventSink {
 
 export interface FiatDeps {
   store: FiatStore
+  /** Pre-commit price quotes (Redis in prod, in-memory in tests). */
+  quoteCache: QuoteCache
   providers: Map<string, FiatProvider>
   /** Enable/priority rows (fiat_providers table). */
   registry: ProviderRegistryRow[]

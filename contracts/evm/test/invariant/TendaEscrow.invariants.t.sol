@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
@@ -28,6 +28,13 @@ contract TendaEscrowInvariants is Test {
         escrow = new TendaEscrow(admin, disputeAdmin, treasury, 250, 100, 48 hours, 1 hours);
         token = new MockUSDCPermitV2();
         handler = new TendaEscrowHandler(escrow, token, admin, disputeAdmin, treasury);
+        // Every actor may relay permits: the handler picks relayers at random.
+        address[6] memory actors = handler.actorList();
+        vm.startPrank(admin);
+        for (uint256 i = 0; i < actors.length; i++) {
+            escrow.setRelayer(actors[i], true);
+        }
+        vm.stopPrank();
         targetContract(address(handler));
     }
 
@@ -72,12 +79,11 @@ contract TendaEscrowInvariants is Test {
         for (uint256 i = 0; i < n; i++) {
             bytes16 id = handler.ids(i);
             TendaEscrowHandlerBase.Ghost memory g = handler.ghostOf(id);
-            (,,,, address creator, address counterparty,, TendaEscrow.Status status,,,,,,, address raisedBy) =
-                escrow.escrows(id);
-            assertEq(uint8(status), uint8(g.status), "status diverged from model");
-            assertEq(creator, g.creator, "creator diverged");
-            assertEq(counterparty, g.counterparty, "counterparty diverged");
-            assertEq(raisedBy, g.raisedBy, "raisedBy diverged");
+            TendaEscrow.Escrow memory e = escrow.getEscrow(id);
+            assertEq(uint8(e.status), uint8(g.status), "status diverged from model");
+            assertEq(e.creator, g.creator, "creator diverged");
+            assertEq(e.counterparty, g.counterparty, "counterparty diverged");
+            assertEq(e.raisedBy, g.raisedBy, "raisedBy diverged");
         }
     }
 

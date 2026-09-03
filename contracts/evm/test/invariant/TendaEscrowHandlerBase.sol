@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {TendaEscrow} from "../../src/TendaEscrow.sol";
 import {MockUSDCPermitV2} from "../mocks/MockUSDCPermitV2.sol";
+import {AuthorizationSigning} from "../helpers/AuthorizationSigning.sol";
 
 /// @dev Shared plumbing for the invariant handler: the actor set (private-key
-///      derived so real EIP-2612 signatures can be produced with vm.sign),
-///      the ghost model (expected status + funds accounting the invariants
-///      compare against the chain), and the escrow-picking / permit-signing
-///      helpers. Actions live in TendaEscrowHandler.
-abstract contract TendaEscrowHandlerBase is Test {
+///      derived so real EIP-2612 / EIP-3009 signatures can be produced with
+///      vm.sign), the ghost model (expected status + funds accounting the
+///      invariants compare against the chain), and the escrow-picking /
+///      signing helpers. Actions live in TendaEscrowHandler.
+abstract contract TendaEscrowHandlerBase is AuthorizationSigning {
     TendaEscrow internal escrowC;
     MockUSDCPermitV2 internal token;
     address internal admin;
@@ -46,6 +46,10 @@ abstract contract TendaEscrowHandlerBase is Test {
         uint64 completionDeadline;
         uint64 approvalDeadline;
         address raisedBy;
+        /// @dev Approval mode: acceptEscrow is closed, the creator drives
+        ///      assignAccept/unassign instead.
+        bool requiresApproval;
+        uint64 unassignWindow;
         bool terminal;
     }
 
@@ -132,24 +136,40 @@ abstract contract TendaEscrowHandlerBase is Test {
     function _signPermit(uint256 ownerPk, address owner, uint256 value, uint256 deadline)
         internal
         view
-        returns (TendaEscrow.Permit memory p)
+        returns (TendaEscrow.Permit memory)
     {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                owner,
-                address(escrowC),
-                value,
-                token.nonces(owner),
-                deadline
-            )
+        return signPermit(token, ownerPk, owner, address(escrowC), value, deadline);
+    }
+
+    /// @dev Sign the EIP-3009 authorization createEscrowFor consumes for `p`:
+    ///      exact amount, nonce = hash of the params, valid from the previous
+    ///      second.
+    function _signAuthorization(uint256 signerPk, address signer, TendaEscrow.CreateParams memory p)
+        internal
+        view
+        returns (TendaEscrow.Authorization memory)
+    {
+        return signAuthorization(
+            token,
+            signerPk,
+            signer,
+            address(escrowC),
+            p.amount,
+            escrowC.authorizationNonce(p),
+            block.timestamp - 1,
+            block.timestamp + 15 minutes
         );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", token.DOMAIN_SEPARATOR(), structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, digest);
-        p = TendaEscrow.Permit({value: value, deadline: deadline, v: v, r: r, s: s});
     }
 
     /// @dev Ghost bookkeeping for a successful create.
+    /// @dev Mode fields, recorded separately so `_recordCreate`'s parameter
+    ///      list does not keep growing with every create-time field.
+    function _recordMode(bytes16 id, bool requiresApproval, uint64 unassignWindow) internal {
+        Ghost storage g = ghosts[id];
+        g.requiresApproval = requiresApproval;
+        g.unassignWindow = unassignWindow;
+    }
+
     function _recordCreate(
         bytes16 id,
         bool erc20,

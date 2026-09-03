@@ -16,6 +16,7 @@ export const apiRoutes: {
   escrows: {
     create: '/v1/escrows',
     buildCreate: '/v1/escrows/:id/build-create',
+    fund: '/v1/escrows/:id/fund',
     accept: '/v1/escrows/:id/accept',
     decline: '/v1/escrows/:id/decline',
     submit: '/v1/escrows/:id/submit',
@@ -31,23 +32,53 @@ export const apiRoutes: {
     proofs: '/v1/escrows/:id/proofs',
     addProofs: '/v1/escrows/:id/proofs',
     review: '/v1/escrows/:id/review',
+    assign: '/v1/escrows/:id/assign',
+    unassign: '/v1/escrows/:id/unassign',
+    release: '/v1/escrows/:id/release',
+  },
+  disputes: {
+    mine: '/v1/disputes',
   },
   gigs: {
     list: '/v1/gigs',
+    facets: '/v1/gigs/facets',
     featured: '/v1/gigs/featured',
     create: '/v1/gigs',
     get: '/v1/gigs/:id',
+    applicants: '/v1/gigs/:id/applications',
+    apply: '/v1/gigs/:id/applications',
+    withdrawApplication: '/v1/gigs/:id/applications',
+  },
+  /**
+   * Always the CALLER's own applications — same shape as /v1/conversations and
+   * /v1/subscriptions. Deliberately not `/v1/gigs?mine=applied`: that surface
+   * returns gigs, and the thing an applicant needs to know is whether they won,
+   * which lives on the application, not the gig.
+   */
+  applications: {
+    mine: '/v1/applications',
+  },
+  /**
+   * The Agent API's write surface (#19): the one-shot task post and the
+   * wallet-born registration behind it. Agents READ through the public gig
+   * routes above (documented at /v1/openapi.json).
+   */
+  agent: {
+    register: '/v1/agent/register',
+    tasks: '/v1/agent/tasks',
   },
   users: {
     me: '/v1/users/me',
     updateMe: '/v1/users/me',
     myStanding: '/v1/users/me/standing',
     standing: '/v1/users/:id/standing',
+    completedWork: '/v1/users/:id/completed-work',
     get: '/v1/users/:id',
     update: '/v1/users/:id',
     escrows: '/v1/users/:id/escrows',
     reviews: '/v1/users/:id/reviews',
     transactions: '/v1/users/:id/transactions',
+    transactionsSummary: '/v1/users/:id/transactions/summary',
   },
   upload: {
     signature: '/v1/upload/signature',
@@ -83,6 +114,10 @@ export const apiRoutes: {
   },
   notifications: {
     registerToken: '/v1/notifications/device-token',
+    list:          '/v1/notifications',
+    unreadCount:   '/v1/notifications/unread-count',
+    markRead:      '/v1/notifications/:id/read',
+    markAllRead:   '/v1/notifications/read-all',
   },
   subscriptions: {
     list:   '/v1/subscriptions',

@@ -1,13 +1,35 @@
+/**
+ * The gig detail's bottom action bar.
+ *
+ * Two families of branches feed it — the ordinary lifecycle, and the
+ * approval-mode surface (apply / assign / release) — and they are asked
+ * INDEPENDENTLY. They used to be mutually exclusive, approval first, which is
+ * how an assigned worker saw "I'm not available" and no Submit Proof, and how
+ * an approval-mode poster ended up with no way to cancel their own gig.
+ *
+ * What each answer displaces is now a property of the branch (its slot), not
+ * of the order the questions happen to be asked in. `assignSlots` turns the
+ * list into an arrangement: one notice, one primary, up to two secondary.
+ */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
+import {
+  PLATFORM_CONFIG_DEFAULTS,
+  assignSlots,
+  gigCtaBranches,
+  isEmptyArrangement,
+  type ActiveSheet,
+  type CtaBranch,
+  type CtaWidth,
+  type EscrowTxType,
+  type GigDetail,
+} from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
-import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
-import { canAccept, canSubmit, canAddProof, canReview, canClaim } from '@tenda/shared'
-import type { EscrowTxType, GigDetail } from '@tenda/shared'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
+import { ApprovalCTA, LifecycleCTA, type ApprovalAction } from './gig-cta'
 
-/** Input/off-chain sheets the CTA opens (on-chain moves go via onTxAction). */
-export type ActiveSheet = 'proof' | 'addProof' | 'dispute' | 'review' | 'delete'
+export type { ActiveSheet, ApprovalAction }
 
 interface GigCTABarProps {
   gig: GigDetail
@@ -19,8 +41,19 @@ interface GigCTABarProps {
   onAction: (action: ActiveSheet) => void
   /** Wallet-opening transition → screen shows the shared confirm gate first. */
   onTxAction: (action: EscrowTxType) => void
+  /** Approval-mode actions; the screen decides which of them reach a wallet. */
+  onApprovalAction: (action: ApprovalAction) => void
   /** CO6 "retry from draft": prefill the create form from this draft. */
   onRetryDraft: () => void
+}
+
+/**
+ * A lone secondary fills its row; a pair keeps the weighting the bar has always
+ * had — the constructive action takes the space, the danger one is only as wide
+ * as its label. Module scope: it closes over nothing.
+ */
+function secondaryWidth(index: number, count: number): CtaWidth {
+  return count === 1 ? 'full' : index === 0 ? 'grow' : 'auto'
 }
 
 export function GigCTABar({
@@ -30,182 +63,74 @@ export function GigCTABar({
   txInProgress,
   onAction,
   onTxAction,
+  onApprovalAction,
   onRetryDraft,
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
+  // The submit/reclaim/release windows are all `completion_deadline + grace`,
+  // and the grace is on the wire precisely so the client stops guessing at it.
+  // The shared default covers the first render before config lands; it is the
+  // same number the server seeds the column with.
+  const grace =
+    usePlatformConfigStore((s) => s.config?.grace_period_seconds) ??
+    PLATFORM_CONFIG_DEFAULTS.grace_period_seconds
 
-  // The shared visibility helpers take the party shape, derive it once.
-  const parties = {
-    status: gig.status,
-    creator_id: gig.creator.id,
-    counterparty_id: gig.counterparty?.id ?? null,
-  }
-  const isCreator = userId === gig.creator.id
+  // An in-flight transaction hides every branch: the escrow is mid-move, so
+  // any button would be offering a transition against a state that is already
+  // changing. Deliberately a guard rather than a branch — it is transient UI
+  // state, not something the escrow says about itself.
+  const arrangement = txInProgress ? null : assignSlots(gigCtaBranches(gig, userId, grace))
+  if (arrangement !== null && isEmptyArrangement(arrangement)) return null
 
-  // Display-derived expiry: an open gig whose accept window passed (v2 has
-  // no 'expired' status, the creator reclaims via refund_expired).
-  const acceptExpired =
-    gig.status === 'open' &&
-    gig.accept_deadline !== null &&
-    new Date(gig.accept_deadline).getTime() < Date.now()
+  const render = (branch: CtaBranch, width: CtaWidth) =>
+    branch.family === 'approval' ? (
+      <ApprovalCTA
+        key={branch.id}
+        branch={branch.id}
+        gig={gig}
+        busy={isTxBuilding}
+        width={width}
+        onAction={onApprovalAction}
+      />
+    ) : (
+      <LifecycleCTA
+        key={branch.id}
+        branch={branch.id}
+        isTxBuilding={isTxBuilding}
+        width={width}
+        onAction={onAction}
+        onTxAction={onTxAction}
+        onRetryDraft={onRetryDraft}
+      />
+    )
 
-  function renderContent() {
-    if (txInProgress) {
-      return (
+  return (
+    <View
+      style={[
+        s.bottomBar,
+        { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle },
+      ]}
+    >
+      {txInProgress && (
         <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
           <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
             Transaction in progress, please wait…
           </Text>
         </View>
-      )
-    }
-
-    // v2 drafts are pre-sign staging rows: signing happens in the create
-    // flow. CO6 "retry from draft", prefill a fresh create instead of
-    // editing in place (the unsigned tx is already bound to this id).
-    if (gig.status === 'draft' && isCreator) {
-      return (
-        <View style={s.ctaRow}>
-          <View style={s.ctaFlex}>
-            <Button variant="outline" size="xl" fullWidth onPress={() => onAction('delete')}>
-              Delete Draft
-            </Button>
-          </View>
-          <View style={s.ctaFlex}>
-            <Button variant="primary" size="xl" fullWidth onPress={onRetryDraft}>
-              Edit & repost
-            </Button>
-          </View>
+      )}
+      {arrangement !== null && (
+        <View style={s.stack}>
+          {arrangement.notice !== null && render(arrangement.notice, 'full')}
+          {arrangement.primary !== null && render(arrangement.primary, 'full')}
+          {arrangement.secondary.length > 0 && (
+            <View style={s.row}>
+              {arrangement.secondary.map((b, i) =>
+                render(b, secondaryWidth(i, arrangement.secondary.length)),
+              )}
+            </View>
+          )}
         </View>
-      )
-    }
-
-    if (gig.status === 'open') {
-      if (acceptExpired && isCreator) {
-        return (
-          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('refund_expired')}>
-            Claim Refund
-          </Button>
-        )
-      }
-      if (canAccept(parties, userId)) {
-        return (
-          <Button variant="primary" size="xl" fullWidth onPress={() => onTxAction('accept')}>
-            Accept Gig
-          </Button>
-        )
-      }
-      if (isCreator) {
-        return (
-          <Button variant="danger" size="xl" fullWidth onPress={() => onTxAction('cancel')}>
-            Cancel Gig
-          </Button>
-        )
-      }
-    }
-
-    if (canSubmit(parties, userId)) {
-      return (
-        <Button variant="primary" size="xl" fullWidth onPress={() => onAction('proof')}>
-          Submit Proof
-        </Button>
-      )
-    }
-
-    if (gig.status === 'submitted' && isCreator) {
-      // Approve is the happy path and owns a full-width row so its label never
-      // wraps on narrow devices; Dispute stays prominent as a full-width danger
-      // row beneath it.
-      return (
-        <View style={s.ctaStack}>
-          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('approve')}>
-            Approve & Pay
-          </Button>
-          <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
-            Dispute delivery
-          </Button>
-        </View>
-      )
-    }
-
-    if (canAddProof(parties, userId)) {
-      // Approval window passed with no dispute → the worker can claim.
-      if (canClaim({ ...parties, approval_deadline: gig.approval_deadline }, userId)) {
-        return (
-          <View style={s.ctaRow}>
-            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('claim_stalled')}>
-              Claim Payment
-            </Button>
-            <Button variant="outline" size="xl" onPress={() => onAction('addProof')}>
-              Add Proof
-            </Button>
-          </View>
-        )
-      }
-      return (
-        <View style={s.ctaRow}>
-          <Button variant="outline" size="xl" style={s.ctaFlex} onPress={() => onAction('addProof')}>
-            Add More Proof
-          </Button>
-          <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
-            Dispute
-          </Button>
-        </View>
-      )
-    }
-
-    if (gig.status === 'accepted' && isCreator) {
-      // Completion window + grace passed → the creator can reclaim the
-      // abandoned escrow; until then dispute is the only creator action.
-      const completionPassed =
-        gig.completion_deadline !== null &&
-        new Date(gig.completion_deadline).getTime() < Date.now()
-      if (completionPassed) {
-        return (
-          <View style={s.ctaRow}>
-            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('reclaim_abandoned')}>
-              Reclaim Escrow
-            </Button>
-            <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
-              Dispute
-            </Button>
-          </View>
-        )
-      }
-      return (
-        <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
-          Dispute
-        </Button>
-      )
-    }
-
-    if (canReview(parties, userId) && !gig.reviews.some((r) => r.reviewer_id === userId)) {
-      return (
-        <Button variant="outline" size="xl" fullWidth onPress={() => onAction('review')}>
-          Leave Review
-        </Button>
-      )
-    }
-
-    if (gig.status === 'disputed') {
-      return (
-        <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
-          <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
-            Under review by admin
-          </Text>
-        </View>
-      )
-    }
-
-    return null
-  }
-
-  const content = renderContent()
-  if (!content) return null
-
-  return (
-    <View style={[s.bottomBar, { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle }]}>
-      {content}
+      )}
     </View>
   )
 }
@@ -217,16 +142,8 @@ const s = StyleSheet.create({
     paddingBottom: spacing.xl,
     borderTopWidth: 1,
   },
-  ctaRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  ctaStack: {
-    gap: spacing.xs,
-  },
-  ctaFlex: {
-    flex: 1,
-  },
+  stack: { gap: spacing.xs },
+  row: { flexDirection: 'row', gap: spacing.sm },
   infoNotice: {
     padding: spacing.md,
     borderRadius: radius.md,

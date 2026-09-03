@@ -4,6 +4,9 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/types/**",
+    "src/**/*.types.ts",
+    "src/wallet/types.ts",
+    "src/wallet/balances/types.ts",
     "src/db/schema/**",
     "src/idl/**",
     "src/abi/**",

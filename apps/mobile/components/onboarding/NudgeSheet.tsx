@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useRouter, type Href } from 'expo-router'
 import { spacing } from '@/theme/tokens'
 import { BottomSheet, Text, Button, Spacer } from '@/components/ui'
@@ -16,14 +17,31 @@ interface NudgeSheetProps {
 export function NudgeSheet({ visible, nudgeKey, title, body, guideRoute, onClose }: NudgeSheetProps) {
   const router = useRouter()
   const { dismissNudge } = useOnboardingStore()
+  const dismissalInFlight = useRef(false)
+
+  useEffect(() => {
+    if (!visible) dismissalInFlight.current = false
+  }, [visible])
+
+  async function persistDismissal() {
+    try {
+      await dismissNudge(nudgeKey)
+    } catch {
+      // Persistence is best-effort; a storage failure must not trap the user.
+    }
+  }
 
   async function handleDismiss() {
-    await dismissNudge(nudgeKey)
+    if (dismissalInFlight.current) return
+    dismissalInFlight.current = true
+    await persistDismissal()
     onClose()
   }
 
   async function handleShowGuide() {
-    await dismissNudge(nudgeKey)
+    if (dismissalInFlight.current) return
+    dismissalInFlight.current = true
+    await persistDismissal()
     onClose()
     router.push(guideRoute)
   }

@@ -8,6 +8,9 @@
     "src/scripts/**",
     "src/features/fiat-rails/types.ts",
     "src/features/moderation/types.ts",
+    "src/**/*.types.ts",
+    "src/plugins/queue/payloads.ts",
+    "src/features/alerts/channels/in-app/notice.ts",
     "src/**/*.d.ts"
   ],
   "reporter": ["text", "lcov"],

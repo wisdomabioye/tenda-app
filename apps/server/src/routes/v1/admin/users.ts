@@ -1,11 +1,12 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { containsPattern } from '@server/lib/like-pattern'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
 import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode,
 } from '@tenda/shared'
-import { hasPermission, requirePermission } from '@server/lib/guards'
+import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
@@ -14,6 +15,10 @@ import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   // GET /v1/admin/users, list users (super_admin only post-#34: the
   // legacy role zoo collapsed to dispute_admin + super_admin)
   fastify.get<{
@@ -40,9 +45,31 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     }
 
     if (search && search.trim().length > 0) {
-      const pattern = `%${search.trim()}%`
-      // Wallets are multi-row in v2, match any linked address (the
-      // text_pattern_ops index covers prefix searches, S5.7/A6).
+      // Escaped, so the term is matched as TEXT: `%`, `_` and `\` are pattern
+      // syntax to postgres even in a bound parameter, and an operator pasting an
+      // address fragment or a name containing one used to get a wider list with
+      // nothing to say why (#119). Not a security fix — the value never reaches
+      // SQL text — a correctness one.
+      const pattern = containsPattern(search.trim())
+      // Wallets are multi-row in v2, so match any linked address — correlated
+      // to its owner, which admin-user-list.test.ts pins in both directions.
+      //
+      // THIS IS A SEQ SCAN over user_wallets, ON PURPOSE, and the note that
+      // used to sit here claimed otherwise: it said the text_pattern_ops index
+      // covered the search. That index served LIKE 'abc%', and this pattern is
+      // neither prefix-only nor case-sensitive. MEASURED on 3k rows with fresh
+      // statistics (docs/query_plan_measurements.md): LIKE 'SoWabc%' → Index
+      // Only Scan, ILIKE '%abc%' → Seq Scan, and even ILIKE 'SoWabc%' → Seq
+      // Scan.
+      //
+      // #118 resolved it by DROPPING that index (migration 0030) rather than by
+      // narrowing this search, so do not go looking for it. The scan is the
+      // price of letting an operator paste a fragment from the MIDDLE of an
+      // address, which is what they actually have when a user reads one out;
+      // a prefix index cannot serve that at any opclass. If this table ever
+      // grows enough to matter, the fix is a pg_trgm index, not a narrower
+      // match — the reasoning is in #118 and in the schema comment on
+      // user_wallets.
       conditions.push(
         or(
           ilike(users.first_name, pattern),

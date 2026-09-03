@@ -15,6 +15,7 @@ import {
   PROGRAM_ID,
   decodeEscrowAccount,
   escrowPda,
+  isProgramOwned,
   type EscrowAccount,
 } from '@server/chains/solana/pdas'
 import type { SolanaRpc } from '@server/chains/solana/rpc'
@@ -54,6 +55,8 @@ const ACTOR_FIELD: Record<EscrowEvent, string | null> = {
   EscrowCreated: 'creator',
   EscrowAccepted: 'counterparty',
   EscrowDeclined: 'declinedBy',
+  CounterpartyAssigned: 'assignedBy',
+  AssignmentReleased: 'releasedBy',
   ProofSubmitted: 'counterparty',
   EscrowApproved: 'creator',
   PaymentClaimed: 'counterparty',
@@ -147,6 +150,14 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
     return {
       name,
       escrow_ref,
+      // Always the compiled-in program id: `EventParser` is constructed with
+      // PROGRAM_ID, so only that program's logs reach here. Solana cannot have a
+      // second live address the way EVM can — the id is `declare_id!`, the PDAs
+      // derive from it, and `anchor upgrade` keeps it — so this is a constant
+      // rather than a variable, and stamping it is what lets a future program
+      // replacement be DETECTED (chains/contracts/resolve.ts refuses a stamp that
+      // is not the current program) instead of silently mis-signed.
+      contract: PROGRAM_ID.toBase58(),
       ...(actorValue instanceof PublicKey
         ? { actor: `${deps.chain_id}:${actorValue.toBase58()}` }
         : {}),
@@ -155,9 +166,11 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
   }
 
   async function fetchEscrowState(escrow_ref: string): Promise<EscrowState | null> {
-    const data = await deps.rpc.getAccountData(escrow_ref)
-    if (data === null) return null
-    return toEscrowState(escrow_ref, decodeEscrowAccount(deps.program.coder, data))
+    const account = await deps.rpc.getAccount(escrow_ref)
+    // Foreign-owned reads as absent: this is a probe, and "no escrow of ours
+    // here" is exactly what `null` means to every caller. See isProgramOwned.
+    if (account === null || !isProgramOwned(account)) return null
+    return toEscrowState(escrow_ref, decodeEscrowAccount(deps.program.coder, account.data))
   }
 
   return { verifyTx, fetchEscrowState }
@@ -237,6 +250,8 @@ function toEscrowState(escrow_ref: string, e: EscrowAccount): EscrowState {
     approval_deadline_unix: e.approvalDeadline.toNumber(),
     dispute_bond_raw: e.disputeBond.toString(10),
     is_seeker: e.isSeeker,
+    requires_approval: e.requiresApproval,
+    unassign_window_seconds: e.unassignWindowSeconds.toNumber(),
     created_at_unix: e.createdAt.toNumber(),
   }
 }

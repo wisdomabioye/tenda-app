@@ -8,30 +8,83 @@
 import type { FastifyInstance } from 'fastify'
 import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
-import { getExchangeRates } from '@server/lib/exchange-rates'
-import type { SupportedCurrency } from '@tenda/shared'
+import { getAssetRates } from '@server/lib/exchange-rates'
+import { getUsdFxRates } from '@server/lib/fx-rates'
+import { ASSET_META, isSupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from './config'
 import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-internal'
 
 /**
- * Pre-cutover: the platform rate cache is SOL-denominated (CoinGecko),
- * exactly what the legacy P2P exchange trades. Other assets reject until the
- * v2 exchange brings its own pricing.
+ * Mid-rate for any exchange-tradable asset, priced via CoinGecko (per-asset
+ * coin id from ASSET_META). Stablecoins resolve to ~1 USD in the target fiat;
+ * volatiles (SOL/ETH/CELO) to their live price.
+ *
+ * DIRECT FIRST, THEN CROSS THROUGH USD. CoinGecko prices in ~60 fiats and two
+ * of our payout currencies are not among them — it returns no `ghs` and no
+ * `kes` — so Ghana and Kenya had no instant-sell quote at all, permanently,
+ * while every other market did. Crossing recovers it: CoinGecko always prices
+ * in USD, and the FX feed carries USD→GHS.
+ *
+ * Which currencies take which path is NOT listed anywhere. The direct rate is
+ * tried first and the cross is the fallback, so the day CoinGecko starts
+ * returning `ghs` it is used without anyone editing a list — and a currency
+ * that drops out of the feed is picked up by the cross rather than going dark.
+ *
+ * The peg is never assumed. The USD leg is the asset's real quoted USD price,
+ * so a USDC depeg reaches the quote instead of being rounded away by a
+ * hardcoded 1.0.
+ *
+ * Every way a rate can go missing still refuses with a 503 rather than
+ * returning undefined — a quote built on undefined becomes NaN and travels a
+ * long way before anything notices.
  */
-export function solRateSource(): RateSource {
+export function assetRateSource(): RateSource {
   return {
     async midRate(asset, fiat_currency) {
-      if (asset !== 'SOL' && asset !== 'SOL_DEVNET') {
+      const meta = ASSET_META[asset]
+      if (meta === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate source for asset '${asset}'`)
       }
-      const { rates } = await getExchangeRates()
-      const rate = rates[fiat_currency as SupportedCurrency]
-      if (rate === undefined) {
+      // Outside the vocabulary there is nothing to cross TO: the FX rates are
+      // filtered to SUPPORTED_CURRENCIES, so this refuses before the second
+      // feed is called rather than after it answers uselessly.
+      //
+      // Its own message, not the shared "no rate" one. All three currency
+      // refusals are 503 and all name the currency, so the message is the only
+      // thing that says WHY — and this one is a CALLER error (a currency we do
+      // not settle in), while the other two are upstream feeds being degraded.
+      // Those want different responses from whoever reads the log.
+      if (!isSupportedCurrency(fiat_currency)) {
+        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `currency '${fiat_currency}' is not supported`)
+      }
+
+      const { rates } = await getAssetRates(meta.coingeckoId)
+      const direct = rates[fiat_currency]
+      if (direct !== undefined) return direct
+
+      // No direct pair. Cross: (asset → USD) × (USD → fiat). The two legs are
+      // checked separately, and in this order, because without the USD leg
+      // there is nothing to multiply — so refusing here spares the FX feed a
+      // call whose answer could not be used either way. A two-hop rate with a
+      // hole in it is not more available than no rate, only harder to notice.
+      const usd = rates.USD
+      if (usd === undefined) {
+        // Names the ASSET, because that is where this one went wrong: the price
+        // feed answered without a USD price, so the fault is the crypto leg
+        // rather than anything to do with the currency asked for.
+        throw new AppError(
+          503,
+          ErrorCode.SERVICE_UNAVAILABLE,
+          `no USD price for asset '${asset}', cannot price '${fiat_currency}'`,
+        )
+      }
+      const fx = (await getUsdFxRates()).rates[fiat_currency]
+      if (fx === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
       }
-      return rate
+      return usd * fx
     },
   }
 }
@@ -151,6 +204,10 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
             amount_raw: input.asset_amount_raw,
             creator_id: input.user_id,
             status: 'draft',
+            // Stated, not left to the column default: this row's window is the
+            // fact `prepareDraftCreate` re-derives the deadline from at build
+            // (#41), so the two must be written from the same constant here.
+            accept_window_seconds: DEFAULT_ACCEPT_WINDOW_SECONDS,
             accept_deadline: new Date(Date.now() + DEFAULT_ACCEPT_WINDOW_SECONDS * 1000),
             completion_duration_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
           })
@@ -161,6 +218,8 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
           fiat_currency: input.fiat_currency,
           rate: String(input.rate),
           payment_window_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
+          // The seller's payout account so the matched buyer knows where to pay.
+          payout_account_id: input.payout_account_id ?? null,
         })
         return escrow.id
       })

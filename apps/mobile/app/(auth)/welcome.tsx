@@ -1,14 +1,12 @@
 import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
+import { BrandLogo } from '@/components/ui/BrandLogo'
 import { TermsNotice } from '@/components/auth/TermsNotice'
-
-const Logo = require('@/assets/images/logo.png')
 
 export default function WelcomeScreen() {
   const router = useRouter()
@@ -19,7 +17,7 @@ export default function WelcomeScreen() {
       <View style={[s.screen, { backgroundColor: theme.colors.surface.background }]}>
         <View style={s.heroStack}>
           <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
-            <Image source={Logo} style={s.logo} contentFit="contain" />
+            <BrandLogo size={80} />
           </View>
 
           <Text style={[s.heroTitle, { color: theme.colors.content.primary }]}>
@@ -76,10 +74,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.20,
     shadowRadius: 24,
     elevation: 6,
-  },
-  logo: {
-    width: 80,
-    height: 80,
   },
   heroTitle: {
     fontFamily: typography.fonts.display.bold,

@@ -21,13 +21,16 @@
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
-import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
+import { isUuidLike } from '@server/lib/uuid'
+import { ErrorCode } from '@tenda/shared'
 import {
   type Caller,
   type EscrowStatus,
   type EscrowTransition,
   type TransitionContext,
   assertCanTransition,
+  assertNotTakenDown,
+  takedownActionFor,
 } from '@server/lib/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 
@@ -35,20 +38,9 @@ import type { AppDatabase } from '@server/plugins/db'
 
 export type EscrowRow = typeof escrows.$inferSelect
 
-/**
- * Standard 8-4-4-4-12 UUID shape (case-insensitive). Used to short-circuit
- * `loadEscrowOr404` before the Drizzle query, postgres's `uuid` column
- * rejects non-UUID input with `invalid input syntax for type uuid`, which
- * would surface as a 500 instead of a clean 404. Exported for direct unit
- * testing so the guard doesn't need a fake `AppDatabase` to exercise.
- */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-export function isUuidLike(id: string): boolean {
-  return UUID_RE.test(id)
-}
-
 export async function loadEscrowOr404(db: AppDatabase, id: string): Promise<EscrowRow> {
+  // Short-circuit before the query: postgres's `uuid` column rejects non-UUID
+  // input with an error that would surface as a 500 instead of a clean 404.
   if (!isUuidLike(id)) {
     throw new AppError(404, ErrorCode.NOT_FOUND, `escrow ${id} not found`)
   }
@@ -99,26 +91,11 @@ export function deriveCaller(args: CallerArgs): Caller | null {
   return null
 }
 
-/**
- * Visibility check for taken-down listings (CO1: escrows.hidden). A hidden
- * escrow vanishes from public browse/detail but stays visible to its
- * parties (funds may be locked on-chain, they must still operate it) and
- * to any admin role (takedown review). Distinct from deriveCaller: this is
- * a READ gate, not a transition-caller mapping, super_admin can look but
- * still can't act on the escrow.
- */
-export function canViewHidden(
-  escrow: Pick<EscrowRow, 'creator_id' | 'counterparty_id' | 'assigned_counterparty_id'>,
-  user_id: string,
-  role: string,
-): boolean {
-  return (
-    escrow.creator_id === user_id ||
-    escrow.counterparty_id === user_id ||
-    escrow.assigned_counterparty_id === user_id ||
-    ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number])
-  )
-}
+// The READ gate that used to live here (`canViewHidden`) moved to
+// `escrow-detail-scope.ts` as `canViewHiddenEscrow`, beside the two party
+// predicates the detail routes scope their private fields with. This module
+// keeps the TRANSITION-caller mapping (`deriveCaller`); read gates and
+// transition roles are different questions and now live apart.
 
 export function requireCaller(args: CallerArgs): Caller {
   const c = deriveCaller(args)
@@ -151,6 +128,9 @@ export function buildContext(args: ContextArgs): TransitionContext {
     approval_deadline: args.escrow.approval_deadline,
     grace_period_seconds: args.grace_period_seconds,
     is_assigned: args.escrow.assigned_counterparty_id !== null,
+    requires_approval: args.escrow.requires_approval,
+    completion_duration_seconds: args.escrow.completion_duration_seconds,
+    unassign_window_seconds: args.escrow.unassign_window_seconds,
   }
 }
 
@@ -222,7 +202,9 @@ function resolveTransitionCaller(
  * Routes that need to special-case the transition (e.g. /refund picks
  * between `refund_expired` and `reclaim_abandoned` based on status) call
  * `loadEscrowOr404` + `requireCaller` + `buildContext` + `assertCanTransition`
- * directly instead.
+ * directly instead. Both of those are EXIT transitions, which a takedown never
+ * blocks, so the gate below is not something they are missing — the one entry
+ * route outside this function is `build-create`, which calls it itself.
  */
 export async function guardTransition(args: {
   db: AppDatabase
@@ -232,8 +214,13 @@ export async function guardTransition(args: {
   now: Date
   grace_period_seconds: number
   transition: EscrowTransition
-}): Promise<{ escrow: EscrowRow; ctx: TransitionContext }> {
+}): Promise<{ escrow: EscrowRow; ctx: TransitionContext; caller: Caller }> {
   const escrow = await loadEscrowOr404(args.db, args.escrow_id)
+  // Before the caller derivation, not after: on a taken-down listing the
+  // honest answer is "this is closed", not "you are the wrong person" — and a
+  // public accept resolves to `counterparty` for ANY stranger, so the caller
+  // check would never have refused them anyway.
+  assertNotTakenDown(escrow, takedownActionFor(args.transition))
   const caller = resolveTransitionCaller(args, escrow)
   const ctx = buildContext({
     escrow,
@@ -242,5 +229,7 @@ export async function guardTransition(args: {
     grace_period_seconds: args.grace_period_seconds,
   })
   assertCanTransition(ctx, args.transition)
-  return { escrow, ctx }
+  // `caller` rides along for the signer contract: buildTx picks WHICH
+  // chain-bound address must sign from the role this guard just derived.
+  return { escrow, ctx, caller }
 }

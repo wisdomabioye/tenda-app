@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, formatUnits } from '@tenda/shared'
 import { P2P_INTERNAL_ID, P2P_INTERNAL_SPREAD_BPS } from '../config'
 import type {
   FiatProvider,
@@ -70,6 +70,8 @@ export interface P2pFulfilment {
     rate: number
     /** Onramp: the quote-time matched offer to re-validate. */
     offer_ref?: string
+    /** Offramp: the seller's payout account, persisted on the new offer. */
+    payout_account_id?: string
   }): Promise<{ offer_id: string }>
   status(offer_id: string, ctx?: ProviderStatusContext): Promise<ProviderIntentStatus>
 }
@@ -133,8 +135,9 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
       if (req.asset_amount_raw === null) {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'asset_amount_raw required for offramp quotes')
       }
-      const scale = 10 ** req.asset_decimals
-      const display = Number(req.asset_amount_raw) / scale
+      // BigInt-exact base-units → display; Number() is safe here because the
+      // decimal string is small-magnitude (float would corrupt 18-dp raw).
+      const display = Number(formatUnits(req.asset_amount_raw, req.asset_decimals))
       const fiat_amount = Math.floor(display * rate * 100) / 100
 
       const quote: ProviderQuote = {
@@ -150,7 +153,7 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
       return quote
     },
 
-    async initiate({ user_id, direction, quote, quote_ref }) {
+    async initiate({ user_id, direction, quote, quote_ref, payout_account_id }) {
       const { offer_id } = await deps.fulfilment.open({
         user_id,
         direction,
@@ -161,6 +164,8 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
         rate: quote.rate,
         // Onramp: quote_ref carries the matched offer id (see quote()).
         ...(direction === 'onramp' ? { offer_ref: quote_ref } : {}),
+        // Offramp: persist the seller's payout account on the new offer.
+        ...(direction === 'offramp' && payout_account_id !== undefined ? { payout_account_id } : {}),
       })
       return {
         provider_ref: offer_id,

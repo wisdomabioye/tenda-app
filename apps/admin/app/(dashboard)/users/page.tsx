@@ -24,6 +24,7 @@ import { ListPagination } from '@/components/common/list-pagination'
 import { UserStatusBadge } from '@/components/common/status-badge'
 import { adminApi, type AdminUserListRow, type UserListQuery } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDate } from '@/lib/date-format'
 
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 400
@@ -116,7 +117,7 @@ export default function UsersPage() {
                   <TableCell><UserStatusBadge status={u.status} /></TableCell>
                   <TableCell>{u.city !== null ? `${u.city}, ${u.country}` : (u.country ?? '—')}</TableCell>
                   <TableCell>{u.review_score ?? '—'}</TableCell>
-                  <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatAdminDate(u.created_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

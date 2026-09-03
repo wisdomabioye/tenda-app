@@ -10,37 +10,32 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Share2 } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
-import { ScreenContainer, EmptyState, showToast } from '@/components/ui'
+import { ScreenContainer, showToast, ConfirmDialog } from '@/components/ui'
 import {
   GigDetailBody,
   GigCTABar,
   GigActionSheets,
-  ProofViewerModal,
-  type ProofItem,
+  GigDetailGate,
   type ActiveSheet,
 } from '@/components/gig'
-import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
-import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
+import { ApplySheet, useGigApprovalFlow } from '@/components/gig/gig-applications'
+import { partiesOf } from '@tenda/shared'
+import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
+import type { MediaItem } from '@/components/shared/media/types'
+import { DetailChrome, EscrowTransactionMonitor, TxConfirmDialog } from '@/components/escrow'
+import { txSuccessCopy } from '@tenda/shared'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
-import { useAuthStore, useGigsStore } from '@/stores'
-import { apiConfig, formatAssetAmount } from '@tenda/shared'
+import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
+import { useGigsStore } from '@/stores'
+import { apiConfig, canAccept, formatAssetAmount, formatDuration } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
-import { formatDuration } from '@/lib/gig-display'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { api } from '@/api/client'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
+import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
-
-const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
-  accept: 'Gig accepted!',
-  approve: 'Payment released to worker!',
-  claim_stalled: 'Payment claimed!',
-  cancel: 'Gig cancelled, escrow refunded.',
-  refund_expired: 'Refund claimed successfully.',
-  reclaim_abandoned: 'Escrow reclaimed.',
-  submit: 'Proof submitted!',
-  dispute: 'Dispute raised. An admin will review shortly.',
-}
 
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
@@ -49,13 +44,39 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
-  const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
+  const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
   const [reportGigOpen, setReportGigOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showAcceptNudge, setShowAcceptNudge] = useState(false)
   const { dismissedNudges } = useOnboardingStore()
 
-  const actions = useEscrowActions({ escrowId: gig.escrow_id, chainId: gig.chain_id })
+  const actions = useEscrowActions({
+    escrowId: gig.escrow_id,
+    chainId: gig.chain_id,
+    asset: gig.asset,
+    amountRaw: gig.amount_raw,
+    // Refused as taken down: re-read so the bar stops offering what the server
+    // has just declined. The gate drops the gig entirely on the 404 a
+    // non-party now gets, so this is also how a stranger leaves the screen.
+    onStale: () => void fetchGigDetail(gig.escrow_id),
+  })
+
+  // Worker-net projection for the confirm dialogs (approve/claim quote what
+  // is actually credited — the escrow's fee tier, live platform bps).
+  const { netRaw, feePct } = useEscrowFee(gig.is_seeker, gig.amount_raw)
+
+  // Approval mode. The flow owns which action opens a sheet, which asks first,
+  // and which comes back here for the wallet; each refetches the detail,
+  // because its `viewer` block decides the CTA the user sees next.
+  const approval = useGigApprovalFlow({
+    escrowId: gig.escrow_id,
+    onChanged: () => void fetchGigDetail(gig.escrow_id),
+    onRequestUnassign: () => setConfirmAction('unassign'),
+  })
+
+  // Live-update when the counterparty acts (accept / submit / approve), not
+  // just on focus — the escrow WS channel drives the refetch.
+  useEscrowLiveRefresh(gig.escrow_id, () => fetchGigDetail(gig.escrow_id), gig.status)
 
   // Fire the gated transition the confirm dialog was showing, then close it.
   function runConfirmedAction() {
@@ -68,10 +89,18 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       case 'cancel': return void actions.cancel()
       case 'refund_expired': return void actions.refund('refund_expired')
       case 'reclaim_abandoned': return void actions.refund('reclaim_abandoned')
+      case 'unassign': return void actions.unassign()
+      case 'decline': return void actions.decline()
     }
   }
 
-  const isWorkerOpportunity = gig.status === 'open' && userId !== gig.creator.id
+  // The nudge explains ACCEPTING ("once you accept, the payment is already
+  // locked…") and links to the accept guide, so it is gated on the gig
+  // actually being acceptable by this user. On an approval-mode gig — or
+  // someone else's direct invite — the worker applies instead, and teaching
+  // them a flow this gig does not offer is the same mode-blindness that made
+  // `canAccept` mode-aware in the first place.
+  const isWorkerOpportunity = canAccept(partiesOf(gig), userId)
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +128,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     const action = actions.pendingAction
     actions.clearPending()
     if (action !== null) {
-      showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
+      showToast('success', txSuccessCopy(action, 'gig'))
+    }
+    if (action === 'accept') {
+      // Accepting is a commitment: it earns the just-in-time notification
+      // re-ask for a worker who declined the prompt earlier.
+      void useNotificationPromptStore.getState().recordCommitment()
     }
     if (action === 'cancel') {
       router.back()
@@ -109,18 +143,25 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   // Sheet-confirmed handlers (sheets collect input; the hook signs).
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // worker reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void fetchGigDetail(gig.escrow_id)
+    return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) {
       void fetchGigDetail(gig.escrow_id)
     }
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, gig.dispute_bond_raw, gig.asset)
+    return actions.dispute(reason, gig.dispute_bond_raw)
   }
 
   return (
@@ -165,6 +206,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           txInProgress={actions.pendingTxRef !== null}
           onAction={setActiveSheet}
           onTxAction={setConfirmAction}
+          onApprovalAction={approval.handleAction}
           onRetryDraft={() =>
             router.push(`/(tabs)/create-gig?draftId=${gig.escrow_id}` as Parameters<typeof router.push>[0])
           }
@@ -172,11 +214,15 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         <TxConfirmDialog
           action={confirmAction}
+          chainId={gig.chain_id}
+          boundSigner={gig.my_signer_address}
           ctx={{
             amount: formatAssetAmount(gig.amount_raw, gig.asset),
             kind: 'gig',
             deliverWithin:
               gig.completion_duration_seconds != null ? formatDuration(gig.completion_duration_seconds) : null,
+            netAmount: netRaw !== null ? formatAssetAmount(netRaw.toString(), gig.asset) : null,
+            feePct,
           }}
           onConfirm={runConfirmedAction}
           onCancel={() => setConfirmAction(null)}
@@ -192,20 +238,32 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onDisputeReady={handleDisputeReady}
         />
 
-        <TransactionMonitor
-          signature={actions.pendingTxRef}
-          phase={actions.phase}
-          actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+        <EscrowTransactionMonitor
+          actions={actions}
           escrowId={gig.escrow_id}
           chainId={gig.chain_id}
+          readDetail={() => api.gigs.get({ id: gig.escrow_id })}
+          refresh={() => void fetchGigDetail(gig.escrow_id)}
           onConfirmed={handleTransactionConfirmed}
-          onFailed={(msg) => {
-            actions.clearPending()
-            showToast('info', msg || 'Transaction pending, will sync when confirmed')
-          }}
         />
 
-        <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
+        <ApplySheet
+          visible={approval.applyOpen}
+          busy={approval.busy}
+          chainId={gig.chain_id}
+          initialWallet={gig.viewer?.application?.wallet_address ?? null}
+          onClose={approval.closeApply}
+          onSubmit={approval.apply}
+        />
+
+        {/*
+          Off-chain confirms use the styled ConfirmDialog, never Alert.alert
+          (project convention) and never TxConfirmDialog — no wallet opens, so
+          promising one would be a lie.
+        */}
+        <ConfirmDialog {...approval.confirmDialog} />
+
+        <MediaViewerModal item={selectedProof} onClose={() => setSelectedProof(null)} />
 
         <ReportSheet
           visible={reportGigOpen}
@@ -222,44 +280,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
 export default function GigDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const user = useAuthStore((s) => s.user)
-  const { selectedGig, isLoading, error, fetchGigDetail } = useGigsStore()
-
-  useFocusEffect(
-    useCallback(() => {
-      if (id) fetchGigDetail(id)
-    }, [id]), // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <GigDetailGate id={id}>
+      {(gig, userId) => <GigDetailContent gig={gig} userId={userId} />}
+    </GigDetailGate>
   )
-
-  if (isLoading && (!selectedGig || selectedGig.escrow_id !== id)) return <LoadingScreen />
-
-  if (error && !selectedGig) {
-    return (
-      <ScreenContainer>
-        <ErrorState
-          title="Failed to load gig"
-          description={error}
-          ctaLabel="Retry"
-          onCtaPress={() => id && fetchGigDetail(id)}
-        />
-      </ScreenContainer>
-    )
-  }
-
-  if (!selectedGig) {
-    return (
-      <ScreenContainer>
-        <EmptyState
-          title="Gig not found"
-          description="This gig may have been removed"
-          action={{ label: 'Go back', onPress: () => router.back() }}
-        />
-      </ScreenContainer>
-    )
-  }
-
-  return <GigDetailContent gig={selectedGig} userId={user?.id ?? ''} />
 }
 
 const s = StyleSheet.create({

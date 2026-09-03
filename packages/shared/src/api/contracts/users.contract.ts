@@ -4,12 +4,14 @@ import type {
   PublicUser,
   UpdateUserInput,
   UserTransactionsQuery,
+  UserTransactionsSummary,
   PaginatedResponse,
   EscrowListRow,
   UserEscrowTransaction,
   UserEscrowsQuery,
 } from '../../types'
 import type { Review, GetUserReviewsQuery } from '../../types/review'
+import type { GigCategory } from '../../constants/categories'
 import type { LinkedWallet } from './auth.contract'
 import type { RestrictionKind } from '../../db/schema/reputation'
 
@@ -45,6 +47,38 @@ export interface MyStandingResponse {
   restriction: MyRestriction | null
 }
 
+// ---------- completed work by category (#33) --------------------------------
+
+/** One chip in the profile's "Work you have done" block. */
+export interface CompletedWorkCategory {
+  category: GigCategory
+  count: number
+}
+
+/**
+ * GET /v1/users/:id/completed-work — the categories a user has actually
+ * delivered in, with how many times.
+ *
+ * WHICH POPULATION. Escrows the user WORKED (`isEscrowCounterpartySide`) that
+ * reached `completed` — the same predicate behind the profile's "Completed"
+ * stat (`GET /v1/gigs?mine=working&status=completed`), so the chips sum to the
+ * number printed beside them. Counting gigs POSTED would put two figures that
+ * disagree on one page.
+ *
+ * ONLY CATEGORIES WITH WORK, most first. Unlike `GigFacets`, which is complete
+ * over its vocabulary because the feed rail draws a cell either way, a chip
+ * exists BECAUSE there is work behind it — so an empty `data` is what "no
+ * completed work yet" looks like, and the block renders nothing rather than a
+ * row of zeros.
+ *
+ * PUBLIC, like `GET /v1/users/:id/standing`, which already serves a stranger a
+ * `completed_count`. Rolled up only: no escrow id, no counterparty, no amount,
+ * no title.
+ */
+export interface CompletedWorkResponse {
+  data: CompletedWorkCategory[]
+}
+
 // ---------- Stage 1: /v1/users/me (#38) -----------------------------------
 
 /**
@@ -64,7 +98,7 @@ export interface MeUser {
   role: string
   is_seeker: boolean
   advanced_mode_enabled: boolean
-  created_at: string | null
+  created_at: string
 }
 
 export interface MeResponse {
@@ -74,7 +108,11 @@ export interface MeResponse {
   profile_complete: boolean
 }
 
-/** PATCH /v1/users/me — phone changes ride the OTP routes, never here. */
+/**
+ * PATCH /v1/users/me — phone changes ride the OTP routes, never here.
+ * is_seeker is deliberately absent: the Seeker DEVICE fee-tier flag is
+ * written once by the signup bootstrap (auth verify), never by PATCH.
+ */
 export interface UpdateMeInput {
   first_name?: string
   last_name?: string
@@ -82,7 +120,6 @@ export interface UpdateMeInput {
   city?: string
   bio?: string
   avatar_url?: string
-  is_seeker?: boolean
   /** CO4: unlocks the P2P exchange surface (order book + offer creation). */
   advanced_mode_enabled?: boolean
 }
@@ -97,9 +134,11 @@ export interface UsersContract {
   updateMe:       Endpoint<'PATCH', undefined, UpdateMeInput,  undefined,                  UpdateMeResponse>
   myStanding:     Endpoint<'GET', undefined, undefined,        undefined,                  MyStandingResponse>
   standing:       Endpoint<'GET', { id: string }, undefined,   undefined,                  UserStandingResponse>
+  completedWork:  Endpoint<'GET', { id: string }, undefined,   undefined,                  CompletedWorkResponse>
   get:            Endpoint<'GET', { id: string }, undefined,        undefined,                  PublicUser>
   update:         Endpoint<'PUT', { id: string }, UpdateUserInput,  undefined,                  User>
   escrows:        Endpoint<'GET', { id: string }, undefined,        UserEscrowsQuery,           PaginatedResponse<EscrowListRow>>
   reviews:        Endpoint<'GET', { id: string }, undefined,        GetUserReviewsQuery,        PaginatedResponse<Review>>
   transactions:   Endpoint<'GET', { id: string }, undefined,        UserTransactionsQuery,      PaginatedResponse<UserEscrowTransaction>>
+  transactionsSummary: Endpoint<'GET', { id: string }, undefined,   undefined,                  UserTransactionsSummary>
 }

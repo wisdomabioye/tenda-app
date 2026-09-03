@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 export default function AnnouncementsPage() {
   const [rows, setRows] = useState<Announcement[]>([])
@@ -135,7 +136,7 @@ export default function AnnouncementsPage() {
                     <Switch checked={a.is_active} onCheckedChange={(v) => void setActive(a, v)} />
                   </TableCell>
                   <TableCell>
-                    {a.expires_at === null ? 'never' : new Date(a.expires_at).toLocaleString()}
+                    {a.expires_at === null ? 'never' : formatAdminDateTime(a.expires_at)}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="destructive" onClick={() => void remove(a.id)}>

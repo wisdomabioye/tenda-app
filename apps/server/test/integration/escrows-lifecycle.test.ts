@@ -11,7 +11,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { escrows, tx_attempts } from '@tenda/shared/db/schema'
+import { escrows, tx_attempts, disputes } from '@tenda/shared/db/schema'
 import type { QueueService, JobName, JobPayload } from '@server/plugins/queue'
 import {
   TEST_DB_CONFIGURED,
@@ -20,7 +20,7 @@ import {
   createEscrow,
   authHeader,
 } from '../helpers/test-app'
-import { partiedEscrow, proofUrl } from '../helpers/escrow-states'
+import { partiedEscrow, disputedEscrow, proofUrl } from '../helpers/escrow-states'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -299,5 +299,105 @@ test('POST proofs while submitted: notifies the creator exactly once', { skip },
   assert.strictEqual(notifs.length, 1, 'additional evidence during review notifies once')
   assert.strictEqual(notifs[0].payload.user_id, creator.row.id, 'the poster is the recipient')
   assert.strictEqual(notifs[0].payload.title, 'Additional proof submitted')
-  assert.deepStrictEqual(notifs[0].payload.data, { screen: 'escrow', escrowId: escrow.id })
+  // `kind` is now always present: an exchange escrow's proof notice must
+  // deep-link /exchange/:id, and omitting kind silently routed it to /gig/:id.
+  assert.deepStrictEqual(notifs[0].payload.data, {
+    screen: 'escrow',
+    escrowId: escrow.id,
+    kind: 'gig',
+  })
+})
+
+// ---------- proofs during a dispute -----------------------------------------
+// The worker keeps supplying evidence for the mediator until the dispute
+// resolves — off-chain, no status change — and it deep-links recipients to the
+// shared mediation thread where the proof now shows.
+
+test('POST proofs while disputed: the counterparty can still add evidence', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await disputedEscrow(app)
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 1), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  assert.strictEqual(res.json().length, 1, 'dispute evidence is persisted')
+})
+
+test('POST proofs while disputed: only the counterparty — creator and strangers get 403', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const stranger = await createUser(app)
+  for (const who of [creator, stranger]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/v1/escrows/${escrow.id}/proofs`,
+      headers: authHeader(who.token),
+      payload: { proofs: [{ url: proofUrl(who.row.id, 1), type: 'image' }] },
+    })
+    assert.strictEqual(res.statusCode, 403)
+  }
+})
+
+test('POST proofs while disputed: notifies the other party AND the assigned mediator, into the thread', { skip }, async () => {
+  const app = getApp()
+  const calls = installQueueSpy(app)
+  const { creator, worker, escrow, dispute_id } = await disputedEscrow(app)
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+  await app.db.update(disputes).set({ assigned_to: mediator.row.id }).where(eq(disputes.id, dispute_id))
+
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 2), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  const notifs = notifications(calls)
+  assert.deepStrictEqual(
+    notifs.map((n) => n.payload.user_id).sort(),
+    [creator.row.id, mediator.row.id].sort(),
+    'both the other party and the mediator are alerted',
+  )
+  for (const n of notifs) {
+    assert.strictEqual(n.payload.title, 'New dispute evidence')
+    // Both ids: mobile opens /dispute/:escrowId, the admin dashboard keys the
+    // mediation queue by disputes.id.
+    assert.deepStrictEqual(n.payload.data, {
+      screen: 'dispute',
+      escrowId: escrow.id,
+      disputeId: dispute_id,
+    })
+  }
+})
+
+test('POST proofs while disputed with no mediator claimed: only the other party is notified', { skip }, async () => {
+  const app = getApp()
+  const calls = installQueueSpy(app)
+  const { creator, worker, escrow } = await disputedEscrow(app) // assigned_to stays null
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 3), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  const notifs = notifications(calls)
+  assert.strictEqual(notifs.length, 1, 'no mediator → single recipient')
+  assert.strictEqual(notifs[0].payload.user_id, creator.row.id)
+  assert.strictEqual(notifs[0].payload.data?.screen, 'dispute')
+})
+
+test('POST proofs: 409 once completed (only accepted/submitted/disputed are proofable)', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await partiedEscrow(app, 'completed')
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 1), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 409)
 })

@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { and, eq } from 'drizzle-orm'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
@@ -11,6 +12,10 @@ type UpsertRoute = SubscriptionsContract['upsert']
 type RemoveRoute = SubscriptionsContract['remove']
 
 const subscriptions: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Subscription not found'))
+
   // GET /v1/subscriptions, list user's gig subscriptions
   fastify.get<{
     Reply: ListRoute['response'] | ApiError
@@ -26,7 +31,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
 
       return rows.map((r) => ({
         ...r,
-        created_at: r.created_at?.toISOString() ?? null,
+        created_at: r.created_at.toISOString(),
       }))
     },
   )
@@ -55,7 +60,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
 
         return reply.code(201).send({
           ...row,
-          created_at: row.created_at?.toISOString() ?? null,
+          created_at: row.created_at.toISOString(),
         })
       } catch (err) {
         if (isPostgresUniqueViolation(err)) {
@@ -72,7 +77,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
             .limit(1)
           return reply.code(200).send({
             ...existing,
-            created_at: existing.created_at?.toISOString() ?? null,
+            created_at: existing.created_at.toISOString(),
           })
         }
         throw err

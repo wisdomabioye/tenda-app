@@ -1,27 +1,16 @@
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
-import { Text } from '@/components/ui/Text'
-import { SectionLabel } from '@/components/ui/SectionLabel'
-import { CategoryGrid } from '@/components/gig/CategoryGrid'
-import { PaymentInput } from '@/components/form/PaymentInput'
-import { DurationPicker } from '@/components/form/DurationPicker'
-import { CountryCityPicker } from '@/components/form/CountryCityPicker'
-import { RemoteToggle } from '@/components/form/RemoteToggle'
-import { FeeSummary } from '@/components/shared/FeeSummary'
+import { useRef, useState } from 'react'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native'
+import { formatAssetAmount, formatDuration } from '@tenda/shared'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
-import { useGigForm } from './gig-form/useGigForm'
-import { TITLE_MAX, DESC_MAX } from './gig-form/constants'
-import { CrossBorderBanner } from './gig-form/CrossBorderBanner'
-import { NetworkPicker } from './gig-form/NetworkPicker'
-import { AddFundsNudge } from './gig-form/AddFundsNudge'
-import { AcceptDeadlinePicker } from './gig-form/AcceptDeadlinePicker'
+import { ComposerWalletNotice } from './gig-form/ComposerWalletNotice'
 import { ModerationHint } from './gig-form/ModerationHint'
-import type { GigFormValues } from './gig-form/constants'
-
-export type { GigFormValues } from './gig-form/constants'
-export { ACCEPT_DEADLINE_OPTIONS } from './gig-form/constants'
+import { GigComposerNavigation } from './gig-form/GigComposerNavigation'
+import { GigComposerProgress } from './gig-form/GigComposerProgress'
+import { GIG_COMPOSER_STEPS, type GigComposerStep, type GigFormValues } from '@tenda/shared'
+import { GigDeliveryStep } from './gig-form/steps/GigDeliveryStep'
+import { GigDetailsStep } from './gig-form/steps/GigDetailsStep'
+import { GigPaymentStep } from './gig-form/steps/GigPaymentStep'
+import { useGigForm } from './gig-form/useGigForm'
 
 interface GigFormProps {
   initialValues?: Partial<GigFormValues>
@@ -31,177 +20,140 @@ interface GigFormProps {
 }
 
 export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: GigFormProps) {
-  const { theme } = useUnistyles()
-  const f = useGigForm(initialValues, onSubmit)
+  const form = useGigForm(initialValues, onSubmit)
+  const [stepIndex, setStepIndex] = useState(0)
+  const scrollRef = useRef<ScrollView>(null)
+  const step = GIG_COMPOSER_STEPS[stepIndex].key
+  const finalStep = stepIndex === GIG_COMPOSER_STEPS.length - 1
+  const missingRequirement = finalStep
+    ? form.missingRequirement
+    : form.getStepMissingRequirement(step)
+
+  function moveToStep(nextIndex: number) {
+    setStepIndex(nextIndex)
+    scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }
+
+  function handleContinue() {
+    if (missingRequirement !== null) return
+    if (finalStep) {
+      void form.handleSubmit()
+      return
+    }
+    moveToStep(stepIndex + 1)
+  }
 
   return (
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <GigComposerProgress
+        step={step}
+        onStepPress={(index) => { if (!isLoading) moveToStep(index) }}
+      />
       <ScrollView
+        ref={scrollRef}
         style={s.flex}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Category — chosen first so the description hint below reflects it */}
-        <SectionLabel>Category</SectionLabel>
-        <CategoryGrid selected={f.selectedCategory} onChange={f.setSelectedCategory} />
-
-        {/* Details */}
-        <SectionLabel>Details</SectionLabel>
-        <View style={s.fieldWrap}>
-          <Input
-            label="Title"
-            placeholder="e.g. Deliver package to Victoria Island"
-            helper="Make it short and clear."
-            value={f.title}
-            onChangeText={f.setTitle}
-            maxLength={TITLE_MAX}
-            showCounter
-          />
-        </View>
-        <View style={[s.fieldWrap, { marginTop: 10 }]}>
-          <Input
-            label="Description"
-            placeholder="Describe the gig in detail…"
-            helper={f.descriptionHint}
-            value={f.description}
-            onChangeText={f.setDescription}
-            multiline
-            maxLength={DESC_MAX}
-            showCounter
-          />
-        </View>
-
-        {/* Location */}
-        <SectionLabel>Location</SectionLabel>
-        <View style={s.toggleWrap}>
-          <RemoteToggle value={f.isRemote} onChange={f.setIsRemote} />
-        </View>
-        {!f.isRemote && (
-          <View
-            style={[
-              s.locationCard,
-              { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
-            ]}
-          >
-            <CountryCityPicker
-              country={f.selectedCountry}
-              city={f.selectedCity}
-              onChange={(c, ci) => { f.setSelectedCountry(c); f.setSelectedCity(ci) }}
-            />
-          </View>
-        )}
-
-        <CrossBorderBanner
-          remote={f.isRemote}
-          country={f.selectedCountry}
-          homeCountry={f.homeCountry}
-          assetSymbol={f.assetSymbol}
-        />
-
-        {/* Network (CO5), gigs are USDC-denominated on every chain */}
-        <NetworkPicker
-          options={f.chainOptions}
-          selected={f.chainId}
-          onSelect={f.setChainId}
-          assetSymbol={f.assetSymbol}
-        />
-
-        {/* Budget */}
-        <SectionLabel>Budget</SectionLabel>
-        <PaymentInput asset={f.asset} value={f.paymentRaw} onChange={f.setPaymentRaw} />
-        <AddFundsNudge asset={f.asset} paymentRaw={f.paymentRaw} />
-
-        {/* Timing */}
-        <SectionLabel>Timing</SectionLabel>
-        <View style={s.durationWrap}>
-          <DurationPicker value={f.completionDuration} onChange={f.setCompletionDuration} />
-        </View>
-
-        {/* Accept deadline */}
-        <AcceptDeadlinePicker value={f.acceptDeadlineHours} onChange={f.setAcceptDeadlineHours} />
-
-        {/* Summary, fee breakdown */}
-        {f.paymentRaw > 0 && (
-          <>
-            <SectionLabel>Summary</SectionLabel>
-            <FeeSummary asset={f.asset} principalRaw={f.paymentRaw} />
-          </>
-        )}
-
-        <View style={s.spacer} />
+        {/* Above the step, so it is read on step ONE rather than discovered at
+            the signature — the whole point of #59. */}
+        <ComposerWalletNotice gate={form.walletGate} onRetry={() => void form.retryWallets()} />
+        <GigStep step={step} form={form} />
       </ScrollView>
 
-      <ModerationHint moderation={f.moderation} />
-
-      {/* Sticky submit bar */}
-      <View
-        style={[
-          s.submitBar,
-          { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle },
-        ]}
-      >
-        {f.missingRequirement && (
-          <Text
-            size={12.5}
-            weight="medium"
-            align="center"
-            color={theme.colors.feedback.warning.base}
-            style={s.submitHint}
-          >
-            {f.missingRequirement} to post your gig
-          </Text>
-        )}
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          disabled={!f.isValid}
-          loading={isLoading}
-          onPress={f.handleSubmit}
-        >
-          {submitLabel}
-        </Button>
-      </View>
+      {/* On every step: the verdict needs a budget, which only exists from
+          the payment step onward — gating this to one step would hide it. */}
+      <ModerationHint moderation={form.moderation} />
+      <GigComposerNavigation
+        firstStep={stepIndex === 0}
+        finalStep={finalStep}
+        missingRequirement={missingRequirement}
+        submitLabel={submitLabel}
+        loading={isLoading}
+        onBack={() => moveToStep(stepIndex - 1)}
+        onContinue={handleContinue}
+      />
 
       <PriceWarningSheet
-        visible={f.warnSheetOpen}
-        reasons={f.moderation?.reasons ?? []}
+        visible={form.warnSheetOpen}
+        reasons={form.moderation?.reasons ?? []}
         onPublishAnyway={() => {
-          f.setWarnSheetOpen(false)
-          void f.submitValues()
+          form.setWarnSheetOpen(false)
+          void form.submitValues()
         }}
-        onEdit={() => f.setWarnSheetOpen(false)}
+        onEdit={() => form.setWarnSheetOpen(false)}
       />
     </KeyboardAvoidingView>
   )
 }
 
+type GigFormController = ReturnType<typeof useGigForm>
+
+function GigStep({ step, form }: { step: GigComposerStep; form: GigFormController }) {
+  if (step === 'details') {
+    return (
+      <GigDetailsStep
+        category={form.selectedCategory}
+        onCategoryChange={form.setSelectedCategory}
+        title={form.title}
+        onTitleChange={form.setTitle}
+        description={form.description}
+        onDescriptionChange={form.setDescription}
+        descriptionHint={form.descriptionHint}
+        remote={form.isRemote}
+        onRemoteChange={form.setIsRemote}
+        country={form.selectedCountry}
+        city={form.selectedCity}
+        onLocationChange={(country, city) => {
+          form.setSelectedCountry(country)
+          form.setSelectedCity(city)
+        }}
+        homeCountry={form.homeCountry}
+        assetSymbol={form.assetSymbol}
+      />
+    )
+  }
+
+  if (step === 'payment') {
+    return (
+      <GigPaymentStep
+        chainOptions={form.chainOptions}
+        chainId={form.chainId}
+        onChainChange={form.selectChain}
+        asset={form.asset}
+        assetSymbol={form.assetSymbol}
+        paymentRaw={form.paymentRaw}
+        onPaymentChange={form.setPaymentRaw}
+        completionDuration={form.completionDuration}
+        onCompletionChange={form.setCompletionDuration}
+        acceptDeadlineHours={form.acceptDeadlineHours}
+        onAcceptDeadlineChange={form.setAcceptDeadlineHours}
+      />
+    )
+  }
+
+  const location = form.isRemote
+    ? 'Remote'
+    : [form.selectedCity, form.selectedCountry].filter(Boolean).join(', ')
+  return (
+    <GigDeliveryStep
+      requiresApproval={form.requiresApproval}
+      onApprovalChange={form.setRequiresApproval}
+      proofRequirements={form.proofRequirements}
+      onProofRequirementsChange={form.setProofRequirements}
+      remote={form.isRemote}
+      proofDraft={form.proofDraft}
+      onProofDraftChange={form.setProofDraft}
+      title={form.title}
+      location={location}
+      budget={formatAssetAmount(form.paymentRaw, form.asset)}
+      timing={`${formatDuration(form.completionDuration)} to complete`}
+    />
+  )
+}
+
 const s = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingBottom: 20 },
-  fieldWrap: { marginHorizontal: 20 },
-  locationCard: {
-    marginTop: 10,
-    marginHorizontal: 20,
-    borderWidth: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  toggleWrap: { marginTop: 10 },
-  durationWrap: { paddingHorizontal: 20 },
-  spacer: { height: 24 },
-  submitHint: { marginBottom: 8 },
-  submitBar: {
-    flexShrink: 0,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 6,
-  },
+  content: { paddingBottom: 28 },
 })

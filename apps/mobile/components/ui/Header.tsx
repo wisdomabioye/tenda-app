@@ -48,6 +48,27 @@ export function Header({
     }
   };
 
+  // Shared right-slot action, rendered identically by both variants so a
+  // `rightIcon` passed to a large header (e.g. Trade's "post offer" +) is never
+  // silently dropped.
+  const rightButton = RightIcon ? (
+    <Pressable
+      onPress={onRightPress}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        { backgroundColor: rightTinted ? theme.colors.surface.inset : 'transparent' },
+        pressed && { opacity: 0.7 },
+      ]}
+      hitSlop={4}
+      accessibilityRole="button"
+    >
+      <RightIcon size={18} color={theme.colors.content.secondary} />
+      {rightActive && (
+        <View style={[styles.activeDot, { backgroundColor: theme.colors.brand.solid }]} />
+      )}
+    </Pressable>
+  ) : null;
+
   if (variant === 'large') {
     return (
       <View
@@ -57,16 +78,21 @@ export function Header({
           { backgroundColor: transparent ? 'transparent' : theme.colors.surface.background },
         ]}
       >
-        {title && (
-          <Text style={[styles.lhdrTitle, { color: theme.colors.content.primary }]} numberOfLines={1}>
-            {title}
-          </Text>
-        )}
-        {subtitle && (
-          <Text style={[styles.lhdrSub, { color: theme.colors.content.tertiary }]} numberOfLines={2}>
-            {subtitle}
-          </Text>
-        )}
+        <View style={styles.lhdrRow}>
+          <View style={styles.lhdrText}>
+            {title && (
+              <Text style={[styles.lhdrTitle, { color: theme.colors.content.primary }]} numberOfLines={1}>
+                {title}
+              </Text>
+            )}
+            {subtitle && (
+              <Text style={[styles.lhdrSub, { color: theme.colors.content.tertiary }]} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {rightButton}
+        </View>
       </View>
     );
   }
@@ -114,34 +140,7 @@ export function Header({
         )}
       </View>
 
-      <View style={[styles.slot, styles.slotRight]}>
-        {RightIcon && (
-          <Pressable
-            onPress={onRightPress}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                backgroundColor: rightTinted
-                  ? theme.colors.surface.inset
-                  : 'transparent',
-              },
-              pressed && { opacity: 0.7 },
-            ]}
-            hitSlop={4}
-            accessibilityRole="button"
-          >
-            <RightIcon size={18} color={theme.colors.content.secondary} />
-            {rightActive && (
-              <View
-                style={[
-                  styles.activeDot,
-                  { backgroundColor: theme.colors.brand.primary },
-                ]}
-              />
-            )}
-          </Pressable>
-        )}
-      </View>
+      <View style={[styles.slot, styles.slotRight]}>{rightButton}</View>
     </View>
   );
 }
@@ -191,6 +190,14 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingHorizontal: 20,
     paddingBottom: 14,
+  },
+  lhdrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  lhdrText: {
+    flex: 1,
   },
   lhdrTitle: {
     fontSize: 20,

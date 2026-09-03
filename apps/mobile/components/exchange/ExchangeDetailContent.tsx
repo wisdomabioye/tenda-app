@@ -2,29 +2,23 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, RefreshControl, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { spacing, typography } from '@/theme/tokens'
-import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/components/ui'
+import { useUnistyles } from 'react-native-unistyles'
+import { spacing } from '@/theme/tokens'
+import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/ui'
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
-import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA } from '@/components/exchange'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
-import { PersonCard, ReviewsSection } from '@/components/shared'
-import { TransactionMonitor } from '@/components/feedback'
+import { ExchangeCTA } from '@/components/exchange'
+import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, EscrowTransactionMonitor, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
+import { txSuccessCopy } from '@tenda/shared'
+import { ReviewsSection, ProofsGrid, DataProofList, fileProofMediaItems, type MediaItem } from '@/components/shared'
+import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { formatFiat } from '@/lib/currency'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
-import { formatAssetAmount } from '@tenda/shared'
-import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
-
-const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
-  create: 'Offer published, it goes live once the escrow confirms.',
-  accept: 'Offer accepted!',
-  submit: 'Payment marked, waiting for the seller to confirm.',
-  approve: 'Payment confirmed, crypto released.',
-  claim_stalled: 'Payment claimed!',
-  cancel: 'Offer cancelled, escrow refunded.',
-  refund_expired: 'Refund claimed successfully.',
-  dispute: 'Dispute raised. An admin will review shortly.',
-}
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
+import { useEscrowFee } from '@/hooks/useEscrowFee'
+import { formatAssetAmount, formatFiat } from '@tenda/shared'
+import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
+import { api } from '@/api/client'
 
 /**
  * Exchange detail body, read surface over a kind='exchange' escrow. Every
@@ -42,14 +36,36 @@ export function ExchangeDetailContent({
 }) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { theme } = useUnistyles()
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
+  // Media surfaces render FILE proofs only; data proofs render as their
+  // payload in DataProofList below (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(offer.proofs)
 
-  const actions = useEscrowActions({ escrowId: offer.escrow_id, chainId: offer.chain_id })
+  const actions = useEscrowActions({
+    escrowId: offer.escrow_id,
+    chainId: offer.chain_id,
+    asset: offer.asset,
+    amountRaw: offer.amount_raw,
+    // Same as the gig screen: a takedown refusal re-reads rather than leaving
+    // the declined button on screen. `refresh` drops the offer on a 404, so a
+    // non-party lands on "Offer not available" instead of a dead Accept.
+    onStale: () => void refresh(),
+  })
   const isCreator = userId === offer.creator.id
+
+  // Buyer-net projection for the confirm dialogs (accept/approve/claim quote
+  // what is actually credited, mirroring the contract's settlement math).
+  const { netRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
+
+  // Live-update when the counterparty acts (accept / mark-paid / confirm), not
+  // just on focus — the escrow WS channel drives the refetch.
+  useEscrowLiveRefresh(offer.escrow_id, refresh, offer.status)
 
   // Fire the gated transition the confirm dialog was showing ('create' here is
   // the draft publish — rebuild + sign the create tx), then close it.
@@ -62,9 +78,14 @@ export function ExchangeDetailContent({
       case 'cancel': return void actions.cancel()
       case 'approve': return void actions.approve()
       case 'claim_stalled': return void actions.claim()
+      // A direct offer names its buyer, and declining is the only way out of
+      // one they do not want — the gig screen has had this since the invite
+      // flow shipped; the exchange screen had the branch missing, so an invited
+      // buyer whose offer was then taken down had no button at all.
+      case 'decline': return void actions.decline()
     }
   }
-  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
   const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
 
   async function handleRefresh() {
@@ -80,7 +101,7 @@ export function ExchangeDetailContent({
     const action = actions.pendingAction
     actions.clearPending()
     if (action !== null) {
-      showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
+      showToast('success', txSuccessCopy(action, 'exchange'))
     }
     if (action === 'cancel') {
       router.back()
@@ -90,16 +111,23 @@ export function ExchangeDetailContent({
   }
 
   // Buyer's fiat-payment evidence → off-chain proof rows + on-chain submit.
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // buyer reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void refresh()
+    return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) void refresh()
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, offer.dispute_bond_raw, offer.asset)
+    return actions.dispute(reason, offer.dispute_bond_raw)
   }
 
   return (
@@ -112,43 +140,26 @@ export function ExchangeDetailContent({
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        <View style={s.badgeRow}>
-          <ExchangeStatusBadge status={offer.status} />
-          <Badge variant="accent" label="P2P Trade" />
-        </View>
+        {/* Renders nothing on a visible offer — see TakedownNotice. */}
+        <TakedownNotice escrow={offer} subject="offer" viewerId={userId} />
 
-        <Spacer size={spacing.sm} />
-        <Text style={s.title}>
-          {formatAssetAmount(offer.amount_raw, offer.asset)} → {fiat}
-        </Text>
-        <Spacer size={spacing.md} />
+        <ExchangeOfferOverview offer={offer} userId={userId} fiat={fiat} contextTitle={contextTitle} />
 
-        <ExchangeTermsCard offer={offer} />
-
-        <Spacer size={spacing.lg} />
-
-        <PersonCard
-          label="Seller"
-          user={offer.creator}
-          currentUserId={userId}
-          contextId={offer.escrow_id}
-          contextTitle={contextTitle}
-          isOffer
-          showMessageButton={offer.status !== 'draft'}
-        />
-
-        {offer.counterparty && (isCreator || userId === offer.counterparty.id) && (
+        {offer.proofs.length > 0 && (
           <>
-            <Spacer size={spacing.md} />
-            <PersonCard
-              label="Buyer"
-              user={offer.counterparty}
-              currentUserId={userId}
-              contextId={offer.escrow_id}
-              contextTitle={contextTitle}
-              isOffer
-              gradient="brand"
-            />
+            <Divider />
+            <View style={s.sectionHead}>
+              <Text style={s.sectionTitle}>Payment proof</Text>
+              <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
+                {offer.proofs.length} {offer.proofs.length === 1 ? 'proof' : 'proofs'}
+              </Text>
+            </View>
+            <Spacer size={spacing.sm} />
+            {fileProofs.length > 0 && (
+              <ProofsGrid proofs={fileProofs} onProofPress={setSelectedProof} />
+            )}
+            {/* Data proofs (API-attached — no exchange capture UI) still render. */}
+            <DataProofList proofs={offer.proofs} />
           </>
         )}
 
@@ -204,7 +215,14 @@ export function ExchangeDetailContent({
 
       <TxConfirmDialog
         action={confirmAction}
-        ctx={{ amount: formatAssetAmount(offer.amount_raw, offer.asset), kind: 'exchange' }}
+        chainId={offer.chain_id}
+        boundSigner={offer.my_signer_address}
+        ctx={{
+          amount: formatAssetAmount(offer.amount_raw, offer.asset),
+          kind: 'exchange',
+          netAmount: netRaw !== null ? formatAssetAmount(netRaw.toString(), offer.asset) : null,
+          feePct,
+        }}
         onConfirm={runConfirmedAction}
         onCancel={() => setConfirmAction(null)}
       />
@@ -219,20 +237,18 @@ export function ExchangeDetailContent({
         onDisputeReady={handleDisputeReady}
       />
 
-      <TransactionMonitor
-        signature={actions.pendingTxRef}
-        phase={actions.phase}
-        actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+      <EscrowTransactionMonitor
+        actions={actions}
         escrowId={offer.escrow_id}
         chainId={offer.chain_id}
+        readDetail={() => api.exchange.get({ id: offer.escrow_id })}
+        refresh={() => void refresh()}
         onConfirmed={handleTransactionConfirmed}
-        onFailed={(msg) => {
-          actions.clearPending()
-          showToast('info', msg || 'Transaction pending, will sync when confirmed')
-        }}
       />
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} contentType="escrow" contentId={offer.escrow_id} />
+
+      <MediaViewerModal item={selectedProof} onClose={() => setSelectedProof(null)} />
     </ScreenContainer>
   )
 }
@@ -240,12 +256,19 @@ export function ExchangeDetailContent({
 const s = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.md },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  title: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 22,
-    lineHeight: 28,
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: '700',
-    letterSpacing: -0.44,
+    letterSpacing: -0.17,
+  },
+  sectionTrail: {
+    fontSize: 12.5,
+    lineHeight: 16,
   },
 })

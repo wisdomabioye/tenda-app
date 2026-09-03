@@ -15,13 +15,13 @@
  * same transaction.
  */
 
-import { encodeFunctionData, toHex } from 'viem'
-import { DISPUTE_WINNER_CODE, ESCROW_KIND_CODE, type PermitSignatureBody } from '@tenda/shared'
+import { encodeFunctionData } from 'viem'
+import { DISPUTE_WINNER_CODE, type PermitSignatureBody } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { uuidToBytes } from '@server/chains/ids'
-import { ESCROW_EVM_ABI, ZERO_ADDRESS } from './rpc'
+import { ESCROW_EVM_ABI } from './rpc'
 import { parsePermitSignature } from './permit'
+import { buildCreateParams, escrowIdHex } from './create-params'
 import type { BuildTxArgs } from '@server/chains/types'
 
 export interface BuiltCall {
@@ -35,16 +35,25 @@ export interface BuildContext {
   asset_address: string | null
   /** Resolved wallet of assigned_counterparty_user_id, when present. */
   assigned_counterparty_address: string | null
+  /**
+   * Resolved wallet of `assignAccept`'s worker_user_id. Distinct from
+   * `assigned_counterparty_address` on purpose: that one is a CREATE-time
+   * invite the worker still has to accept, this one is the worker the creator
+   * is placing right now. Both contracts reject an escrow that carries both.
+   */
+  worker_address: string | null
+  /**
+   * May this call encode a `*WithPermit` entry point?
+   *
+   * False when the escrow is held by a superseded contract: the permit was
+   * signed with the CURRENT contract as spender (the permit-payload endpoint is
+   * chain-scoped and takes no escrow), so it cannot authorise a pull by a
+   * different one. The builder then encodes the plain entry point and the
+   * adapter emits an approval hint instead — see `encodesPermit` in ./index.
+   */
+  permit_encodable: boolean
 }
 
-
-function escrowIdHex(escrow_id: string): `0x${string}` {
-  return toHex(uuidToBytes(escrow_id))
-}
-
-function asAddress(v: string | null): `0x${string}` {
-  return (v ?? ZERO_ADDRESS) as `0x${string}`
-}
 
 /** Wire permit → the contract's `Permit` calldata tuple. ERC-20 only. */
 function permitTuple(permit: PermitSignatureBody, asset_address: string | null) {
@@ -68,23 +77,15 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'createEscrow': {
       const p = args.payload
       const native = ctx.asset_address === null
-      const createArgs = [
-        escrowIdHex(p.escrow_id),
-        ESCROW_KIND_CODE[p.kind],
-        asAddress(ctx.asset_address),
-        BigInt(p.amount_raw),
-        asAddress(ctx.assigned_counterparty_address),
-        BigInt(p.accept_deadline_unix),
-        BigInt(p.completion_duration_seconds),
-        BigInt(p.dispute_bond_raw),
-        p.is_seeker,
-      ] as const
-      if (p.permit !== undefined) {
+      // The one CreateParams builder (create-params.ts) — the relayed path
+      // hashes the same struct into its EIP-3009 nonce.
+      const createParams = buildCreateParams(p, ctx)
+      if (p.permit !== undefined && ctx.permit_encodable) {
         return {
           data: encodeFunctionData({
             abi: ESCROW_EVM_ABI,
             functionName: 'createEscrowWithPermit',
-            args: [...createArgs, permitTuple(p.permit, ctx.asset_address)],
+            args: [createParams, permitTuple(p.permit, ctx.asset_address)],
           }),
           value_raw: '0', // non-payable: the permit path is ERC-20 only
         }
@@ -93,7 +94,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
         data: encodeFunctionData({
           abi: ESCROW_EVM_ABI,
           functionName: 'createEscrow',
-          args: createArgs,
+          args: [createParams],
         }),
         value_raw: native ? p.amount_raw : '0',
       }
@@ -112,7 +113,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'disputeEscrow': {
       const p = args.payload
       const native = ctx.asset_address === null
-      if (p.permit !== undefined) {
+      if (p.permit !== undefined && ctx.permit_encodable) {
         return {
           data: encodeFunctionData({
             abi: ESCROW_EVM_ABI,
@@ -129,6 +130,27 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
           args: [escrowIdHex(p.escrow_id)],
         }),
         value_raw: native ? p.bond_raw : '0',
+      }
+    }
+    case 'assignAccept': {
+      const p = args.payload
+      if (ctx.worker_address === null) {
+        // The route resolves the worker's wallet; reaching the encoder
+        // without one would silently assign address(0), which the contract
+        // rejects — fail here with a typed error instead of a raw revert.
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          'assignAccept requires a resolved worker wallet on this chain',
+        )
+      }
+      return {
+        data: encodeFunctionData({
+          abi: ESCROW_EVM_ABI,
+          functionName: 'assignAccept',
+          args: [escrowIdHex(p.escrow_id), ctx.worker_address as `0x${string}`],
+        }),
+        value_raw: '0',
       }
     }
     case 'resolveDispute': {
@@ -152,6 +174,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'cancelEscrow':
     case 'refundExpired':
     case 'reclaimAbandoned':
+    case 'unassign':
       return {
         data: encodeFunctionData({
           abi: ESCROW_EVM_ABI,

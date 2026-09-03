@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { StyleSheet, Switch } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
-import { HelpCircle, Wallet, ShieldCheck, ArrowLeftRight, Coins } from 'lucide-react-native'
-import { typography } from '@/theme/tokens'
-import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
+import { HelpCircle, Wallet, ShieldCheck, ArrowLeftRight, Coins, Landmark } from 'lucide-react-native'
+import { ScreenContainer, Text, Spacer, Header, showToast, AppVersion } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { SettingsGroup, SettingsRow } from '@/components/settings/SettingsRow'
 import { AppearanceSegment } from '@/components/settings/AppearanceSegment'
@@ -81,6 +80,12 @@ export default function SettingsScreen() {
           showChevron
         />
         <SettingsRow
+          icon={<Landmark size={16} color={theme.colors.content.primary} />}
+          label="Payout accounts"
+          onPress={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
+          showChevron
+        />
+        <SettingsRow
           icon={<Coins size={16} color={theme.colors.content.primary} />}
           label="Token approvals"
           onPress={() => router.push('/settings/token-approvals' as Parameters<typeof router.push>[0])}
@@ -98,7 +103,7 @@ export default function SettingsScreen() {
         />
       </SettingsGroup>
 
-      <Text style={[s.version, { color: theme.colors.content.tertiary }]}>Tenda v1.0.0</Text>
+      <AppVersion marginTop={34} />
       <Spacer size={20} />
 
       <CurrencySheet
@@ -116,11 +121,4 @@ export default function SettingsScreen() {
 
 const s = StyleSheet.create({
   flag: { fontSize: 18, includeFontPadding: false },
-  version: {
-    textAlign: 'center',
-    fontFamily: typography.fonts.mono,
-    fontSize: 11,
-    letterSpacing: 0.44,
-    marginTop: 34,
-  },
 })

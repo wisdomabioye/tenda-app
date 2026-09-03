@@ -1,9 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
+import { ErrorCode, NAME_MAX_LENGTH, isCloudinaryUrl, LOCATIONS, isCityInCountry, isCountryCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
-import { ensureValidCoordinates } from '@server/lib/validation'
+import { ensureValidCoordinates, optionalName } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
 
@@ -11,6 +12,10 @@ type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
 
 const userById: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   // GET /v1/users/:id, public profile (no wallet_address)
   fastify.get<{
     Params: GetRoute['params']
@@ -32,6 +37,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
         review_score:     users.review_score,
         role:             users.role,
         is_seeker:        users.is_seeker,
+        is_agent:         users.is_agent,
         created_at:       users.created_at,
       })
       .from(users)
@@ -66,13 +72,25 @@ const userById: FastifyPluginAsync = async (fastify) => {
 
     ensureValidCoordinates(latitude, longitude)
 
-    if (country !== undefined && country !== null && !(country in LOCATIONS)) {
+    // `isCountryCode`, not `country in LOCATIONS`: `in` admits every
+    // Object.prototype key, and this route PERSISTS the value — it then rides
+    // UserRef.country, whose published schema admits only the LOCATIONS codes.
+    if (country !== undefined && country !== null && !isCountryCode(country)) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
     }
 
-    const updates: Record<string, unknown> = { updated_at: new Date() }
-    if (first_name !== undefined) updates.first_name = first_name
-    if (last_name !== undefined)  updates.last_name  = last_name
+    // The SAME validator PATCH /v1/users/me uses — this is the other
+    // self-service write path for the same two columns, and a name stored
+    // through one has to mean the same thing as a name stored through the
+    // other. This route had no name validation at all: an over-long value went
+    // straight to the column, and a null came back a 500 from the NOT NULL
+    // constraint. See lib/validation's `optionalName`.
+    const trimmed_first = optionalName('first_name', first_name, NAME_MAX_LENGTH)
+    const trimmed_last = optionalName('last_name', last_name, NAME_MAX_LENGTH)
+
+    const updates: Partial<typeof users.$inferInsert> = { updated_at: new Date() }
+    if (trimmed_first !== undefined) updates.first_name = trimmed_first
+    if (trimmed_last !== undefined)  updates.last_name  = trimmed_last
     if (avatar_url !== undefined) updates.avatar_url = avatar_url
     if (bio !== undefined)        updates.bio        = bio
     if (country !== undefined)    updates.country    = country

@@ -10,11 +10,12 @@ import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { getConfig } from '@server/config'
 import { appEvents } from '@server/lib/events'
 import { P2P_INTERNAL_ID } from './config'
+import { P2P_INTERNAL_CAPABILITIES } from './capabilities'
 import { drizzleFiatStore } from './store'
 import { p2pInternalProvider } from './providers/p2p-internal'
 import { licensedHttpProvider, fetchProviderHttp } from './providers/licensed-http'
 import { YELLOWCARD_SPEC, ONRAMPMONEY_SPEC } from './providers/specs'
-import { drizzleP2pOrderBook, drizzleP2pFulfilment, solRateSource } from './p2p-live'
+import { drizzleP2pOrderBook, drizzleP2pFulfilment, assetRateSource } from './p2p-live'
 import type { FiatDeps, FiatEventSink } from './service'
 import type { FiatProvider } from './types'
 
@@ -36,16 +37,11 @@ export function buildProviders(fastify: FastifyInstance): Map<string, FiatProvid
   providers.set(
     P2P_INTERNAL_ID,
     p2pInternalProvider({
-      rates: solRateSource(),
+      rates: assetRateSource(),
       book: drizzleP2pOrderBook(fastify),
       fulfilment: drizzleP2pFulfilment(fastify),
-      capabilities: {
-        // CO4: onramp quotes against live sell offers (no offer → no quote).
-        onramp: true,
-        offramp: true,
-        currencies: ['NGN'],
-        assets: ['SOL', 'SOL_DEVNET'],
-      },
+      // Single source, shared with the seed's descriptive registry row.
+      capabilities: P2P_INTERNAL_CAPABILITIES,
       now: () => new Date(),
     }),
   )
@@ -84,6 +80,7 @@ export async function buildFiatDeps(fastify: FastifyInstance): Promise<FiatDeps>
 
   return {
     store: drizzleFiatStore(fastify.db),
+    quoteCache: fastify.quoteCache,
     providers: buildProviders(fastify),
     registry,
     events: liveEventSink(),

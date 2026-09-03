@@ -12,11 +12,12 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-orm'
+import { eq, and, gt, isNull, or, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
-  
+  isSupportedCurrency,
+  payoutCurrencyForCountry,
   SUPPORTED_CURRENCIES,
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
@@ -24,11 +25,14 @@ import {
   EXCHANGE_MAX_FIAT_AMOUNT,
   EXCHANGE_MAX_RATE,
 } from '@tenda/shared'
-import type { ExchangeContract, ApiError, SupportedCurrency } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
+import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { assertExchangeAsset } from '@server/lib/escrow'
+import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
+import { chainFilterCondition } from '@server/lib/chain-filter'
+import { amountWindowConditions } from '@server/lib/amount-window'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
@@ -39,7 +43,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
   }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
-    const { currency, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
+    const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
@@ -57,21 +61,12 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (currency) conditions.push(eq(exchange_details.fiat_currency, currency.toUpperCase()))
 
-    if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-    }
-    if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-    }
-    if (
-      min_amount_raw !== undefined &&
-      max_amount_raw !== undefined &&
-      BigInt(min_amount_raw) > BigInt(max_amount_raw)
-    ) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-    }
-    if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-    if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
+    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
+    if (chainCondition !== null) conditions.push(chainCondition)
+
+    // Same rule the gigs feed runs, and it stays HERE in the sequence: after
+    // chain_id, so an unregistered chain is still the message a caller gets.
+    conditions.push(...amountWindowConditions({ min_amount_raw, max_amount_raw }))
 
     const where = and(...conditions)
 
@@ -137,7 +132,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
     const fiat_currency = String(body.fiat_currency ?? '').toUpperCase()
-    if (!SUPPORTED_CURRENCIES.includes(fiat_currency as SupportedCurrency)) {
+    if (!isSupportedCurrency(fiat_currency)) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,
@@ -164,8 +159,43 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     if (escrow.kind !== 'exchange') {
       throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Offer terms can only be attached to exchange escrows')
     }
+    // Defense in depth: the asset was guarded at escrow-create, re-assert it is
+    // exchange-tradable here so this route is correct independently.
+    assertExchangeAsset(escrow.asset, escrow.chain_id)
     if (escrow.status !== 'draft') {
       throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Offer terms can only be attached while the escrow is a draft')
+    }
+
+    // Payout target: a sell offer with nowhere for the buyer to pay can never
+    // settle. Must belong to the caller and match the offer's fiat currency —
+    // a KES account can't back an NGN-priced offer (checked after the escrow
+    // guards so ownership/kind/status still take precedence).
+    if (typeof body.payout_account_id !== 'string' || body.payout_account_id === '') {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'payout_account_id is required')
+    }
+    const account = await drizzleBankAccountStore(fastify.db).get(request.user.id, body.payout_account_id)
+    if (account === null) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'payout account not found')
+    }
+    // Two distinct failures, told apart because the fixes differ: an account in
+    // a country we do not serve needs a different account, while a mismatch
+    // needs a different price. `payoutCurrencyForCountry` answers null for the
+    // first — it used to answer NGN, which turned an unserved country into a
+    // Nigerian one and let it satisfy an NGN-priced offer.
+    const accountCurrency = payoutCurrencyForCountry(account.country)
+    if (accountCurrency === null) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `payouts are not supported in '${account.country}'`,
+      )
+    }
+    if (accountCurrency !== fiat_currency) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        'payout account currency does not match the offer currency',
+      )
     }
 
     const values = {
@@ -174,6 +204,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       fiat_currency,
       rate: rate.toFixed(10),
       payment_window_seconds,
+      payout_account_id: account.id,
     }
     const [row] = await fastify.db
       .insert(exchange_details)

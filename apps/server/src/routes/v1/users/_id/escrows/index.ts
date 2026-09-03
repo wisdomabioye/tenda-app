@@ -6,11 +6,13 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { or, eq, and, desc, sql, type SQL } from 'drizzle-orm'
+import { isEscrowCounterpartySide, isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError, EscrowListRow } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { chainFilterCondition } from '@server/lib/chain-filter'
 
 type EscrowsRoute = UsersContract['escrows']
 
@@ -26,7 +28,7 @@ const userEscrows: FastifyPluginAsync = async (fastify) => {
       throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only fetch your own escrows')
     }
 
-    const { role, kind, limit = 20, offset = 0 } = request.query
+    const { role, kind, chain_id, limit = 20, offset = 0 } = request.query
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
@@ -35,19 +37,14 @@ const userEscrows: FastifyPluginAsync = async (fastify) => {
       conditions.push(eq(escrows.creator_id, id))
     } else if (role === 'counterparty') {
       // Assigned-but-not-yet-accepted escrows count: the user must act on them.
-      conditions.push(
-        or(eq(escrows.counterparty_id, id), eq(escrows.assigned_counterparty_id, id)) as SQL,
-      )
+      conditions.push(isEscrowCounterpartySide(id))
     } else {
-      conditions.push(
-        or(
-          eq(escrows.creator_id, id),
-          eq(escrows.counterparty_id, id),
-          eq(escrows.assigned_counterparty_id, id),
-        ) as SQL,
-      )
+      conditions.push(isEscrowPartyOrAssigned(id))
     }
     if (kind === 'gig' || kind === 'exchange') conditions.push(eq(escrows.kind, kind))
+
+    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
+    if (chainCondition !== null) conditions.push(chainCondition)
 
     const where = and(...conditions)
 

@@ -7,7 +7,16 @@ import type { DisputeMessage } from '@tenda/shared'
 import { mergeMessages, nextCursor } from '../lib/dispute-thread'
 
 function msg(id: string, created_at: string): DisputeMessage {
-  return { id, dispute_id: 'd1', sender_id: 'u1', body: id, created_at }
+  return {
+    id,
+    dispute_id: 'd1',
+    sender_id: 'u1',
+    body: id,
+    attachment_url: null,
+    attachment_type: null,
+    attachment_size: null,
+    created_at,
+  }
 }
 
 const T1 = '2026-06-05T10:00:00.000Z'

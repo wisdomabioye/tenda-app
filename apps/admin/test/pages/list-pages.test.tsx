@@ -84,8 +84,12 @@ test('disputes: shows the loading state then the empty table', async () => {
   expect(await screen.findByText('No disputes here.')).toBeInTheDocument()
 })
 
-test('disputes: a failed load toasts an error', async () => {
+test('disputes: a failed load toasts an error AND clears the spinner', async () => {
+  // `loading` is derived from the settled request key, so a failure path that
+  // forgets to record the key leaves the page stuck on "Loading…" forever.
   vi.mocked(adminApi.disputes.list).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'dis fail'))
   renderPage(<DisputesPage />)
   await waitFor(() => expect(err).toHaveBeenCalledWith('dis fail'))
+  expect(screen.queryByText('Loading…')).toBeNull()
+  expect(screen.getByText('No disputes here.')).toBeInTheDocument()
 })

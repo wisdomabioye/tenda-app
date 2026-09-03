@@ -21,7 +21,10 @@ import type { AppDatabase } from '../plugins/db'
 // happens at #34.
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
+import type { ContractRegistry } from '../chains/contracts'
 import type { WsBroadcaster } from '../lib/ws'
+import type { QuoteCache } from '../features/fiat-rails/quote-cache'
+import type { RealtimePublisher } from '../realtime'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -38,17 +41,39 @@ declare module 'fastify' {
      */
     optionalAuthenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
 
+    /**
+     * Lenient identification for PUBLIC reads that are merely richer when the
+     * caller is known (gig detail's `viewer` block). An absent OR unusable
+     * bearer proceeds anonymously instead of 401-ing. Registered by
+     * `plugins/auth.ts`.
+     */
+    identifyViewer: (request: FastifyRequest) => Promise<void>
+
     /** Bust the moderation blocklist cache, registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
 
-    /** BullMQ queue service, registered by `plugins/queue.ts`. */
+    /** BullMQ queue service, registered by `plugins/queue`. */
     queue: QueueService
+
+    /** Fiat pre-commit quote cache (Redis), registered by `plugins/quote-cache.ts`. */
+    quoteCache: QuoteCache
 
     /** In-process WS pub/sub, registered by `plugins/websocket.ts`. */
     wsBroadcast: WsBroadcaster
 
+    /** Local + optional Redis cross-replica realtime publication. */
+    realtime: RealtimePublisher
+
     /** Chain adapter registry, registered by `plugins/chains.ts`. */
     chains: ChainRegistry
+
+    /**
+     * Which escrow contracts each chain may transact with — current and
+     * superseded. Registered by `plugins/chains.ts` beside `chains`, because a
+     * transition has to be built against the contract holding THAT escrow's
+     * funds, not whichever one is current (open_issues #89).
+     */
+    contracts: ContractRegistry
   }
 }
 

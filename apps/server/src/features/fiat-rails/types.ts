@@ -138,6 +138,12 @@ export interface FiatProvider {
     direction: FiatDirection
     quote: IntentQuoteSnapshot
     bank_account?: BankAccountRef
+    /**
+     * Offramp only: the caller's bank_accounts id, persisted on the P2P offer
+     * this initiate opens so the matched buyer can be shown where to pay. Not
+     * forwarded to external providers (bank_account carries their payload).
+     */
+    payout_account_id?: string
   }): Promise<InitiateResult>
   status(provider_ref: string, ctx?: ProviderStatusContext): Promise<ProviderIntentStatus>
   /** Optional pre-routing liquidity probe; absent = assumed available. */

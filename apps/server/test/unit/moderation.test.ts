@@ -189,6 +189,39 @@ test('repeat submission hits the cache (no second persist), epoch bump misses', 
   assert.strictEqual(bumped.persisted.length, 1)
 })
 
+test('content verdict is keyed on TEXT only — a differing country/amount still hits it (preview warms the remote-gig create)', async () => {
+  const { deps, persisted } = makeDeps({ llm: null })
+  // Preview: form country NG, one amount.
+  await moderateGig(deps, input({ country: 'NG', amount_raw: '25000000' }), { kind: 'gig_draft', id: null })
+  // Create of the SAME listing text but a different resolved country/amount
+  // (remote gigs null the form country → create falls back to the creator's).
+  // Must reuse the cached content verdict rather than re-spend the LLM.
+  const create = await moderateGig(
+    deps,
+    input({ country: 'KE', amount_raw: '9000000' }),
+    { kind: 'gig_published', id: 'e-remote' },
+  )
+  assert.strictEqual(create.cached, true) // shared content verdict
+  assert.strictEqual(persisted.length, 1) // no second persist on the content hit
+})
+
+test('price sanity runs fresh on a content-cache hit — an outlier amount is not masked by a cached approve', async () => {
+  const priceWarn: Verdict = {
+    decision: 'warn',
+    reasons: [{ code: 'PRICE_SUSPICIOUS', message: 'x', severity: 'warn' }],
+    provider: 'claude',
+    cached: false,
+  }
+  const { deps } = makeDeps({ llm: llmStub(null, priceWarn), stats: STATS })
+  // Normal amount → content approves (and caches), price is in-range → approve.
+  const first = await moderateGig(deps, input({ amount_raw: '25000000' }), SUBJECT)
+  assert.strictEqual(first.decision, 'approve')
+  // Same text but an outlier amount → content is reused, price re-evaluates → warn.
+  const outlier = await moderateGig(deps, input({ amount_raw: '2999999' }), SUBJECT)
+  assert.strictEqual(outlier.cached, true) // content reused
+  assert.strictEqual(outlier.decision, 'warn') // price NOT masked by the cache
+})
+
 test('LLM outage degrades: suspicious input warns, clean input approves', async () => {
   const failing: ModerationProvider = {
     name: 'claude',

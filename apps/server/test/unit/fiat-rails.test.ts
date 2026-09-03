@@ -7,7 +7,6 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { randomUUID } from 'node:crypto'
 import {
   requestQuote,
   initiateIntent,
@@ -18,6 +17,8 @@ import {
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
 import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
+import { inMemoryQuoteCache, type QuoteCache } from '@server/features/fiat-rails/quote-cache'
+import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT, P2P_PROVIDER_ID } from '@tenda/shared'
 import {
   p2pInternalProvider,
   type P2pFulfilment,
@@ -49,9 +50,10 @@ function memoryStore(): FiatStore & { rows: Map<string, FiatIntentRow> } {
   return {
     rows,
     async insertIntent(r: NewFiatIntent) {
+      // Honour the explicit id (minted at quote time), mirroring the real
+      // store — the intent_id must survive the quote → intent promotion.
       const row: FiatIntentRow = {
         ...r,
-        id: randomUUID(),
         created_at: NOW,
         updated_at: NOW,
       }
@@ -78,14 +80,20 @@ function memoryStore(): FiatStore & { rows: Map<string, FiatIntentRow> } {
       return updated
     },
     async listStaleOpen(olderThan, limit) {
-      const open: FiatIntentStatus[] = ['quoted', 'awaiting_user', 'awaiting_provider', 'settling']
+      const open: FiatIntentStatus[] = ['awaiting_user', 'awaiting_provider', 'settling']
       return [...rows.values()]
         .filter((r) => open.includes(r.status) && r.updated_at < olderThan)
         .slice(0, limit)
     },
-    async listExpiredQuotes(now, limit) {
+    async listExpiredAwaitingUser(now, limit) {
       return [...rows.values()]
-        .filter((r) => (r.status === 'quoted' || r.status === 'awaiting_user') && r.expires_at < now)
+        .filter(
+          (r) =>
+            r.status === 'awaiting_user' &&
+            r.expires_at < now &&
+            // Mirror the real store: an OPENED p2p offer is not quote-expired.
+            r.provider !== P2P_PROVIDER_ID,
+        )
         .slice(0, limit)
     },
   }
@@ -131,11 +139,15 @@ function fakeProvider(
 
 function makeDeps(providers: FiatProvider[], registry?: Array<{ id: string; priority: number; is_enabled: boolean }>) {
   const store = memoryStore()
+  // Behaviourally identical to the Redis cache, on the test's frozen clock so
+  // TTL-expiry is deterministic.
+  const cache: QuoteCache = inMemoryQuoteCache(() => NOW.getTime())
   const settled: FiatEvent[] = []
   const failed: Array<FiatEvent & { reason: string }> = []
   const warned: string[] = []
   const deps: FiatDeps = {
     store,
+    quoteCache: cache,
     providers: new Map(providers.map((p) => [p.id, p])),
     registry: registry ?? providers.map((p, i) => ({ id: p.id, priority: i, is_enabled: true })),
     events: {
@@ -145,7 +157,7 @@ function makeDeps(providers: FiatProvider[], registry?: Array<{ id: string; prio
     now: () => NOW,
     log: { warn: (_o, msg) => warned.push(msg) },
   }
-  return { deps, store, settled, failed, warned }
+  return { deps, store, cache, settled, failed, warned }
 }
 
 const ONRAMP_INPUT = {
@@ -159,6 +171,13 @@ const ONRAMP_INPUT = {
   country: 'NG',
   wallet_address: 'WALLET',
   chain_id: 'solana:devnet',
+}
+
+const OFFRAMP_INPUT = {
+  ...ONRAMP_INPUT,
+  direction: 'offramp' as const,
+  fiat_amount: null,
+  asset_amount_raw: '9933333',
 }
 
 // ---------- routing ---------------------------------------------------------
@@ -207,19 +226,46 @@ test('supportsRequest: currency and asset filters, wildcard assets', () => {
   assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, direction: 'offramp' }), false)
 })
 
+test('launch capability matrix: p2p supports USDC+native across chains in NGN/KES/GHS, rejects off-launch', () => {
+  // Mirror the live p2p_internal wiring (live-deps): PAYOUT_CURRENCIES + the
+  // union of exchange-tradable assets. Locks the launch surface end-to-end.
+  const exchangeAssets = [...new Set(CHAIN_MANIFEST.flatMap((c) => exchangeAssetsByChain(c.id)))]
+  const p2p = fakeProvider('p2p', {
+    capabilities: { onramp: true, offramp: true, currencies: PAYOUT_CURRENCIES, assets: exchangeAssets },
+  })
+  // USDC + natives, in each launch currency, both directions.
+  for (const currency of ['NGN', 'KES', 'GHS']) {
+    for (const asset of ['USDC_SOL', 'SOL_DEVNET', 'USDC_BASE', 'ETH_BASE', 'USDC_CELO', 'cUSD', 'CELO']) {
+      for (const direction of ['onramp', 'offramp'] as const) {
+        assert.strictEqual(
+          supportsRequest(p2p, { ...ONRAMP_INPUT, direction, fiat_currency: currency, asset }),
+          true,
+          `${direction} ${asset}/${currency} should be supported`,
+        )
+      }
+    }
+  }
+  // Off-launch currency (supported ISO but not a payout market) is rejected.
+  assert.strictEqual(supportsRequest(p2p, { ...ONRAMP_INPUT, fiat_currency: 'USD', asset: 'USDC_SOL' }), false)
+  // Gig-only / unregistered asset is rejected.
+  assert.strictEqual(supportsRequest(p2p, { ...ONRAMP_INPUT, fiat_currency: 'NGN', asset: 'MYSTERY' }), false)
+})
+
 // ---------- quote ------------------------------------------------------------
 
-test('requestQuote: persists a quoted intent with 10-min expiry', async () => {
-  const { deps, store } = makeDeps([fakeProvider('a')])
+test('requestQuote: caches the quote (NOT a Postgres row) with 10-min expiry', async () => {
+  const { deps, store, cache } = makeDeps([fakeProvider('a')])
   const result = await requestQuote(deps, 'user-1', { ...ONRAMP_INPUT })
   assert.strictEqual(result.provider, 'a')
-  const row = store.rows.get(result.intent_id)
-  assert.ok(row)
-  assert.strictEqual(row.status, 'quoted')
-  assert.strictEqual(row.fiat_amount, '15000.0000')
+  // No durable row is created at quote time — it lives only in the cache.
+  assert.strictEqual(store.rows.size, 0)
+  const cached = await cache.peek(result.intent_id)
+  assert.ok(cached)
+  assert.strictEqual(cached.id, result.intent_id)
+  assert.strictEqual(cached.user_id, 'user-1')
+  assert.strictEqual(cached.fiat_amount, '15000.0000')
+  assert.strictEqual(cached.quote_ref, 'a-q1')
   assert.strictEqual(new Date(result.expires_at).getTime(), NOW.getTime() + 10 * 60_000)
-  const meta = row.metadata as { quote_ref: string }
-  assert.strictEqual(meta.quote_ref, 'a-q1')
 })
 
 test('requestQuote: failing provider falls through to the next; all fail → 503', async () => {
@@ -238,6 +284,26 @@ test('requestQuote: failing provider falls through to the next; all fail → 503
     requestQuote(deadDeps, 'user-1', { ...ONRAMP_INPUT }),
     (e: unknown) => e instanceof AppError && e.statusCode === 503,
   )
+})
+
+test('requestQuote: an over-max computed fiat_amount is a terminal 422, never persisted', async () => {
+  const huge = fakeProvider('huge', {
+    async quote() {
+      return {
+        quote_ref: 'huge-q', rate: 1, fee_amount: 0,
+        fiat_amount: EXCHANGE_MAX_FIAT_AMOUNT + 1, // one past the numeric(20,4) rail
+        asset_amount_raw: '1', kyc_required: false, kyc_url: null,
+      }
+    },
+  })
+  // A backup exists, but the bound is terminal — it must NOT fall through to it.
+  const { deps, store, cache } = makeDeps([huge, fakeProvider('backup')])
+  await assert.rejects(
+    requestQuote(deps, 'user-1', { ...ONRAMP_INPUT }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422 && /exceeds the maximum/.test(e.message),
+  )
+  assert.strictEqual(store.rows.size, 0, 'no intent may be persisted when the fiat bound is exceeded')
+  assert.strictEqual(await cache.peek('huge-q'), null, 'no quote may be cached either')
 })
 
 test('requestQuote: no capable provider → 503', async () => {
@@ -285,49 +351,132 @@ test('initiate: KYC url parks the intent on awaiting_provider', async () => {
   assert.strictEqual(out.kyc_url, 'https://kyc.example')
 })
 
-test('initiate guards: ownership 404, wrong status 409, offramp without bank 422', async () => {
+// NOT ADDED HERE, deliberately: the sweep (#105) listed service/intents.ts:86
+// — "bank_account_id required for offramp" — as an unexecuted refusal. It is
+// not. The case below at 'initiate offramp guards: ... missing bank' already
+// runs it, which was MEASURED: deleting that guard fails that case. The sweep's
+// line-attribution heuristic had blamed a nearby uncovered line on this throw.
+// See docs/server_refusal_sweep.md, "measurement correction".
+
+test('initiate guards: a provider that vanished between quote and initiate is 503 (#105 T1)', async () => {
+  // The quote froze `provider: 'a'`, then the registry stopped offering it — a
+  // real state across a deploy or a provider being disabled mid-flight. The
+  // intent must refuse rather than dereference undefined.
   const { deps } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  deps.providers.delete('a')
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, {}),
+    (e: unknown) =>
+      e instanceof AppError && e.statusCode === 503 && /provider no longer available/.test(e.message),
+  )
+})
+
+test('initiate guards: a wrong-owner peek is 404 and does NOT burn the quote', async () => {
+  const { deps, cache } = makeDeps([fakeProvider('a')])
   const intent_id = await quotedIntent(deps)
   await assert.rejects(
     initiateIntent(deps, 'someone-else', intent_id, {}),
     (e: unknown) => e instanceof AppError && e.statusCode === 404,
   )
+  // The failed ownership guard peeked, never took — the quote survives.
+  assert.ok(await cache.peek(intent_id), 'quote must survive a failed guard')
   await initiateIntent(deps, 'user-1', intent_id, {})
+  // Second initiate: quote consumed, committed row exists → already-initiated 409.
   await assert.rejects(
     initiateIntent(deps, 'user-1', intent_id, {}),
     (e: unknown) => e instanceof AppError && e.statusCode === 409,
   )
 })
 
-test('initiate: expired quote → intent failed + 410', async () => {
-  const { deps, store } = makeDeps([fakeProvider('a')])
+test('initiate: a consumed/expired quote → 410, no row created', async () => {
+  const { deps, store, cache } = makeDeps([fakeProvider('a')])
   const intent_id = await quotedIntent(deps)
-  const row = store.rows.get(intent_id)
-  assert.ok(row)
-  store.rows.set(intent_id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+  await cache.take(intent_id) // simulate TTL-eviction / prior consumption
   await assert.rejects(
     initiateIntent(deps, 'user-1', intent_id, {}),
     (e: unknown) => e instanceof AppError && e.statusCode === 410,
   )
-  assert.strictEqual(store.rows.get(intent_id)?.status, 'failed')
+  assert.strictEqual(store.rows.size, 0, 'a gone quote never yields a committed row')
+})
+
+test('initiate offramp guards: direction, payout currency, missing bank — none burn the quote', async () => {
+  const { deps } = makeDeps([fakeProvider('a')])
+  const BANK = { bank_code: '058', account_number: '0123456789', account_name: 'Seller' }
+  const intent_id = (await requestQuote(deps, 'user-1', { ...OFFRAMP_INPUT })).intent_id
+
+  // Wrong expected direction.
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, { expected_direction: 'onramp' }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422 && /not an onramp/.test(e.message),
+  )
+  // Payout account currency (KE → KES) ≠ the quote's NGN.
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, { expected_direction: 'offramp', payout_country: 'KE', bank_account: BANK }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422 && /currency/.test(e.message),
+  )
+  // Offramp needs a bank account.
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, { expected_direction: 'offramp' }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422 && /bank_account/.test(e.message),
+  )
+  // Proves the three failed guards left the quote intact.
+  const out = await initiateIntent(deps, 'user-1', intent_id, {
+    expected_direction: 'offramp',
+    payout_country: 'NG',
+    bank_account: BANK,
+  })
+  assert.strictEqual(out.status, 'awaiting_user')
 })
 
 // ---------- cancel ----------------------------------------------------------------
 
-test('cancel: quoted/awaiting_user cancellable; settling is not', async () => {
-  const { deps, store } = makeDeps([fakeProvider('a')])
-  const intent_id = await quotedIntent(deps)
-  await cancelIntent(deps, 'user-1', intent_id)
-  assert.strictEqual(store.rows.get(intent_id)?.status, 'cancelled')
+test('cancel: drops a pre-commit quote (no row); cancels awaiting_user; rejects settling', async () => {
+  const { deps, store, cache } = makeDeps([fakeProvider('a')])
 
-  const second = await quotedIntent(deps)
-  const row = store.rows.get(second)
+  // A pre-commit quote: cancel just drops it from the cache, nothing persisted.
+  const quote_id = await quotedIntent(deps)
+  await cancelIntent(deps, 'user-1', quote_id)
+  assert.strictEqual(await cache.peek(quote_id), null)
+  assert.strictEqual(store.rows.size, 0)
+
+  // A committed awaiting_user intent cancels via the status-guarded transition.
+  const active = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', active, {})
+  await cancelIntent(deps, 'user-1', active)
+  assert.strictEqual(store.rows.get(active)?.status, 'cancelled')
+
+  // settling is in-flight → not unilaterally cancellable.
+  const third = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', third, {})
+  const row = store.rows.get(third)
   assert.ok(row)
-  store.rows.set(second, { ...row, status: 'settling' })
+  store.rows.set(third, { ...row, status: 'settling' })
   await assert.rejects(
-    cancelIntent(deps, 'user-1', second),
+    cancelIntent(deps, 'user-1', third),
     (e: unknown) => e instanceof AppError && e.statusCode === 409,
   )
+})
+
+test('cancel: a wrong-owner quote is 404 and is NOT dropped', async () => {
+  const { deps, cache } = makeDeps([fakeProvider('a')])
+  const quote_id = await quotedIntent(deps)
+  await assert.rejects(
+    cancelIntent(deps, 'someone-else', quote_id),
+    (e: unknown) => e instanceof AppError && e.statusCode === 404,
+  )
+  assert.ok(await cache.peek(quote_id), 'a foreign cancel must not drop the owner’s quote')
+})
+
+test('cancel: a foreign user cannot cancel a committed awaiting_user intent (IDOR guard)', async () => {
+  const { deps, store } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps, 'owner-1')
+  await initiateIntent(deps, 'owner-1', intent_id, {})
+  await assert.rejects(
+    cancelIntent(deps, 'attacker', intent_id),
+    (e: unknown) => e instanceof AppError && e.statusCode === 404,
+  )
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'awaiting_user', 'must NOT be cancelled')
 })
 
 // ---------- settlement ----------------------------------------------------------------
@@ -430,27 +579,36 @@ test('reconcile job: scans stale opens, isolates per-intent provider errors', as
 
 // ---------- expire job ---------------------------------------------------------------------
 
-test('expire job: never-initiated quotes expire SILENTLY; initiated ones notify', async () => {
+test('expire job: fails stale awaiting_user (licensed) + notifies; skips opened p2p offers', async () => {
   const { deps, store, failed } = makeDeps([fakeProvider('a')])
-  // Abandoned quote — no provider_ref (a debounced amount edit).
-  const abandoned = await quotedIntent(deps)
-  // Initiated intent — the user saw an instruction.
-  const active = await quotedIntent(deps)
-  await initiateIntent(deps, 'user-1', active, {})
-
-  for (const id of [abandoned, active]) {
-    const row = store.rows.get(id)
-    assert.ok(row)
-    store.rows.set(id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+  const past = new Date(NOW.getTime() - 1)
+  const base = {
+    direction: 'offramp' as const,
+    user_id: 'u',
+    wallet_address: 'W',
+    chain_id: 'solana:devnet',
+    fiat_currency: 'NGN',
+    fiat_amount: '15000.0000',
+    asset: 'USDC_SOL',
+    asset_amount_raw: '9933333',
+    rate: '1500.0000000000',
+    fee_amount: '0.0000',
+    status: 'awaiting_user' as const,
+    kyc_required: false,
+    kyc_url: null,
+    metadata: {},
   }
+  // Licensed deposit instruction past its quote window → expires + notifies.
+  await store.insertIntent({ ...base, id: 'lic-1', provider: 'a', provider_ref: 'a-ref-1', expires_at: past })
+  // An OPENED p2p offer is governed by its own accept_deadline, NOT this window.
+  await store.insertIntent({ ...base, id: 'p2p-1', provider: P2P_PROVIDER_ID, provider_ref: 'offer-1', expires_at: past })
 
   const result = await expireFiatQuotesHandler(deps)
-  assert.strictEqual(result.expired, 2)
-  assert.strictEqual(store.rows.get(abandoned)?.status, 'failed')
-  assert.strictEqual(store.rows.get(active)?.status, 'failed')
-  // Exactly ONE event — for the initiated intent.
+  assert.strictEqual(result.expired, 1)
+  assert.strictEqual(store.rows.get('lic-1')?.status, 'failed')
+  assert.strictEqual(store.rows.get('p2p-1')?.status, 'awaiting_user')
   assert.strictEqual(failed.length, 1)
-  assert.strictEqual(failed[0].intent_id, active)
+  assert.strictEqual(failed[0].intent_id, 'lic-1')
   assert.strictEqual(failed[0].reason, 'quote expired')
 
   // Second run: nothing left to expire.
@@ -506,6 +664,20 @@ test('p2p quote: onramp returns the matched offer terms; no match -> 503', async
   )
 })
 
+test('p2p quote: a non-usable mid rate is 503, not a NaN quote (#105 T1)', async () => {
+  // `midRate` promises a number and the spread multiplies it, so a NaN or a
+  // non-positive rate would travel into `fiat_amount` and be persisted as a
+  // corrupt quote. The guard existed and nothing ran it.
+  for (const mid of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1]) {
+    const { provider } = p2p({ mid })
+    await assert.rejects(
+      provider.quote({ ...ONRAMP_INPUT, direction: 'offramp', fiat_amount: null, asset: 'SOL_DEVNET', asset_decimals: 9 }),
+      (e: unknown) => e instanceof AppError && e.statusCode === 503 && /no exchange rate available/.test(e.message),
+      `mid=${String(mid)}`,
+    )
+  }
+})
+
 test('p2p quote: offramp marks the mid-rate down by the spread', async () => {
   const { provider } = p2p({ mid: 1000 })
   const off = await provider.quote({
@@ -518,6 +690,22 @@ test('p2p quote: offramp marks the mid-rate down by the spread', async () => {
   })
   assert.strictEqual(off.rate, 990) // -100bps
   assert.strictEqual(off.fiat_amount, 1980)
+})
+
+test('p2p quote: offramp handles an 18-decimal asset (ETH) via BigInt-exact conversion', async () => {
+  // 1.5 ETH at 18 dp — the base-unit count (1.5e18) exceeds 2^53, so the raw→
+  // display step must not go through float Number(raw)/10**decimals.
+  const { provider } = p2p({ mid: 2000 })
+  const off = await provider.quote({
+    ...ONRAMP_INPUT,
+    direction: 'offramp',
+    asset: 'ETH_BASE',
+    asset_decimals: 18,
+    fiat_amount: null,
+    asset_amount_raw: '1500000000000000000',
+  })
+  assert.strictEqual(off.rate, 1980) // 2000 − 100bps
+  assert.strictEqual(off.fiat_amount, 2970) // 1.5 × 1980
 })
 
 test('p2p quote validation: onramp needs fiat_amount, offramp needs asset_amount_raw', async () => {

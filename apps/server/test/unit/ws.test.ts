@@ -9,6 +9,7 @@ import {
   WS_AUTH_SUBPROTOCOL,
   authorizeChannel,
   channelName,
+  createWsSubscriptionIntent,
   createWsBroadcaster,
   parseChannel,
   parseSubprotocolAuth,
@@ -32,8 +33,8 @@ test('parseSubprotocolAuth rejects missing/malformed headers', () => {
 
 // ---------- channel parsing -----------------------------------------------------
 
-test('parseChannel handles the three kinds and round-trips via channelName', () => {
-  for (const name of ['escrow:abc', 'chat:conv-1', 'user:u-1']) {
+test('parseChannel handles every supported kind and round-trips via channelName', () => {
+  for (const name of ['escrow:abc', 'chat:conv-1', 'user:u-1', 'feed:gigs']) {
     const c = parseChannel(name)
     assert.ok(c !== null)
     assert.strictEqual(channelName(c), name)
@@ -42,6 +43,7 @@ test('parseChannel handles the three kinds and round-trips via channelName', () 
 
 test('parseChannel rejects unknown kinds and malformed names', () => {
   assert.strictEqual(parseChannel('admin:x'), null)
+  assert.strictEqual(parseChannel('feed:private'), null)
   assert.strictEqual(parseChannel('escrow:'), null)
   assert.strictEqual(parseChannel(':id'), null)
   assert.strictEqual(parseChannel('no-separator'), null)
@@ -50,9 +52,10 @@ test('parseChannel rejects unknown kinds and malformed names', () => {
 
 // ---------- authorization --------------------------------------------------------
 
-function store(opts: { party?: boolean; member?: boolean }): WsAuthStore {
+function store(opts: { active?: boolean; party?: boolean; member?: boolean }): WsAuthStore {
   return {
-    async isEscrowParty() {
+    async isActiveUser() { return opts.active ?? true },
+    async isEscrowPartyOrAssigned() {
       return opts.party ?? false
     },
     async isConversationMember() {
@@ -61,10 +64,34 @@ function store(opts: { party?: boolean; member?: boolean }): WsAuthStore {
   }
 }
 
+test('subscription intent cannot be revived after cancellation or socket close', () => {
+  const intent = createWsSubscriptionIntent()
+  intent.request('chat:one')
+  assert.strictEqual(intent.wants('chat:one'), true)
+  intent.cancel('chat:one')
+  assert.strictEqual(intent.wants('chat:one'), false)
+  intent.request('chat:two')
+  intent.close()
+  intent.request('chat:three')
+  assert.strictEqual(intent.wants('chat:two'), false)
+  assert.strictEqual(intent.wants('chat:three'), false)
+})
+
 test('user channel: self only', async () => {
   const s = store({})
   assert.strictEqual(await authorizeChannel(s, { kind: 'user', id: 'u-1' }, 'u-1'), true)
   assert.strictEqual(await authorizeChannel(s, { kind: 'user', id: 'u-2' }, 'u-1'), false)
+})
+
+test('a suspended account cannot subscribe to public or private channels', async () => {
+  const suspended = store({ active: false, party: true, member: true })
+  assert.strictEqual(await authorizeChannel(suspended, { kind: 'feed', id: 'gigs' }, 'u'), false)
+  assert.strictEqual(await authorizeChannel(suspended, { kind: 'escrow', id: 'e' }, 'u'), false)
+  assert.strictEqual(await authorizeChannel(suspended, { kind: 'chat', id: 'c' }, 'u'), false)
+})
+
+test('authenticated sockets may subscribe only to the named public gigs feed', async () => {
+  assert.strictEqual(await authorizeChannel(store({}), { kind: 'feed', id: 'gigs' }, 'u-1'), true)
 })
 
 test('escrow channel gated on party; chat on membership', async () => {

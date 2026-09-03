@@ -54,3 +54,11 @@ test('maps native error codes (cancelled, play-services, unknown)', async () => 
   signIn.mockRejectedValue(new Error('boom'))
   await expectReason('unknown')
 })
+
+test('DEVELOPER_ERROR (SHA-1 / client-id mismatch) → developer_error', async () => {
+  signIn.mockRejectedValue({ code: 'DEVELOPER_ERROR', message: 'DEVELOPER_ERROR' })
+  await expectReason('developer_error')
+  // Play Services numeric code 10 is the same condition.
+  signIn.mockRejectedValue({ code: '10', message: '' })
+  await expectReason('developer_error')
+})

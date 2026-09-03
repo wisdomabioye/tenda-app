@@ -20,3 +20,27 @@ pre-commit:
         - "contracts/solana/programs/**/*.rs"
         - "packages/shared/src/constants/escrow.ts"
       run: node scripts/check-contract-parity.mjs
+    # App version: apps/mobile/app.json is the source of truth, and two other
+    # files mirror it (Expo's package.json fallback, the landing page's release
+    # string + APK URL). Nothing is generated here, so there is nothing to
+    # `git add` — the check just refuses a hand-edit that desyncs them. Bump via
+    # `pnpm bump:version <patch|minor|major>`.
+    app-version:
+      glob:
+        - "apps/mobile/app.json"
+        - "apps/mobile/app.config.ts"
+        - "apps/mobile/eas.json"
+        - "apps/mobile/package.json"
+        - "apps/tendahq/src/content/app-info.ts"
+      run: node scripts/check-app-version.mjs
+    # Solana CLI pin: contracts.yml's SOLANA_PIN is the source of truth and the
+    # contracts/solana README mirrors it, because CI and a developer's machine
+    # have to build the program with the same cargo-build-sbf. Same shape as
+    # app-version — nothing generated, the check just refuses a desync. It also
+    # asserts the pin cannot go inert again (versioned installer URL, checked
+    # download, assertion on the version actually installed).
+    solana-pin:
+      glob:
+        - ".github/workflows/contracts.yml"
+        - "contracts/solana/README.md"
+      run: node --test scripts/solana-pin.test.mjs

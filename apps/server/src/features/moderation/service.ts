@@ -99,63 +99,73 @@ export async function moderateGig(
   subject: { kind: 'gig_draft' | 'gig_published'; id: string | null },
 ): Promise<ModerateGigResult> {
   const started = deps.now()
-  const hash = inputHash([
-    input.title,
-    input.description,
-    input.category,
-    input.country,
-    input.asset,
-    input.amount_raw,
-  ])
+  // Content safety (the always-run, expensive LLM pass) depends ONLY on the
+  // listing text — never on country/asset/amount, which feed the cheap,
+  // outlier-only price check below. Keying the cache on the text alone lets the
+  // live moderation PREVIEW warm the verdict the create then reuses, so posting
+  // skips the LLM the preview already spent — including for REMOTE gigs, whose
+  // create nulls the form country and falls back to the creator's (which the
+  // preview never saw). Previously the key hashed all six fields, so those
+  // variants missed and re-ran the LLM on the create path (the "Aborted on
+  // first try, works on the second" symptom).
+  const hash = inputHash([input.title, input.description, input.category])
   const rules_version = await deps.store.getRulesVersion()
   const key = cacheKey(rules_version, hash)
 
-  const cached = await deps.cache.get(key)
-  if (cached !== null) {
-    return { ...cached, cached: true, verdict_id: null }
-  }
-
-  // ---- content safety -------------------------------------------------
-  const screen = screenKeywords(input)
-  let content: Verdict
-  if (screen.verdict !== null) {
-    content = screen.verdict // critical keyword block, no LLM spend
-  } else if (deps.llm?.contentSafety !== undefined) {
-    try {
-      content = (await deps.llm.contentSafety(input)) ?? APPROVE
-    } catch (err) {
-      // Provider outage: fall back to keyword-only (gigs stay publishable;
-      // suspicious-keyword inputs degrade to a warn so a human still looks).
-      deps.log.warn({ err }, 'moderation: LLM unavailable, keyword-only fallback')
-      content = screen.suspicious
-        ? {
-            decision: 'warn',
-            reasons: [
-              {
-                code: 'CONTENT_SUSPICIOUS',
-                message: 'This gig needs a second look before publishing.',
-                severity: 'warn',
-              },
-            ],
-            provider: 'keyword',
-            cached: false,
-          }
-        : APPROVE
+  // ---- content safety (cached, text-keyed) ----------------------------
+  let content = await deps.cache.get(key)
+  const contentCached = content !== null
+  if (content === null) {
+    const screen = screenKeywords(input)
+    if (screen.verdict !== null) {
+      content = screen.verdict // critical keyword block, no LLM spend
+    } else if (deps.llm?.contentSafety !== undefined) {
+      try {
+        content = (await deps.llm.contentSafety(input)) ?? APPROVE
+      } catch (err) {
+        // Provider outage: fall back to keyword-only (gigs stay publishable;
+        // suspicious-keyword inputs degrade to a warn so a human still looks).
+        deps.log.warn({ err }, 'moderation: LLM unavailable, keyword-only fallback')
+        content = screen.suspicious
+          ? {
+              decision: 'warn',
+              reasons: [
+                {
+                  code: 'CONTENT_SUSPICIOUS',
+                  message: 'This gig needs a second look before publishing.',
+                  severity: 'warn',
+                },
+              ],
+              provider: 'keyword',
+              cached: false,
+            }
+          : APPROVE
+      }
+    } else {
+      content = APPROVE
     }
-  } else {
-    content = APPROVE
+    await deps.cache.set(key, content, moderationConfig.cache.ttlSeconds)
   }
 
-  // ---- price sanity (only when content passed) -------------------------
+  // ---- price sanity (fresh: country/amount-dependent, cheap) -----------
+  // Run every time — a shared content verdict must never carry a stale price
+  // check across gigs with different amounts/countries. checkPriceSanity
+  // short-circuits to APPROVE unless the amount is an outlier with enough
+  // samples, so this is a no-op (one indexed read) in the common case.
   let price: Verdict = APPROVE
   if (content.decision !== 'block') {
     price = await checkPriceSanity(deps, input)
   }
 
+  // Persist only when the content pipeline actually ran. A content-cache hit
+  // (repeated preview keystrokes, or the create reusing the preview verdict)
+  // records no new content verdict — this preserves the prior no-audit-spam
+  // behaviour where a repeat submission does not re-persist.
   const combined = worst(content, price)
-  const verdict_id = await persist(deps, combined, hash, subject, deps.now() - started)
-  await deps.cache.set(key, combined, moderationConfig.cache.ttlSeconds)
-  return { ...combined, verdict_id }
+  const verdict_id = contentCached
+    ? null
+    : await persist(deps, combined, hash, subject, deps.now() - started)
+  return { ...combined, cached: contentCached, verdict_id }
 }
 
 /**

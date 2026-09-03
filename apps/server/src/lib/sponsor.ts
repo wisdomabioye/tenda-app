@@ -6,8 +6,8 @@
  *     first-link SOL seed (`gas_grants`, one-time grant), then user-paid.
  *   - **BASE / Base-Sepolia**: routed through Coinbase Paymaster (Stage 3).
  *     This module reserves a sponsorship slot from `users.sponsored_tx_remaining`.
- *   - **CELO**: gas paid in cUSD natively via `feeCurrency` (Stage 4).
- *     Bypasses this module entirely, counter never decremented.
+ *   - **CELO / Celo-Sepolia**: gas paid in USDC via the `feeCurrency` adapter
+ *     (Stage 4). Bypasses this module entirely, counter never decremented.
  *
  * Atomicity: `tryReserve` is a single
  *   `UPDATE users SET sponsored_tx_remaining = sponsored_tx_remaining - 1

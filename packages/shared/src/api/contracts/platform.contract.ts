@@ -4,7 +4,18 @@ import type { SupportedCurrency } from '../../constants'
 export interface PlatformConfig {
   fee_bps: number
   seeker_fee_bps: number
-  /** Poster review window after a worker submits proof, in seconds. */
+  /**
+   * Slack after `completion_deadline` before the creator may reclaim, in
+   * seconds — the submit / reclaim / release windows are all
+   * `completion_deadline + grace` (see GigCTABar). Defaults to 1 hour.
+   *
+   * NOT the poster's review window, which this doc used to call it. That is
+   * `approval_window_seconds` (48h) and is deliberately absent from this
+   * response — it is snapshotted onto each escrow as `approval_deadline` when
+   * proof lands, so a client should read the escrow, not the config. The
+   * mislabel is worth naming because the two differ by 47 hours and the wrong
+   * one is the one on the wire.
+   */
   grace_period_seconds: number
 }
 

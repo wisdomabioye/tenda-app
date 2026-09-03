@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  assertLimitsEqual,
+  parseTestLimits,
   evalSeconds,
   parseEnumVariants,
   parseSolidity,
@@ -27,6 +29,8 @@ const SOLIDITY = `
   uint64 public constant MAX_GRACE_PERIOD_SECONDS = 14 days;
   uint64 public constant MIN_COMPLETION_DURATION_SECONDS = 3_600;
   uint64 public constant MAX_COMPLETION_DURATION_SECONDS = 180 days;
+  uint64 public constant MIN_UNASSIGN_WINDOW_SECONDS = 0;
+  uint64 public constant MAX_UNASSIGN_WINDOW_SECONDS = 1 days;
 `
 
 const SOLANA_ESCROW = `
@@ -46,6 +50,8 @@ const SOLANA_CONSTANTS = `
   pub const MAX_GRACE_PERIOD_SECONDS: i64 = 14 * 24 * 3_600;
   pub const MIN_COMPLETION_DURATION_SECONDS: i64 = 3_600;
   pub const MAX_COMPLETION_DURATION_SECONDS: i64 = 180 * 24 * 3_600;
+  pub const MIN_UNASSIGN_WINDOW_SECONDS: i64 = 0;
+  pub const MAX_UNASSIGN_WINDOW_SECONDS: i64 = 24 * 3_600;
 `
 
 const SHARED = `
@@ -59,6 +65,8 @@ const SHARED = `
     maxGracePeriodSeconds: 14 * 24 * 60 * 60,
     minCompletionDurationSeconds: 3600,
     maxCompletionDurationSeconds: 180 * 24 * 60 * 60,
+    minUnassignWindowSeconds: 0,
+    maxUnassignWindowSeconds: 24 * 60 * 60,
   } as const
 `
 
@@ -173,4 +181,57 @@ test('parseSolana throws when an enum is missing', () => {
 
 test('parseSharedConstants throws when an array/object is missing', () => {
   assert.throws(() => parseSharedConstants('export const ESCROW_KIND_CODE = { gig: 0, exchange: 1 }'), /array "ESCROW_STATUS_ORDER" not found/)
+})
+
+// --- the litesvm LIMITS mirror guard ---
+
+const TEST_LIMITS_SRC = `
+  export const LIMITS = {
+    maxPlatformFeeBps: 1_000,
+    minApprovalWindowSeconds: 3_600,
+    maxApprovalWindowSeconds: 30 * 24 * 3_600,
+    minGracePeriodSeconds: 0,
+    maxGracePeriodSeconds: 14 * 24 * 3_600,
+    minCompletionDurationSeconds: 3_600,
+    maxCompletionDurationSeconds: 180 * 24 * 3_600,
+    minUnassignWindowSeconds: 0,
+    maxUnassignWindowSeconds: 24 * 3_600,
+  } as const;
+`
+
+test('parseTestLimits reads the litesvm mirror and evaluates its products', () => {
+  const limits = parseTestLimits(TEST_LIMITS_SRC)
+  assert.equal(limits.maxUnassignWindowSeconds, 86400)
+  assert.equal(limits.maxCompletionDurationSeconds, 15552000)
+})
+
+test('assertLimitsEqual passes when every canonical limit is mirrored', () => {
+  assert.doesNotThrow(() =>
+    assertLimitsEqual(shr().limits, parseTestLimits(TEST_LIMITS_SRC), 'solana-tests'),
+  )
+})
+
+test('assertLimitsEqual tolerates chain-specific EXTRA keys', () => {
+  // minGracePeriodSeconds is Solana-only (its field is i64, so a negative is
+  // representable); ESCROW_LIMITS omits it because the EVM field is uint64.
+  const limits = parseTestLimits(TEST_LIMITS_SRC)
+  assert.ok('minGracePeriodSeconds' in limits)
+  assert.doesNotThrow(() => assertLimitsEqual(shr().limits, limits, 'solana-tests'))
+})
+
+test('assertLimitsEqual catches a stale mirrored value', () => {
+  const stale = { ...parseTestLimits(TEST_LIMITS_SRC), maxUnassignWindowSeconds: 43_200 }
+  assert.throws(
+    () => assertLimitsEqual(shr().limits, stale, 'solana-tests'),
+    /maxUnassignWindowSeconds=43200, canonical=86400/,
+  )
+})
+
+test('assertLimitsEqual catches a canonical limit the mirror never added', () => {
+  const limits = parseTestLimits(TEST_LIMITS_SRC)
+  delete limits.maxUnassignWindowSeconds
+  assert.throws(
+    () => assertLimitsEqual(shr().limits, limits, 'solana-tests'),
+    /missing "maxUnassignWindowSeconds"/,
+  )
 })

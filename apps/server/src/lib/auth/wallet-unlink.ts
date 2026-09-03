@@ -17,13 +17,14 @@
  *   4. not a party to an active escrow on its namespace (409 WALLET_IN_USE).
  */
 
-import { and, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
 import { chains, type ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { sameWalletAddress } from '@server/lib/auth/wallet-address'
+import { isEscrowParty } from '@server/lib/escrow-party'
 import type { AppDatabase } from '@server/plugins/db'
 
 /** Escrow states whose parties still need their wallet's signature. */
@@ -92,7 +93,7 @@ export async function unlinkWallet(
         and(
           eq(chains.namespace, chain_ns),
           inArray(escrows.status, [...ACTIVE_STATUSES]),
-          or(eq(escrows.creator_id, userId), eq(escrows.counterparty_id, userId)),
+          isEscrowParty(userId),
         ),
       )
     if (active.length > 0) {

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { computePlatformFee } from '../../src/utils/fees'
+import { computePlatformFee, computePlatformFeeRaw } from '../../src/utils/fees'
 
 test('computePlatformFee: 2.5% (250 bps) of a round amount', () => {
   // 1 SOL = 1_000_000_000 lamports; 2.5% = 25_000_000.
@@ -37,4 +37,18 @@ test('computePlatformFee: large principal stays exact past Number precision limi
 
 test('computePlatformFee: 100% (10000 bps) returns the full principal', () => {
   assert.equal(computePlatformFee(1_000_000_000n, 10_000), 1_000_000_000)
+})
+
+test('computePlatformFeeRaw: BigInt-exact for 18-dp principals past Number.MAX_SAFE_INTEGER', () => {
+  // 1 ETH (1e18 base units); 2.5% fee = 2.5e16, which exceeds MAX_SAFE_INTEGER
+  // (~9.007e15) — the Number-returning variant would lose precision here.
+  const oneEth = 1_000_000_000_000_000_000n
+  assert.equal(computePlatformFeeRaw(oneEth, 250), 25_000_000_000_000_000n)
+  // Net payout stays exact to the base unit.
+  assert.equal(oneEth - computePlatformFeeRaw(oneEth, 250), 975_000_000_000_000_000n)
+})
+
+test('computePlatformFeeRaw: floors the remainder like the on-chain contract', () => {
+  assert.equal(computePlatformFeeRaw(999n, 250), 24n)
+  assert.equal(computePlatformFeeRaw(0n, 250), 0n)
 })

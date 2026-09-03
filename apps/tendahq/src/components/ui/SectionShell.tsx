@@ -1,80 +1,74 @@
 import type { ReactNode } from 'react'
-import { useIntersect } from '@/hooks/useIntersect'
 import { cn } from '@/lib/cn'
+import type { SectionSurface } from './surface'
 
-export type SectionTone = 'dark' | 'light'
+export type { SectionSurface } from './surface'
+
+/**
+ * What every section on the landing spine accepts. The surface is a fact about
+ * a section's POSITION, not about the section, so the page hands it down rather
+ * than each component choosing one (#55) — see `sections/landing-sections.ts`.
+ *
+ * Note this type cannot enforce that a section HONOURS the prop: a component
+ * that declares no props at all is still assignable to `ComponentType` of this,
+ * so one that quietly hardcodes its surface type-checks. That gap is what
+ * `landing-sections.test.tsx` exists to close, by rendering each section at
+ * both surfaces and reading the markup back.
+ */
+export interface LandingSectionProps {
+  surface: SectionSurface
+}
 
 interface Props {
   id?: string
-  tone: SectionTone
-  /** Constrain inner max-width. Defaults to var(--maxw) = 1280. */
-  maxWidth?: 'page' | 'narrow' | 'full'
-  /** Vertical padding scale. */
-  padY?: 'sm' | 'md' | 'lg'
-  /** Disable the entrance reveal — hero already owns its first paint. */
-  noReveal?: boolean
+  /** Alternate surfaces give the page rhythm without flipping themes. */
+  surface?: SectionSurface
+  /** Vertical padding: the spine's rhythm, or `none` when the section sets its own. */
+  padY?: 'none' | 'md'
   className?: string
-  innerClassName?: string
   children: ReactNode
 }
 
 const PAD_Y: Record<NonNullable<Props['padY']>, string> = {
-  sm: 'py-16 md:py-20',
-  md: 'py-20 md:py-28',
-  lg: 'py-24 md:py-32',
+  none: '',
+  md: 'py-16 md:py-[clamp(64px,8vw,112px)]',
 }
 
-const WIDTH: Record<NonNullable<Props['maxWidth']>, string> = {
-  narrow: 'max-w-[960px]',
-  page:   'max-w-[var(--maxw)]',
-  full:   'max-w-none',
+// Static class strings, because Tailwind reads them off the source; they
+// must name the same tokens as SURFACE_TOKEN in ./surface.ts.
+const SURFACE: Record<SectionSurface, string> = {
+  base: 'bg-[var(--surface-background)]',
+  alt:  'bg-[var(--surface-background-alt)] border-y border-[var(--border-subtle)]',
 }
 
 /**
- * Wraps a landing section. The `tone` flag pins the section to dark or light
- * regardless of the user's theme — required because the page has a deliberate
- * dark spine (hero/trust/products/escrow/ticker/coverage/faq/cta/footer) with
- * light interludes (why-tenda, three-audiences). See IMPLEMENTATION.md §3.4.
+ * Wraps a landing section. The whole page renders in ONE theme (the user's,
+ * via the <html> data-theme attribute); sections vary only in surface tint,
+ * so light mode is light everywhere and dark mode dark everywhere.
  *
- * Implementation: each section sets `data-theme` locally on its own root, which
- * cascades the token values to children.
+ * THE PAGE IS AT REST. There is no entrance reveal any more: sections used to
+ * mount at opacity 0 and wait on an IntersectionObserver, which left blank
+ * screens mid-scroll and an empty first frame for anything that captured the
+ * page. Everything meant to be read is visible as soon as it has loaded.
  */
 export function SectionShell({
   id,
-  tone,
-  maxWidth = 'page',
+  surface = 'base',
   padY = 'md',
-  noReveal = false,
   className,
-  innerClassName,
   children,
 }: Props) {
-  const { ref, isVisible } = useIntersect<HTMLDivElement>({ threshold: 0.12 })
-  const reveal = !noReveal
-
   return (
     <section
       id={id}
-      data-theme={tone}
       className={cn(
-        'relative isolate w-full',
-        'bg-[var(--surface-bg)] text-[var(--content-primary)]',
+        'relative isolate w-full text-[var(--content-primary)]',
+        SURFACE[surface],
         PAD_Y[padY],
         className,
       )}
     >
-      <div
-        ref={ref}
-        data-visible={reveal ? isVisible || undefined : true}
-        className={cn(
-          'mx-auto px-5 md:px-8',
-          WIDTH[maxWidth],
-          reveal && 'reveal-on-scroll',
-          innerClassName,
-        )}
-      >
-        {children}
-      </div>
+      <div className="mx-auto max-w-[var(--maxw)] px-5 md:px-10">{children}</div>
     </section>
   )
 }

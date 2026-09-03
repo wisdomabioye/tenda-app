@@ -1,33 +1,31 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/sections/footer/Footer'
-import { Hero } from './components/sections/hero/Hero'
-import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
-import { TwoProducts } from './components/sections/two-products/TwoProducts'
-import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
-import { LiveTicker } from './components/sections/live-ticker/LiveTicker'
-import { WhyTenda } from './components/sections/why-tenda/WhyTenda'
-import { Coverage } from './components/sections/coverage-map/Coverage'
-import { ThreeAudiences } from './components/sections/three-audiences/ThreeAudiences'
-import { FAQ } from './components/sections/faq/FAQ'
-import { FinalCTA } from './components/sections/final-cta/FinalCTA'
+import {
+  LANDING_SECTIONS,
+  sectionSurface,
+} from './components/sections/landing-sections'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
-function LandingPage() {
-  // Sections built section-by-section in Phase 3 (see LANDING_TODO.md).
+/**
+ * The landing composition, exported apart from <App /> so it can be rendered
+ * without a router. <App /> mounts a BrowserRouter, which needs a DOM this
+ * project deliberately does not install — the suite renders to static markup
+ * instead. Exporting the page is what lets `page-rhythm.test.tsx` assert
+ * against the REAL section order rather than against a copy of it that could
+ * drift from the page it claims to check.
+ *
+ * The order and the placement rationale live in `landing-sections.ts`; the
+ * surface each section renders is DERIVED from its position here (#55), so
+ * inserting a section is one line in that array and costs nothing downstream.
+ */
+export function LandingPage() {
   return (
     <>
-      <Hero />
-      <TrustStrip />
-      <TwoProducts />
-      <HowEscrowWorks />
-      <LiveTicker />
-      <WhyTenda />
-      <Coverage />
-      <ThreeAudiences />
-      <FAQ />
-      <FinalCTA />
+      {LANDING_SECTIONS.map(({ key, Section }, index) => (
+        <Section key={key} surface={sectionSurface(index)} />
+      ))}
     </>
   )
 }

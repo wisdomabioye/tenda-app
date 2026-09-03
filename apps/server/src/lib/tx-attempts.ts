@@ -16,6 +16,7 @@ import { dedupKey } from '@server/core/queue/idempotency'
 import type { AppDatabase } from '@server/plugins/db'
 import type { QueueService } from '@server/plugins/queue'
 import { EVENT_BY_TX_TYPE, type EscrowTxType } from '@server/chains/types'
+import type { VerifyTxSource } from '@server/jobs/verify-tx'
 
 // ---------- store abstraction --------------------------------------------
 
@@ -49,6 +50,12 @@ export function drizzleTxAttemptsStore(db: AppDatabase): TxAttemptsStore {
 export interface RecordTxAttemptInput extends TxAttemptRow {
   chain_id: string
   chain_ns: ChainNamespace
+  /**
+   * Who submitted this transaction. Defaults to the client ping this module was
+   * written for; the abandoned-escrow sweeper (#43) submits on the creator's
+   * behalf and says so, so the telemetry never reports a ping that never came.
+   */
+  source?: VerifyTxSource
 }
 
 export interface RecordTxAttemptDeps {
@@ -85,7 +92,7 @@ export async function recordTxAttempt(
         tx_ref: input.tx_ref,
         expected_event,
         ...(input.escrow_id !== null ? { escrow_id: input.escrow_id } : {}),
-        source: 'client-hint',
+        source: input.source ?? 'client-hint',
       },
       {
         job_id: dedupKey({

@@ -1,13 +1,19 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, sql } from 'drizzle-orm'
 import { reviews } from '@tenda/shared/db/schema'
 import { ensureUserExists } from '@server/lib/users'
+import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
 type ReviewsRoute = UsersContract['reviews']
 
 const userReviews: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   // GET /v1/users/:id/reviews, paginated list of reviews for a user
   fastify.get<{
     Params: ReviewsRoute['params']
@@ -39,7 +45,10 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      data,
+      data: data.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       total:  countResult[0].count,
       limit:  safeLimit,
       offset: safeOffset,

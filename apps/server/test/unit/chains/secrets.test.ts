@@ -83,6 +83,30 @@ test('optional fields are captured when present', () => {
   assert.equal(sol.webhookSecret, 'whsec_abc')
 })
 
+test('escrowDeployBlock: captured as an exact number when present, absent otherwise', () => {
+  const withBlock = loadChainSecrets({
+    ...baseMainnetEnv(),
+    CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
+  }).get('eip155:8453')
+  assert.ok(withBlock && withBlock.namespace === 'eip155')
+  assert.strictEqual(withBlock.escrowDeployBlock, 44_318_123)
+
+  const without = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  assert.ok(without && without.namespace === 'eip155')
+  assert.strictEqual(without.escrowDeployBlock, undefined)
+})
+
+test('escrowDeployBlock: a non-numeric value is a boot error naming the key', () => {
+  assert.throws(
+    () =>
+      loadChainSecrets({
+        ...baseMainnetEnv(),
+        CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '0x2a43abb',
+      }),
+    /CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK/,
+  )
+})
+
 test('two different-family chains can both be active', () => {
   const secrets = loadChainSecrets({ ...solanaDevnetEnv(), ...baseMainnetEnv() })
   assert.equal(secrets.size, 2)
@@ -128,6 +152,64 @@ test('a malformed RPC url throws', () => {
     () => loadChainSecrets({ ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_RPC_URL: 'not a url' }),
     /malformed.*RPC_URL/s,
   )
+})
+
+/**
+ * The three values a protocol-only check USED to wave through.
+ *
+ * `new URL(v).protocol.length > 0` — the old rule — parses
+ * `https:rpc.example.com` successfully (protocol `https:`, host
+ * `rpc.example.com`), so the missing-slashes typo reached the point of use
+ * before failing, which is exactly what validating at boot exists to prevent.
+ * `ftp://` passed for the same reason: any scheme satisfied it.
+ *
+ * MEASURED before the fix: all three returned true from `isValid('url', …)`
+ * while `isAbsoluteUrl(v, ['http','https'])` returned false for all three.
+ */
+const NOT_ABSOLUTE_HTTP = [
+  ['missing slashes', 'https:rpc.example.com'],
+  ['missing slashes, with port', 'http:127.0.0.1:9/x'],
+  ['wrong scheme entirely', 'ftp://rpc.example.com'],
+] as const
+
+for (const [why, value] of NOT_ABSOLUTE_HTTP) {
+  test(`rpc url rejected — ${why} (${value})`, () => {
+    assert.throws(
+      () => loadChainSecrets({ ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_RPC_URL: value }),
+      /malformed value\(s\) for CHAIN_SOLANA_DEVNET_RPC_URL/,
+    )
+  })
+
+  // Same rule for the other two 'url'-kind fields, or the guard is only half
+  // applied — the fallback endpoint and the paymaster are reached the same way.
+  test(`rpc fallback rejected — ${why}`, () => {
+    assert.throws(
+      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RPC_URL_FALLBACK: value }),
+      /malformed value\(s\) for CHAIN_EIP155_8453_RPC_URL_FALLBACK/,
+    )
+  })
+
+  test(`paymaster url rejected — ${why}`, () => {
+    assert.throws(
+      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_PAYMASTER_URL: value }),
+      /malformed value\(s\) for CHAIN_EIP155_8453_PAYMASTER_URL/,
+    )
+  })
+}
+
+test('a well-formed http(s) url is still accepted on every url field', () => {
+  // The negative table above is only meaningful if the tightening did not also
+  // reject the real thing — all five live CHAIN_* url values are `https://`.
+  const secrets = loadChainSecrets({
+    ...baseMainnetEnv(),
+    CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'http://localhost:8545',
+    CHAIN_EIP155_8453_PAYMASTER_URL: 'https://paymaster.example/v1/rpc',
+  })
+  const base = secrets.get('eip155:8453')
+  assert.ok(base && base.namespace === 'eip155')
+  assert.equal(base.rpcUrl, EVM_RPC)
+  assert.equal(base.rpcUrlFallback, 'http://localhost:8545')
+  assert.equal(base.paymasterUrl, 'https://paymaster.example/v1/rpc')
 })
 
 test('a malformed base58 treasury address throws', () => {
@@ -206,30 +288,4 @@ test('all errors are aggregated into one throw', () => {
     assert.match(msg, /malformed/)
     assert.match(msg, /unrecognised chain env var/)
   }
-})
-
-// ---------- dispute_admin authority (Issue-3 C2 pre-flight) -----------------
-
-test('dispute_admin authority: Solana reads a base58 value, per chain', () => {
-  const env = { ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_DISPUTE_ADMIN_ADDR: SOL_PUBKEY }
-  const secrets = loadChainSecrets(env)
-  assert.equal(secrets.get('solana:devnet')?.disputeAdmin, SOL_PUBKEY)
-})
-
-test('dispute_admin authority: EVM reads a 0x value, distinct from Solana', () => {
-  const env = { ...baseMainnetEnv(), CHAIN_EIP155_8453_DISPUTE_ADMIN_ADDR: EVM_ADDR }
-  const secrets = loadChainSecrets(env)
-  assert.equal(secrets.get('eip155:8453')?.disputeAdmin, EVM_ADDR)
-})
-
-test('dispute_admin authority: optional — absent leaves it undefined, no error', () => {
-  const secrets = loadChainSecrets(solanaDevnetEnv())
-  assert.equal(secrets.get('solana:devnet')?.disputeAdmin, undefined)
-  assert.equal(secrets.get('eip155:8453')?.disputeAdmin, undefined) // unconfigured chain
-})
-
-test('dispute_admin authority: a malformed value is a boot error naming the key', () => {
-  // An EVM address in the Solana slot fails base58 validation.
-  const env = { ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_DISPUTE_ADMIN_ADDR: EVM_ADDR }
-  assert.throws(() => loadChainSecrets(env), /malformed value\(s\) for CHAIN_SOLANA_DEVNET_DISPUTE_ADMIN_ADDR/)
 })

@@ -105,6 +105,15 @@ test('non-ok with a non-JSON body falls back to API_ERROR + generic message', as
   expect((err as ApiError).message).toBe('Request failed: 500')
 })
 
+test('a transport failure identifies the unreachable API instead of looking like an OTP failure', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+  await expect(api.post('/v1/auth/admin/send-email-otp', { email: 'admin@tenda.app' })).rejects.toMatchObject({
+    status: 0,
+    code: 'NETWORK_ERROR',
+    message: `Cannot reach the Tenda API at ${BASE}. Check that the server is running.`,
+  })
+})
+
 test('401 on a non-auth route clears the session and bounces to /login', async () => {
   setSession('jwt-old', { id: 'u1', role: 'super_admin', first_name: 'A', last_name: 'B' })
   mockFetch(respond(401, {}))

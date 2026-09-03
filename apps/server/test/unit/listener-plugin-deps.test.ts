@@ -3,7 +3,7 @@
  * `fastify.queue` at registration time, so the queue plugin MUST decorate it
  * first. @fastify/autoload topologically sorts by fastify-plugin `dependencies`;
  * if 'queue' is dropped from that list autoload falls back to directory order
- * (listeners.ts sorts before queue.ts) and the poller grabs an undefined queue,
+ * (listeners.ts sorts before queue/) and the poller grabs an undefined queue,
  * crashing every tick with "Cannot read properties of undefined (reading
  * 'enqueue')". This test guards that exact regression.
  */

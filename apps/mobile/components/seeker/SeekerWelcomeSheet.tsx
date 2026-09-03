@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import { Cpu, Zap, Tag } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
 import { BottomSheet, Text, Button, Spacer } from '@/components/ui'
+import { useUnistyles } from 'react-native-unistyles'
 
-const STORAGE_KEY = 'seeker_welcome_shown'
-const GOLD = '#d97706'
-const GOLD_TINT = '#fffbeb'
+const SEEKER_WELCOME_STORAGE_KEY = 'seeker_welcome_shown'
 
 const PERKS = [
   { Icon: Tag,  text: 'Reduced platform fees on all gigs' },
@@ -20,24 +19,45 @@ interface SeekerWelcomeSheetProps {
 }
 
 export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
+  const { theme } = useUnistyles()
   const [visible, setVisible] = useState(false)
+  const dismissalInFlight = useRef(false)
 
   useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY).then((shown: string | null) => {
-      if (!shown) setVisible(true)
-    })
+    let mounted = true
+    SecureStore.getItemAsync(SEEKER_WELCOME_STORAGE_KEY)
+      .then((shown: string | null) => {
+        if (mounted && !shown) setVisible(true)
+      })
+      .catch(() => {
+        if (mounted) setVisible(true)
+      })
+    return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    if (!visible) dismissalInFlight.current = false
+  }, [visible])
+
   async function handleDismiss() {
-    await SecureStore.setItemAsync(STORAGE_KEY, '1')
+    if (dismissalInFlight.current) return
+    dismissalInFlight.current = true
+    try {
+      await SecureStore.setItemAsync(SEEKER_WELCOME_STORAGE_KEY, '1')
+    } catch {
+      // Persistence is best-effort; a storage failure must not trap the user.
+    }
     setVisible(false)
     onDismiss()
   }
 
   return (
     <BottomSheet visible={visible} onClose={handleDismiss} title="Welcome, Seeker!">
-      <View style={s.iconCircle}>
-        <Cpu size={32} color={GOLD} />
+      <View style={[s.iconCircle, {
+        backgroundColor: theme.colors.accent.primarySurface,
+        borderColor: theme.colors.accent.primaryBorder,
+      }]}>
+        <Cpu size={32} color={theme.colors.accent.primary} />
       </View>
       <Spacer size={spacing.sm} />
       <Text variant="body" align="center" style={s.subtitle}>
@@ -47,8 +67,8 @@ export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
       <View style={s.perks}>
         {PERKS.map(({ Icon, text }) => (
           <View key={text} style={s.perkRow}>
-            <View style={s.perkIcon}>
-              <Icon size={16} color={GOLD} />
+            <View style={[s.perkIcon, { backgroundColor: theme.colors.accent.primarySurface }]}>
+              <Icon size={16} color={theme.colors.accent.primary} />
             </View>
             <Text variant="body">{text}</Text>
           </View>
@@ -67,9 +87,7 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: GOLD_TINT,
     borderWidth: 1.5,
-    borderColor: GOLD,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -89,7 +107,6 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: GOLD_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },

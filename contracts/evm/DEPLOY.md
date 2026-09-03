@@ -1,35 +1,31 @@
-# TendaEscrow — EVM deploy runbook (BASE / CELO)
+# TendaEscrow — EVM deploy runbook
 
-Status: **deployed on Base Sepolia (2026-07-03, dress-rehearsal #124)** —
-`TendaEscrow` at `0xf1dedfff3fa2cb6cf157096204219a879e734fdc` on eip155:84532
-(record: `broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on
-Basescan yet). `cast call` sanity green, `CHAIN_EIP155_84532_*` env + registry
-seed wired in dev, server adapter verified against the live RPC. **Mainnet:
-never deployed** — the steps below remain the mainnet runbook; §0 externals
-(Safe, audit, Alchemy, paymaster) are still open.
+One runbook for every EVM chain: the worked example below is BASE
+(eip155:8453); § 8 covers per-chain deltas. Deployment records live in
+`broadcast/Deploy.s.sol/<chainid>/` (commit-worthy — `run-latest.json` is the
+current deployment, the timestamped siblings are the history).
 
-This runbook covers BASE (eip155:8453). CELO (eip155:42220) is identical — swap the
-`BASE_` prefixes for `CELO_` and the chain-specific addresses.
+> Always dress-rehearse on the chain's testnet first (e.g. Base Sepolia,
+> eip155:84532): same steps, throwaway addresses, faucet gas.
 
 ---
 
-## 0. Prerequisites (the open #47 / #49 external work — do these FIRST)
+## 0. Prerequisites (mainnet-gating external work)
 
-These are gating and **not yet done**. The deploy cannot be trusted-for-production
-until they are:
+A mainnet deploy cannot be trusted-for-production until these exist:
 
 | Item | Produces | Needed for |
 |---|---|---|
-| **Safe 3-of-5 multisig on BASE** | the Safe address | `TENDA_ADMIN` + `TENDA_TREASURY` (constructor) and `CHAIN_EIP155_8453_TREASURY_ADDR` (server) |
+| **Safe 3-of-5 multisig** on the target chain | the Safe address | `TENDA_ADMIN` + `TENDA_TREASURY` (constructor) and `CHAIN_<ID>_TREASURY_ADDR` (server) |
 | **Dispute-authority key** (ops key at launch, can migrate to its own Safe) | `TENDA_DISPUTE_ADMIN` | constructor |
-| **Alchemy account** (BASE app) | `CHAIN_EIP155_8453_RPC_URL`, `CHAIN_EIP155_8453_WEBHOOK_SECRET` | server adapter + event ingest |
-| **Coinbase paymaster** (BASE) | `CHAIN_EIP155_8453_PAYMASTER_URL` | gasless UserOps (mobile #46) |
+| **RPC provider account** (e.g. Alchemy) | `CHAIN_<ID>_RPC_URL` (+ optional webhook secret) | server adapter (+ optional push event ingest, § 6) |
 | **Solidity audit** | sign-off | mainnet only |
-| **Deployer EOA** funded with ETH on BASE | `DEPLOYER_KEY` | broadcasting the deploy tx |
-| **Basescan API key** | `--etherscan-api-key` | source verification |
+| **Deployer EOA** funded with the chain's gas token | `DEPLOYER_KEY` | broadcasting the deploy tx |
+| **Explorer API key** (Basescan etc.) | `--etherscan-api-key` | source verification |
 
-> Do a full dress rehearsal on **Base Sepolia (eip155:84532)** before mainnet. Same
-> steps, throwaway addresses, free testnet ETH from a faucet.
+Gasless UserOps (paymaster) are **not** a prerequisite — that path is
+currently on hold (EOA-as-4337-sender limitation), and without
+`CHAIN_<ID>_PAYMASTER_URL` users simply pay their own gas.
 
 ---
 
@@ -37,9 +33,9 @@ until they are:
 
 ```bash
 cd contracts/evm
-forge build          # must compile (solc 0.8.35, via_ir)
-forge test           # all tests green (50 at last rehearsal, incl. permit paths)
-forge fmt --check     # style gate
+forge build          # must compile (solc pinned in foundry.toml, via_ir)
+forge test           # all tests green, incl. permit paths + invariant suite
+forge fmt --check    # style gate
 ```
 
 ---
@@ -69,14 +65,12 @@ The deploy script (`script/Deploy.s.sol`) reads these from the environment:
 > `_validateGracePeriod`). They are also mutable post-deploy via the admin (Safe)
 > setters, so getting them exactly right at deploy time is not critical.
 
-**Token addresses (for step 5, not the constructor — the contract is asset-agnostic):**
+**Token addresses (for step 5, not the constructor — the contract is
+asset-agnostic):** stablecoin addresses are manifest constants in
+`packages/shared/src/chains/manifest.ts`.
 
-| Network | USDC (`BASE_USDC_ADDR`) |
-|---|---|
-| BASE mainnet (8453) | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
-| Base Sepolia (84532) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-
-> ⚠️ Verify both against Circle's official docs before use — a wrong token address
+> ⚠️ Verify token addresses against the issuer's official docs (e.g. Circle's
+> USDC address list) before adding a manifest entry — a wrong token address
 > silently routes funds to the wrong contract.
 
 ---
@@ -99,9 +93,9 @@ forge script script/Deploy.s.sol:Deploy \
 ```
 
 The script logs `TendaEscrow deployed: 0x...` — **that address is
-`CHAIN_EIP155_8453_ESCROW_ADDR`.**
-Foundry also writes `broadcast/Deploy.s.sol/8453/run-latest.json` (commit-worthy
-deployment record) and the verified source on Basescan.
+`CHAIN_<ID>_ESCROW_ADDR`** (for BASE: `CHAIN_EIP155_8453_ESCROW_ADDR`).
+Foundry also writes `broadcast/Deploy.s.sol/<chainid>/run-latest.json`
+(commit it) and, with `--verify`, the verified source on the explorer.
 
 > The deployer EOA only constructs the contract; it holds **no** privileged role
 > afterward. All authority sits with `TENDA_ADMIN` (the Safe) and
@@ -112,34 +106,61 @@ deployment record) and the verified source on Basescan.
 ## 4. Post-deploy sanity checks (read-only)
 
 ```bash
-cast call $BASE_ESCROW_ADDR "admin()(address)"        --rpc-url $BASE_RPC_URL  # == Safe
-cast call $BASE_ESCROW_ADDR "disputeAdmin()(address)" --rpc-url $BASE_RPC_URL
-cast call $BASE_ESCROW_ADDR "treasury()(address)"     --rpc-url $BASE_RPC_URL
-cast call $BASE_ESCROW_ADDR "feeBps()(uint16)"        --rpc-url $BASE_RPC_URL  # 250
+cast call $ESCROW_ADDR "admin()(address)"        --rpc-url $RPC_URL  # == Safe
+cast call $ESCROW_ADDR "disputeAdmin()(address)" --rpc-url $RPC_URL
+cast call $ESCROW_ADDR "treasury()(address)"     --rpc-url $RPC_URL
+cast call $ESCROW_ADDR "feeBps()(uint16)"        --rpc-url $RPC_URL  # 250
 ```
+
+---
+
+### 4.1 Allow-list the permit relayer (only if the x402 relayer is live)
+
+`createEscrowForWithPermit` refuses every caller the admin has not listed —
+a permit binds an allowance, not the draft's terms, so only Tenda's relayer may
+spend one (design: `docs/agent_escrow_funding_evm.md`). From the admin (Safe):
+
+```bash
+cast send $ESCROW_ADDR "setRelayer(address,bool)" $RELAYER_HOT_WALLET true --rpc-url $RPC_URL
+cast call $ESCROW_ADDR "relayers(address)(bool)" $RELAYER_HOT_WALLET --rpc-url $RPC_URL   # → true
+```
+
+The EIP-3009 path (`createEscrowFor`) needs no listing — its nonce binds every
+term, so anyone, including the signer, may relay it.
 
 ---
 
 ## 5. Wire the server (`apps/server/.env`)
 
 Chain secrets are flat env vars keyed by CAIP-2 id — `CHAIN_<SANITISED_ID>_<FIELD>`,
-loaded and validated by `apps/server/src/chains/secrets.ts`. Activation rule:
-**none set → chain inactive (silently skipped); all three required set → active;
+loaded and validated by `apps/server/src/chains/secrets/`. Activation rule:
+**none set → chain inactive (silently skipped); all required set → active;
 some-but-not-all, or any malformed value → boot error naming the exact key.**
 At most one chain per family may be active (BASE mainnet XOR Base Sepolia).
 
 ```dotenv
 # required (all three, or partial-config boot error)
 CHAIN_EIP155_8453_RPC_URL=https://base-mainnet.g.alchemy.com/v2/<key>
-CHAIN_EIP155_8453_ESCROW_ADDR=0x...     # from step 3 deploy output
-CHAIN_EIP155_8453_TREASURY_ADDR=0x...   # the Safe (treasury_address in the chain row)
+CHAIN_EIP155_8453_ESCROW_ADDR=0x...          # from step 3 deploy output
+CHAIN_EIP155_8453_TREASURY_ADDR=0x...        # the Safe (treasury_address in the chain row)
 # optional
-CHAIN_EIP155_8453_PAYMASTER_URL=https://...   # unset = no gasless UserOps (users pay gas)
-CHAIN_EIP155_8453_WEBHOOK_SECRET=...          # HMAC signing key from the Alchemy webhook
+CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK=...    # exact listener start (recommended; from step 3 record)
+CHAIN_EIP155_8453_DISPUTE_ADMIN_ADDR=0x...   # enables the admin-sign pre-flight check
+CHAIN_EIP155_8453_RPC_URL_FALLBACK=https://... # secondary RPC, failover on primary errors
+CHAIN_EIP155_8453_PAYMASTER_URL=https://...  # unset = no gasless UserOps (users pay gas)
+CHAIN_EIP155_8453_WEBHOOK_SECRET=...         # HMAC key, only if using the § 6 webhook
+CHAIN_EIP155_8453_RELAYER_KEY=0x...          # x402 relayer hot wallet (#18); unset = RELAY_UNAVAILABLE
 ```
 
-USDC is **not** an env var — the token address is a manifest constant
-(`packages/shared/src/chains/manifest.ts`, `USDC_BASE`), seeded from there.
+**The relayer hot wallet (#18)** is a plain EOA that sends `createEscrowFor`
+and pays its gas — a gas float, never escrow funds (the contract pulls those
+from the creator by signature). Fund it with native gas on this chain, monitor
+its balance like the Solana gas-seed wallet, and rotate by replacing the key
+and re-funding; nothing on-chain references it on the EIP-3009 path. Design +
+operations: `docs/agent_escrow_funding_relayer.md`.
+
+Token addresses are **not** env vars — they are manifest constants
+(`packages/shared/src/chains/manifest.ts`), seeded from there.
 
 **EIP-2612 permit capability is also manifest config** — the asset's
 `permit: { version }` entry (Circle FiatToken = version `"2"`). When set, the
@@ -154,45 +175,42 @@ cast call $USDC_ADDR "version()(string)"           --rpc-url $RPC  # must equal 
 ```
 
 (The domain `name` and per-owner `nonces` are read live by the server on every
-permit-payload request — only the `version` is declared config.)
+permit-payload request — only the `version` is declared config.) The server
+re-checks the domain at runtime on every permit-payload request; a mismatch
+degrades to `PERMIT_UNAVAILABLE` and clients fall back to approve — so a wrong
+manifest entry is a lost optimisation, never stuck funds.
 
-The server re-checks this at runtime on every permit-payload request
-(reconstructed domain hash vs the token's live `DOMAIN_SEPARATOR()`); a
-mismatch degrades to `PERMIT_UNAVAILABLE` and clients fall back to approve —
-so a wrong manifest entry is a lost optimisation, never stuck funds.
-
-Then seed the chain + asset registry rows (USDC_BASE + ETH_BASE):
+Then seed the chain + asset registry rows:
 
 ```bash
 cd apps/server
-pnpm db:seed           # idempotent (src/db/seed-v2.ts); inserts eip155:8453 chain row + assets
+pnpm db:seed           # idempotent (src/db/seed-v2.ts); inserts the chain row + assets
 ```
 
-Restart the server. On boot the registry now mounts the BASE adapter.
+Restart the server. On boot the registry mounts the chain's adapter.
 
 ---
 
-## 6. Event ingestion — Alchemy webhook
+## 6. Event ingestion
 
-Create an Alchemy **Custom Webhook** (or Address Activity) on the BASE app pointed at:
+The `eth_getLogs` polling listener is the default event path and needs no
+external service — its first run starts at `ESCROW_DEPLOY_BLOCK` (unset, it
+falls back to a bounded recency window and warns at boot); the client-ping
+(`POST /v1/blockchain/transaction`) + BullMQ verify-tx job is the per-tx pull
+path. Optionally, on providers that support it (Alchemy), add a push webhook:
 
-```
-POST https://<server-host>/v1/webhooks/alchemy
-```
-
-- Watch address: the deployed escrow (`CHAIN_EIP155_8453_ESCROW_ADDR`).
-- The signing key Alchemy generates is `CHAIN_EIP155_8453_WEBHOOK_SECRET`; the route
-  verifies the HMAC (`src/core/webhooks/verify-hmac.ts`) and drops unsigned/mismatched
-  calls.
-- This is the push path that confirms on-chain escrow events; the client-ping
-  (`POST /v1/blockchain/transaction`) + BullMQ verify-tx job is the pull fallback.
+- Custom Webhook (or Address Activity) → `POST https://<server-host>/v1/webhooks/alchemy`
+- Watch address: the deployed escrow (`CHAIN_<ID>_ESCROW_ADDR`).
+- The signing key the provider generates is `CHAIN_<ID>_WEBHOOK_SECRET`; the
+  route verifies the HMAC (`src/core/webhooks/verify-hmac.ts`) and drops
+  unsigned/mismatched calls.
 
 ---
 
 ## 7. End-to-end smoke (testnet first)
 
-1. Mobile: pick BASE as the chain in gig-create, fund a test wallet with Sepolia
-   USDC + ETH.
+1. Mobile: pick the chain in gig-create, fund a test wallet with the chain's
+   testnet stablecoin + gas token.
 2. Create → accept → submit → approve → claim a full escrow lifecycle.
 3. Confirm each transition emits the expected event (`EscrowCreated`,
    `EscrowAccepted`, `ProofSubmitted`, `EscrowApproved`, `PaymentClaimed`) and that
@@ -205,20 +223,26 @@ POST https://<server-host>/v1/webhooks/alchemy
 
 ---
 
-## 8. CELO (eip155:42220) — deltas only
+## 8. Per-chain deltas
 
-Same flow, with: `CHAIN_EIP155_42220_RPC_URL`, `CHAIN_EIP155_42220_ESCROW_ADDR`,
-`CHAIN_EIP155_42220_TREASURY_ADDR`. CELO uses `feeCurrency=cUSD` on every tx (no
-paymaster, no UserOp counter — token addresses are canonical mainnet constants in
-the shared `CHAIN_MANIFEST`). Confirmation margin is shorter. No
-`CHAIN_EIP155_42220_PAYMASTER_URL` needed.
+Same flow for every EVM chain — swap the `CHAIN_<ID>_*` prefix and the
+chain-specific addresses; gas handling comes from the manifest's `gasPolicy`:
+
+- **CELO (eip155:42220):** gas paid in a stablecoin via `feeCurrency` on every
+  tx (no paymaster, no UserOps, no `PAYMASTER_URL` — the fee-currency adapter
+  address is a manifest constant, like the confirmation margin).
+- **New chains:** one manifest entry (id, RPC/explorer, gasPolicy, assets) +
+  the env block in § 5 — no server code. Redeploys on an existing chain are
+  one `CHAIN_<ID>_ESCROW_ADDR` change: `db:seed` appends the new contract to
+  `chain_contracts`, and in-flight escrows keep transacting against the
+  contract that holds their funds.
 
 ---
 
 ## Rollback / kill-switch
 
-There is no contract-level pause. To take EVM offline operationally, unset **all**
-`CHAIN_EIP155_8453_*` vars (a partial unset is a boot error) and restart the server —
-the adapter stops registering and `eip155:8453` requests fail closed with
-`no adapter registered for chain_id 'eip155:8453'`. Funds already in escrows remain
-claimable directly on-chain via the Safe.
+There is no contract-level pause. To take a chain offline operationally, unset
+**all** its `CHAIN_<ID>_*` vars (a partial unset is a boot error) and restart
+the server — the adapter stops registering and requests for that chain fail
+closed with `no adapter registered for chain_id '<id>'`. Funds already in
+escrows remain claimable directly on-chain via the Safe.

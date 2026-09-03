@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { DisputeSummary } from '@tenda/shared'
+import { displayName, type DisputeSummary } from '@tenda/shared'
 import {
   Table,
   TableBody,
@@ -10,8 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { ClaimActions } from './claim-actions'
+import { AssigneeBadge } from './assignee-badge'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 interface DisputeTableProps {
   disputes: DisputeSummary[]
@@ -20,7 +21,7 @@ interface DisputeTableProps {
 }
 
 function when(iso: string | null): string {
-  return iso === null ? '—' : new Date(iso).toLocaleString()
+  return iso === null ? '—' : formatAdminDateTime(iso)
 }
 
 export function DisputeTable({ disputes, meId, onChanged }: DisputeTableProps) {
@@ -52,19 +53,11 @@ export function DisputeTable({ disputes, meId, onChanged }: DisputeTableProps) {
               </TableCell>
               <TableCell className="capitalize">{d.kind}</TableCell>
               <TableCell>
-                {d.raised_by_first_name ?? ''} {d.raised_by_last_name ?? ''}
+                {displayName(d.raised_by_first_name, d.raised_by_last_name, d.raised_by_id)}
               </TableCell>
               <TableCell>{when(d.raised_at)}</TableCell>
               <TableCell>
-                {resolved ? (
-                  <Badge variant="default">resolved · {d.winner}</Badge>
-                ) : d.assigned_to_id === null ? (
-                  <Badge variant="outline">unclaimed</Badge>
-                ) : d.assigned_to_id === meId ? (
-                  <Badge>mine</Badge>
-                ) : (
-                  <Badge variant="secondary">claimed</Badge>
-                )}
+                <AssigneeBadge dispute={d} meId={meId} />
               </TableCell>
               <TableCell className="text-right">
                 <ClaimActions

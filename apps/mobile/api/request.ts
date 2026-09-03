@@ -3,28 +3,29 @@
  * timeout via AbortController, and the ApiError envelope → ApiClientError
  * mapping. Endpoint groups live in ./client.
  */
-import { apiConfig, type ApiError } from '@tenda/shared'
+// `QueryParams` is SHARED, not redeclared here: it is the constraint every
+// `*Query` type in @tenda/shared is compile-checked against (see
+// assertQueryShape), and a second local copy could drift from the one the
+// server's types actually satisfy — which is how the `as Record<string,
+// unknown>` casts got in.
+import { apiConfig, ApiClientError, type ApiError, type QueryParams } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
-export class ApiClientError extends Error {
-  constructor(
-    public statusCode: number,
-    public error: string,
-    message: string,
-    /** Machine-readable ErrorCode from the API envelope. */
-    public code?: string,
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
-  }
+
+const REQUEST_TIMEOUT_MESSAGE =
+  'The server is taking longer than expected. Please check whether the action completed before retrying.'
+
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null &&
+    'name' in error && error.name === 'AbortError'
 }
 
 function buildUrl(
   base: string,
   path: string,
   params?: Record<string, string>,
-  query?: Record<string, unknown>,
+  query?: QueryParams,
 ): string {
   let url = `${base}${path}`
 
@@ -54,7 +55,7 @@ export async function request<TResponse>(
   options?: {
     params?: Record<string, string>
     body?: unknown
-    query?: Record<string, unknown>
+    query?: QueryParams
     /**
      * false → force an anonymous call: no Authorization header even when a JWT
      * is stored. Sign-in surfaces need this, the server treats a present
@@ -62,6 +63,14 @@ export async function request<TResponse>(
      * stale one, which would poison every retry until storage is cleared.
      */
     auth?: boolean
+    /**
+     * Per-request timeout override (ms). Defaults to `apiConfig[env].timeout`.
+     * Endpoints that synchronously run the moderation LLM (gig create,
+     * moderation preview) need a budget above the server's worst-case LLM
+     * latency — the global dev 5s default aborts mid-moderation, surfacing as
+     * a raw "Aborted" before the wallet ever opens.
+     */
+    timeout?: number
   },
 ): Promise<TResponse> {
   const env = getEnv()
@@ -79,7 +88,11 @@ export async function request<TResponse>(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), config.timeout)
+  let deadlineExpired = false
+  const timeoutId = setTimeout(() => {
+    deadlineExpired = true
+    controller.abort()
+  }, options?.timeout ?? config.timeout)
 
   try {
     const response = await fetch(url, {
@@ -91,10 +104,28 @@ export async function request<TResponse>(
 
     if (!response.ok) {
       const error: ApiError = await response.json()
-      throw new ApiClientError(error.statusCode, error.error, error.message, error.code)
+      // `details` rides through. The server sends it (http-errors serializes
+      // it whenever an AppError carries one) and the SHARED `ApiClientError`
+      // declares it, so dropping it here was this transport quietly discarding
+      // contract data that web's transport keeps. What reads it today is
+      // `requiredWalletOf` — the ESCROW_WRONG_WALLET `required_address` that
+      // names the wallet an escrow is bound to; a refusal without it is a
+      // message the reader cannot act on.
+      throw new ApiClientError(
+        error.statusCode,
+        error.error,
+        error.message,
+        error.code,
+        error.details,
+      )
     }
 
     return (await response.json()) as TResponse
+  } catch (error) {
+    if (deadlineExpired && isAbortError(error)) {
+      throw new ApiClientError(408, 'Request Timeout', REQUEST_TIMEOUT_MESSAGE, 'REQUEST_TIMEOUT')
+    }
+    throw error
   } finally {
     clearTimeout(timeoutId)
   }

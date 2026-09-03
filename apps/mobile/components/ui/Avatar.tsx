@@ -5,14 +5,15 @@ import { Text } from './Text'
 
 type Size = 'sm' | 'md' | 'lg' | 'xl'
 type Tone = 'default' | 'brand' | 'accent' | 'ok'
-type Gradient = 'accent' | 'brand'
+/** Exported: it doubles as a theme-colour key (`theme.colors[g].primary`). */
+export type AvatarGradient = 'accent' | 'brand'
 
 interface AvatarProps {
   src?: string | null
   name?: string
   size?: Size
   tone?: Tone
-  gradient?: Gradient
+  gradient?: AvatarGradient
   ring?: 'seeker'
   unreadDot?: boolean
 }
@@ -45,7 +46,7 @@ export function Avatar({
   let initialColor: string
 
   if (isLarge) {
-    const grad: Gradient = gradient ?? 'accent'
+    const grad: AvatarGradient = gradient ?? 'accent'
     backgroundColor = grad === 'brand' ? theme.colors.brand.primary : theme.colors.accent.primary
     initialColor = '#FFFFFF'
   } else {
@@ -138,7 +139,7 @@ export function Avatar({
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: theme.colors.brand.primary,
+              backgroundColor: theme.colors.brand.solid,
             }}
           />
         </View>

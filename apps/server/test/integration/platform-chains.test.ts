@@ -14,6 +14,9 @@ import {
   TEST_ASSET,
   TEST_NATIVE_ASSET,
   useTestApp,
+  FAKE_SOLANA_PROGRAM,
+  FAKE_EVM_ESCROW,
+  TEST_CHAIN_ID_ALT,
 } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
@@ -31,9 +34,9 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     data[0].assets.map((a: { id: string }) => a.id).sort(),
     [TEST_NATIVE_ASSET, TEST_ASSET].sort(),
   )
-  // escrow_address serves the seeded escrow program/contract — the client-side
-  // approve/permit spender.
-  assert.strictEqual(data[0].escrow_address, process.env.SOLANA_PROGRAM_ID ?? '')
+  // escrow_address is the client-side approve/permit spender, sourced from the
+  // ADAPTER (see the drift test below).
+  assert.strictEqual(data[0].escrow_address, FAKE_SOLANA_PROGRAM)
   const usdc = data[0].assets.find((a: { id: string }) => a.id === TEST_ASSET)
   // token_address is the single source the mobile balance reader consumes.
   assert.deepStrictEqual(usdc, {
@@ -53,15 +56,18 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
 
 test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip }, async () => {
   const app = getApp()
-  const EVM_CHAIN = 'eip155:84532'
-  const EVM_ESCROW = `0x${'f1'.repeat(20)}`
+  // The alt chain is the one the fake registry has an EVM adapter for — the
+  // route omits any chain it cannot transact on, so an arbitrary EVM id here
+  // would drop out of the response entirely.
+  const EVM_CHAIN = TEST_CHAIN_ID_ALT
   await app.db.insert(chains).values({
     id: EVM_CHAIN,
     namespace: 'eip155',
     display_name: 'Base Sepolia',
     min_confirmations: 5,
     treasury_address: `0x${'aa'.repeat(20)}`,
-    escrow_program: EVM_ESCROW,
+    // Deliberately NOT the adapter's address: the column is not the source.
+    escrow_program: `0x${'ab'.repeat(20)}`,
     is_enabled: true,
   })
   await app.db.insert(assets).values({
@@ -77,7 +83,7 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
     const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
     const evm = res.json().data.find((c: { id: string }) => c.id === EVM_CHAIN)
     assert.ok(evm, 'EVM chain should be served')
-    assert.strictEqual(evm.escrow_address, EVM_ESCROW)
+    assert.strictEqual(evm.escrow_address, FAKE_EVM_ESCROW)
     const usdc = evm.assets.find((a: { id: string }) => a.id === 'USDC_BASE')
     // Manifest declares permit v2 for USDC_BASE → capability true on the wire.
     assert.strictEqual(usdc.supports_permit, true)
@@ -99,4 +105,59 @@ test('platform/chains: disabled assets and chains drop out', { skip }, async () 
   await app.db.update(chains).set({ is_enabled: false }).where(eq(chains.id, TEST_CHAIN_ID))
   const none = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
   assert.deepStrictEqual(none.json().data, [])
+})
+
+test('platform/chains: escrow_address comes from the ADAPTER, not the stale DB column', { skip }, async () => {
+  // The bug this closes (2026-07-27): `chains.escrow_program` is written only
+  // by `db:seed`, so after a contract redeploy it sat two generations behind on
+  // both EVM testnets — and it was what this route served. The server never
+  // reads that column, so nothing failed server-side while mobile was handed a
+  // dead address and signed transactions against a contract that no longer
+  // existed.
+  const app = getApp()
+  const rows = await app.db
+    .select({ escrow_program: chains.escrow_program })
+    .from(chains)
+    .where(eq(chains.id, TEST_CHAIN_ID))
+  const original = rows[0]?.escrow_program ?? ''
+
+  await app.db
+    .update(chains)
+    .set({ escrow_program: 'StaleProgram1111111111111111111111111111111' })
+    .where(eq(chains.id, TEST_CHAIN_ID))
+  try {
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    const chain = res.json().data.find((c: { id: string }) => c.id === TEST_CHAIN_ID)
+    assert.strictEqual(
+      chain.escrow_address,
+      FAKE_SOLANA_PROGRAM,
+      'must serve the adapter address even when the seeded column disagrees',
+    )
+    assert.notStrictEqual(chain.escrow_address, 'StaleProgram1111111111111111111111111111111')
+  } finally {
+    await app.db.update(chains).set({ escrow_program: original }).where(eq(chains.id, TEST_CHAIN_ID))
+  }
+})
+
+test('platform/chains: a chain with no adapter is omitted, not advertised', { skip }, async () => {
+  // An enabled row the server cannot transact on is a dead end for the client:
+  // every create/accept against it would fail "no adapter registered".
+  const app = getApp()
+  const ORPHAN = 'solana:mainnet'
+  await app.db.insert(chains).values({
+    id: ORPHAN,
+    namespace: 'solana',
+    display_name: 'Solana Mainnet',
+    min_confirmations: 32,
+    treasury_address: 'Cb34YD7SrANtCMy4t8Aqz6rYFdDmWPEKGe725sTdJEQZ',
+    escrow_program: '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes',
+    is_enabled: true,
+  })
+  try {
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    const ids = res.json().data.map((c: { id: string }) => c.id)
+    assert.ok(!ids.includes(ORPHAN), `unconfigured chain must not be served, got ${ids.join(',')}`)
+  } finally {
+    await app.db.delete(chains).where(eq(chains.id, ORPHAN))
+  }
 })

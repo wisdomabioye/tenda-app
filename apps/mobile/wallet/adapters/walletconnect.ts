@@ -16,14 +16,15 @@
  */
 import { Buffer } from 'buffer'
 import { Linking } from 'react-native'
-import { WalletError } from '@/wallet/errors'
-import { connectThenSign } from './connect-then-sign'
+import { WalletError } from '@tenda/shared'
+import { connectThenSign, isUserRejection } from '@tenda/shared'
+import { guardWalletRequest } from '@tenda/shared'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
 import { reownConfigured } from '../reown/config'
-import { EVM_NETWORKS } from '../reown/networks'
 import { WALLET_CHAINS } from '../config'
-import type { SignMessageResult, SpikeAccount } from '../types'
-import type { AuthenticateResult, WalletAdapter } from './types'
+import type { SignMessageResult, WalletAccount } from '@tenda/shared'
+import type { AuthenticateResult } from '@tenda/shared'
+import type { WalletAdapter } from './types'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
 function asScope(chainId: string | undefined): string {
@@ -41,6 +42,14 @@ function requireProvider(): EvmRequestProvider {
 
 function hexMessage(message: string): string {
   return '0x' + Buffer.from(message, 'utf8').toString('hex')
+}
+
+/**
+ * The shared guard with THIS transport's session teardown bound in — the
+ * injected-disconnect seam that let the guard itself move to @tenda/shared.
+ */
+function guardWcRequest<T>(pending: Promise<T>): Promise<T> {
+  return guardWalletRequest(pending, { disconnect: () => connectionSignal.disconnect() })
 }
 
 /**
@@ -67,22 +76,75 @@ async function foregroundConnectedWallet(): Promise<void> {
   }
 }
 
-async function connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
+/**
+ * Pin the wallet's ACTIVE chain to a request's scope (EIP-3326
+ * wallet_switchEthereumChain) before the request goes out. WC scope routing
+ * SHOULD make the wallet act on the scope's chain, but some wallets execute
+ * on whatever chain is active — and on the wrong chain our contracts don't
+ * exist, so every transaction "reverts" in the wallet's simulation. Only a
+ * KNOWN mismatch (session-reported chain ≠ scope) triggers the switch; a
+ * wallet that can't switch (chain not added / method unsupported) falls back
+ * to scope routing as before, while a user REJECTION aborts as a decline —
+ * broadcasting after a refused switch would be the wrong-chain bug on purpose.
+ */
+async function ensureSessionChain(scope: string): Promise<void> {
+  const current = connectionSignal.getAccount()?.chainId
+  if (current === undefined || current === scope) return
+  const provider = requireProvider()
+  const chainId = `0x${Number(scope.split(':')[1]).toString(16)}`
+  // The switch rides the CURRENT chain's scope — that's where the wallet is.
+  const pending = provider.request<null>(
+    { method: 'wallet_switchEthereumChain', params: [{ chainId }] },
+    current,
+  )
+  await foregroundConnectedWallet()
+  try {
+    await guardWcRequest(pending)
+  } catch (err) {
+    if (err instanceof WalletError) throw err // guard timeout / Cancel abort
+    if (isUserRejection(err)) {
+      throw new WalletError('declined', 'Network switch was declined in the wallet')
+    }
+    // 4902 (chain not added) / 4200 (unsupported method) / wallet quirks:
+    // keep the pre-pinning behaviour, the scope alone routes the request.
+  }
+}
+
+/**
+ * The one way a session request goes out: pin the chain when the request is
+ * chain-scoped, dispatch (publishes the request to the relay), THEN foreground
+ * the wallet so the prompt is waiting when it opens — don't await before
+ * opening, it won't resolve until the user acts. The await rides
+ * `guardWcRequest`, which turns a lost relay response into a typed timeout
+ * (and clears the wedged session) instead of hanging the flow forever, and
+ * gives the UI's Cancel button something to abort.
+ */
+async function requestStringOverSession(
+  args: { method: string; params: unknown[] },
+  scope: string | undefined,
+  what: string,
+): Promise<string> {
+  // BEFORE publishing the main request: a rejected switch must abort with
+  // nothing queued in the wallet, not leave a dangling wrong-chain tx prompt.
+  if (scope !== undefined) await ensureSessionChain(scope)
+  const provider = requireProvider()
+  const pending = scope === undefined ? provider.request<string>(args) : provider.request<string>(args, scope)
+  await foregroundConnectedWallet()
+  const result = await guardWcRequest(pending)
+  if (typeof result !== 'string') throw new Error(`Wallet returned a non-string ${what}`)
+  return result
+}
+
+async function connect(opts?: { fresh?: boolean }): Promise<WalletAccount> {
   return connectionSignal.connect(opts)
 }
 
-async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
-  const provider = requireProvider()
-  // Dispatch first (publishes the request to the relay), THEN foreground the
-  // wallet so the prompt is waiting when it opens. Don't await the request
-  // before opening, it won't resolve until the user signs.
-  const pending = provider.request<string>({
-    method: 'personal_sign',
-    params: [hexMessage(message), account.address],
-  })
-  await foregroundConnectedWallet()
-  const signature = await pending
-  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
+async function signMessage(account: WalletAccount, message: string): Promise<SignMessageResult> {
+  const signature = await requestStringOverSession(
+    { method: 'personal_sign', params: [hexMessage(message), account.address] },
+    undefined,
+    'signature',
+  )
   return { signature, message }
 }
 
@@ -91,7 +153,7 @@ async function disconnect(): Promise<void> {
 }
 
 function authenticate(
-  buildMessage: (account: SpikeAccount) => string,
+  buildMessage: (account: WalletAccount) => string,
   opts?: { forceFresh?: boolean },
 ): Promise<AuthenticateResult | null> {
   // Login reuses a restored session if AppKit auto-reconnected one (fast path,
@@ -102,7 +164,7 @@ function authenticate(
   return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
 }
 
-async function getRestoredAccount(): Promise<SpikeAccount | null> {
+async function getRestoredAccount(): Promise<WalletAccount | null> {
   return connectionSignal.getAccount()
 }
 
@@ -121,10 +183,7 @@ export async function sendEvmTransaction(input: {
   chainId?: string
   feeCurrency?: string
 }): Promise<string> {
-  const provider = requireProvider()
-  // Same foreground dance as signMessage, the wallet must come forward to
-  // approve the tx or the request expires unseen on the relay.
-  const pending = provider.request<string>(
+  return requestStringOverSession(
     {
       method: 'eth_sendTransaction',
       params: [
@@ -138,11 +197,8 @@ export async function sendEvmTransaction(input: {
       ],
     },
     asScope(input.chainId),
+    'tx hash',
   )
-  await foregroundConnectedWallet()
-  const hash = await pending
-  if (typeof hash !== 'string') throw new Error('Wallet returned a non-string tx hash')
-  return hash
 }
 
 /**
@@ -158,55 +214,14 @@ export async function signEvmTypedData(input: {
   /** CAIP-2 ('eip155:84532'), the scope the request is sent on. */
   chainId?: string
 }): Promise<string> {
-  const provider = requireProvider()
-  // Same foreground dance as signMessage, the wallet must come forward to
-  // show the signature prompt or the request expires unseen on the relay.
-  const pending = provider.request<string>(
+  return requestStringOverSession(
     {
       method: 'eth_signTypedData_v4',
       params: [input.from, JSON.stringify(input.typedData)],
     },
     asScope(input.chainId),
+    'signature',
   )
-  await foregroundConnectedWallet()
-  const signature = await pending
-  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
-  return signature
-}
-
-/** HTTP RPC endpoint of our primary EVM chain (Base / Base Sepolia per env). */
-function primaryRpcUrl(): string {
-  const network = EVM_NETWORKS.find((n) => n.caipNetworkId === WALLET_CHAINS.eip155)
-  const url = network?.rpcUrls.default.http[0]
-  if (url === undefined) throw new Error(`No RPC URL configured for ${WALLET_CHAINS.eip155}`)
-  return url
-}
-
-/**
- * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Queried over a
- * direct JSON-RPC `fetch` to the primary chain's public RPC, NOT the wallet
- * session, so it never wakes the wallet and works while it's backgrounded.
- * `status` is '0x1' on success, '0x0' on revert; a missing receipt = pending.
- * Queries the primary EVM scope (sufficient for the common case; a cross-chain
- * receipt would need the caller to thread the chain through).
- */
-export async function getEvmTransactionStatus(
-  tx_hash: string,
-): Promise<'confirmed' | 'failed' | 'not_found'> {
-  const response = await fetch(primaryRpcUrl(), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [tx_hash] }),
-  })
-  const body: unknown = await response.json()
-  const receipt =
-    typeof body === 'object' && body !== null && 'result' in body
-      ? (body as { result: { status?: string } | null }).result
-      : null
-  if (receipt === null) return 'not_found'
-  if (receipt.status === '0x1') return 'confirmed'
-  if (receipt.status === '0x0') return 'failed'
-  return 'not_found'
 }
 
 export const walletConnectAdapter: WalletAdapter = {

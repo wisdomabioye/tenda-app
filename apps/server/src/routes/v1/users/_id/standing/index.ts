@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
@@ -14,6 +15,10 @@ import { toPublicStanding } from '@server/features/reputation/service'
 import { drizzleReputationStore } from '@server/features/reputation/store'
 
 const route: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('user not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   fastify.get<{ Params: { id: string } }>('/', async (request) => {
     const [user] = await fastify.db
       .select({ review_score: users.review_score, created_at: users.created_at })

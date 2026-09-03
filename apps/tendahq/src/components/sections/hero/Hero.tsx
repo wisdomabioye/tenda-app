@@ -1,132 +1,61 @@
-import { Download } from 'lucide-react'
-import { SectionShell } from '@/components/ui/SectionShell'
+import { ArrowRight, Download } from 'lucide-react'
+import { WEB_APP_LINK } from '@/components/layout/nav-content'
+import { SectionShell, type LandingSectionProps } from '@/components/ui/SectionShell'
+import { Period } from '@/components/ui/SectionRule'
 import { Pill } from '@/components/ui/Pill'
 import { Button } from '@/components/ui/Button'
-import { LiveDot } from '@/components/ui/LiveDot'
-import { Placeholder } from '@/components/ui/Placeholder'
-import { HERO_CONTENT, HERO_OPEN_OFFERS_PLACEHOLDER } from './content'
+import { HERO_CONTENT } from './content'
 import { HeroStatRow } from './HeroStatRow'
-import { CurrencyMarquee } from './CurrencyMarquee'
-import { EscrowWall } from './EscrowWall'
+import { EscrowReceipt } from './EscrowReceipt'
 
 /**
- * Hero anatomy mirrors `Tenda V2/landing/sections/01-hero-final.html`:
+ * Hero anatomy — the Receipt direction:
  *
- *   - Background: dual radial gradients (brand-blue at 82%/38%, accent-orange
- *     at 8%/75%) + a 32px-spaced horizontal scanline grid for trading-desk feel.
- *   - Left column:  pills · h1 (italic accent on line 3) · ribbon copy ·
- *                   stat row · dual CTA.
- *   - Right column: 3D drifting wall of 9 escrow mini cards with featured
- *                   MockEscrowCard sitting forward at left:8/top:168.
- *   - Below shell:  full-bleed currency rate marquee.
+ *   - No background treatment. The page ground is the paper; there are no
+ *     blooms, scanlines or gradients anywhere on the page (rule 1 of the
+ *     design direction: one lit object, and this direction has none).
+ *   - Left column:  stamps · h1 ending on the blue period · ONE lede ·
+ *                   two CTAs, one of them filled.
+ *   - Right column: EscrowReceipt — one example escrow as a receipt.
+ *   - Below both:   the four ruled figures, full width.
  */
-export function Hero() {
+export function Hero({ surface }: LandingSectionProps) {
   return (
-    <>
-      <SectionShell
-        tone="dark"
-        padY="lg"
-        noReveal
-        className="overflow-hidden pt-32 md:pt-40"
-      >
-        <HeroBackground />
-
-        <div className="relative z-10 grid items-center gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
-          <div className="flex flex-col gap-8">
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill tone="neutral" size="md">
-                {HERO_CONTENT.stamps.versionLabel}
-              </Pill>
-              <Pill tone="live" size="md">
-                <LiveDot size={6} className="mr-1" />
-                <Placeholder issue={HERO_OPEN_OFFERS_PLACEHOLDER.issue}>
-                  {HERO_OPEN_OFFERS_PLACEHOLDER.value}
-                </Placeholder>
-                <span className="ml-1">offers open now</span>
-              </Pill>
-            </div>
-
-            <h1 className="h-hero text-[var(--content-primary)]">
-              {HERO_CONTENT.h1.line1}
-              <br />
-              {HERO_CONTENT.h1.line2}
-              <br />
-              <em className="not-italic text-[var(--accent)]">{HERO_CONTENT.h1.line3}</em>
-            </h1>
-
-            <div className="flex max-w-[58ch] flex-col gap-3">
-              <p className="body-lg text-[var(--content-secondary)]">
-                {HERO_CONTENT.ribbon[0]}
-              </p>
-              <span
-                aria-hidden
-                className="block h-px w-12"
-                style={{
-                  background:
-                    'linear-gradient(90deg, color-mix(in oklab, var(--accent) 56%, transparent), transparent)',
-                }}
-              />
-              <p className="body-lg font-semibold text-[var(--content-primary)]">
-                {HERO_CONTENT.ribbon[1]}
-              </p>
-            </div>
-
-            <HeroStatRow />
-
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button href="/#download" variant="primary" size="xl">
-                  <Download className="h-5 w-5" />
-                  {HERO_CONTENT.cta.primary}
-                </Button>
-                <Button href={HERO_CONTENT.cta.secondaryHref} variant="outline-subtle" size="xl">
-                  {HERO_CONTENT.cta.secondary}
-                </Button>
-              </div>
-              <a
-                href="#trust"
-                className="caption inline-flex items-center gap-2 self-start uppercase tracking-[0.16em] text-[var(--content-tertiary)] transition-colors hover:text-[var(--content-primary)]"
-              >
-                <span aria-hidden className="motion-safe:animate-bounce">↓</span>
-                Scroll · live proof below
-              </a>
-            </div>
+    <SectionShell id="top" surface={surface} padY="none" className="pb-[clamp(40px,5vw,72px)] pt-[clamp(48px,6.4vw,88px)]">
+      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-[clamp(28px,5vw,72px)]">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill>{HERO_CONTENT.stamps.versionLabel}</Pill>
+            <Pill tone="brand" dot pulse>
+              {HERO_CONTENT.stamps.liveLabel}
+            </Pill>
           </div>
 
-          <div className="relative">
-            <EscrowWall />
+          <h1 className="h-hero mt-[26px] max-w-[12ch] text-[var(--content-primary)]">
+            {HERO_CONTENT.h1}
+            <Period />
+          </h1>
+
+          <p className="body-lg mt-[22px] max-w-[58ch] text-[var(--content-secondary)]">
+            {HERO_CONTENT.lede}
+          </p>
+
+          <div className="mt-[30px] flex flex-wrap items-center gap-[11px]">
+            <Button href={WEB_APP_LINK.href} variant="primary" size="lg">
+              {WEB_APP_LINK.label}
+              <ArrowRight className="h-[17px] w-[17px]" />
+            </Button>
+            <Button href="/#download" variant="outline" size="lg">
+              <Download className="h-[17px] w-[17px]" />
+              {HERO_CONTENT.cta.secondary}
+            </Button>
           </div>
         </div>
-      </SectionShell>
 
-      <CurrencyMarquee />
-    </>
-  )
-}
+        <EscrowReceipt />
+      </div>
 
-function HeroBackground() {
-  return (
-    <>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px)',
-          backgroundSize: '100% 32px',
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            // Warmer pass: orange blob bumped 0.06 → 0.14 and pulled inward
-            // (8%/75% → 18%/65%) so the page's distinctive accent has presence
-            // alongside the brand-blue blob behind the wall.
-            'radial-gradient(circle at 78% 38%, rgba(94,135,232,0.10), transparent 55%), radial-gradient(circle at 18% 65%, rgba(240,163,101,0.14), transparent 52%)',
-        }}
-      />
-    </>
+      <HeroStatRow />
+    </SectionShell>
   )
 }

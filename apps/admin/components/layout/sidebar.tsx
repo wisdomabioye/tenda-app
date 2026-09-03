@@ -33,6 +33,10 @@ import {
 import { clearSession } from '@/lib/auth'
 import { useSessionUser } from '@/lib/use-session'
 import { visibleNav } from '@/lib/nav'
+import { DisputeQueueBadge } from './dispute-queue-badge'
+
+/** The one nav item that carries a live count. */
+const DISPUTES_HREF = '/disputes'
 
 // Icons keyed by href — lib/nav.ts stays UI-free so node:test can load it.
 const NAV_ICONS: Record<string, LucideIcon> = {
@@ -90,6 +94,13 @@ export function AppSidebar() {
                       <span>{label}</span>
                     </Link>
                   </SidebarMenuButton>
+                  {/* Rendered from inside this loop rather than beside it, so
+                      the badge only exists when `visibleNav` emitted the item
+                      — i.e. only for a role with `disputes.read`. That is what
+                      keeps the poll from firing a request the API would 403,
+                      without a second permission check to drift from the
+                      first. */}
+                  {href === DISPUTES_HREF && <DisputeQueueBadge />}
                 </SidebarMenuItem>
               )
             })}

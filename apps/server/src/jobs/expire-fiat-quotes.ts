@@ -1,8 +1,9 @@
 /**
- * Expire stale fiat quotes (stage-8 § jobs). Repeatable BullMQ job (#33):
- * quoted / awaiting_user intents past their quote validity transition to
- * 'failed'. `initiateIntent` also expires lazily on touch, this job just
- * keeps abandoned rows from lingering as open.
+ * Expire stale fiat intents (stage-8 § jobs). Repeatable BullMQ job (#33):
+ * awaiting_user intents (licensed-provider deposit instructions) past their
+ * quote validity transition to 'failed'. Pre-commit quotes are no longer
+ * Postgres rows — they expire via the Redis quote-cache TTL — so this job now
+ * only sweeps committed awaiting_user rows.
  *
  * NOTE: awaiting_user intents that expire are FAILED, not silently
  * retried, the provider re-quotes on late settlement per the stage-8
@@ -18,18 +19,18 @@ export interface ExpireFiatQuotesResult {
 
 export async function expireFiatQuotesHandler(deps: FiatDeps): Promise<ExpireFiatQuotesResult> {
   const now = deps.now()
-  const stale = await deps.store.listExpiredQuotes(now, RECONCILE_BATCH_LIMIT)
+  const stale = await deps.store.listExpiredAwaitingUser(now, RECONCILE_BATCH_LIMIT)
   let expired = 0
   for (const intent of stale) {
-    const updated = await deps.store.transition(intent.id, ['quoted', 'awaiting_user'], {
+    const updated = await deps.store.transition(intent.id, ['awaiting_user'], {
       status: 'failed',
     })
     if (updated !== null) {
       expired += 1
-      // Never-initiated quotes (no provider_ref) expire SILENTLY, every
-      // debounced amount edit on the Buy/Sell page creates one, and a
-      // delayed "failed" push for each abandoned keystroke would be noise.
-      // Only initiated intents (the user saw an instruction) notify.
+      // awaiting_user rows are always initiated (they carry a provider_ref and
+      // the user saw an instruction), so this notifies. The null-guard is pure
+      // defence now that abandoned pre-commit quotes never reach this job —
+      // they expire silently via the Redis cache TTL.
       if (updated.provider_ref !== null) {
         deps.events.failed({
           intent_id: updated.id,

@@ -1,11 +1,12 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { clampLimit } from '@server/lib/pagination'
 import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { AppError, requireBody } from '@server/lib/errors'
-import { UPLOAD_CONSTRAINTS, isValidChatAttachmentUrl } from '@server/lib/cloudinary'
+import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
 import { channelName } from '@server/lib/ws'
 import { messagePreview } from '@server/lib/chat'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
@@ -27,6 +28,10 @@ const escrowTitleSql: SQL<string | null> = sql<string | null>`CASE
 END`
 
 const messagesRoute: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Conversation not found'))
+
   /** Resolve the context-divider title + kind for one escrow id (post-insert path). */
   async function escrowContextFor(
     escrow_id: string,
@@ -134,7 +139,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: m.escrow_title ?? null,
         escrow_kind: m.escrow_kind ?? null,
         read_at: m.read_at?.toISOString() ?? null,
-        created_at: m.created_at?.toISOString() ?? null,
+        created_at: m.created_at.toISOString(),
       }))
     },
   )
@@ -154,38 +159,18 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const { content, escrow_id, attachment_url, attachment_type, attachment_size } = requireBody(request.body)
       const userId = request.user.id
 
-      // S5.2: attachment validation, all three fields together or none;
-      // URL must live under THIS conversation's sender-scoped folder so a
+      // S5.2: attachment validation, all three fields together or none; URL
+      // must live under THIS conversation's sender-scoped folder so a
       // signature minted for one conversation can't be replayed in another.
-      const attachmentFields = [attachment_url, attachment_type, attachment_size]
-      const hasAttachment = attachmentFields.some((f) => f !== undefined)
+      const attachment = validateMessageAttachment(
+        { attachment_url, attachment_type, attachment_size },
+        { type: 'chat', scopeId: id, userId },
+      )
 
       const trimmed = (content ?? '').trim()
       // Attachment-only messages carry empty content.
-      if (trimmed.length === 0 && !hasAttachment) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
-      if (trimmed.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
-      if (hasAttachment) {
-        if (attachmentFields.some((f) => f === undefined)) {
-          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'attachment_url, attachment_type and attachment_size are required together')
-        }
-        if (attachment_type !== 'image' && attachment_type !== 'file') {
-          throw new AppError(400, ErrorCode.VALIDATION_ERROR, "attachment_type must be 'image' or 'file'")
-        }
-        if (
-          typeof attachment_size !== 'number' ||
-          !Number.isInteger(attachment_size) ||
-          attachment_size <= 0 ||
-          attachment_size > UPLOAD_CONSTRAINTS.chat.max_file_bytes
-        ) {
-          throw new AppError(400, ErrorCode.VALIDATION_ERROR, `attachment_size must be 1–${UPLOAD_CONSTRAINTS.chat.max_file_bytes} bytes`)
-        }
-        if (
-          typeof attachment_url !== 'string' ||
-          !isValidChatAttachmentUrl(attachment_url, id, request.user.id)
-        ) {
-          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'attachment_url must be a Cloudinary URL in this conversation folder')
-        }
-      }
+      if (trimmed.length === 0 && attachment === null) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
+      if (trimmed.length > MESSAGE_MAX_LENGTH) throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Message content must be at most ${MESSAGE_MAX_LENGTH} characters`)
 
       // Context references must resolve, a bad id would otherwise surface
       // as an FK violation (500) instead of a client error.
@@ -233,9 +218,9 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
             sender_id: userId,
             escrow_id: escrow_id ?? null,
             content: trimmed,
-            attachment_url: attachment_url ?? null,
-            attachment_type: attachment_type ?? null,
-            attachment_size: attachment_size ?? null,
+            attachment_url: attachment?.attachment_url ?? null,
+            attachment_type: attachment?.attachment_type ?? null,
+            attachment_size: attachment?.attachment_size ?? null,
           })
           .returning()
 
@@ -255,7 +240,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           : await escrowContextFor(newMessage.escrow_id)
 
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
-      const preview = messagePreview(trimmed, hasAttachment) ?? ''
+      const preview = messagePreview(trimmed, attachment !== null) ?? ''
 
       appEvents.emit('message.sent', {
         conversationId: id,
@@ -269,21 +254,23 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: context.title,
         escrow_kind: context.kind,
         read_at: newMessage.read_at?.toISOString() ?? null,
-        created_at: newMessage.created_at?.toISOString() ?? null,
+        created_at: newMessage.created_at.toISOString(),
       }
 
       // Live fan-out to open chat screens. Reaches the sender's own socket
       // too, the client dedupes by message id against its optimistic copy.
-      fastify.wsBroadcast.broadcast(
-        channelName({ kind: 'chat', id }),
-        { type: 'message', message: serialized },
-      )
+      fastify.realtime.publish({
+        channel: channelName({ kind: 'chat', id }),
+        type: 'message',
+        message: serialized,
+      })
       // Mirror onto the recipient's user channel so the inbox / unread
       // badge updates without the conversation screen being open.
-      fastify.wsBroadcast.broadcast(
-        channelName({ kind: 'user', id: recipientId }),
-        { type: 'message', message: serialized },
-      )
+      fastify.realtime.publish({
+        channel: channelName({ kind: 'user', id: recipientId }),
+        type: 'message',
+        message: serialized,
+      })
 
       return reply.code(201).send(serialized)
     },

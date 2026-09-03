@@ -8,7 +8,7 @@ import { desc, eq, gte } from 'drizzle-orm'
 import { escrows, gig_details, featured_slots } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError, CreateFeaturedSlotBody, FeaturedSlotRow, UpdateFeaturedSlotBody } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { invalidateFeaturedCache } from '@server/lib/featured'
@@ -37,6 +37,10 @@ function assertPosition(position: number): void {
 }
 
 const adminFeatured: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('Featured slot not found'))
+
   const rowCols = {
     id: featured_slots.id,
     escrow_id: featured_slots.escrow_id,

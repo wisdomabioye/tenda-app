@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 // ============================================================================
@@ -56,6 +57,16 @@ pub const MIN_COMPLETION_DURATION_SECONDS: i64 = 3_600;
 /// Maximum completion duration (180 days). Beyond half a year, escrow is a poor
 /// fit for the workflow — use staged sub-escrows.
 pub const MAX_COMPLETION_DURATION_SECONDS: i64 = 180 * 24 * 3_600;
+
+/// Minimum `unassign_window_seconds`. A zero window is allowed: it means
+/// "assignment is final the moment it is made", a legitimate poster choice.
+pub const MIN_UNASSIGN_WINDOW_SECONDS: i64 = 0;
+
+/// Maximum `unassign_window_seconds`. 1 day — capped well below the shortest
+/// completion duration so an unassign window can never span a whole gig; past
+/// this point the creator must use the normal reclaim path rather than yanking
+/// a worker who may already be working.
+pub const MAX_UNASSIGN_WINDOW_SECONDS: i64 = 24 * 3_600;
 
 /// Minimum escrow amount (1 lamport / 1 token unit). Zero-amount escrows are
 /// always rejected because every settlement path assumes positive transfer.

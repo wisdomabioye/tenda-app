@@ -4,19 +4,16 @@ import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
-import { GigProofsGrid } from './GigProofsGrid'
-import type { ProofItem } from './ProofViewerModal'
-import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
-import { PersonCard, ReviewsSection } from '@/components/shared'
-import { DisputeReasonBlock, ReportContentLink } from '@/components/escrow'
-import { CATEGORY_META } from '@/lib/categories'
-import { computeRelevantDeadline } from '@tenda/shared'
+import { ProofRequirementsNote } from './ProofRequirementsNote'
+import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel, CATEGORY_META, computeRelevantDeadline } from '@tenda/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, DataProofList, fileProofMediaItems, type MediaItem } from '@/components/shared'
+import { DisputeReasonBlock, ReportContentLink, ChainBadge, TakedownNotice } from '@/components/escrow'
 import type { GigDetail } from '@tenda/shared'
 
 interface Props {
   gig: GigDetail
   userId: string
-  onProofPress: (proof: ProofItem) => void
+  onProofPress: (proof: MediaItem) => void
   onReport: () => void
   /** CO7: opens the shared dispute-mediation thread (parties only). */
   onOpenDisputeThread?: () => void
@@ -32,13 +29,23 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
     isCreator || userId === gig.counterparty?.id || userId === gig.assigned_counterparty_id
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const deadlineLbl = deadlineLabel(computeRelevantDeadline(gig))
+  // Media surfaces render FILE proofs only; data proofs render as their
+  // payload in DataProofList below (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(gig.proofs)
 
   return (
     <>
+      {/* Above the status pills: a takedown is the first thing about this gig
+          that anyone still able to read it needs to know. Renders nothing when
+          the gig is visible, which is why there is no condition here. */}
+      <TakedownNotice escrow={gig} subject="gig" viewerId={userId} />
+
       {/* Status + category dot-label pills */}
       <View style={s.badgeRow}>
         <Badge variant={STATUS_BADGE_VARIANT[gig.status]} label={STATUS_LABEL[gig.status]} />
         {categoryMeta && <Badge variant="brand" label={categoryMeta.label} />}
+        {/* Which network the escrow (and its payout) lives on. */}
+        <ChainBadge chainId={gig.chain_id} />
       </View>
 
       <Spacer size={spacing.sm} />
@@ -110,17 +117,26 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
         </>
       )}
 
+      {gig.proof_requirements.length > 0 && (
+        <>
+          <Divider />
+          <ProofRequirementsNote required={gig.proof_requirements} params={gig.proof_params} />
+        </>
+      )}
+
       {gig.proofs.length > 0 && (
         <>
           <Divider />
           <View style={s.sectionHead}>
             <Text style={s.sectionTitle}>Proof of work</Text>
             <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-              {gig.proofs.length} {gig.proofs.length === 1 ? 'file' : 'files'}
+              {gig.proofs.length} {gig.proofs.length === 1 ? 'proof' : 'proofs'}
             </Text>
           </View>
           <Spacer size={spacing.sm} />
-          <GigProofsGrid proofs={gig.proofs} onProofPress={onProofPress} />
+          {fileProofs.length > 0 && <ProofsGrid proofs={fileProofs} onProofPress={onProofPress} />}
+          {/* Data proofs render as their payload, below the media grid. */}
+          <DataProofList proofs={gig.proofs} />
         </>
       )}
 

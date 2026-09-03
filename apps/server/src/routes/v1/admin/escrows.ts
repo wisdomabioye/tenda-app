@@ -8,10 +8,11 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
-import { escrows, gig_details, exchange_details, users } from '@tenda/shared/db/schema'
+import { escrows, gig_details, exchange_details, users, disputes } from '@tenda/shared/db/schema'
 import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
 import type {
   AdminEscrowDossier,
+  EscrowEventFrame,
   AdminEscrowListQuery,
   AdminEscrowRow,
   ApiError,
@@ -19,13 +20,19 @@ import type {
   PaginatedResponse,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import { channelName } from '@server/lib/ws'
 import { buildEscrowDossier } from '@server/lib/escrow/dossier'
+import { publishGigFeedChange } from '@server/features/gig-feed-realtime'
 
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('Escrow not found'))
+
   const rowCols = {
     id: escrows.id,
     kind: escrows.kind,
@@ -44,6 +51,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     city: gig_details.city,
     creator_first_name: users.first_name,
     creator_last_name: users.last_name,
+    dispute_id: disputes.id,
   }
 
   function rowQuery() {
@@ -53,6 +61,8 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
       .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
       .leftJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
       .innerJoin(users, eq(users.id, escrows.creator_id))
+      // disputes.escrow_id is UNIQUE, so this never multiplies rows.
+      .leftJoin(disputes, eq(disputes.escrow_id, escrows.id))
       .$dynamic()
   }
 
@@ -119,6 +129,25 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
   })
 
   // GET /v1/admin/escrows/:id, full row for triage (incl. drafts).
+  //
+  // NO CLIENT CALLS THIS (#125). The dashboard's map declares /dossier and
+  // /hidden on this id but not the plain row, so from the outside it looks
+  // dead. Kept, on SHAPE AND COST: this returns the same row the LIST returns,
+  // for one id, in one query. /dossier returns a different, much larger object
+  // and runs seven — escrow, dispute, party users, gig details, exchange
+  // details, proofs, transactions, applicants — because it is built for
+  // mediation. Re-reading one row after a takedown toggle should not cost that.
+  //
+  // AN EARLIER DRAFT OF THIS NOTE justified it as "the dossier cannot reach a
+  // draft". That is FALSE and was corrected before landing: dossier.ts selects
+  // by id with no status filter, and the admin list does not exclude drafts
+  // either. The route's "incl. drafts" line above is still true and still worth
+  // guarding — it is just not what distinguishes this route from its sibling.
+  //
+  // Covered by test/integration/admin-uncalled-surfaces.test.ts, which exists
+  // because the sweep that first catalogued this route recorded it as "tested"
+  // when its only case was a malformed id — answered by a preHandler, never
+  // reaching this handler at all.
   fastify.get<{
     Params: { id: string }
     Reply: AdminEscrowRow | ApiError
@@ -166,6 +195,32 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
       escrowId: updated.id,
       hidden: updated.hidden,
     })
+
+    // Live-invalidate the screens already open. `useEscrowLiveRefresh` is
+    // subscribed here and refetches on ANY frame, so no client release is
+    // needed: the poster's banner appears without a refocus, and a pending
+    // invitee loses Accept before spending gas on a refusal. Fired on unhide
+    // too — a restored listing left dead on screen is the same bug reversed.
+    //
+    // It reaches PARTIES ONLY and cannot do more: `authorizeChannel` admits
+    // only parties and assignees to `escrow:<id>` (lib/ws.ts). A stranger's
+    // stale screen is re-synced by the 409 refusal instead, never by this.
+    //
+    // Empty `tx_ref` — nothing was signed, and TransactionMonitor early-returns
+    // on a falsy signature, so it can never read as a confirmation. `satisfies`
+    // because `broadcast` takes `Record<string, unknown>`, where a typo'd key
+    // would compile and then be dropped in silence by the client's guard.
+    const frame = {
+      type: 'escrow_event',
+      escrow_id: updated.id,
+      event: 'escrow.visibility_changed',
+      tx_ref: '',
+    } satisfies Omit<EscrowEventFrame, 'channel'>
+    fastify.realtime.publish({
+      channel: channelName({ kind: 'escrow', id: updated.id }),
+      ...frame,
+    })
+    await publishGigFeedChange(fastify, updated.id, updated.hidden ? 'hidden' : 'available')
 
     return updated
   })

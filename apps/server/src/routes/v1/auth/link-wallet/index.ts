@@ -26,7 +26,7 @@ import { ErrorCode } from '@tenda/shared'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 import { hasVerifiedPhone } from '@server/lib/auth/resolver'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
-import { fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
+import { fireRetroactiveGasSeed } from '@server/features/gas-seed'
 
 interface Body {
   chain_id: string

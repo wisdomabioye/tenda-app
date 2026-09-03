@@ -4,20 +4,27 @@
  * regress a settled intent.
  */
 
-import { and, eq, inArray, lt, sql } from 'drizzle-orm'
+import { and, eq, inArray, lt, ne, sql } from 'drizzle-orm'
 import { fiat_intents, bank_accounts } from '@tenda/shared/db/schema/fiat'
+import type { PayoutRailKindDb } from '@tenda/shared/db/schema/fiat'
+import { P2P_PROVIDER_ID } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
 import type { FiatIntentRow, FiatIntentStatus, FiatDirection } from './types'
 
-/** Statuses the reconcile/expiry jobs consider "open". */
+/**
+ * Statuses the reconcile/expiry jobs consider "open". Quotes are no longer a
+ * Postgres status (they live in the Redis quote cache with a native TTL), so
+ * 'quoted' is intentionally absent — the first persisted status is awaiting_*.
+ */
 export const OPEN_STATUSES: readonly FiatIntentStatus[] = [
-  'quoted',
   'awaiting_user',
   'awaiting_provider',
   'settling',
 ]
 
 export interface NewFiatIntent {
+  /** Explicit PK, reused from the quote so intent_id is stable across commit. */
+  id: string
   direction: FiatDirection
   user_id: string
   wallet_address: string
@@ -57,8 +64,12 @@ export interface FiatStore {
   transition(id: string, from: readonly FiatIntentStatus[], patch: IntentPatch): Promise<FiatIntentRow | null>
   /** Open intents older than `olderThan`, reconcile candidates. */
   listStaleOpen(olderThan: Date, limit: number): Promise<FiatIntentRow[]>
-  /** Quoted/awaiting_user intents whose quote expired before `now`. */
-  listExpiredQuotes(now: Date, limit: number): Promise<FiatIntentRow[]>
+  /**
+   * awaiting_user intents whose quote window elapsed before `now` (a licensed
+   * provider's deposit instruction going stale). Pre-commit quote expiry is
+   * now the Redis TTL's job, so this no longer scans 'quoted'.
+   */
+  listExpiredAwaitingUser(now: Date, limit: number): Promise<FiatIntentRow[]>
 }
 
 export function drizzleFiatStore(db: AppDatabase): FiatStore {
@@ -116,14 +127,21 @@ export function drizzleFiatStore(db: AppDatabase): FiatStore {
       return rows as FiatIntentRow[]
     },
 
-    async listExpiredQuotes(now, limit) {
+    async listExpiredAwaitingUser(now, limit) {
       const rows = await db
         .select()
         .from(fiat_intents)
         .where(
           and(
-            inArray(fiat_intents.status, ['quoted', 'awaiting_user']),
+            eq(fiat_intents.status, 'awaiting_user'),
             lt(fiat_intents.expires_at, now),
+            // A P2P offer, once OPENED (awaiting_user), is governed by the
+            // offer's own accept_deadline + reconcile via provider.status —
+            // NOT the 10-min quote TTL. Expiring it here fired a false
+            // "cash-out failed, quote expired" push while the published offer
+            // was still live. Only licensed-provider deposit instructions
+            // (non-p2p) expire on the quote window here.
+            ne(fiat_intents.provider, P2P_PROVIDER_ID),
           ),
         )
         .orderBy(fiat_intents.expires_at)
@@ -139,6 +157,7 @@ export interface BankAccountRow {
   id: string
   user_id: string
   country: string
+  kind: PayoutRailKindDb
   bank_code: string
   account_number: string
   account_name: string
@@ -153,6 +172,7 @@ export interface BankAccountStore {
   insert(row: {
     user_id: string
     country: string
+    kind: PayoutRailKindDb
     bank_code: string
     account_number: string
     account_name: string

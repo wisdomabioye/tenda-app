@@ -14,23 +14,26 @@
  * duplicating a signing surface it has no wallet for.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
-  partyRoleLabel,
-  displayName,
+  resolveDisputeSender,
   type DisputeMessage,
+  type DisputeSender,
   type DossierParty,
   type EscrowKind,
 } from '@tenda/shared'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ProofTile } from '@/components/disputes/dossier/proofs-gallery'
+import { formatAdminDateTime } from '@/lib/date-format'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
 import { mergeMessages, nextCursor } from '@/lib/dispute-thread'
 
-const POLL_INTERVAL_MS = 5_000
+/** Exported so tests advance timers by the real interval, never a magic number. */
+export const POLL_INTERVAL_MS = 5_000
 
 interface ThreadViewProps {
   escrowId: string
@@ -109,22 +112,15 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
 
   const canPost = !readOnly && assignedToId === meId
 
-  const partyById = useMemo(
-    () => new Map(parties.map((p) => [p.user_id, p])),
-    [parties],
-  )
-
-  // Who sent a message: me → "You"; the claiming mediator → "Mediator";
-  // otherwise the party's kind-aware role + name so a mediator can always
-  // tell the poster/worker (or maker/taker) apart in the thread.
-  function senderLabel(senderId: string): string {
-    if (senderId === meId) return 'You'
-    if (senderId === assignedToId) return 'Mediator'
-    const party = partyById.get(senderId)
-    if (party !== undefined) {
-      return `${partyRoleLabel(kind, party.role)} · ${displayName(party.first_name, party.last_name, party.user_id)}`
-    }
-    return 'Participant'
+  /**
+   * Sender identity comes from the shared resolver, which keys off party
+   * MEMBERSHIP rather than the current assignee. That matters twice here: an
+   * admin who is themselves a disputant is no longer dressed up as the
+   * neutral mediator, and a mediator who has since handed the claim on still
+   * reads as "Mediator" instead of falling through to "Participant".
+   */
+  function senderOf(senderId: string): DisputeSender {
+    return resolveDisputeSender({ senderId, viewerId: meId, kind, parties })
   }
 
   return (
@@ -134,20 +130,34 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
           <p className="text-sm text-muted-foreground">No messages yet.</p>
         )}
         {messages.map((m) => {
-          const mine = m.sender_id === meId
+          // One resolution per message: alignment and label must never
+          // disagree about whose bubble this is.
+          const sender = senderOf(m.sender_id)
+          const mine = sender.kind === 'me'
           return (
             <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
               <span className="mb-0.5 px-1 text-[10px] font-medium text-muted-foreground">
-                {senderLabel(m.sender_id)}
+                {sender.label}
               </span>
               <div
                 className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${
                   mine ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 }`}
               >
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                {m.attachment_url !== null && m.attachment_type !== null && (
+                  <div className="mb-1">
+                    <ProofTile
+                      url={m.attachment_url}
+                      type={m.attachment_type === 'image' ? 'image' : 'document'}
+                      label={m.attachment_type === 'image' ? 'Image evidence' : 'Document evidence'}
+                    />
+                  </div>
+                )}
+                {m.body.length > 0 && (
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                )}
                 <p className="mt-1 text-[10px] opacity-70">
-                  {new Date(m.created_at).toLocaleString()}
+                  {formatAdminDateTime(m.created_at)}
                 </p>
               </div>
             </div>

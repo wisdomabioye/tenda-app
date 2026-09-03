@@ -1,62 +1,38 @@
 import { useState } from 'react'
-import { View, StyleSheet, Pressable } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useUnistyles } from 'react-native-unistyles'
-import { ScreenContainer, Text, Header } from '@/components/ui'
+import { ScreenContainer, Header, SegmentedTabs, type SegmentTab } from '@/components/ui'
+import { InstantSellTab, OfferSellTab } from '@/components/wallet/sell'
 import { spacing } from '@/theme/tokens'
-import { BuyTab } from '@/components/wallet/buy-sell/BuyTab'
-import { SellTab } from '@/components/wallet/buy-sell/SellTab'
 
-type Tab = 'buy' | 'sell'
+const TABS: readonly SegmentTab[] = [
+  { key: 'instant', label: 'Instant' },
+  { key: 'offer', label: 'Create offer' },
+]
 
 /**
- * Buy/Sell page (stage-8 § Mobile), Naira-first; the traded asset is the
- * wallet's native asset pre-cutover (SOL; USDC arrives with the licensed
- * providers). Buy gracefully degrades to "not available yet" until a
- * provider with onramp capability is live (#61).
+ * Sell crypto for fiat — one screen, two tabs: Instant (market-rate cash-out via
+ * offramp) and Create offer (your own rate, a P2P sell offer). Unifies the two
+ * previously-disjoint surfaces (the FAB cash-out and the Trade "+"). The
+ * `?mode` param deep-links a tab; the route path stays `/wallet/buy-sell` so
+ * existing links keep working. Buy (onramp) is retired (#61).
  */
-export default function BuySellScreen() {
+export default function SellScreen() {
   const router = useRouter()
-  const { theme } = useUnistyles()
-  const { tab } = useLocalSearchParams<{ tab?: string }>()
-  const [active, setActive] = useState<Tab>(tab === 'sell' ? 'sell' : 'buy')
+  const params = useLocalSearchParams<{ mode?: string }>()
+  const [mode, setMode] = useState<string>(params.mode === 'offer' ? 'offer' : 'instant')
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <Header title="Buy / Sell" showBack onBackPress={() => router.back()} />
-
-      <View style={s.tabRow}>
-        {(['buy', 'sell'] as const).map((t) => (
-          <Pressable
-            key={t}
-            onPress={() => setActive(t)}
-            style={[
-              s.tab,
-              {
-                backgroundColor: active === t ? theme.colors.brand.primary : theme.colors.surface.card,
-                borderColor: active === t ? theme.colors.brand.primary : theme.colors.border.default,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t === 'buy' ? 'Buy tab' : 'Sell tab'}
-          >
-            <Text
-              size={14}
-              weight="semibold"
-              color={active === t ? theme.colors.brand.onPrimary : theme.colors.content.primary}
-            >
-              {t === 'buy' ? 'Buy' : 'Sell'}
-            </Text>
-          </Pressable>
-        ))}
+      <Header title="Sell crypto" showBack onBackPress={() => router.back()} />
+      <View style={s.tabs}>
+        <SegmentedTabs tabs={TABS} value={mode} onChange={setMode} />
       </View>
-
-      {active === 'buy' ? <BuyTab /> : <SellTab />}
+      {mode === 'offer' ? <OfferSellTab /> : <InstantSellTab />}
     </ScreenContainer>
   )
 }
 
 const s = StyleSheet.create({
-  tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 10 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  tabs: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
 })

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { TextInput, View, type TextInputProps, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { typography } from '@/theme/tokens'
+import { radius, typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from './Text'
 
 type Variant = 'inset' | 'compact'
@@ -20,7 +21,7 @@ const s = StyleSheet.create({
 
   // Anatomy A, `inset` (canonical create-gig.html .input)
   insetContainer: {
-    borderRadius: 14,
+    borderRadius: radius.input,
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -37,12 +38,10 @@ const s = StyleSheet.create({
     flexDirection: 'column',
     gap: 2,
   },
+  // The inset label IS the eyebrow — the token style, not a second copy of
+  // its four numbers (#59c).
   insetLabel: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
+    ...typography.styles.eyebrow,
     textTransform: 'uppercase',
   },
   insetInput: {
@@ -72,7 +71,7 @@ const s = StyleSheet.create({
   },
   compactContainer: {
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.control,
     borderWidth: 1,
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -105,11 +104,12 @@ const s = StyleSheet.create({
   },
   count: {
     alignSelf: 'flex-end',
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 0.12,
   },
+  countAtLimit: { fontFamily: typography.fonts.mono.semibold },
 })
 
 export function Input({
@@ -148,10 +148,12 @@ export function Input({
       ) : null}
       {showCounter && max !== undefined && (
         <Text
-          style={[
-            s.count,
-            atLimit && { fontWeight: '600' },
-          ]}
+          // Emphasis by FAMILY, not by `fontWeight`. The counter is mono, and
+          // mono is registered per weight — `fontWeight` beside a
+          // weight-specific family is ignored on Android, so a bare weight
+          // here loses the at-limit signal entirely (the colour below is then
+          // carrying it alone).
+          style={[s.count, atLimit && s.countAtLimit]}
           color={
             atLimit
               ? theme.colors.feedback.danger.base
@@ -184,7 +186,7 @@ export function Input({
           {icon}
           {/* Inline TextInput style override for compact anatomy */}
           <TextInput
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
             placeholderTextColor={theme.colors.content.placeholder}
             multiline={multiline}
             style={[
@@ -193,9 +195,15 @@ export function Input({
               multiline && s.compactInputMultiline,
               style,
             ]}
+            {...props}
+            // AFTER the spread, not before. These compose the component's own
+            // focus tracking with the caller's handler, and a later `...props`
+            // replaces them outright — which left the focus ring dead on every
+            // field that passes onFocus/onBlur, silently, because the caller's
+            // handler still fired. Everything else stays ahead of the spread so
+            // its precedence is unchanged.
             onFocus={(e) => { setFocused(true); props.onFocus?.(e) }}
             onBlur={(e) => { setFocused(false); props.onBlur?.(e) }}
-            {...props}
           />
         </View>
         {footer}
@@ -221,7 +229,7 @@ export function Input({
             </Text>
           )}
           <TextInput
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
             placeholderTextColor={theme.colors.content.placeholder}
             multiline={multiline}
             style={[
@@ -230,9 +238,15 @@ export function Input({
               multiline && s.insetInputMultiline,
               style,
             ]}
+            {...props}
+            // AFTER the spread, not before. These compose the component's own
+            // focus tracking with the caller's handler, and a later `...props`
+            // replaces them outright — which left the focus ring dead on every
+            // field that passes onFocus/onBlur, silently, because the caller's
+            // handler still fired. Everything else stays ahead of the spread so
+            // its precedence is unchanged.
             onFocus={(e) => { setFocused(true); props.onFocus?.(e) }}
             onBlur={(e) => { setFocused(false); props.onBlur?.(e) }}
-            {...props}
           />
         </View>
       </View>

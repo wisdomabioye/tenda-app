@@ -12,11 +12,17 @@ import type { ReportsContract } from './reports.contract'
 import type { ExchangeContract } from './exchange.contract'
 import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
+import type { DisputesContract } from './disputes.contract'
+import type { ApplicationsContract } from './applications.contract'
+import type { AgentContract } from './agent.contract'
 
 export interface ApiContract {
   auth: AuthContract
   escrows: EscrowsContract
+  disputes: DisputesContract
   gigs: GigsContract
+  applications: ApplicationsContract
+  agent: AgentContract
   users: UsersContract
   upload: UploadContract
   blockchain: BlockchainContract
@@ -29,6 +35,8 @@ export interface ApiContract {
   moderation: ModerationContract
   fiat: FiatContract
 }
+
+export { parseWsServerFrame } from './parse-ws-server-frame'
 
 export type {
   AuthContract,
@@ -58,14 +66,38 @@ export type {
   EscrowActionResponse,
   SubmitEscrowProofBody,
   AddEscrowProofsBody,
+  EscrowProofUpload,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
+  SignerPreferenceBody,
   ClientPingBody,
   ClientPingResponse,
 } from './escrows.contract'
+export type {
+  EvmCreateParamsWire,
+  ReceiveAuthorizationTypedData,
+  EvmAuthorizationTerms,
+  SolanaTransactionTerms,
+  RelayTerms,
+  RelayPaymentRequired,
+  EvmAuthorizationPayment,
+  SolanaTransactionPayment,
+  RelayPaymentPayload,
+  RelaySettlementResponse,
+  FundEscrowResponse,
+} from './relay.contract'
 export type { GigsContract } from './gigs.contract'
-export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
-export type { UploadContract } from './upload.contract'
+export type {
+  AgentContract,
+  AgentRegisterBody,
+  AgentRegisterResponse,
+  AgentTaskBody,
+  AgentTaskPaymentRequired,
+  AgentTaskCreated,
+} from './agent.contract'
+export type { DisputesContract } from './disputes.contract'
+export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'
+export type { UploadContract, UploadSignatureBody } from './upload.contract'
 export type {
   BlockchainContract,
   PermitTypedData,
@@ -106,5 +138,11 @@ export {
   type WsChannelKind,
   type ChatMessageFrame,
   type EscrowEventFrame,
+  type NotificationFrame,
+  GIG_FEED_CHANNEL,
+  type GigAvailableFrame,
+  type GigUnavailableFrame,
+  type GigUnavailableCause,
+  type GigFeedServerFrame,
   type WsServerFrame,
 } from './ws.contract'

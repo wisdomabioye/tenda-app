@@ -34,7 +34,7 @@ export type PublicUser = Omit<
   | 'last_active_at'
   | 'sponsored_tx_remaining'
   | 'advanced_mode_enabled'
-  | 'display_currency'
+  | 'announcements_read_at'
 > & {
   phone_verified_at: Date | null
 }
@@ -45,7 +45,7 @@ export type PublicUser = Omit<
  */
 export type UserRef = Pick<
   User,
-  'id' | 'first_name' | 'last_name' | 'avatar_url' | 'review_score' | 'is_seeker' | 'country'
+  'id' | 'first_name' | 'last_name' | 'avatar_url' | 'review_score' | 'is_seeker' | 'is_agent' | 'country'
 >
 
 export interface UpdateUserInput {

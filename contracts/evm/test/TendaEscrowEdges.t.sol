@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {TendaEscrow} from "../src/TendaEscrow.sol";
+import {EscrowParams} from "./helpers/EscrowParams.sol";
 
 /// @dev A party that refuses ETH — the push-payment griefing actor the
 ///      contract's AUDIT NOTE reasons about. Thin call-forwarders so it can
@@ -19,7 +20,9 @@ contract RejectingParty {
     }
 
     function create(bytes16 id, uint256 amount, uint64 acceptDeadline, uint64 duration, uint256 bond) external payable {
-        esc.createEscrow{value: amount}(id, 0, address(0), amount, address(0), acceptDeadline, duration, bond, false);
+        esc.createEscrow{value: amount}(
+            EscrowParams.base(id, 0, address(0), amount, address(0), acceptDeadline, duration, bond, false)
+        );
     }
 
     function accept(bytes16 id) external {
@@ -86,7 +89,9 @@ contract TendaEscrowEdgesTest is Test {
     function createNative(bytes16 id) internal {
         vm.prank(creator);
         escrow.createEscrow{value: AMOUNT}(
-            id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
     }
 

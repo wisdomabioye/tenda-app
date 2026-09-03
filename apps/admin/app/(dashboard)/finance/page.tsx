@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDate } from '@/lib/date-format'
 
 export default function FinancePage() {
   const [from, setFrom] = useState('')
@@ -63,8 +64,8 @@ export default function FinancePage() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Period {new Date(fees.period.from).toLocaleDateString()} –{' '}
-              {new Date(fees.period.to).toLocaleDateString()} · grand total fee (raw base units):{' '}
+              Period {formatAdminDate(fees.period.from)} –{' '}
+              {formatAdminDate(fees.period.to)} · grand total fee (raw base units):{' '}
               <span className="font-mono font-medium text-foreground">{fees.grand_total_fee_raw}</span>
             </p>
             {(['gig', 'exchange'] as const).map((kind) => (

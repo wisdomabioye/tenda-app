@@ -1,7 +1,16 @@
-import { redirect } from 'next/navigation'
+'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { getToken } from '@/lib/auth'
+
+/** Route directly to the correct entry surface without rendering a protected page first. */
 export default function RootPage() {
-  // /disputes is the one surface EVERY admin role can read
-  // (dispute_admin lacks users.read — see shared ROLE_PERMISSIONS).
-  redirect('/disputes')
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace(getToken() === null ? '/login' : '/disputes')
+  }, [router])
+
+  return null
 }

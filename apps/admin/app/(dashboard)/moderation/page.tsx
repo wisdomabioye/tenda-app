@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/table'
 import { adminApi, type ModerationVerdictRow } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 function decisionVariant(d: ModerationVerdictRow['decision']) {
   return d === 'block' ? 'destructive' : d === 'warn' ? 'secondary' : 'outline'
@@ -110,7 +111,7 @@ export default function ModerationPage() {
                   </TableCell>
                   <TableCell><Badge variant={decisionVariant(v.decision)}>{v.decision}</Badge></TableCell>
                   <TableCell>{v.provider}{v.model !== null ? ` · ${v.model}` : ''}</TableCell>
-                  <TableCell>{new Date(v.created_at).toLocaleString()}</TableCell>
+                  <TableCell>{formatAdminDateTime(v.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => setOverriding(v)}>
                       Override

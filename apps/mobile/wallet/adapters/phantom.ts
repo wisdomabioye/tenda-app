@@ -3,12 +3,13 @@ import { Buffer } from 'buffer'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 import * as SecureStore from 'expo-secure-store'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { metadata, SOLANA_NETWORK, WALLET_CHAINS } from '../config'
 import { canOpenScheme } from './detect'
-import { connectThenSign } from './connect-then-sign'
-import type { AuthenticateResult, WalletAdapter } from './types'
-import type { SignMessageResult, SpikeAccount } from '../types'
+import { connectThenSign } from '@tenda/shared'
+import type { AuthenticateResult } from '@tenda/shared'
+import type { WalletAdapter } from './types'
+import type { SignMessageResult, WalletAccount } from '@tenda/shared'
 
 /**
  * Phantom on iOS via Phantom's encrypted universal-link protocol
@@ -130,7 +131,7 @@ async function loadSession(): Promise<StoredSession | null> {
   }
 }
 
-function toAccount(s: StoredSession): SpikeAccount {
+function toAccount(s: StoredSession): WalletAccount {
   return {
     chainId: WALLET_CHAINS.solana,
     namespace: 'solana',
@@ -139,7 +140,7 @@ function toAccount(s: StoredSession): SpikeAccount {
   }
 }
 
-async function connect(): Promise<SpikeAccount> {
+async function connect(): Promise<WalletAccount> {
   const dappKeypair = nacl.box.keyPair()
   const params = new URLSearchParams({
     app_url: metadata.url,
@@ -173,7 +174,7 @@ async function connect(): Promise<SpikeAccount> {
   return toAccount(stored)
 }
 
-async function signMessage(_account: SpikeAccount, message: string): Promise<SignMessageResult> {
+async function signMessage(_account: WalletAccount, message: string): Promise<SignMessageResult> {
   const stored = await loadSession()
   if (stored === null) throw new Error('phantom: not connected')
   const secret = sharedSecret(stored)
@@ -224,13 +225,13 @@ async function disconnect(): Promise<void> {
   }
 }
 
-async function getRestoredAccount(): Promise<SpikeAccount | null> {
+async function getRestoredAccount(): Promise<WalletAccount | null> {
   const stored = await loadSession()
   return stored === null ? null : toAccount(stored)
 }
 
 function authenticate(
-  buildMessage: (account: SpikeAccount) => string,
+  buildMessage: (account: WalletAccount) => string,
   opts?: { forceFresh?: boolean },
 ): Promise<AuthenticateResult | null> {
   return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)

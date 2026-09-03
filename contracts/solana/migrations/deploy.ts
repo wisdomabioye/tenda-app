@@ -3,16 +3,46 @@ import { BN, Program, web3 } from "@coral-xyz/anchor";
 import { TendaEscrow } from "../target/types/tenda_escrow";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-// One-time platform initialization, run by `anchor migrate` / `anchor deploy`
-// after the program is on-chain. Creates the PlatformState PDA; all values are
-// mutable afterwards via the admin instructions (set_fee_bps, set_treasury, …),
-// so exact-at-init is not critical — authorities are.
+// One-time platform initialization. Creates the PlatformState PDA; all values
+// are mutable afterwards via the admin instructions (set_fee_bps, set_treasury,
+// …), so exact-at-init is not critical — authorities are.
 //
-// Required env for mainnet (all three fall back to the provider wallet, which
-// is acceptable ONLY on devnet):
+// Run by `anchor migrate` ONLY. `anchor deploy` does not run migrations (there
+// is no --migrate flag; `anchor migrate --help` is the whole contract: "Runs the
+// deploy migration script"). A freshly deployed program is therefore live but
+// unusable — every instruction reading platform config fails on a missing
+// account — until this is run as a SEPARATE step. There is no constructor
+// guarantee here as there is on EVM; this file is the convention that replaces
+// it, which is why it must never be skipped or assumed.
+//
+// WHO MAY RUN THIS (#39): the provider wallet must be the program's UPGRADE
+// AUTHORITY. `initialize_platform` now reads the program's own ProgramData
+// account and refuses any other signer (`NotUpgradeAuthority`), because Solana
+// has no constructor and the gap between deploy and init would otherwise let
+// anyone claim protocol_admin / dispute_admin / treasury — irrecoverably.
+// Consequences for launch ordering:
+//   - run this with the SAME key that deployed the program;
+//   - initialize BEFORE handing the upgrade authority to the Squads multisig
+//     (afterwards the multisig has to sign this transaction);
+//   - initialize BEFORE making the program immutable — a final-authority program
+//     carries `None` and can never be initialized.
+//
+// REQUIRED env on every cluster — no fallback, by design:
 //   TENDA_ADMIN            protocol admin — the Squads vault on mainnet (#30)
 //   TENDA_DISPUTE_ADMIN    dispute authority (ops key at launch)
 //   TENDA_TREASURY         fee recipient
+//
+// These used to fall back to the provider wallet with a printed warning,
+// "devnet only" — but nothing enforced the devnet part, so an unset TENDA_ADMIN
+// on mainnet would have silently handed the protocol to whichever key ran the
+// migration. It is the one value that cannot be quietly wrong: unlike EVM,
+// Solana initialization is a SEPARATE transaction from the deploy, so there is
+// no constructor to re-run and no revert to catch it.
+//
+// This mirrors contracts/evm/script/Deploy.s.sol, which reads the same three
+// through `vm.envAddress` (reverts when unset) while using `vm.envOr` for the
+// tunable numbers below. The authorities are required on both chains; the fees
+// and windows have defaults on both.
 // Optional env (defaults mirror contracts/evm/script/Deploy.s.sol and satisfy
 // the on-chain ranges in programs/tenda-escrow/src/constants.rs):
 //   TENDA_FEE_BPS              default 250   (2.50%)
@@ -27,9 +57,29 @@ const DEFAULTS = {
   gracePeriodSeconds: 3_600,
 } as const;
 
-function envPubkey(name: string, fallback: web3.PublicKey): web3.PublicKey {
+/**
+ * A REQUIRED authority address. Throws when unset, exactly as `vm.envAddress`
+ * reverts on the EVM side — a deploy that stops is always cheaper than one that
+ * assigns the protocol to the wrong key.
+ */
+function requiredPubkey(name: string): web3.PublicKey {
   const raw = process.env[name];
-  return raw !== undefined && raw !== "" ? new web3.PublicKey(raw) : fallback;
+  if (raw === undefined || raw.trim() === "") {
+    throw new Error(
+      `${name} is required and was not set.\n` +
+        `  Set all three authorities before running the migration:\n` +
+        `    TENDA_ADMIN=<protocol admin>  TENDA_DISPUTE_ADMIN=<dispute authority>  TENDA_TREASURY=<fee recipient>\n` +
+        `  They are deliberately NOT read from any .env file — initialization happens\n` +
+        `  once per cluster and is not reversible from here, so it is stated at the\n` +
+        `  point of use. To keep the deploy wallet as an authority on devnet, pass it\n` +
+        `  explicitly: TENDA_ADMIN=$(solana address).`,
+    );
+  }
+  try {
+    return new web3.PublicKey(raw.trim());
+  } catch {
+    throw new Error(`${name} is not a valid base58 public key: '${raw}'`);
+  }
 }
 
 function envInt(name: string, fallback: number): number {
@@ -50,9 +100,9 @@ module.exports = async function (provider: anchor.AnchorProvider) {
   const program = anchor.workspace.TendaEscrow as Program<TendaEscrow>;
   const payer = provider.wallet.publicKey;
 
-  const protocolAdmin = envPubkey("TENDA_ADMIN", payer);
-  const disputeAdmin = envPubkey("TENDA_DISPUTE_ADMIN", payer);
-  const treasury = envPubkey("TENDA_TREASURY", payer);
+  const protocolAdmin = requiredPubkey("TENDA_ADMIN");
+  const disputeAdmin = requiredPubkey("TENDA_DISPUTE_ADMIN");
+  const treasury = requiredPubkey("TENDA_TREASURY");
   const feeBps = envInt("TENDA_FEE_BPS", DEFAULTS.feeBps);
   const seekerFeeBps = envInt("TENDA_SEEKER_FEE_BPS", DEFAULTS.seekerFeeBps);
   const approvalWindowSeconds = envInt(
@@ -64,10 +114,13 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     DEFAULTS.gracePeriodSeconds,
   );
 
+  // Still worth saying out loud, even now that it can only happen on purpose:
+  // the deploy wallet as protocol admin or treasury is a devnet convenience,
+  // not a configuration anyone should carry to mainnet.
   if (protocolAdmin.equals(payer) || treasury.equals(payer)) {
     console.warn(
-      "WARN: protocol admin/treasury defaulting to the deploy wallet — devnet only.\n" +
-        "      Set TENDA_ADMIN / TENDA_DISPUTE_ADMIN / TENDA_TREASURY before mainnet.",
+      "WARN: protocol admin/treasury is the deploy wallet. Fine on devnet;\n" +
+        "      on mainnet these belong to the Squads vault (#30).",
     );
   }
 

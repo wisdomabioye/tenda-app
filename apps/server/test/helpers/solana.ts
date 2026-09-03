@@ -27,13 +27,18 @@ export const TEST_BLOCKHASH = 'GfVcyD4kkTrj4bKc7WA9sZCin9JDbdT4Zkd3EuQH6Tx8'
 export const TEST_LAST_VALID_BLOCK_HEIGHT = 123_456
 
 export interface FakeSolanaRpc extends SolanaRpc {
-  stageAccount(address: PublicKey, data: Buffer): void
+  /**
+   * Stage an account. `owner` defaults to the program under test — pass a
+   * different one to simulate an account left behind by a superseded
+   * deployment, which decodes identically but must be rejected.
+   */
+  stageAccount(address: PublicKey, data: Buffer, owner?: string): void
   stageTransaction(tx_ref: string, result: SolanaTxResult): void
   stageSignatures(sigs: Array<{ signature: string; slot: number }>): void
 }
 
 export function fakeSolanaRpc(): FakeSolanaRpc {
-  const accounts = new Map<string, Buffer>()
+  const accounts = new Map<string, { data: Buffer; owner: string }>()
   const transactions = new Map<string, SolanaTxResult>()
   let signatures: Array<{ signature: string; slot: number }> = []
   return {
@@ -46,11 +51,11 @@ export function fakeSolanaRpc(): FakeSolanaRpc {
     async getTransaction(tx_ref) {
       return transactions.get(tx_ref) ?? null
     },
-    async getAccountData(address) {
+    async getAccount(address) {
       return accounts.get(address) ?? null
     },
-    stageAccount(address, data) {
-      accounts.set(address.toBase58(), data)
+    stageAccount(address, data, owner = PROGRAM_ID.toBase58()) {
+      accounts.set(address.toBase58(), { data, owner })
     },
     stageTransaction(tx_ref, result) {
       transactions.set(tx_ref, result)
@@ -83,6 +88,8 @@ export function escrowAccountFixture(overrides: Partial<EscrowAccount> = {}): Es
     creator: CREATOR,
     counterparty: COUNTERPARTY,
     assignedCounterparty: null,
+    requiresApproval: false,
+    unassignWindowSeconds: new BN(0),
     status: { accepted: {} },
     acceptDeadline: new BN(1_900_000_000),
     completionDurationSeconds: new BN(7_200),
@@ -108,7 +115,6 @@ export function platformStateFixture(
     seekerFeeBps: 100,
     approvalWindowSeconds: new BN(172_800),
     gracePeriodSeconds: new BN(3_600),
-    totalVolume: new BN(0),
     bump: 255,
     ...overrides,
   }

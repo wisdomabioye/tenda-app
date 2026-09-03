@@ -83,6 +83,8 @@ export async function getResolutionById(
 export interface ResolutionEscrow {
   escrow_id: string
   chain_id: string
+  /** Null on escrows that predate contract pinning; see chains/contracts. */
+  escrow_contract: string | null
   escrow_status: string
   resolved_at: Date | null
 }
@@ -96,6 +98,11 @@ export async function getResolutionEscrow(
     .select({
       escrow_id: disputes.escrow_id,
       chain_id: escrows.chain_id,
+      // The contract holding the escrow AND the dispute bond. A dispute is the
+      // longest an escrow can stay non-terminal, so it is the likeliest to
+      // outlive a redeploy — the resolve tx must go to the contract that took
+      // custody, not to whichever is current (open_issues #89).
+      escrow_contract: escrows.escrow_contract,
       escrow_status: escrows.status,
       resolved_at: disputes.resolved_at,
     })

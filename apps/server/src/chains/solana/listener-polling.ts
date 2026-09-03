@@ -1,11 +1,11 @@
 /**
- * Self-hosted polling listener (stage-2-listeners.md): the fallback that runs
- * when the Solana chain's WEBHOOK_SECRET is unset (Helius down or unconfigured).
+ * Self-hosted Solana polling listener (stage-2-listeners.md): the fallback
+ * that runs when the Solana chain's WEBHOOK_SECRET is unset (Helius down or
+ * unconfigured).
  *
- * The ONLY consumer of `chain_cursors` (webhooks are push-based and dedup
- * via job ids). Each tick fetches recent program signatures, enqueues
- * idempotent verify-tx jobs for those in slots beyond the cursor, then
- * advances the cursor to the highest slot seen.
+ * Each tick fetches recent program signatures, enqueues idempotent verify-tx
+ * jobs for those in slots beyond the cursor (chains/cursors), then advances
+ * the cursor to the highest slot seen.
  *
  * Cursor boundary: signatures landing later in the SAME slot as the cursor
  * can be skipped by the strict `slot > cursor` filter, accepted, because
@@ -15,6 +15,8 @@
 
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import type { SolanaRpc } from '@server/chains/solana/rpc'
+import type { CursorStore } from '@server/chains/cursors'
+import { createIntervalListener } from '@server/chains/interval-listener'
 import type { ChainId, ChainListener } from '@server/chains/types'
 import type { QueueService } from '@server/plugins/queue'
 import { verifyTxDedupKey } from '@server/jobs/verify-tx'
@@ -24,13 +26,15 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 export const POLL_INTERVAL_MS = 15_000
 export const POLL_SIGNATURE_LIMIT = 100
 
-// ---------- cursor store seam ----------------------------------------------
-
-export interface CursorStore {
-  /** Last processed slot for the chain; 0 when no cursor exists yet. */
-  getCursor(chain_id: ChainId): Promise<number>
-  setCursor(chain_id: ChainId, slot: number): Promise<void>
-}
+/**
+ * Per-endpoint RPC timeout for the listener's OWN client. The default
+ * createSolanaRpc budgets (6s per endpoint with a fallback) are tuned for the
+ * interactive tx-build path; a background poller has no user waiting, and a
+ * tight cap makes heavier getSignaturesForAddress calls fail spuriously on a
+ * high-latency link. Failures only cost a retried tick, but a generous cap
+ * keeps them rare. Mirrors EVM_LISTENER_RPC_TIMEOUT_MS.
+ */
+export const SOLANA_LISTENER_RPC_TIMEOUT_MS = 30_000
 
 // ---------- tick (the testable unit) -----------------------------------------
 
@@ -94,55 +98,10 @@ export async function pollTick(deps: PollTickDeps): Promise<PollTickResult> {
 export function createSolanaPollingListener(
   deps: PollTickDeps & { interval_ms?: number },
 ): ChainListener {
-  let timer: NodeJS.Timeout | null = null
-  let running = false
-
-  return {
-    async start() {
-      const interval = deps.interval_ms ?? POLL_INTERVAL_MS
-      timer = setInterval(() => {
-        if (running) return // skip overlapping ticks
-        running = true
-        pollTick(deps)
-          .catch((err) => deps.log.warn({ err }, 'polling tick failed'))
-          .finally(() => {
-            running = false
-          })
-      }, interval)
-      timer.unref()
-      deps.log.info({ interval_ms: interval, chain_id: deps.chain_id }, 'polling listener started')
-    },
-    async stop() {
-      if (timer !== null) clearInterval(timer)
-      timer = null
-    },
-  }
-}
-
-// ---------- drizzle cursor store --------------------------------------------------
-
-import { eq } from 'drizzle-orm'
-import { chain_cursors } from '@tenda/shared/db/schema/ops'
-import type { AppDatabase } from '@server/plugins/db'
-
-export function drizzleCursorStore(db: AppDatabase): CursorStore {
-  return {
-    async getCursor(chain_id) {
-      const rows = await db
-        .select({ last_block: chain_cursors.last_block })
-        .from(chain_cursors)
-        .where(eq(chain_cursors.chain_id, chain_id))
-        .limit(1)
-      return rows[0]?.last_block ?? 0
-    },
-    async setCursor(chain_id, slot) {
-      await db
-        .insert(chain_cursors)
-        .values({ chain_id, last_block: slot, last_processed_at: new Date() })
-        .onConflictDoUpdate({
-          target: chain_cursors.chain_id,
-          set: { last_block: slot, last_processed_at: new Date() },
-        })
-    },
-  }
+  return createIntervalListener({
+    chain_id: deps.chain_id,
+    interval_ms: deps.interval_ms ?? POLL_INTERVAL_MS,
+    tick: () => pollTick(deps),
+    log: deps.log,
+  })
 }

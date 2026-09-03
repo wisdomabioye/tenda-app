@@ -5,14 +5,21 @@
  *     wallet_address, gig_id? }
  *   { direction: 'offramp', fiat_currency, asset, asset_amount_raw,
  *     chain_id, wallet_address }
- * → QuoteResult (intent persisted as status='quoted', 10-min validity).
+ * → QuoteResult (quote cached in Redis with a 10-min TTL, NOT a Postgres row;
+ *   the durable intent is created at commit — see initiateIntent).
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { assets } from '@tenda/shared/db/schema/chains'
 import { users } from '@tenda/shared/db/schema/identity'
-import { ErrorCode, EXCHANGE_MAX_FIAT_AMOUNT, AMOUNT_RAW_PRECISION } from '@tenda/shared'
+import {
+  ErrorCode,
+  EXCHANGE_MAX_FIAT_AMOUNT,
+  AMOUNT_RAW_PRECISION,
+  isSupportedCurrency,
+  SUPPORTED_CURRENCIES,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'
 import { buildFiatDeps, requestQuote } from '@server/features/fiat-rails'
@@ -44,6 +51,13 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, "direction must be 'onramp' or 'offramp'")
       }
       const fiat_currency = requireStr('fiat_currency', b.fiat_currency, 3).toUpperCase()
+      if (!isSupportedCurrency(fiat_currency)) {
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          `fiat_currency must be one of: ${SUPPORTED_CURRENCIES.join(', ')}`,
+        )
+      }
       const asset = requireStr('asset', b.asset, 50)
       const chain_id = requireStr('chain_id', b.chain_id, 100)
       const wallet_address = requireStr('wallet_address', b.wallet_address, 100)

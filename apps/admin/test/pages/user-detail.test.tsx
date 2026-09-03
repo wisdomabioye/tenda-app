@@ -51,6 +51,22 @@ test('non-flagged users show the below-threshold note', async () => {
   expect(screen.getByText('no closed engagements')).toBeInTheDocument()
 })
 
+test('links the dispute metric to the filtered dispute queue', async () => {
+  get.mockResolvedValue(user()) // disputed: 3
+  renderPage(<UserDetailPage />)
+  const link = await screen.findByRole('link', { name: /View this user's disputes/ })
+  expect(link).toHaveAttribute('href', '/disputes?party=p1')
+})
+
+test('hides the disputes link when the user has none', async () => {
+  get.mockResolvedValue(
+    user({ dispute_metric: { closed_engagements: 2, disputed: 0, dispute_rate_bps: 0, fraud_flag: false } }),
+  )
+  renderPage(<UserDetailPage />)
+  await screen.findByText('Below the flag threshold.')
+  expect(screen.queryByRole('link', { name: /View this user's disputes/ })).toBeNull()
+})
+
 test('a 404 renders the not-found state', async () => {
   get.mockRejectedValue(new ApiError(404, 'NOT_FOUND', 'gone'))
   renderPage(<UserDetailPage />)

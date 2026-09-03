@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/tenda_escrow.json`.
  */
 export type TendaEscrow = {
-  "address": "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv",
+  "address": "cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb",
   "metadata": {
     "name": "tendaEscrow",
     "version": "0.1.0",
@@ -323,6 +323,79 @@ export type TendaEscrow = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "assignAccept",
+      "docs": [
+        "Approval mode: creator assigns a worker AND moves the escrow to",
+        "Accepted in one instruction (the worker signs nothing to start)."
+      ],
+      "discriminator": [
+        114,
+        240,
+        144,
+        27,
+        147,
+        65,
+        189,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "worker",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "cancelEscrowSol",
@@ -965,16 +1038,8 @@ export type TendaEscrow = {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -1262,6 +1327,108 @@ export type TendaEscrow = {
           "name": "payer",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "programData",
+          "docs": [
+            "The program's OWN ProgramData account — where the upgrade authority set",
+            "by `solana program deploy` lives.",
+            "",
+            "Solana has no constructor: `initialize_platform` is necessarily a",
+            "separate transaction from the deploy, so without this gate the first",
+            "caller after a deploy wins and names themselves protocol_admin,",
+            "dispute_admin and treasury — taking every fee and the power to resolve",
+            "disputes, which moves escrowed user funds. It is irrecoverable",
+            "(`close_legacy_platform` cannot touch a current-length PDA, and every",
+            "`set_*` needs the incumbent admin), so the gate belongs on-chain rather",
+            "than in a \"run init quickly\" operational note.",
+            "",
+            "Unforgeable on both halves: the ADDRESS is derived from this program's",
+            "id under the upgradeable loader, and `Account<ProgramData>` requires that",
+            "loader to own it.",
+            "",
+            "NOTE: a program whose upgrade authority has been removed (made immutable)",
+            "carries `None` here and can never be initialized — so initialize BEFORE",
+            "making the program immutable."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  9,
+                  21,
+                  247,
+                  47,
+                  233,
+                  251,
+                  233,
+                  182,
+                  228,
+                  32,
+                  106,
+                  249,
+                  137,
+                  186,
+                  93,
+                  177,
+                  253,
+                  74,
+                  31,
+                  94,
+                  25,
+                  112,
+                  224,
+                  210,
+                  92,
+                  169,
+                  73,
+                  193,
+                  179,
+                  127,
+                  148,
+                  56
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                2,
+                168,
+                246,
+                145,
+                78,
+                136,
+                161,
+                176,
+                226,
+                16,
+                21,
+                62,
+                247,
+                99,
+                174,
+                43,
+                0,
+                194,
+                185,
+                61,
+                22,
+                193,
+                36,
+                210,
+                192,
+                83,
+                122,
+                16,
+                4,
+                128,
+                0,
+                0
+              ]
+            }
+          }
         },
         {
           "name": "systemProgram",
@@ -2321,6 +2488,74 @@ export type TendaEscrow = {
           }
         }
       ]
+    },
+    {
+      "name": "unassign",
+      "docs": [
+        "Approval mode: creator withdraws an assignment inside the unassign",
+        "window, returning the escrow to Open with funds untouched."
+      ],
+      "discriminator": [
+        68,
+        109,
+        101,
+        120,
+        18,
+        20,
+        57,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -2352,6 +2587,32 @@ export type TendaEscrow = {
     }
   ],
   "events": [
+    {
+      "name": "assignmentReleased",
+      "discriminator": [
+        102,
+        122,
+        112,
+        10,
+        150,
+        89,
+        255,
+        214
+      ]
+    },
+    {
+      "name": "counterpartyAssigned",
+      "discriminator": [
+        154,
+        197,
+        2,
+        193,
+        49,
+        54,
+        77,
+        247
+      ]
+    },
     {
       "name": "disputeRaised",
       "discriminator": [
@@ -2687,9 +2948,126 @@ export type TendaEscrow = {
       "code": 6032,
       "name": "platformLayoutCurrent",
       "msg": "platform account already uses the current layout — nothing legacy to close"
+    },
+    {
+      "code": 6033,
+      "name": "approvalRequired",
+      "msg": "escrow requires creator approval; the worker cannot accept directly"
+    },
+    {
+      "code": 6034,
+      "name": "notApprovalMode",
+      "msg": "escrow is not in approval mode; assignAccept/unassign do not apply"
+    },
+    {
+      "code": 6035,
+      "name": "cannotAssignCreator",
+      "msg": "creator cannot assign the escrow to themselves"
+    },
+    {
+      "code": 6036,
+      "name": "zeroCounterparty",
+      "msg": "assigned counterparty must not be the default (all-zero) pubkey"
+    },
+    {
+      "code": 6037,
+      "name": "unassignWindowClosed",
+      "msg": "unassign window has closed (accepted_at + unassign_window_seconds elapsed)"
+    },
+    {
+      "code": 6038,
+      "name": "unassignWindowOutOfRange",
+      "msg": "unassign_window_seconds out of allowed range"
+    },
+    {
+      "code": 6039,
+      "name": "approvalModeCannotPreassign",
+      "msg": "approval mode cannot also pre-assign a counterparty; the modes are exclusive"
+    },
+    {
+      "code": 6040,
+      "name": "zeroAuthority",
+      "msg": "authority pubkey must not be the default (all-zero) pubkey"
+    },
+    {
+      "code": 6041,
+      "name": "notUpgradeAuthority",
+      "msg": "only the program's upgrade authority may initialize the platform"
     }
   ],
   "types": [
+    {
+      "name": "assignmentReleased",
+      "docs": [
+        "The creator withdrew an assignment inside the unassign window; the escrow",
+        "returns to Open with its funds untouched."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "releasedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "counterpartyAssigned",
+      "docs": [
+        "Approval-mode counterpart of `EscrowAccepted`: the creator, not the worker,",
+        "moved the escrow to Accepted. Kept a DISTINCT event (rather than reusing",
+        "`EscrowAccepted`) because the actor differs — a wallet history must not",
+        "label the poster's transaction \"Gig accepted\"."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "assignedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "completionDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "createEscrowArgs",
       "docs": [
@@ -2747,6 +3125,20 @@ export type TendaEscrow = {
           {
             "name": "isSeeker",
             "type": "bool"
+          },
+          {
+            "name": "requiresApproval",
+            "docs": [
+              "Acceptance mode. See `Escrow::requires_approval`."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "unassignWindowSeconds",
+            "docs": [
+              "See `Escrow::unassign_window_seconds`."
+            ],
+            "type": "i64"
           }
         ]
       }
@@ -2979,6 +3371,39 @@ export type TendaEscrow = {
             "type": "bool"
           },
           {
+            "name": "requiresApproval",
+            "docs": [
+              "Acceptance mode, fixed at create.",
+              "`false` ⇒ the worker moves the escrow to Accepted themselves via",
+              "`accept_escrow` (open first-come, or restricted to",
+              "`assigned_counterparty` when that is set).",
+              "`true`  ⇒ `accept_escrow` is closed; only the creator can move it,",
+              "via `assign_accept`.",
+              "",
+              "The two guards make the mode an EXACT witness of provenance:",
+              "`status == Accepted && requires_approval` holds if and only if the",
+              "creator assigned the worker, i.e. the worker never signed. `unassign`",
+              "relies on that equivalence, so a worker who accepted of their own",
+              "accord can never be unassigned."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "unassignWindowSeconds",
+            "docs": [
+              "How long after `assign_accept` the creator may still `unassign`.",
+              "Per-escrow (a term of THIS deal, fixed when it is posted) rather than",
+              "a mutable platform-wide value, so changing the default never",
+              "retroactively re-opens a settled assignment — and, unlike a",
+              "`PlatformState` field, it does not resize the singleton platform PDA.",
+              "Server-supplied from `platform_config`, bounded on-chain by",
+              "`MIN`/`MAX_UNASSIGN_WINDOW_SECONDS` exactly like",
+              "`completion_duration_seconds`. Only meaningful when",
+              "`requires_approval` is true."
+            ],
+            "type": "i64"
+          },
+          {
             "name": "createdAt",
             "type": "i64"
           },
@@ -2993,7 +3418,11 @@ export type TendaEscrow = {
           {
             "name": "vaultBump",
             "docs": [
-              "Bump for the per-escrow SOL vault PDA. 0 if `kind != Sol`."
+              "Bump for the per-escrow vault PDA that holds the funds: the SOL vault",
+              "(`ESCROW_VAULT_SEED`) for native escrows, the token vault",
+              "(`ESCROW_TOKEN_SEED`) for SPL escrows — `create_escrow_spl` stores",
+              "`ctx.bumps.vault_token_account` here. The settlement structs re-derive",
+              "the matching PDA from it."
             ],
             "type": "u8"
           }
@@ -3496,13 +3925,6 @@ export type TendaEscrow = {
           {
             "name": "gracePeriodSeconds",
             "type": "i64"
-          },
-          {
-            "name": "totalVolume",
-            "docs": [
-              "Saturating-add — analytics only, never gates logic."
-            ],
-            "type": "u64"
           },
           {
             "name": "bump",

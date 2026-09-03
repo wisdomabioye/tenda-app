@@ -12,10 +12,11 @@
  * dispatch's ensureAllowance cover the approve fallback. A wallet DECLINE
  * is not a fallback: the user said no, so it throws to abort the flow.
  */
-import { ErrorCode, type PermitSignatureBody } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, type PermitSignatureBody, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
+import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 
 export async function buildPermitFor(args: {
@@ -30,6 +31,10 @@ export async function buildPermitFor(args: {
   const asset = chain?.assets.find((a) => a.id === args.asset)
   if (asset === undefined || !asset.supports_permit) return undefined
 
+  // Permit signs typed data BEFORE dispatch runs, so ensure a live, linked
+  // session here too (idempotent — a no-op when dispatch already connected one),
+  // otherwise the permit signature would dead-end when no provider is live.
+  await ensureEvmSession()
   const owner = resolveEvmFrom()
   if (owner === null) return undefined // dispatch surfaces the no-wallet error
 

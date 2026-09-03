@@ -19,7 +19,7 @@ import type { ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { requirePermission } from '@server/lib/guards'
 import { grantAdminEmail } from '@server/lib/admin-auth'
-import { isUuidLike } from '@server/lib/escrow-routes'
+import { isUuidLike } from '@server/lib/uuid'
 import { appEvents } from '@server/lib/events'
 
 const route: FastifyPluginAsync = async (fastify) => {

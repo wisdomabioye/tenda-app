@@ -39,12 +39,23 @@ export const ErrorCode = {
   // Moderation
   CONTENT_MODERATED:             'CONTENT_MODERATED',
   CANNOT_REPORT_SELF:            'CANNOT_REPORT_SELF',
+  /** CO1 takedown: the listing is hidden, so no new participant may enter it.
+   *  Distinct from ESCROW_WRONG_STATUS — the state machine is fine, the
+   *  PLATFORM is refusing — and the parties' exits are unaffected. */
+  ESCROW_TAKEN_DOWN:             'ESCROW_TAKEN_DOWN',
   // Escrow state machine (v2 — used by lib/escrow.ts state-transition guards)
   ESCROW_WRONG_STATUS:           'ESCROW_WRONG_STATUS',
   ESCROW_WRONG_CALLER:           'ESCROW_WRONG_CALLER',
   ESCROW_DEADLINE_PASSED:        'ESCROW_DEADLINE_PASSED',
   ESCROW_DEADLINE_NOT_REACHED:   'ESCROW_DEADLINE_NOT_REACHED',
   ESCROW_INVALID_ASSET:          'ESCROW_INVALID_ASSET',
+  /** The transaction must be signed by a specific wallet and the request named
+   *  (or implies) a different one. `details.required_address` carries the
+   *  wallet that CAN sign: the on-chain bound party address for transitions on
+   *  an existing escrow, or — for a client-requested signer that isn't a
+   *  verified linked wallet of the caller — absent (nothing to switch to;
+   *  the fix is linking, not switching). */
+  ESCROW_WRONG_WALLET:           'ESCROW_WRONG_WALLET',
   // Auth nonces (v2 — used by lib/nonce.ts; replaces ±5min timestamp window)
   AUTH_NONCE_UNKNOWN:            'AUTH_NONCE_UNKNOWN',
   AUTH_NONCE_REPLAY:             'AUTH_NONCE_REPLAY',
@@ -95,11 +106,51 @@ export const ErrorCode = {
   // (asset/chain has no permit support, or the token's live domain no longer
   // matches config).
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
+  /**
+   * Relayed funding (x402) cannot be offered here: the chain has no relayer
+   * configured, or the asset cannot fund an escrow by signature (no EIP-3009
+   * on this token, a native asset). The caller falls back to signing and
+   * broadcasting the create transaction itself.
+   */
+  RELAY_UNAVAILABLE:             'RELAY_UNAVAILABLE',
+  /**
+   * The payment artifact in X-PAYMENT was refused before broadcast: it does
+   * not match the terms, its signature does not verify, its window has
+   * lapsed, or the relayed transaction fails simulation. `details.reason`
+   * names which. Distinct from VALIDATION_ERROR (a malformed header).
+   */
+  RELAY_REJECTED:                'RELAY_REJECTED',
+  /** Submit refused: the gig requires proof types the worker has not attached. */
+  PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
+  /**
+   * Proof-add refused: the payload failed its check against the gig's declared
+   * params — a geotag outside radius_m (verification), or structured values
+   * not matching the declared fields (conformance). Distinct from
+   * VALIDATION_ERROR (malformed payload) so a client can say "your evidence
+   * is well-formed but does not satisfy this gig" precisely.
+   */
+  PROOF_CHECK_FAILED:            'PROOF_CHECK_FAILED',
+  /** Accept refused: the worker already holds the maximum concurrent gigs. */
+  GIG_CAPACITY_REACHED:          'GIG_CAPACITY_REACHED',
+  /** Apply refused: the worker already holds the maximum open applications. */
+  APPLICATION_LIMIT_REACHED:     'APPLICATION_LIMIT_REACHED',
+  /** Assign/withdraw refused: the application is withdrawn, expired or settled. */
+  APPLICATION_NOT_OPEN:          'APPLICATION_NOT_OPEN',
+  /** Apply refused: this gig does not take applications (not approval mode). */
+  APPLICATIONS_NOT_OPEN:         'APPLICATIONS_NOT_OPEN',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',
+  /**
+   * Carried by 400, 422 AND 409 responses — do not branch on the status to
+   * tell them apart, branch on this code. The server's rule for which status
+   * a new route should pick is written at the top of
+   * apps/server/src/lib/errors.ts (#60).
+   */
   VALIDATION_ERROR:              'VALIDATION_ERROR',
   INTERNAL_ERROR:                'INTERNAL_ERROR',
+  /** The client stopped waiting before an authoritative response arrived. */
+  REQUEST_TIMEOUT:               'REQUEST_TIMEOUT',
 } as const
 
 export type ErrorCode = keyof typeof ErrorCode

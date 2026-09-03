@@ -6,16 +6,18 @@ import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { formatAssetAmount } from '@tenda/shared'
+import { chainLabel, formatAssetAmount } from '@tenda/shared'
 import type { EscrowListRow } from '@tenda/shared'
 
 /**
- * Own-offer row: EscrowListRow lacks the joined market fields, so it
- * renders the lean amount + status shape.
+ * Own-trade row: EscrowListRow lacks the joined market fields, so it renders
+ * the lean amount + status shape. `side` distinguishes offers the user posted
+ * (selling) from offers they accepted (buying) — both live in this one list.
  */
-export function MyOfferRow({ offer }: { offer: EscrowListRow }) {
+export function MyOfferRow({ offer, side }: { offer: EscrowListRow; side: 'selling' | 'buying' }) {
   const router = useRouter()
   const { theme } = useUnistyles()
+  const sideColor = side === 'selling' ? theme.colors.brand.primary : theme.colors.accent.primary
   return (
     <Pressable
       onPress={() => router.push(`/exchange/${offer.id}` as never)}
@@ -26,12 +28,27 @@ export function MyOfferRow({ offer }: { offer: EscrowListRow }) {
       ]}
     >
       <View style={s.body}>
-        <Text weight="semibold">
-          {formatAssetAmount(offer.amount_raw, offer.asset)}
-          {offer.fiat_currency ? ` → ${offer.fiat_currency}` : ''}
-        </Text>
+        <View style={s.headline}>
+          <Text
+            variant="caption"
+            weight="bold"
+            color={sideColor}
+            style={s.sideTag}
+          >
+            {side === 'selling' ? 'SELLING' : 'BUYING'}
+          </Text>
+          <Text weight="semibold" numberOfLines={1} style={s.amount}>
+            {formatAssetAmount(offer.amount_raw, offer.asset)}
+            {offer.fiat_currency ? ` → ${offer.fiat_currency}` : ''}
+          </Text>
+        </View>
         <Spacer size={6} />
-        <ExchangeStatusBadge status={offer.status} />
+        <View style={s.metaRow}>
+          <ExchangeStatusBadge status={offer.status} />
+          <Text variant="caption" color={theme.colors.content.tertiary}>
+            {chainLabel(offer.chain_id)}
+          </Text>
+        </View>
       </View>
       <ChevronRight size={20} color={theme.colors.content.tertiary} />
     </Pressable>
@@ -47,5 +64,13 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     borderBottomWidth: 1,
   },
-  body: { flex: 1 },
+  body: { flex: 1, minWidth: 0 },
+  headline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sideTag: { letterSpacing: 0.5, flexShrink: 0 },
+  amount: { flexShrink: 1, minWidth: 0 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 })

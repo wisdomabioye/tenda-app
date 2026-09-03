@@ -1,6 +1,7 @@
 /**
- * verify-tx BullMQ worker. Stage 0 ships the **handler skeleton + dedup
- * key**; producers (Helius webhook, polling, reconcile) land in Stage 2.
+ * verify-tx BullMQ worker. Webhooks, polling, client hints and reconciliation
+ * all converge here so chain verification and projection application have one
+ * idempotent path.
  *
  * Lifecycle the worker must implement (per stage-2-listeners.md L154):
  *   1. Dedup: `SELECT … FROM escrow_transactions WHERE tx_ref = $1` → skip.
@@ -10,11 +11,6 @@
  *   4. Apply state transition inside a single `db.transaction`, status-guarded
  *      so a concurrent reconcile-driven retry can't double-apply.
  *   5. Republish event onto the internal bus (notifications, WS broadcast).
- *
- * Stage 0 implements step 1 + the surrounding skeleton; steps 2–5 land with
- * #29 (Anchor IDL decode) + Stage 2 (event bus + WS). The skeleton throws
- * `INTERNAL_ERROR(501)` past step 1 so it fails loud rather than silently
- * marking a tx confirmed without applying state.
  *
  * Idempotency:
  *   - BullMQ jobId = `dedupKey({chain_id, tx_ref, event})`, duplicate
@@ -30,6 +26,7 @@ import type { AppDatabase } from '@server/plugins/db'
 import {
   applyEscrowEvent,
   type EscrowEventStore,
+  type EscrowRepublishEvent,
   type InternalEscrowEvent,
 } from '@server/lib/escrow-events'
 
@@ -82,6 +79,10 @@ export function drizzleVerifyTxStore(db: AppDatabase): VerifyTxStore {
 
 // ---------- payload ------------------------------------------------------
 
+/** Origin of a verify-tx enqueue; `sweep` is the platform broadcasting a
+ *  creator's own refund for them (#43, see lib/tx-attempts `source`). */
+export type VerifyTxSource = 'webhook' | 'polling' | 'client-hint' | 'reconcile' | 'sweep'
+
 export interface VerifyTxJobPayload {
   /** CAIP-2 chain id; resolves to a `ChainAdapter` via the registry. */
   chain_id: string
@@ -99,7 +100,7 @@ export interface VerifyTxJobPayload {
    */
   escrow_id?: string
   /** Origin of the enqueue. Used for retry-strategy tuning only. */
-  source: 'webhook' | 'polling' | 'client-hint' | 'reconcile'
+  source: VerifyTxSource
 }
 
 // ---------- result -------------------------------------------------------
@@ -109,15 +110,14 @@ export type VerifyTxResult =
   | { skipped: true; reason: 'already_processed' | 'not_an_escrow_tx' }
   /** Tx confirmed but execution failed / event mismatched, terminal. */
   | { skipped: false; failed: true; reason: string }
-  /** State applied (or guard-absorbed) and internal event republished. */
+  /** State applied and internal event republished. */
   | {
       skipped: false
       failed: false
       event: EscrowEvent
       internal_event: InternalEscrowEvent
       escrow_id: string
-      /** False when the status guard tripped (another worker won the race). */
-      applied: boolean
+      applied: true
     }
 
 // ---------- retryable signal --------------------------------------------
@@ -141,17 +141,16 @@ export interface VerifyTxDeps {
   chains: ChainRegistry
   eventStore: EscrowEventStore
   /**
-   * Republish seam, the worker wiring (#33) hooks the notifications queue
-   * and the WS broadcaster here. Best-effort: a republish failure must not
-   * fail the (already-applied) state transition.
+   * Republish seam. The worker wiring (#33) hooks `fanOutEscrowEvent`
+   * (workers/escrow-fanout) here, and that module owns WHICH surfaces the
+   * event reaches — naming them here was a list that went stale the first
+   * time one was added. Best-effort: a republish failure must not fail the
+   * (already-applied) state transition.
+   *
+   * The payload shape is owned by lib/escrow-events (see EscrowRepublishEvent)
+   * so this side and the fan-out cannot drift as fields are added.
    */
-  republish(event: {
-    internal_event: InternalEscrowEvent
-    escrow_id: string
-    wire_event: EscrowEvent
-    /** On-chain signature/hash, clients correlate WS frames against it. */
-    tx_ref: string
-  }): Promise<void>
+  republish(event: EscrowRepublishEvent): Promise<void>
   log: { warn(obj: Record<string, unknown>, msg: string): void }
 }
 
@@ -159,15 +158,17 @@ export interface VerifyTxDeps {
 
 /**
  * BullMQ jobId factory. Spec lives in core/queue/idempotency.ts (Stage 2);
- * Stage 0 inlines the format so the queue.ts plugin's `EnqueueOptions.job_id`
+ * Stage 0 inlines the format so the queue plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
- * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped, BullMQ
- * rejects a jobId containing ':' (its Redis key separator) and CAIP-2 chain
- * ids carry one. `tx_ref` is the high-entropy component (base58 sig or
- * 0x-hex hash) so collisions across (chain, event) tuples are vanishingly
- * unlikely. Event is included because the same tx can emit multiple
- * EscrowEvent types in principle (though current contract emits one).
+ * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped. `tx_ref`
+ * is the high-entropy component (base58 sig or 0x-hex hash) so collisions
+ * across (chain, event) tuples are vanishingly unlikely. Event is included
+ * because the same tx can emit multiple EscrowEvent types in principle (though
+ * the current contract emits one).
+ *
+ * The ':' is stripped because this id has FOUR parts, not because BullMQ bans
+ * the character — see the note on the strip below for the real rule.
  */
 export function verifyTxDedupKey(args: {
   chain_id: string
@@ -175,11 +176,23 @@ export function verifyTxDedupKey(args: {
   /** Producers without an expectation (webhook/polling) pass 'Any'. */
   event: EscrowEvent | 'Any'
 }): string {
-  // BullMQ uses ':' as its Redis key separator and rejects any custom jobId
-  // containing it; CAIP-2 chain ids (e.g. 'solana:devnet') carry one. Join
-  // with '.' and strip ':' from every part so the id stays BullMQ-safe and
-  // deterministic. ':' is the ONLY reserved char in the inputs, so swapping
-  // it for '.' can't collide (no part otherwise contains '.').
+  // BullMQ does NOT ban ':' outright — an earlier version of this comment said
+  // it did, and that was wrong in a way that would mislead the next person to
+  // need a keyed id (core/queue/idempotency.ts emits colons on purpose).
+  //
+  // The real rule, from `Job.validateOptions` (bullmq 5.78,
+  // classes/job.js:1041-1050) and confirmed against a live queue: a custom
+  // jobId may contain EITHER no ':' at all OR exactly two of them — the check
+  // is `includes(':') && split(':').length !== 3` → throw. One colon is
+  // rejected as surely as three. Separately, an id that round-trips through
+  // parseInt unchanged ('12345') is rejected as an integer, which this format
+  // cannot produce because it always starts with 'verify-tx'.
+  //
+  // This id has four parts, so a raw ':' join would land on the wrong side of
+  // that rule, and CAIP-2 chain ids (e.g. 'solana:devnet') carry one of their
+  // own. Joining with '.' and stripping ':' sidesteps the count entirely.
+  // ':' is the ONLY reserved char in the inputs, so swapping it for '.' can't
+  // collide (no part otherwise contains '.').
   return ['verify-tx', args.chain_id, args.tx_ref, args.event]
     .join('.')
     .replaceAll(':', '.')
@@ -199,6 +212,10 @@ export async function verifyTxJobHandler(
 ): Promise<VerifyTxResult> {
   // Step 1, idempotency check.
   if (await deps.store.isProcessed(job.tx_ref)) {
+    // The prior worker may have committed the atomic escrow transition and
+    // then crashed before stamping the separate attempt row. Repair that
+    // bookkeeping on every replay; this is a no-op for listener-only txs.
+    await deps.store.markAttemptConfirmed(job.tx_ref)
     return { skipped: true, reason: 'already_processed' }
   }
 
@@ -231,24 +248,43 @@ export async function verifyTxJobHandler(
     verified.event,
     job.tx_ref,
   )
+
+  // A new tx that misses the status guard may be behind its predecessor.
+  if (!result.applied) {
+    deps.log.warn(
+      {
+        tx_ref: job.tx_ref,
+        escrow_id: result.escrow_id,
+        event: verified.event.name,
+        source: job.source,
+      },
+      'verify-tx: transition skipped by the status guard on a new tx (out-of-order or drift)',
+    )
+    // A different event for this escrow may still be ahead of us in another
+    // worker. Do not stamp this attempt confirmed or drop it permanently;
+    // BullMQ retries after the predecessor has had a chance to apply.
+    throw new RetryableError('status_guard_waiting_for_predecessor')
+  }
+
   await deps.store.markAttemptConfirmed(job.tx_ref)
 
-  // Step 5, republish for notifications + WS. Best-effort: the state is
-  // already durable; a republish failure is logged, never thrown.
-  if (result.applied) {
-    try {
-      await deps.republish({
-        internal_event: result.internal_event,
-        escrow_id: result.escrow_id,
-        wire_event: verified.event.name,
-        tx_ref: job.tx_ref,
-      })
-    } catch (err) {
-      deps.log.warn(
-        { err, tx_ref: job.tx_ref, escrow_id: result.escrow_id },
-        'verify-tx: republish failed (state already applied)',
-      )
-    }
+  // Step 5, hand the durable transition to the fan-out. Best-effort: the state
+  // is already durable; a republish failure is logged, never thrown.
+  try {
+    await deps.republish({
+      internal_event: result.internal_event,
+      escrow_id: result.escrow_id,
+      wire_event: verified.event.name,
+      tx_ref: job.tx_ref,
+      counterparty_id: result.counterparty_id,
+      passed_applicant_ids: result.passed_applicant_ids,
+      revived_applicant_ids: result.revived_applicant_ids,
+    })
+  } catch (err) {
+    deps.log.warn(
+      { err, tx_ref: job.tx_ref, escrow_id: result.escrow_id },
+      'verify-tx: republish failed (state already applied)',
+    )
   }
 
   return {
@@ -257,6 +293,6 @@ export async function verifyTxJobHandler(
     event: verified.event.name,
     internal_event: result.internal_event,
     escrow_id: result.escrow_id,
-    applied: result.applied,
+    applied: true,
   }
 }

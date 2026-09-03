@@ -1,13 +1,29 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { platform_config } from '@tenda/shared/db/schema'
-import { ErrorCode, ESCROW_LIMITS } from '@tenda/shared'
+import {
+  ErrorCode,
+  ESCROW_LIMITS,
+  MAX_PENDING_GIGS_CEILING,
+  MAX_OPEN_APPLICATIONS_CEILING,
+  MIN_APPLICATION_TTL_SECONDS,
+  MAX_APPLICATION_TTL_SECONDS,
+} from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
+import { ensureIntInRange } from '@server/lib/validation'
 import { ensureTxUpdated } from '@server/lib/db'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
-import type { ApiError } from '@tenda/shared'
+import type { AdminPlatformConfig, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'
+
+/**
+ * Editable tunables come from the shared contract, so the route, the admin
+ * client and the form cannot drift. `updated_at` is deliberately absent: the
+ * table has no such column (the previous code set one, which Drizzle silently
+ * dropped), and the audit trail is the `admin.update_platform_config` event.
+ */
+type PatchBody = UpdatePlatformConfigBody
 
 const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/platform-config
@@ -21,48 +37,86 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
 
   // PATCH /v1/admin/platform-config
   fastify.patch<{
-    Body:  { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }
-    Reply: unknown | ApiError
+    Body:  PatchBody
+    Reply: AdminPlatformConfig | ApiError
   }>('/', {
     preHandler: [requirePermission('config.write')]
   }, async (request) => {
-    const { fee_bps, seeker_fee_bps, grace_period_seconds } = requireBody(request.body)
+    const {
+      fee_bps,
+      seeker_fee_bps,
+      grace_period_seconds,
+      max_pending_gigs,
+      unassign_window_seconds,
+      max_open_applications,
+      application_ttl_seconds,
+    } = requireBody(request.body)
 
-    // Caps mirror the on-chain limits (ESCROW_LIMITS, guarded == both contracts)
-    // so an admin can't configure a value the contract would revert: the
-    // contract caps platform fee at MAX_PLATFORM_FEE_BPS and grace at
-    // MAX_GRACE_PERIOD_SECONDS, and the server's off-chain reclaim-window math
-    // must stay within the window the chain actually enforces.
-    const { maxPlatformFeeBps, maxGracePeriodSeconds } = ESCROW_LIMITS
+    // Fee/grace caps mirror the on-chain limits (ESCROW_LIMITS, guarded ==
+    // both contracts) so an admin can't configure a value the contract would
+    // revert: the contract caps platform fee at MAX_PLATFORM_FEE_BPS and grace
+    // at MAX_GRACE_PERIOD_SECONDS, and the server's off-chain reclaim-window
+    // math must stay within the window the chain actually enforces.
+    // max_pending_gigs is purely off-chain, bounded by the same constant as the
+    // column's CHECK so the route rejects before Postgres does.
+    const {
+      maxPlatformFeeBps,
+      maxGracePeriodSeconds,
+      minUnassignWindowSeconds,
+      maxUnassignWindowSeconds,
+    } = ESCROW_LIMITS
 
-    if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > maxPlatformFeeBps || !Number.isInteger(fee_bps))) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `fee_bps must be an integer between 0 and ${maxPlatformFeeBps}`)
+    ensureIntInRange(fee_bps, 'fee_bps', 0, maxPlatformFeeBps)
+    ensureIntInRange(seeker_fee_bps, 'seeker_fee_bps', 0, maxPlatformFeeBps)
+    ensureIntInRange(grace_period_seconds, 'grace_period_seconds', 0, maxGracePeriodSeconds)
+    ensureIntInRange(max_pending_gigs, 'max_pending_gigs', 1, MAX_PENDING_GIGS_CEILING)
+    // Same bound both contracts enforce: a window the chain would revert must
+    // never reach an escrow's create call.
+    ensureIntInRange(
+      unassign_window_seconds,
+      'unassign_window_seconds',
+      minUnassignWindowSeconds,
+      maxUnassignWindowSeconds,
+    )
+    // Bounded by the SAME constants as the columns' CHECKs, so the route
+    // rejects before Postgres does and the operator gets a typed error.
+    ensureIntInRange(max_open_applications, 'max_open_applications', 1, MAX_OPEN_APPLICATIONS_CEILING)
+    ensureIntInRange(
+      application_ttl_seconds,
+      'application_ttl_seconds',
+      MIN_APPLICATION_TTL_SECONDS,
+      MAX_APPLICATION_TTL_SECONDS,
+    )
+
+    const fields = [
+      'fee_bps',
+      'seeker_fee_bps',
+      'grace_period_seconds',
+      'max_pending_gigs',
+      'unassign_window_seconds',
+      'max_open_applications',
+      'application_ttl_seconds',
+    ] as const satisfies readonly (keyof PatchBody)[]
+    const changes: PatchBody = {
+      ...(fee_bps !== undefined && { fee_bps }),
+      ...(seeker_fee_bps !== undefined && { seeker_fee_bps }),
+      ...(grace_period_seconds !== undefined && { grace_period_seconds }),
+      ...(max_pending_gigs !== undefined && { max_pending_gigs }),
+      ...(unassign_window_seconds !== undefined && { unassign_window_seconds }),
+      ...(max_open_applications !== undefined && { max_open_applications }),
+      ...(application_ttl_seconds !== undefined && { application_ttl_seconds }),
     }
-
-    if (seeker_fee_bps !== undefined && (seeker_fee_bps < 0 || seeker_fee_bps > maxPlatformFeeBps || !Number.isInteger(seeker_fee_bps))) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `seeker_fee_bps must be an integer between 0 and ${maxPlatformFeeBps}`)
+    if (Object.keys(changes).length === 0) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `Provide at least one of ${fields.join(', ')}`,
+      )
     }
-
-    if (grace_period_seconds !== undefined && (
-      grace_period_seconds < 0 ||
-      !Number.isInteger(grace_period_seconds) ||
-      grace_period_seconds > maxGracePeriodSeconds
-    )) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `grace_period_seconds must be a non-negative integer ≤ ${maxGracePeriodSeconds} (14 days)`)
-    }
-
-    if (fee_bps === undefined && seeker_fee_bps === undefined && grace_period_seconds === undefined) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Provide at least one of fee_bps, seeker_fee_bps, or grace_period_seconds')
-    }
-
-    const updates: Record<string, unknown> = { updated_at: new Date() }
-    if (fee_bps              !== undefined) updates.fee_bps              = fee_bps
-    if (seeker_fee_bps       !== undefined) updates.seeker_fee_bps       = seeker_fee_bps
-    if (grace_period_seconds !== undefined) updates.grace_period_seconds = grace_period_seconds
 
     const [updated] = await fastify.db
       .update(platform_config)
-      .set(updates)
+      .set(changes)
       .where(eq(platform_config.id, 1))
       .returning()
 
@@ -70,11 +124,6 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
 
     invalidatePlatformConfigCache()
 
-    const changes: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number } = {
-      ...(fee_bps              !== undefined && { fee_bps }),
-      ...(seeker_fee_bps       !== undefined && { seeker_fee_bps }),
-      ...(grace_period_seconds !== undefined && { grace_period_seconds }),
-    }
     appEvents.emit('admin.update_platform_config', {
       adminId:     request.user.id,
       adminRole:   request.user.role,

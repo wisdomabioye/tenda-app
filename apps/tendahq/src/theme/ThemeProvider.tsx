@@ -1,22 +1,25 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-
-export type ThemeMode = 'light' | 'dark' | 'system'
-export type ResolvedTheme = 'light' | 'dark'
-
-interface ThemeContextValue {
-  mode: ThemeMode
-  resolved: ResolvedTheme
-  setMode: (mode: ThemeMode) => void
-  toggle: () => void
-}
+import { readStorage, writeStorage } from '@/lib/storage'
+import {
+  ThemeContext,
+  type ResolvedTheme,
+  type ThemeContextValue,
+  type ThemeMode,
+} from './theme-context'
 
 const STORAGE_KEY = 'tenda:theme'
-const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function readStoredMode(): ThemeMode {
-  if (typeof window === 'undefined') return 'system'
-  const v = window.localStorage.getItem(STORAGE_KEY)
+  // Default is SYSTEM, matching apps/web (lib/theme.ts). It used to be 'dark',
+  // which was the single biggest visual seam in the product: a visitor on a
+  // light-mode machine met a dark landing, clicked "Open Web App", and landed
+  // on a light one. The tokens in styles/tokens.css are light-dark() pairs
+  // under `color-scheme: light dark` on the root, so the first paint already
+  // follows the system before this provider has stamped it, and the stamp
+  // then pins one side. The store is read through the guard in lib/storage:
+  // a blocked store means "no preference", never a blank page.
+  const v = readStorage(STORAGE_KEY)
   return v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
 }
 
@@ -55,7 +58,7 @@ export function ThemeProvider({ children }: Props) {
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next)
-    window.localStorage.setItem(STORAGE_KEY, next)
+    writeStorage(STORAGE_KEY, next)
     setResolved(next === 'system' ? systemTheme() : next)
   }, [])
 
@@ -71,10 +74,4 @@ export function ThemeProvider({ children }: Props) {
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext)
-  if (!ctx) throw new Error('useTheme must be used inside <ThemeProvider>')
-  return ctx
 }

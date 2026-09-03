@@ -5,7 +5,7 @@ escrows), rewritten at Stage 0 to mirror the Solidity `TendaEscrow` surface
 1:1. The legacy concepts (UserAccount, gas-subsidy airdrop, withdraw_earnings)
 are gone.
 
-Program id: `7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes` — pinned identically
+Program id: `cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb` — pinned identically
 in `declare_id!`, `Anchor.toml`, and the shared IDL, and CI-enforced by
 `scripts/check-program-id.mjs`.
 
@@ -16,14 +16,38 @@ anchor build                       # rust-toolchain.toml pins the compiler
 pnpm test                          # litesvm in-process suite (tests/)
 pnpm type-check                    # tsc over tests + tests-devnet + migrations
 pnpm --dir ../.. sync:idl          # regenerate packages/shared/src/idl after src changes
-anchor deploy --provider.cluster devnet
+anchor deploy --provider.cluster devnet    # FIRST deploy to a cluster only
 anchor migrate                     # one-time platform init (migrations/deploy.ts)
 ```
 
+To ship a change to a cluster that **already has** the program — devnet, and
+eventually mainnet — use `anchor upgrade`, not `anchor deploy`. The upgrade is
+signed by the upgrade authority; `anchor deploy` would instead create a second
+program at whatever `target/deploy/tenda_escrow-keypair.json` holds, and since
+`declare_id!` names the real one, every instruction on that copy reverts. The
+verified sequence: IDL parity → `solana program extend` if the binary grew →
+upgrade → byte-compare the chain → republish the on-chain IDL.
+
 `anchor migrate` runs `migrations/deploy.ts`: it calls `initialize_platform`
-with `TENDA_ADMIN` / `TENDA_DISPUTE_ADMIN` / `TENDA_TREASURY` from the env
-(provider wallet fallback — devnet only) and is idempotent (skips when the
-PlatformState PDA exists).
+with `TENDA_ADMIN` / `TENDA_DISPUTE_ADMIN` / `TENDA_TREASURY`, and is idempotent
+(skips when the PlatformState PDA exists).
+
+All three are **required on every cluster** — the migration throws when any is
+unset, mirroring `vm.envAddress` in `contracts/evm/script/Deploy.s.sol`. They are
+deliberately not read from a `.env`: initialization runs once per cluster and
+cannot be undone from here, so the authorities are stated at the point of use.
+To keep the deploy wallet on devnet, pass it explicitly:
+
+```bash
+TENDA_ADMIN=$(solana address) \
+TENDA_DISPUTE_ADMIN=<pubkey> \
+TENDA_TREASURY=<pubkey> \
+anchor migrate --provider.cluster devnet
+```
+
+Fees and windows keep their defaults (`TENDA_FEE_BPS` 250, `TENDA_SEEKER_FEE_BPS`
+100, `TENDA_APPROVAL_WINDOW_S` 172800, `TENDA_GRACE_PERIOD_S` 3600) — the same
+split the EVM script uses: authorities required, tunables defaulted.
 
 ## Instructions
 
@@ -46,10 +70,10 @@ token custody); the state machine is identical.
 | `reclaim_abandoned_sol` / `_spl` | creator | Reclaim after the completion window + grace lapses |
 | `dispute_escrow_sol` / `_spl` | either party | Raise a dispute (posts a bond) |
 | `resolve_dispute_sol` / `_spl` | dispute_admin | Resolve, distributing funds + bond |
-| `close_legacy_platform` | protocol_admin | One-off cleanup of the pre-rewrite account |
+| `close_legacy_platform` | anyone (payer) | One-off cleanup of the pre-rewrite account; refuses a current-layout account |
 
-On mainnet `protocol_admin` is the Squads 3-of-5 vault (key ceremony pending —
-see `docs/production_setup_guide.md` § 4.3); `dispute_admin` is a single ops key.
+On mainnet `protocol_admin` is the Squads 3-of-5 vault (key ceremony
+pending); `dispute_admin` is a single ops key.
 
 ## Accounts
 
@@ -73,8 +97,23 @@ required only for deploys under the same program id. Keep it in a vault.
 
 - Anchor 0.32.1 (avm)
 - Rust per `rust-toolchain.toml`
-- Solana CLI ≥ 2.x / Agave
+- Solana CLI **v3.0.14** (Agave), installed from the versioned URL:
+
+  ```sh
+  sh -c "$(curl -sSfL https://release.anza.xyz/v3.0.14/install)"
+  ```
+
+  Pinned, not a floor. This CLI supplies `cargo-build-sbf`, which decides what
+  the `.so` litesvm loads actually is, and the test suite holds litesvm at
+  0.3.3. Installing from `/stable/install` currently yields Agave v4.x and
+  builds a program this suite is not known to run — the same drift that broke
+  CI. `.github/workflows/contracts.yml` pins and asserts the identical version;
+  keep the two in step when bumping, and expect to bump litesvm alongside.
+
+  Note the installer bakes the version into the script it serves, so setting
+  `SOLANA_RELEASE` in your environment does nothing — the URL is the only knob.
 
 ## License
 
-MIT
+Apache-2.0, with the rest of the repository under BUSL-1.1. See
+[`../LICENSE`](../LICENSE) and [`../../LICENSING.md`](../../LICENSING.md).

@@ -21,7 +21,7 @@ import type {
   ResolutionStatus,
 } from '@tenda/shared'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
@@ -44,6 +44,11 @@ const isActive = (s: ResolutionStatus): boolean =>
   (ACTIVE_RESOLUTION_STATUSES as readonly ResolutionStatus[]).includes(s)
 
 const adminResolutions: FastifyPluginAsync = async (fastify) => {
+  // One registration guards every `:id` in this plugin — see uuidParamGuard.
+  // Without it a malformed id reached the driver as a uuid comparison and
+  // surfaced as a 500 rather than the 404 an unknown id already gets.
+  fastify.addHook('preHandler', uuidParamGuard('Resolution not found'))
+
   // GET /v1/admin/resolutions — signing queue, newest first. Defaults to the
   // actionable 'pending' state.
   fastify.get<{
@@ -119,10 +124,13 @@ const adminResolutions: FastifyPluginAsync = async (fastify) => {
     }
 
     const unsigned = await buildResolveTx(
-      { db: fastify.db, chains: fastify.chains },
+      { db: fastify.db, chains: fastify.chains, contracts: fastify.contracts },
       {
-        escrow_id: row.escrow_id,
-        chain_id: row.chain_id,
+        escrow: {
+          id: row.escrow_id,
+          chain_id: row.chain_id,
+          escrow_contract: row.escrow_contract,
+        },
         winner: resolution.proposed_winner,
         signer_user_id: request.user.id,
       },

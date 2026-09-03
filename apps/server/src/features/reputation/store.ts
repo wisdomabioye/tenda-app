@@ -48,6 +48,9 @@ export function drizzleReputationStore(db: AppDatabase): ReputationStore {
           counterparty_id: escrows.counterparty_id,
           winner: disputes.winner,
           raised_by: disputes.raised_by,
+          requires_approval: escrows.requires_approval,
+          assigned_from_application: escrows.assigned_from_application,
+          assignment_released_at: escrows.assignment_released_at,
         })
         .from(escrows)
         .leftJoin(disputes, eq(disputes.escrow_id, escrows.id))
@@ -57,6 +60,9 @@ export function drizzleReputationStore(db: AppDatabase): ReputationStore {
       if (row === undefined) return null
       return {
         parties: { creator_id: row.creator_id, counterparty_id: row.counterparty_id },
+        requires_approval: row.requires_approval,
+        assigned_from_application: row.assigned_from_application,
+        assignment_released: row.assignment_released_at !== null,
         ...(row.winner !== null && row.raised_by !== null
           ? { dispute: { winner: row.winner, raised_by: row.raised_by } }
           : {}),

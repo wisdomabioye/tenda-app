@@ -17,9 +17,11 @@ import type { TendaEscrow } from '@tenda/shared/idl'
 import { AppError } from '@server/lib/errors'
 import { uuidToBytes } from '@server/chains/ids'
 import {
+  PROGRAM_ID,
   decodeEscrowAccount,
   decodePlatformStateAccount,
   escrowPda,
+  isProgramOwned,
   platformPda,
   type EscrowAccount,
   type PlatformStateAccount,
@@ -39,30 +41,60 @@ export interface SolanaBuilderDeps {
 
 // ---- on-chain account lookups ---------------------------------------------
 
+/** One escrow account read, shared by signer resolution and encoding —
+ *  builders.ts fetches ONCE per build and threads it down. */
+export interface FetchedEscrow {
+  escrowAddr: PublicKey
+  idBytes: Buffer
+  escrow: EscrowAccount
+}
+
 export async function fetchEscrow(
   deps: SolanaBuilderDeps,
   escrow_id: string,
-): Promise<{ escrowAddr: PublicKey; idBytes: Buffer; escrow: EscrowAccount }> {
+): Promise<FetchedEscrow> {
   const idBytes = uuidToBytes(escrow_id)
   const escrowAddr = escrowPda(idBytes)
-  const data = await deps.rpc.getAccountData(escrowAddr.toBase58())
-  if (data === null) {
+  const account = await deps.rpc.getAccount(escrowAddr.toBase58())
+  if (account === null) {
     throw new AppError(
       404,
       ErrorCode.NOT_FOUND,
       `escrow ${escrow_id} has no on-chain account at ${escrowAddr.toBase58()}`,
     )
   }
-  return { escrowAddr, idBytes, escrow: decodeEscrowAccount(deps.program.coder, data) }
+  // Present but foreign-owned = a superseded program's escrow. It decodes
+  // cleanly (see isProgramOwned) but the current program cannot sign for it,
+  // so building a transition here would produce a tx that reverts on chain.
+  // Refuse with the reason instead. See open_issues #89.
+  if (!isProgramOwned(account)) {
+    throw new AppError(
+      409,
+      ErrorCode.ESCROW_MISMATCH,
+      `escrow ${escrow_id} at ${escrowAddr.toBase58()} is owned by program ${account.owner}, ` +
+        `not ${PROGRAM_ID.toBase58()} — it belongs to a superseded deployment`,
+    )
+  }
+  return { escrowAddr, idBytes, escrow: decodeEscrowAccount(deps.program.coder, account.data) }
 }
 
 export async function fetchPlatformState(deps: SolanaBuilderDeps): Promise<PlatformStateAccount> {
   const addr = platformPda().toBase58()
-  const data = await deps.rpc.getAccountData(addr)
-  if (data === null) {
+  const account = await deps.rpc.getAccount(addr)
+  if (account === null) {
     throw new AppError(500, ErrorCode.INTERNAL_ERROR, `platform state account ${addr} not initialized`)
   }
-  return decodePlatformStateAccount(deps.program.coder, data)
+  // The PDA address is a function of the program id, so a foreign owner here
+  // means the configured IDL and the live program have diverged — fees and
+  // windows would be read from another deployment's state.
+  if (!isProgramOwned(account)) {
+    throw new AppError(
+      500,
+      ErrorCode.INTERNAL_ERROR,
+      `platform state ${addr} is owned by ${account.owner}, not ${PROGRAM_ID.toBase58()}`,
+    )
+  }
+  return decodePlatformStateAccount(deps.program.coder, account.data)
 }
 
 // ---- pure helpers ----------------------------------------------------------

@@ -32,17 +32,11 @@ class ResizeObserverStub {
 }
 window.ResizeObserver ??= ResizeObserverStub
 
-// next-themes: every dashboard page renders AppHeader, which calls useTheme.
-// jsdom has no ThemeProvider, so stand it in with a controllable light theme.
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ resolvedTheme: 'light', theme: 'light', setTheme: vi.fn(), themes: ['light', 'dark'] }),
-  ThemeProvider: ({ children }: { children: ReactNode }) => children,
-}))
-
 // Next 16 client-runtime shims. jsdom has no Next router/Image/Link runtime;
 // these stand in so client components under test render without the App
 // Router. Server-only imports (next/headers, server-only) are intentionally
-// NOT shimmed — those pages are Playwright-only (TEST_PLAN.md RSC limit).
+// NOT shimmed — server components can't render under jsdom, so those pages
+// are covered by the Playwright e2e suite only.
 const routerStub = {
   push: vi.fn(),
   replace: vi.fn(),

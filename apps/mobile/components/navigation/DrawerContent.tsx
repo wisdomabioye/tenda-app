@@ -11,7 +11,7 @@ import { Text, Avatar } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 import { typography } from '@/theme/tokens';
 import { isSeekerDevice } from '@/lib/device';
-import { truncateWallet } from '@tenda/shared';
+import { truncateWallet, formatFullName } from '@tenda/shared';
 
 interface NavItem {
   name: string;
@@ -61,9 +61,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const fullName = [user?.first_name, user?.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Anonymous';
+  const fullName = formatFullName(user?.first_name ?? null, user?.last_name ?? null) || 'Anonymous';
 
   // v2 identity is multi-wallet: prefer the primary linked wallet.
   const primaryWallet = wallets.find((w) => w.is_primary)?.address ?? walletAddress;
@@ -237,7 +235,7 @@ const s = StyleSheet.create({
     letterSpacing: -0.18,
   },
   headerHandle: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 2,
@@ -256,7 +254,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   sectionLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',
@@ -284,7 +282,7 @@ const s = StyleSheet.create({
     letterSpacing: -0.075,
   },
   rowMeta: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
   },

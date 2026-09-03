@@ -1,3 +1,4 @@
+export type { LoadStatus } from './load-status'
 export type {
   User,
   NewUser,
@@ -12,6 +13,7 @@ export type {
 export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
 export { GIG_CATEGORIES } from '../constants/categories'
 export type { ChainNamespace } from '../db/schema/chains'
+export type { OnChainTransactionStatus, TransactionProgressPhase } from './transaction'
 export type {
   Escrow,
   NewEscrow,
@@ -27,13 +29,42 @@ export type {
   UserEscrowTransaction,
   UserEscrowsQuery,
   UserTransactionsQuery,
+  UserTransactionsSummary,
 } from './escrow'
-export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
-export { isGigAcceptable, computeCompletionDeadline } from './gig'
-export type { ExchangeSummary, ExchangeDetail, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
+export type {
+  GigSummary,
+  GigDetail,
+  GigCategory,
+  GigListQuery,
+  GigFacets,
+  GigFacetsQuery,
+  CreateGigDetailsBody,
+} from './gig'
+export type {
+  GigApplication,
+  GigApplicant,
+  GigViewerContext,
+  GigApplicantsQuery,
+  MyApplication,
+  MyApplicationsQuery,
+  ApplyToGigBody,
+  AssignWorkerBody,
+  ReleaseAssignmentResponse,
+} from './application'
+export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
-export type { CloudinarySignature, UploadType } from './upload'
-export type { PaginatedResponse, ApiError } from './api'
+export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
+export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'
+export { SCOPED_UPLOAD_TYPES, isScopedUploadType } from './upload'
+export type {
+  MessageAttachmentType,
+  AttachmentFields,
+  AttachmentInput,
+  UploadedAttachment,
+  AttachmentPress,
+} from './attachment'
+export type { PaginatedResponse, ApiError, QueryParams, QueryValue } from './api'
+export { assertQueryShape } from './api'
 export type {
   Conversation,
   ConversationParticipant,
@@ -60,6 +91,7 @@ export type {
   AdminUserRow,
   DisputeRateMetric,
   ActionReportBody,
+  DisputeListQuery,
   DisputeSummary,
   UpdatePlatformConfigBody,
   CreateAnnouncementBody,
@@ -81,7 +113,11 @@ export type {
   DisputeMessageRow,
   DisputeReadCursor,
   DisputeThreadResponse,
+  DisputeThreadContext,
   SendDisputeMessageBody,
+  MyDisputeStatus,
+  MyDisputesQuery,
+  MyDisputeRow,
   DisputeResolution,
   DisputeResolutionRow,
   AdminResolutionView,
@@ -100,5 +136,4 @@ export type {
   DossierTransaction,
   DossierGigDetails,
   DossierExchangeDetails,
-  ProofType,
 } from './dossier'

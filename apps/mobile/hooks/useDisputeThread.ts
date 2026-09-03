@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
+import {
+  classifyDisputeSendError,
+  type DisputeMessage,
+  type DisputeSendResult,
+  type DisputeThreadResponse,
+  type UploadedAttachment,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 
 const POLL_INTERVAL_MS = 4_000
@@ -11,8 +17,12 @@ export interface DisputeThreadState {
   error: string | null
   thread: Omit<DisputeThreadResponse, 'messages'> | null
   messages: DisputeMessage[]
-  /** Append a message; resolves false when the send failed. */
-  send: (body: string) => Promise<boolean>
+  /**
+   * Append a message (optionally with an attachment). Reports WHY a send was
+   * refused: only `failed` is worth retrying, and the caller needs to tell
+   * those apart to avoid inviting a retry that can never succeed.
+   */
+  send: (body: string, attachment?: UploadedAttachment) => Promise<DisputeSendResult>
   /** Manual refresh (pull-to-refresh / retry). */
   reload: () => Promise<void>
 }
@@ -70,7 +80,9 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
         { id: escrowId },
         tail && lastSeenAt.current !== null ? { after: lastSeenAt.current } : undefined,
       )
-      setThread(meta)
+      // Context rides only the full load; keep the first copy through the
+      // context-less tail polls instead of blanking the header every 4s.
+      setThread((prev) => ({ ...meta, context: meta.context ?? prev?.context ?? null }))
       const appended = applyBatch(batch, true)
       emptyPollCount.current = appended === 0 ? emptyPollCount.current + 1 : 0
     },
@@ -110,14 +122,30 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
   }, [load])
 
   const send = useCallback(
-    async (body: string): Promise<boolean> => {
-      if (escrowId === null) return false
+    async (body: string, attachment?: UploadedAttachment): Promise<DisputeSendResult> => {
+      if (escrowId === null) return 'failed'
       try {
-        const message = await api.escrows.sendDisputeMessage({ id: escrowId }, { body })
+        const message = await api.escrows.sendDisputeMessage(
+          { id: escrowId },
+          attachment !== undefined
+            ? {
+                body,
+                attachment_url: attachment.url,
+                attachment_type: attachment.type,
+                attachment_size: attachment.size,
+              }
+            : { body },
+        )
         applyBatch([message], false)
-        return true
-      } catch {
-        return false
+        return 'sent'
+      } catch (err) {
+        const failure = classifyDisputeSendError(err)
+        // The server has already frozen this thread; freeze ours too rather
+        // than waiting for a poll, so the composer goes away with the toast.
+        if (failure === 'resolved') {
+          setThread((prev) => (prev === null ? prev : { ...prev, read_only: true }))
+        }
+        return failure
       }
     },
     [escrowId, applyBatch],

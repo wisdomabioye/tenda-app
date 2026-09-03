@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Tenda single-escrow primitive — Solana program.
 //!
 //! Rewritten in Stage 0 (foundation.md § Solana contract rewrite) to mirror
@@ -47,16 +48,18 @@ mod _anchor_reexports {
     pub use crate::instructions::escrow_create::shared::CreateEscrowArgs;
     pub use crate::instructions::escrow_state::accept::*;
     pub use crate::instructions::escrow_state::approve::*;
+    pub use crate::instructions::escrow_state::assign_accept::*;
     pub use crate::instructions::escrow_state::claim_stalled::*;
     pub use crate::instructions::escrow_state::decline::*;
     pub use crate::instructions::escrow_state::reclaim::*;
     pub use crate::instructions::escrow_state::settlement_accounts::*;
     pub use crate::instructions::escrow_state::submit::*;
+    pub use crate::instructions::escrow_state::unassign::*;
 }
 pub use _anchor_reexports::*;
 use state::DisputeWinner;
 
-declare_id!("996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv");
+declare_id!("cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb");
 
 #[program]
 pub mod tenda_escrow {
@@ -90,11 +93,7 @@ pub mod tenda_escrow {
         set_treasury_handler(ctx, new_treasury)
     }
 
-    pub fn set_fee_bps(
-        ctx: Context<AdminUpdate>,
-        fee_bps: u16,
-        seeker_fee_bps: u16,
-    ) -> Result<()> {
+    pub fn set_fee_bps(ctx: Context<AdminUpdate>, fee_bps: u16, seeker_fee_bps: u16) -> Result<()> {
         set_fee_bps_handler(ctx, fee_bps, seeker_fee_bps)
     }
 
@@ -108,17 +107,11 @@ pub mod tenda_escrow {
 
     // ---- escrow_create ---------------------------------------------------
 
-    pub fn create_escrow_sol(
-        ctx: Context<CreateEscrowSol>,
-        args: CreateEscrowArgs,
-    ) -> Result<()> {
+    pub fn create_escrow_sol(ctx: Context<CreateEscrowSol>, args: CreateEscrowArgs) -> Result<()> {
         instructions::escrow_create::create_sol::handler(ctx, args)
     }
 
-    pub fn create_escrow_spl(
-        ctx: Context<CreateEscrowSpl>,
-        args: CreateEscrowArgs,
-    ) -> Result<()> {
+    pub fn create_escrow_spl(ctx: Context<CreateEscrowSpl>, args: CreateEscrowArgs) -> Result<()> {
         instructions::escrow_create::create_spl::handler(ctx, args)
     }
 
@@ -146,6 +139,18 @@ pub mod tenda_escrow {
 
     pub fn decline_assigned_escrow(ctx: Context<EscrowMutation>) -> Result<()> {
         instructions::escrow_state::decline::handler(ctx)
+    }
+
+    /// Approval mode: creator assigns a worker AND moves the escrow to
+    /// Accepted in one instruction (the worker signs nothing to start).
+    pub fn assign_accept(ctx: Context<EscrowMutation>, worker: Pubkey) -> Result<()> {
+        instructions::escrow_state::assign_accept::handler(ctx, worker)
+    }
+
+    /// Approval mode: creator withdraws an assignment inside the unassign
+    /// window, returning the escrow to Open with funds untouched.
+    pub fn unassign(ctx: Context<EscrowMutation>) -> Result<()> {
+        instructions::escrow_state::unassign::handler(ctx)
     }
 
     pub fn submit_proof(ctx: Context<EscrowMutation>, proof_hash: [u8; 32]) -> Result<()> {

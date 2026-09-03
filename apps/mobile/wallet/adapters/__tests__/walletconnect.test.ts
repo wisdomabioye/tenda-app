@@ -28,11 +28,12 @@ import { Linking } from 'react-native'
 import {
   walletConnectAdapter,
   sendEvmTransaction,
-  getEvmTransactionStatus,
+  signEvmTypedData,
 } from '../walletconnect'
 import { connectionSignal } from '../../reown/connection-signal'
-import { WalletError } from '@/wallet/errors'
-import type { SpikeAccount } from '../../types'
+import { WC_REQUEST_TIMEOUT_MS } from '@tenda/shared'
+import { WalletError } from '@tenda/shared'
+import type { WalletAccount } from '@tenda/shared'
 
 const mockConnect = connectionSignal.connect as jest.Mock
 const mockDisconnect = connectionSignal.disconnect as jest.Mock
@@ -46,7 +47,7 @@ beforeEach(() => {
   mockGetPeerRedirect.mockReturnValue('trust://')
 })
 
-const account: SpikeAccount = {
+const account: WalletAccount = {
   namespace: 'eip155',
   chainId: 'eip155:8453',
   address: '0xABC',
@@ -210,53 +211,142 @@ describe('sendEvmTransaction', () => {
       sendEvmTransaction({ from: '0xA', to: '0xB', data: '0x', value: '0' }),
     ).rejects.toThrow('non-string tx hash')
   })
+
+  it('a wallet that never answers rejects with the guard timeout and drops the session', async () => {
+    // The lost-relay-response scenario: the request promise never settles.
+    // Pre-guard this froze the signing modal until the app was killed.
+    jest.useFakeTimers()
+    try {
+      mockProvider(jest.fn().mockReturnValue(new Promise(() => {})))
+      const pending = sendEvmTransaction({ from: '0xA', to: '0xB', data: '0x', value: '0' })
+      // Attach the handler BEFORE advancing so the rejection is never
+      // observed as unhandled, then advance async so the foreground step's
+      // microtasks complete and the guard's timer registers before it fires.
+      const expectation = expect(pending).rejects.toMatchObject({
+        name: 'WalletError',
+        code: 'timeout',
+      })
+      await jest.advanceTimersByTimeAsync(WC_REQUEST_TIMEOUT_MS)
+      await expectation
+      expect(mockDisconnect).toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
 })
 
-describe('getEvmTransactionStatus', () => {
-  const fetchMock = jest.fn()
-  beforeEach(() => {
-    fetchMock.mockReset()
-    global.fetch = fetchMock as unknown as typeof fetch
+describe('chain pinning (EIP-3326)', () => {
+  // The session reports Base mainnet; requests target Base Sepolia.
+  const onBase = { ...account, chainId: 'eip155:8453' }
+  const TX = { from: '0xA', to: '0xB', data: '0x', value: '0', chainId: 'eip155:84532' }
+
+  afterEach(() => {
+    mockGetAccount.mockReset()
   })
 
-  function respondWith(result: unknown): void {
-    fetchMock.mockResolvedValue({ json: async () => ({ jsonrpc: '2.0', id: 1, result }) })
-  }
+  it('a known chain mismatch switches the wallet BEFORE sending the tx', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      Promise.resolve(method === 'wallet_switchEthereumChain' ? null : '0xhash'),
+    )
+    mockProvider(request)
 
-  it('queries the primary chain RPC with eth_getTransactionReceipt', async () => {
-    respondWith({ status: '0x1' })
-    await getEvmTransactionStatus('0xtx')
-    const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toMatch(/^https?:\/\//)
-    expect(JSON.parse(init.body)).toMatchObject({
-      method: 'eth_getTransactionReceipt',
-      params: ['0xtx'],
+    await expect(sendEvmTransaction(TX)).resolves.toBe('0xhash')
+    // Switch first (target chain as hex, sent on the CURRENT chain's scope)…
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      { method: 'wallet_switchEthereumChain', params: [{ chainId: '0x14a34' }] },
+      'eip155:8453',
+    )
+    // …then the tx on its own scope.
+    expect(request.mock.calls[1][0].method).toBe('eth_sendTransaction')
+    expect(request.mock.calls[1][1]).toBe('eip155:84532')
+  })
+
+  it('no switch when the session is already on the target chain', async () => {
+    mockGetAccount.mockReturnValue({ ...account, chainId: 'eip155:84532' })
+    const request = jest.fn().mockResolvedValue('0xhash')
+    mockProvider(request)
+
+    await sendEvmTransaction(TX)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][0].method).toBe('eth_sendTransaction')
+  })
+
+  it('no switch when the session chain is unknown (falls back to scope routing)', async () => {
+    mockGetAccount.mockReturnValue(null)
+    const request = jest.fn().mockResolvedValue('0xhash')
+    mockProvider(request)
+
+    await sendEvmTransaction(TX)
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+
+  it('a REJECTED switch aborts as a decline with no tx ever published', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      method === 'wallet_switchEthereumChain'
+        ? Promise.reject({ code: 4001, message: 'user rejected' })
+        : Promise.resolve('0xhash'),
+    )
+    mockProvider(request)
+
+    await expect(sendEvmTransaction(TX)).rejects.toMatchObject({
+      name: 'WalletError',
+      code: 'declined',
     })
+    expect(request).toHaveBeenCalledTimes(1) // never reached eth_sendTransaction
   })
 
-  it('maps receipt status 0x1 → confirmed', async () => {
-    respondWith({ status: '0x1' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('confirmed')
+  it('a wallet that CANNOT switch (4902/unsupported) still sends on the scope', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      method === 'wallet_switchEthereumChain'
+        ? Promise.reject({ code: 4902, message: 'unrecognized chain' })
+        : Promise.resolve('0xhash'),
+    )
+    mockProvider(request)
+
+    await expect(sendEvmTransaction(TX)).resolves.toBe('0xhash')
+    expect(request.mock.calls[1][1]).toBe('eip155:84532')
   })
 
-  it('maps receipt status 0x0 → failed', async () => {
-    respondWith({ status: '0x0' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('failed')
+  it('typed-data signing pins too; personal_sign never does', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      Promise.resolve(method === 'wallet_switchEthereumChain' ? null : '0xsig'),
+    )
+    mockProvider(request)
+
+    await signEvmTypedData({ from: '0xA', typedData: {}, chainId: 'eip155:84532' })
+    expect(request.mock.calls[0][0].method).toBe('wallet_switchEthereumChain')
+
+    request.mockClear()
+    await walletConnectAdapter.signMessage(onBase, 'hi')
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][0].method).toBe('personal_sign')
+  })
+})
+
+describe('signEvmTypedData', () => {
+  it('forwards the stringified payload verbatim on the chain scope', async () => {
+    const request = jest.fn().mockResolvedValue('0xsig')
+    mockProvider(request)
+    const typedData = { domain: { name: 'USDC' }, message: { value: '1' } }
+    await expect(
+      signEvmTypedData({ from: '0xABC', typedData, chainId: 'eip155:84532' }),
+    ).resolves.toBe('0xsig')
+    expect(request).toHaveBeenCalledWith(
+      { method: 'eth_signTypedData_v4', params: ['0xABC', JSON.stringify(typedData)] },
+      'eip155:84532',
+    )
   })
 
-  it('returns not_found when the receipt is null (still pending)', async () => {
-    respondWith(null)
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
-  })
-
-  it('returns not_found when the RPC body has no result field', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ jsonrpc: '2.0', id: 1 }) })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
-  })
-
-  it('returns not_found for an unknown receipt status', async () => {
-    respondWith({ status: '0x2' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
+  it('throws when the wallet returns a non-string signature', async () => {
+    mockProvider(jest.fn().mockResolvedValue(undefined))
+    await expect(
+      signEvmTypedData({ from: '0xABC', typedData: {}, chainId: 'eip155:84532' }),
+    ).rejects.toThrow('non-string signature')
   })
 })
 

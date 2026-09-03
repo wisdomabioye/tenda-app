@@ -13,6 +13,7 @@ import type {
 import type { UserRole, UserStatus } from './user'
 import type { EscrowKind, EscrowStatus, EscrowListRow } from './escrow'
 import type { GigCategory } from '../constants/categories'
+import type { DisputeListAssigned, DisputeListStatus } from '../constants/disputes'
 import type { ReportStatus } from '../constants/moderation'
 import type { PaginatedResponse } from './api'
 
@@ -36,6 +37,9 @@ export interface AdminEscrowRow extends EscrowListRow {
   city: string | null
   creator_first_name: string | null
   creator_last_name: string | null
+  /** The escrow's dispute row id (disputed/resolved escrows), else null —
+   *  lets the listings row deep-link straight to the dispute. */
+  dispute_id: string | null
 }
 
 export interface AdminEscrowListQuery {
@@ -85,6 +89,24 @@ export type { ReportStatus, PaginatedResponse }
 
 // ─── Disputes ────────────────────────────────────────────────────────────────
 
+/**
+ * Query accepted by GET /admin/disputes. Every enum-ish member is narrowed
+ * server-side and a value outside its vocabulary is a 400, so this MUST stay
+ * the single definition — a dashboard-local copy could offer a filter the API
+ * refuses. Declared as a `type`, not an `interface`: only a type alias carries
+ * the implicit index signature that the caller's `Record`-shaped query
+ * serialiser requires.
+ */
+export type DisputeListQuery = {
+  status?: DisputeListStatus
+  kind?: EscrowKind
+  assigned?: DisputeListAssigned
+  /** Filter to disputes where this user is a party (user-detail cross-link). */
+  party?: string
+  limit?: number
+  offset?: number
+}
+
 /** Normalised row returned by GET /admin/disputes (v2 single dispute table). */
 export interface DisputeSummary {
   dispute_id: string
@@ -98,9 +120,24 @@ export interface DisputeSummary {
   reason: string
   /** Mediating admin (CO7 claim-based assignment); null while unclaimed. */
   assigned_to_id: string | null
+  /** Mediator's name, so the queue says WHICH colleague holds a case. */
+  assigned_to_first_name: string | null
+  assigned_to_last_name: string | null
   assigned_at: string | null
   winner: 'creator' | 'counterparty' | 'split' | null
+  /**
+   * Author of the VERDICT — the mediator whose proposal confirmed on chain,
+   * copied from dispute_resolutions.proposed_by by the settlement path. Not
+   * the signer: signing is a separate permission (disputes.execute) using the
+   * chain's shared dispute-authority key, and that admin is recorded on the
+   * tx_attempts row instead. Null when the resolution bypassed the propose
+   * flow (CLI/direct-resolve) and on disputes resolved before this was
+   * stamped — historic rows are not backfilled.
+   */
   resolved_by_id: string | null
+  /** Resolver's name; null whenever resolved_by_id is, for the reasons above. */
+  resolved_by_first_name: string | null
+  resolved_by_last_name: string | null
   resolved_at: string | null
   raised_at: string | null
 }
@@ -136,12 +173,23 @@ export interface UpdateFeaturedSlotBody {
 
 // ─── Platform config ─────────────────────────────────────────────────────────
 
+/**
+ * The editable subset of `platform_config` — the single source shared by the
+ * PATCH route, the admin client and the config form.
+ *
+ * It previously advertised `approval_window_seconds` and
+ * `default_sponsored_tx_count`, which the route has never accepted; both are
+ * read-only in the dashboard. Anything listed here must be handled by
+ * `routes/v1/admin/platform-config.ts`.
+ */
 export interface UpdatePlatformConfigBody {
   fee_bps?: number
   seeker_fee_bps?: number
   grace_period_seconds?: number
-  approval_window_seconds?: number
-  default_sponsored_tx_count?: number
+  max_pending_gigs?: number
+  unassign_window_seconds?: number
+  max_open_applications?: number
+  application_ttl_seconds?: number
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────

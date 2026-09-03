@@ -1,14 +1,13 @@
 'use client'
 
-import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
-import { ReownProvider } from '@/providers/reown'
+import { AdminThemeProvider } from '@/providers/theme'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <ReownProvider>{children}</ReownProvider>
+    <AdminThemeProvider>
+      {children}
       <Toaster richColors position="top-right" />
-    </ThemeProvider>
+    </AdminThemeProvider>
   )
 }

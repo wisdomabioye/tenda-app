@@ -10,11 +10,13 @@ import type {
   AdminEscrowDossier,
   AdminEscrowRow,
   AdminPlatformConfig,
+  UpdatePlatformConfigBody,
   Announcement,
   BroadcastPushBody,
   CreateAnnouncementBody,
   AdminResolutionView,
   CreateFeaturedSlotBody,
+  DisputeListQuery,
   DisputeMessage,
   DisputeRateMetric,
   DisputeResolution,
@@ -47,14 +49,6 @@ export interface VerifyEmailOtpResponse {
 }
 
 // types (not interfaces): keeps the implicit index signature Record needs.
-export type DisputeListQuery = {
-  status?: 'open' | 'resolved'
-  kind?: 'gig' | 'exchange'
-  assigned?: 'me' | 'none'
-  limit?: number
-  offset?: number
-}
-
 export type ReportListQuery = {
   status?: ReportStatus
   content_type?: string
@@ -254,7 +248,7 @@ export const adminApi = {
   },
   platformConfig: {
     get: () => api.get<AdminPlatformConfig>(adminRoutes.platformConfig),
-    update: (body: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }) =>
+    update: (body: UpdatePlatformConfigBody) =>
       api.patch<AdminPlatformConfig>(adminRoutes.platformConfig, body),
   },
   announcements: {

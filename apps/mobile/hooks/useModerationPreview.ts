@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ASSET_META, type ModerationPreviewResponse } from '@tenda/shared'
+import { ASSET_META, hasGigBudget, type ModerationPreviewResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 
 const DEBOUNCE_MS = 800
@@ -12,7 +12,8 @@ export interface ModerationPreviewInput {
   country: string | null
   /** Asset registry id + budget in its raw units (CO5). */
   asset: string
-  paymentRaw: number
+  /** Base-unit string; '' until a budget is set. */
+  paymentRaw: string
 }
 
 /**
@@ -31,11 +32,17 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
     title.trim().length >= MIN_TITLE_CHARS &&
     category !== null &&
     country !== null &&
-    paymentRaw > 0
+    hasGigBudget(paymentRaw)
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
     if (!ready) {
+      // Bump the sequence as well as clearing: a request may already be in
+      // flight for the input the reader has just abandoned, and losing
+      // readiness supersedes nothing on its own — its answer would still match
+      // the sequence and set itself, bringing the hint back over a gig that no
+      // longer has a budget (or a title, or a category).
+      ++requestSeq.current
       setVerdict(null)
       return
     }
@@ -48,7 +55,7 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
           category: category,
           country: country,
           asset,
-          amount_raw: String(paymentRaw),
+          amount_raw: paymentRaw,
           asset_decimals: ASSET_META[asset]?.decimals ?? 9,
         })
         .then((v) => {

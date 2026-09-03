@@ -33,6 +33,9 @@ function evmPort(over: Partial<EvmClientPort> = {}): EvmClientPort {
     async getBlockNumber() {
       return 0n
     },
+    async getLogs() {
+      return []
+    },
     async readContract() {
       return null
     },
@@ -72,35 +75,67 @@ test('evmRpcFromClient.getBlockNumber: passes through the client value', async (
   assert.strictEqual(await rpc.getBlockNumber(), 999n)
 })
 
+test('evmRpcFromClient.getLogRefs: forwards the window, drops pending logs, sorts ascending', async () => {
+  const staged = [
+    { transactionHash: TX, blockNumber: 20n },
+    { transactionHash: null, blockNumber: null }, // pending log, must be dropped
+    { transactionHash: `0x${'ef'.repeat(32)}` as const, blockNumber: 10n },
+  ]
+  let seen: { address: readonly `0x${string}`[]; fromBlock: bigint; toBlock: bigint } | null = null
+  const rpc = evmRpcFromClient(
+    evmPort({
+      async getLogs(args) {
+        seen = args
+        return staged
+      },
+    }),
+  )
+
+  const refs = await rpc.getLogRefs([CREATOR], 5n, 25n)
+  assert.deepStrictEqual(seen, { address: [CREATOR], fromBlock: 5n, toBlock: 25n })
+  assert.deepStrictEqual(refs, [
+    { tx_hash: `0x${'ef'.repeat(32)}`, block_number: 10n },
+    { tx_hash: TX, block_number: 20n },
+  ])
+})
+
 const ESCROW_ID_HEX = `0x${'cd'.repeat(16)}` as const
 
-function escrowTuple(creator: string): readonly unknown[] {
-  return [
-    ESCROW_ID_HEX, // escrowId
-    1, // kind
-    ZERO_ADDRESS, // asset (native)
-    5_000n, // amount
-    creator, // creator
-    WORKER, // counterparty
-    ZERO_ADDRESS, // assignedCounterparty
-    2, // status
-    1_900_000_000n, // acceptDeadline
-    7_200n, // completionDuration
-    1_900_007_200n, // completionDeadline
-    1_900_010_000n, // approvalDeadline
-    50n, // disputeBond
-    true, // isSeeker
-    ZERO_ADDRESS, // raisedBy
-  ]
+/**
+ * What `getEscrow` returns: the NAMED struct, not the flattened positional
+ * tuple the auto-generated `escrows` mapping getter produces. Written by name
+ * on purpose — the old positional fixture had to be re-counted every time the
+ * contract struct grew, and a miscount decoded silently.
+ */
+function escrowStruct(creator: string): Record<string, unknown> {
+  return {
+    escrowId: ESCROW_ID_HEX,
+    kind: 1,
+    asset: ZERO_ADDRESS, // native
+    amount: 5_000n,
+    creator,
+    counterparty: WORKER,
+    assignedCounterparty: ZERO_ADDRESS,
+    status: 2,
+    acceptDeadline: 1_900_000_000n,
+    completionDuration: 7_200n,
+    completionDeadline: 1_900_007_200n,
+    approvalDeadline: 1_900_010_000n,
+    disputeBond: 50n,
+    isSeeker: true,
+    raisedBy: ZERO_ADDRESS,
+    requiresApproval: true,
+    unassignWindowSeconds: 21_600n,
+  }
 }
 
-test('evmRpcFromClient.readEscrow: decodes the tuple; sends escrows(bytes16) call', async () => {
+test('evmRpcFromClient.readEscrow: decodes by name; sends getEscrow(bytes16) call', async () => {
   const calls: Array<{ functionName: string; args: readonly unknown[] }> = []
   const rpc = evmRpcFromClient(
     evmPort({
       async readContract(a) {
         calls.push({ functionName: a.functionName, args: a.args })
-        return escrowTuple(CREATOR)
+        return escrowStruct(CREATOR)
       },
     }),
   )
@@ -110,13 +145,15 @@ test('evmRpcFromClient.readEscrow: decodes the tuple; sends escrows(bytes16) cal
   assert.strictEqual(t.amount, 5_000n)
   assert.strictEqual(t.is_seeker, true)
   assert.strictEqual(t.raised_by, ZERO_ADDRESS)
-  assert.strictEqual(calls[0].functionName, 'escrows')
+  assert.strictEqual(t.requires_approval, true)
+  assert.strictEqual(t.unassign_window_seconds, 21_600n)
+  assert.strictEqual(calls[0].functionName, 'getEscrow')
   assert.deepStrictEqual(calls[0].args, [ESCROW_ID_HEX])
   assert.strictEqual(ESCROW_EVM_ABI.length > 0, true) // the wrapper passed the real ABI
 })
 
 test('evmRpcFromClient.readEscrow: zero-address creator (never created) → null', async () => {
-  const rpc = evmRpcFromClient(evmPort({ readContract: async () => escrowTuple(ZERO_ADDRESS) }))
+  const rpc = evmRpcFromClient(evmPort({ readContract: async () => escrowStruct(ZERO_ADDRESS) }))
   assert.strictEqual(await rpc.readEscrow(CREATOR, ESCROW_ID_HEX), null)
 })
 
@@ -178,15 +215,20 @@ test('solanaRpcFromConnection.getTransaction: success with no logs, and null met
   assert.deepStrictEqual(r2, { failed: false, failure_reason: null, log_messages: [] })
 })
 
-test('solanaRpcFromConnection.getAccountData: null → null; present → Buffer copy', async () => {
+test('solanaRpcFromConnection.getAccount: null → null; present → Buffer copy + owner', async () => {
   const empty = solanaRpcFromConnection(solPort({ getAccountInfo: async () => null }))
-  assert.strictEqual(await empty.getAccountData('addr'), null)
+  assert.strictEqual(await empty.getAccount('addr'), null)
 
   const data = Buffer.from('hello')
-  const present = solanaRpcFromConnection(solPort({ getAccountInfo: async () => ({ data }) }))
-  const buf = await present.getAccountData('addr')
-  assert.ok(buf !== null)
-  assert.strictEqual(buf.toString(), 'hello')
+  const present = solanaRpcFromConnection(
+    solPort({ getAccountInfo: async () => ({ data, owner: 'OwnerProgram111' }) }),
+  )
+  const account = await present.getAccount('addr')
+  assert.ok(account !== null)
+  assert.strictEqual(account.data.toString(), 'hello')
+  // The owner must survive the seam — it is the only thing distinguishing a
+  // current account from a superseded program's identically-encoded one.
+  assert.strictEqual(account.owner, 'OwnerProgram111')
 })
 
 test('solanaRpcFromConnection.getSignaturesForAddress: maps signature + slot, forwards limit', async () => {

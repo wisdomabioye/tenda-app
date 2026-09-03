@@ -5,12 +5,15 @@
  * acknowledge-only (`hideCancel`) variant.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
+import { Modal } from 'react-native'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
       colors: {
-        surface: { overlay: 'rgba(0,0,0,0.4)', card: '#fff' },
+        surface: { modal: '#fff' },
+        utility: { scrim: 'rgba(0,0,0,0.4)' },
+        border: { strong: '#ddd' },
         content: { secondary: '#555' },
       },
     },
@@ -56,6 +59,13 @@ it('fires onConfirm and onCancel from the respective buttons', () => {
   expect(baseProps.onCancel).toHaveBeenCalledTimes(1)
 })
 
+it('uses system back as cancellation', () => {
+  const { UNSAFE_getByType } = render(<ConfirmDialog visible {...baseProps} />)
+  UNSAFE_getByType(Modal).props.onRequestClose()
+
+  expect(baseProps.onCancel).toHaveBeenCalledTimes(1)
+})
+
 it('renders nothing interactive when not visible', () => {
   render(<ConfirmDialog visible={false} {...baseProps} />)
   expect(screen.queryByText('Unlink')).toBeNull()
@@ -72,4 +82,10 @@ it('omits the message block when none is provided', () => {
   render(<ConfirmDialog visible title="Just a title" onConfirm={jest.fn()} onCancel={jest.fn()} />)
   expect(screen.getByText('Just a title')).toBeTruthy()
   expect(screen.getByText('Confirm')).toBeTruthy() // default confirm label
+})
+
+it('supports the destructive loading state without changing its actions', () => {
+  render(<ConfirmDialog visible destructive loading {...baseProps} />)
+  expect(screen.getByText('Unlink')).toBeTruthy()
+  expect(screen.getByText('Cancel')).toBeTruthy()
 })

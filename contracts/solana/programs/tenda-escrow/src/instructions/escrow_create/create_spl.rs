@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::{ESCROW_SEED, ESCROW_TOKEN_SEED};
 use crate::events::EscrowCreated;
-use crate::state::{Escrow, EscrowStatus};
+use crate::state::Escrow;
 
 use super::shared::CreateEscrowArgs;
 
@@ -45,9 +45,7 @@ pub struct CreateEscrowSpl<'info> {
     pub creator: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn handler(ctx: Context<CreateEscrowSpl>, args: CreateEscrowArgs) -> Result<()> {
@@ -55,23 +53,14 @@ pub fn handler(ctx: Context<CreateEscrowSpl>, args: CreateEscrowArgs) -> Result<
     args.validate(now)?;
 
     let escrow = &mut ctx.accounts.escrow;
-    escrow.escrow_id = args.escrow_id;
-    escrow.kind = args.kind;
-    escrow.asset = ctx.accounts.mint.key();
-    escrow.amount = args.amount;
-    escrow.creator = ctx.accounts.creator.key();
-    escrow.counterparty = None;
-    escrow.assigned_counterparty = args.assigned_counterparty;
-    escrow.status = EscrowStatus::Open;
-    escrow.accept_deadline = args.accept_deadline;
-    escrow.completion_duration_seconds = args.completion_duration_seconds;
-    escrow.completion_deadline = 0;
-    escrow.approval_deadline = 0;
-    escrow.dispute_bond = args.dispute_bond;
-    escrow.is_seeker = args.is_seeker;
-    escrow.created_at = now;
-    escrow.bump = ctx.bumps.escrow;
-    escrow.vault_bump = ctx.bumps.vault_token_account;
+    args.init_escrow(
+        escrow,
+        ctx.accounts.mint.key(),
+        ctx.accounts.creator.key(),
+        now,
+        ctx.bumps.escrow,
+        ctx.bumps.vault_token_account,
+    );
 
     // Move escrow amount from creator's ATA into the vault.
     let cpi_ctx = CpiContext::new(

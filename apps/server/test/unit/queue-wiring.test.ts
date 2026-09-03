@@ -6,7 +6,14 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { queueConnectionOptions, queueName, QUEUE_PREFIX } from '@server/plugins/queue'
+import {
+  DEFAULT_JOB_OPTIONS,
+  QUEUE_PREFIX,
+  VERIFY_TX_JOB_OPTIONS,
+  queueConnectionOptions,
+  queueName,
+  queueOptions,
+} from '@server/plugins/queue'
 
 test('queueConnectionOptions: host/port defaults, password, db path', () => {
   assert.deepStrictEqual(queueConnectionOptions('redis://localhost:6379'), {
@@ -31,4 +38,14 @@ test('queueName: stable tenant prefix, no colons (BullMQ forbids them)', () => {
   assert.strictEqual(queueName('verify-tx'), `${QUEUE_PREFIX}.verify-tx`)
   assert.strictEqual(queueName('notifications'), `${QUEUE_PREFIX}.notifications`)
   assert.ok(!queueName('verify-tx').includes(':'))
+})
+
+test('verify-tx failures are removable so reconciliation can reuse the job id', () => {
+  const connection = { host: 'h', port: 6379, maxRetriesPerRequest: null }
+  assert.strictEqual(queueOptions(connection, 'verify-tx').defaultJobOptions, VERIFY_TX_JOB_OPTIONS)
+  assert.strictEqual(VERIFY_TX_JOB_OPTIONS.removeOnFail, true)
+  assert.strictEqual(
+    queueOptions(connection, 'notifications').defaultJobOptions,
+    DEFAULT_JOB_OPTIONS,
+  )
 })
