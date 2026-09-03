@@ -3,9 +3,14 @@ import { APP_INFO } from '@tenda/shared'
 import { FeedHero } from '@/components/gig/feed/FeedHero'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
 import { FeedErrorStatic } from '@/components/gig/feed/FeedStates'
-import { PublicGigFeedSurface } from '@/components/gig/feed/PublicGigFeedSurface'
+import { PublicGigFeedSurface, type FeedFacts } from '@/components/gig/feed/PublicGigFeedSurface'
 import { toGigCardModel } from '@/components/gig/feed/gig-card-model'
-import { listEnabledChains, listGigFacetsOnce, listGigsOnce } from '@/lib/gigs/data'
+import {
+  listEnabledChains,
+  listGigFacetsOnce,
+  listGigsOnce,
+  readPlatformConfigOnce,
+} from '@/lib/gigs/data'
 import {
   gigsHref,
   parseGigFeedFilters,
@@ -56,11 +61,13 @@ export async function generateMetadata({
 export default async function PublicGigFeedPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
-  // Concurrent: the rail's counts are a SECOND read, and awaiting them after
-  // the feed would add their latency to a page that already has its content.
-  const [page, facets] = await Promise.all([
+  // Concurrent: the rail's counts and the fee are SECOND reads, and awaiting
+  // them after the feed would add their latency to a page that already has
+  // its content.
+  const [page, facets, config] = await Promise.all([
     listGigsOnce(toGigListQuery(filters)),
     listGigFacetsOnce(toGigFacetsQuery(filters)),
+    readPlatformConfigOnce(),
   ])
 
   // Handled HERE rather than by `error.tsx`, which is a client component: its
@@ -78,18 +85,28 @@ export default async function PublicGigFeedPage({ searchParams }: { searchParams
   }
 
   const query = toGigListQuery(filters)
+  // The LIVE facts on the heading's subline (#60): chains from the running
+  // registry, markets from the facets (countries with a gig in them — remote
+  // gigs sit in no bucket, so this is not the size of the feed), the fee from
+  // platform config. Each is omitted, never invented, when its read failed.
+  const facts: FeedFacts = {
+    chainIds: chains.map((chain) => chain.id),
+    markets: facets === null ? null : Object.values(facets.country).filter((n) => n > 0).length,
+    feeBps: config?.fee_bps ?? null,
+  }
 
   return (
     <>
       <FeedHero />
-      <div className="mx-auto w-full max-w-content px-6 pb-20 pt-8">
-        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-12">
+      <div className="mx-auto w-full max-w-content px-6 pb-20">
+        <div className="grid grid-cols-1 items-start gap-10 border-t border-border-default pt-[22px] lg:grid-cols-[240px_minmax(0,1fr)]">
           <FeedRail filters={filters} chains={chains} facets={facets} />
 
           <PublicGigFeedSurface
             page={{ ...page, data: page.data.map(toGigCardModel) }}
             filters={filters}
             query={query}
+            facts={facts}
           />
         </div>
       </div>

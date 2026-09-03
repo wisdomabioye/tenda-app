@@ -30,7 +30,7 @@ export function GigProofList({
   params?: ProofParams | null
 }) {
   return (
-    <ul className="flex max-w-[60ch] list-none flex-col gap-3 p-0">
+    <ul className="flex max-w-[60ch] list-none flex-col gap-2.5 p-0">
       {requirements.length === 0 ? (
         // Still a list item: "any evidence" is the requirement, not the
         // absence of the section, and an <li> outside a <ul> is invalid.
@@ -67,11 +67,15 @@ function ProofItem({
   detail?: string | null
 }) {
   return (
-    <li className="flex list-none items-start gap-3.5 rounded-md border border-border-subtle bg-surface-card p-4">
-      <Icon size={18} aria-hidden className="mt-0.5 shrink-0 text-content-secondary" />
+    // A tile for the glyph and plain text beside it (#60) — one row per
+    // requirement, not a card per requirement.
+    <li className="grid list-none grid-cols-[30px_minmax(0,1fr)] items-start gap-3">
+      <span className="grid size-[30px] place-items-center rounded-xs bg-surface-inset">
+        <Icon size={15} aria-hidden className="text-content-secondary" />
+      </span>
       <div className="min-w-0">
-        <p className="font-semibold text-content-primary">{title}</p>
-        <p className="mt-0.5 text-[13px] leading-[18px] text-content-secondary">{hint}</p>
+        <p className="text-base font-semibold leading-[22px] text-content-primary">{title}</p>
+        <p className="text-[13px] leading-[18px] text-content-tertiary">{hint}</p>
         {detail !== null && (
           <p className="mt-1 break-words text-[13px] font-medium leading-[18px] text-content-primary">
             {detail}

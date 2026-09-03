@@ -22,7 +22,6 @@
 import Link from 'next/link'
 import { ArrowRight, Clock } from 'lucide-react'
 import {
-  chainLabel,
   countryDisplayName,
   formatAssetAmount,
   formatDurationShort,
@@ -31,6 +30,7 @@ import {
   formatRate,
   type ExchangeSummary,
 } from '@tenda/shared'
+import { ChainBadge } from '@/components/shared/ChainBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { RatingStars } from '@/components/ui/RatingStars'
@@ -88,10 +88,8 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
                 <span className="truncate text-xs leading-4 text-content-tertiary">{country}</span>
               )}
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-border-subtle bg-surface-inset px-2.5 py-0.5 font-numeric text-[11px] font-semibold leading-4 text-content-secondary">
-                {chainLabel(offer.chain_id)}
-              </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <ChainBadge chainId={offer.chain_id} size="sm" />
               {offer.creator.is_seeker && (
                 <span className="rounded-full border border-border-subtle bg-surface-inset px-2.5 py-0.5 text-[11px] font-semibold leading-4 text-content-secondary">
                   {OFFER_CARD_COPY.seeker}
@@ -103,7 +101,7 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
 
         <div className="flex min-w-0 flex-col justify-center max-[760px]:border-t max-[760px]:border-border-subtle max-[760px]:pt-4 min-[761px]:border-l min-[761px]:border-border-subtle min-[761px]:pl-6">
           <Eyebrow strong>{rateUnitLabel(offer.fiat_currency, offer.asset)}</Eyebrow>
-          <p className="mt-1.5 font-numeric text-[28px] font-bold leading-8 tracking-[-0.6px] text-content-primary">
+          <p className="mt-1.5 font-numeric text-[28px] font-semibold leading-8 tracking-[-0.6px] text-content-primary">
             {rate}
           </p>
           <div className="mt-3 flex flex-col gap-0.5">

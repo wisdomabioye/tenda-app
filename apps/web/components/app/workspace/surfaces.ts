@@ -22,9 +22,24 @@
  *     rather than leaving it to be found on a phone.
  */
 
+import { ROUTES } from '@/lib/routes'
+
+/**
+ * Composer routes — reached from Create — are not a ROW of any list, even
+ * when their path sits under a surface that has one: `/gigs/new` predates
+ * the /gigs browse surface (#60) and lives under its segment. The pane draws
+ * no back link for them and the rail lights nothing, as it did before #60.
+ */
+const COMPOSER_PATHS: ReadonlySet<string> = new Set([ROUTES.create, ROUTES.createGig])
+
+export function isComposerPath(pathname: string): boolean {
+  return COMPOSER_PATHS.has(pathname)
+}
+
 /** Human name per surface, used as the detail pane's accessible name. */
 const SURFACE_TITLES: Record<string, string> = {
   home: 'Home',
+  gigs: 'Gigs',
   'my-gigs': 'My Gigs',
   messages: 'Messages',
   chat: 'Conversation',
@@ -65,7 +80,9 @@ const SURFACE_LIST_HOME: Record<string, ListHome> = {
   dispute: { href: '/disputes', label: 'All disputes' },
   'my-gigs': { href: '/my-gigs', label: 'All my gigs' },
   notifications: { href: '/notifications', label: 'All notifications' },
-  home: { href: '/home', label: 'All open gigs' },
+  // Browsing moved from /home to /gigs in #60; /home is the dashboard and
+  // has no list column.
+  gigs: { href: '/gigs', label: 'All open gigs' },
 }
 
 /** The list behind this surface's detail pane, or null when it has none. */

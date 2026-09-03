@@ -1,5 +1,6 @@
-import { DetailEmpty } from '@/components/app/workspace'
+import { Dashboard } from '@/components/home'
 
+/** /home is the dashboard (#60); browsing the open feed lives at /gigs. */
 export default function HomePage() {
-  return <DetailEmpty title="Choose an open gig" body="Select a gig from the list to review its brief, terms and escrow details without leaving your workspace." />
+  return <Dashboard />
 }

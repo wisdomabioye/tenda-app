@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // The layout reads which surface and which row are open.
 const segmentRef = { current: 'messages' as string | null }
 const segmentsRef = { current: ['messages'] as string[] }
+const pathRef = { current: '/messages' }
 vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
-  usePathname: () => '/messages',
+  usePathname: () => pathRef.current,
   useRouter: () => ({ replace: vi.fn() }),
   useSelectedLayoutSegment: () => segmentRef.current,
   useSelectedLayoutSegments: () => segmentsRef.current,
@@ -33,9 +34,10 @@ import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { makeUser } from '../../../test/factories/user'
 
-const at = (segment: string | null, segments: string[]) => {
+const at = (segment: string | null, segments: string[], pathname = `/${segments.join('/')}`) => {
   segmentRef.current = segment
   segmentsRef.current = segments
+  pathRef.current = pathname
 }
 
 beforeEach(() => {
@@ -91,6 +93,21 @@ describe('AppWorkspace — shell composition', () => {
     at('messages', ['messages', 'abc-123'])
     render(<AppWorkspace>x</AppWorkspace>)
     expect(document.querySelector('[data-panes]')).not.toHaveAttribute('data-nodetail')
+  })
+
+  it('offers the way back to the list from an open gig, and NOT from the gig wizard', () => {
+    // Both are /gigs/<segment> to the router. The wizard predates the browse
+    // surface (#60) and must keep the chrome it had: no "All open gigs".
+    at('gigs', ['gigs', 'gig-delivery-1'])
+    const opened = render(<AppWorkspace>x</AppWorkspace>)
+    expect(screen.getByRole('link', { name: 'All open gigs' })).toHaveAttribute('href', '/gigs')
+    expect(screen.getByRole('link', { name: 'Gigs' })).toHaveAttribute('aria-current', 'page')
+    opened.unmount()
+    at('gigs', ['gigs', 'new'])
+    render(<AppWorkspace>wizard</AppWorkspace>)
+    expect(document.querySelector('[data-pane-back]')).toBeNull()
+    expect(screen.queryByText('Details')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Gigs' })).not.toHaveAttribute('aria-current')
   })
 
   it('hands focus to the detail pane when the open row changes', () => {

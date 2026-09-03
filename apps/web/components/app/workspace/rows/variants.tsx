@@ -93,7 +93,8 @@ export function EscrowRow({
   category?: GigCategory | null
   amountRaw?: string | null
   asset?: string | null
-  subtitle?: string
+  /** A node, so a variant can set the chain as the shared badge (#60). */
+  subtitle?: ReactNode
   at?: string | null
   /** Fills the meta footer with who posted it (+ their rating). Omit where
    *  the reader IS the poster — telling someone their own name is furniture. */
@@ -159,7 +160,7 @@ export function EscrowRow({
               </>
             )}
             {takeVerb !== undefined && (
-              <span className="ml-auto shrink-0 rounded-full bg-surface-inset px-2.5 py-1 text-xs font-bold text-content-secondary">
+              <span className="ml-auto shrink-0 rounded-full bg-surface-inset px-2.5 py-[3px] text-xs font-bold leading-4 text-content-secondary">
                 {takeVerb}
               </span>
             )}

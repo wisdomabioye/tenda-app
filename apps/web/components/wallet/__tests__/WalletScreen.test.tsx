@@ -8,6 +8,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { formatRelativeDayWithTime, groupByDay, type UserEscrowTransaction } from '@tenda/shared'
 import { WALLET_COPY } from '@/components/wallet/copy'
+import { WALLET_HERO_COPY } from '@/components/wallet/WalletHeroCard'
 
 const hookState = {
   user: { id: 'worker-1' } as { id: string } | null,
@@ -104,9 +105,11 @@ describe('the header', () => {
 describe('section switch', () => {
   it('ready renders the USDC headline and lifetime totals', () => {
     render(<WalletScreen />)
+    expect(screen.getByText(WALLET_HERO_COPY.total)).toBeInTheDocument()
     expect(screen.getByText('50.00')).toBeInTheDocument()
     expect(screen.getByText('+ 80.00')).toBeInTheDocument()
     expect(screen.getByText('− 30.00')).toBeInTheDocument()
+    expect(screen.getByText(`${WALLET_HERO_COPY.unit} · ${WALLET_HERO_COPY.lifetime}`)).toBeInTheDocument()
   })
 
   it('no-wallet invites linking, never a zero balance', () => {

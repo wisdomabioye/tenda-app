@@ -14,11 +14,8 @@
  */
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import {
-  chainLabel,
-  formatAssetAmount,
-  type EscrowListRow,
-} from '@tenda/shared'
+import { formatAssetAmount, type EscrowListRow } from '@tenda/shared'
+import { ChainBadge } from '@/components/shared/ChainBadge'
 import { RelativeTime } from '@/components/ui/RelativeTime'
 import { ExchangeStatusBadge } from '@/components/escrow/StatusBadge'
 import { cn } from '@/lib/cn'
@@ -34,7 +31,7 @@ export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: strin
       className={cn(EXCHANGE_ROW_CLASS, 'flex items-center gap-4')}
     >
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2 font-numeric text-[17px] font-bold leading-6 text-content-primary">
+        <span className="flex items-baseline gap-2 font-numeric text-[17px] font-semibold leading-6 text-content-primary">
           {amount}
           {row.fiat_currency !== null && (
             <>
@@ -45,9 +42,14 @@ export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: strin
             </>
           )}
         </span>
-        <span className="mt-1 block truncate text-[13px] leading-[18px] text-content-secondary">
-          {EXCHANGE_COPY.side(selling)} · {chainLabel(row.chain_id)}
-          {' · '}
+        {/* The chain as the shared badge (#60), so it reads the same here as
+            on every card; wraps rather than truncating so the pill is never
+            cut in half. */}
+        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] leading-[18px] text-content-secondary">
+          {EXCHANGE_COPY.side(selling)}
+          <span aria-hidden>·</span>
+          <ChainBadge chainId={row.chain_id} size="sm" />
+          <span aria-hidden>·</span>
           <RelativeTime iso={row.created_at} />
         </span>
       </span>

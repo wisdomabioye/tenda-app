@@ -136,8 +136,22 @@ describe('gigTerms', () => {
   })
 
   it('names the chain through the shared label, never the raw CAIP-2 id', () => {
-    expect(labelOf('Chain')?.value).toBe(chainLabel(gig.chain_id))
-    expect(labelOf('Chain')?.value).not.toBe(gig.chain_id)
+    // The value is a node since #60 (the badge), so it is read as rendered.
+    const { container } = render(<>{labelOf('Chain')?.value}</>)
+    // The badge's aria-hidden glyph is in textContent too; the LABEL is
+    // what must be there, and the id what must not.
+    expect(container.textContent).toContain(chainLabel(gig.chain_id))
+    expect(container.textContent).not.toContain(gig.chain_id)
+  })
+
+  it('draws the chain as the shared BADGE in the terms AND in the header facts (#60)', () => {
+    const { container, unmount } = render(<GigTerms gig={gig} />)
+    expect(container.querySelector(`dd [data-chain-badge="${gig.chain_id}"]`)).not.toBeNull()
+    unmount()
+    const header = render(<GigDetailHeader gig={gig} />).container
+    expect(header.querySelector(`[data-chain-badge="${gig.chain_id}"]`)).not.toBeNull()
+    // Still the label, never the raw id, anywhere on either.
+    expect(header.textContent).not.toContain(gig.chain_id)
   })
 
   it('omits terms the wire does not carry rather than printing a dash', () => {

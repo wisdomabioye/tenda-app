@@ -41,7 +41,8 @@ test('the create control offers mobile\'s FAB pairing — gig, and sell/cash-out
 
 test('unpublished legacy routes do not exist', async ({ request }) => {
   // /offers/new joined this list in #50: the second offer composer is retired.
-  for (const route of ['/gigs', '/post', '/offers/new']) {
+  // /gigs LEFT it in #60: it is the authed browse surface now (below).
+  for (const route of ['/post', '/offers/new']) {
     expect((await request.get(route)).status(), route).toBe(404)
   }
 })
@@ -56,23 +57,93 @@ test('/exchange/new is an offer id like any other — the retired stub is gone',
   await expect(page.getByText(OFFER_DETAIL_COPY.unavailableTitle)).toBeVisible()
 })
 
-test('home replaces a retained list with open gigs', async ({ page }) => {
+test('gigs replaces a retained list with open gigs', async ({ page }) => {
   await signInToHome(page)
-  await page.getByRole('link', { name: 'My Gigs' }).click()
+  await page.getByRole('link', { name: 'My Gigs', exact: true }).click()
   await expect(page.locator('[data-list]')).toBeVisible()
-  await page.locator('nav[aria-label="Workspace"] a[aria-label="Home"]').click()
-  await expect(page).toHaveURL(/\/home$/)
+  await page.locator('nav[aria-label="Workspace"] a[aria-label="Gigs"]').click()
+  await expect(page).toHaveURL(/\/gigs$/)
   await expect(page.locator('[data-list]')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Open gigs' })).toBeVisible()
 })
 
-test('opening a home gig keeps the list and shows its detail', async ({ page }) => {
+test('opening an open gig keeps the list and shows its detail', async ({ page }) => {
   await signInToHome(page)
+  await page.goto('/gigs')
   await page.locator('[data-list] a').first().click()
-  await expect(page).toHaveURL(/\/home\/gigs\//)
+  await expect(page).toHaveURL(/\/gigs\//)
   await expect(page.locator('[data-list]')).toBeVisible()
   await expect(page.locator('[data-detail] article')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancel Gig' })).toHaveCount(1)
+})
+
+/**
+ * #60: the list/grid choice, at BOTH depths and on a COLD load — a slot
+ * matches the whole path, so /gigs/<id> needs its own @list entry, and the
+ * grid view drops the column on the bare surface but not beside a detail.
+ */
+test('the grid view takes the whole pane on /gigs, and the column returns beside a detail', async ({
+  page,
+}) => {
+  await signInToHome(page)
+  await page.goto('/gigs')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Grid' }).click()
+  await expect(page.locator('[data-list]')).toHaveCount(0)
+  await expect(page.locator('[data-gigs-grid]')).toBeVisible()
+  const card = page.locator('[data-gigs-grid] a[data-gig-card]').first()
+  await expect(card).toHaveAttribute('href', /^\/gigs\//)
+  await card.click()
+  await expect(page).toHaveURL(/\/gigs\//)
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.locator('[data-detail] article')).toBeVisible()
+
+  // The choice is REMEMBERED: a cold load of the bare surface is the grid.
+  await page.goto('/gigs')
+  await expect(page.locator('[data-gigs-grid]')).toBeVisible()
+  await expect(page.locator('[data-list]')).toHaveCount(0)
+  // And a cold load of a detail still has the column beside it.
+  const href = await card.getAttribute('href')
+  await page.goto(href ?? '/gigs')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.locator('[data-detail] article')).toBeVisible()
+
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'List' }).click()
+  await page.goto('/gigs')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.locator('[data-gigs-grid]')).toHaveCount(0)
+})
+
+/**
+ * #60, correction (d): /home is the DASHBOARD — the reader's own gigs, wallet,
+ * notices and links — and never the open feed, which lives at /gigs.
+ */
+test('home is the dashboard: my gigs, wallet, health and quick links — no open-gigs list', async ({
+  page,
+}) => {
+  await signInToHome(page)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Good (morning|afternoon|evening)/)
+  await expect(page.locator('[data-list]')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Open gigs' })).toHaveCount(0)
+  // The stub answers `?mine=created` with the delivery gig — MY gig, on the
+  // Posted tab, at the dossier's address.
+  const myGigs = page.getByRole('region', { name: 'My gigs' })
+  await expect(myGigs.getByRole('link', { name: /Deliver a parcel across Yaba/ })).toHaveAttribute(
+    'href',
+    /^\/my-gigs\//,
+  )
+  await expect(page.getByRole('region', { name: 'Wallet' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Notifications' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Account health' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Quick links' }).getByRole('link', { name: /Post a gig/ })).toHaveAttribute(
+    'href',
+    '/create',
+  )
+  // The dashboard is full-width: no horizontal scroll at the desktop width.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
+  expect(overflow).toBe(0)
 })
 
 test('desktop sidebar expands by default and can be collapsed', async ({ page }) => {
@@ -128,8 +199,10 @@ test('phone sidebar is collapsed by default without horizontal overflow', async 
 // Located by href, not by accessible name: the rail appends state to several
 // of those names ("Notifications, 2 unread", "Your profile, <display name>"),
 // so a name-based locator here would be testing the badge.
-const LISTLESS = ['/wallet', '/exchange', '/settings', '/profile']
-const WITH_LIST = ['/my-gigs', '/messages', '/notifications', '/disputes', '/home']
+// /home moved from WITH_LIST to LISTLESS in #60: it is the dashboard now, and
+// browsing — the list it used to carry — lives at /gigs.
+const LISTLESS = ['/wallet', '/exchange', '/settings', '/profile', '/home']
+const WITH_LIST = ['/my-gigs', '/messages', '/notifications', '/disputes', '/gigs']
 
 for (const width of [390, 1280]) {
   test(`a surface with no list column shows no list after a soft navigation (${width}px)`, async ({
@@ -140,7 +213,7 @@ for (const width of [390, 1280]) {
     const rail = page.getByRole('navigation', { name: 'Workspace' })
 
     for (const href of LISTLESS) {
-      await page.goto('/home')
+      await page.goto('/gigs')
       await expect(page.locator('[data-list]')).toBeVisible()
       await rail.locator(`a[href="${href}"]`).first().click()
       await expect(page).toHaveURL(new RegExp(`${href}$`))

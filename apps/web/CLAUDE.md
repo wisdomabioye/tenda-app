@@ -44,8 +44,20 @@ two-column shell and it now owns the same measure as the feed. **Do not add a
 streams the real content behind an inline script that swaps it in — so with JavaScript
 disabled the page renders an empty `<main>`. The feed is the anonymous, indexable front
 door; `e2e/public-discovery.spec.ts` runs it with `javaScriptEnabled: false` as the
-tripwire. A client-fetched surface (`/home`) may show `FeedSkeleton` freely — no Suspense
-is involved there.
+tripwire. A client-fetched surface (`/gigs`, `/home`) may show a skeleton freely — no
+Suspense is involved there.
+
+**#60 (2026-09-03) moved browsing to `/gigs` and made `/home` a dashboard.** `/gigs` is
+the workspace's open-feed surface — the list column (`@list/gigs` at BOTH depths, per the
+slot rule below) beside the shared listing pane, or, in the reader's remembered GRID view
+(`lib/gigs/browse-view.ts`, one localStorage preference shared with the public landing),
+a full-pane card grid with no column until a card is opened. `/home` is composed on the
+client from the hooks the other surfaces already run (`components/home/Dashboard.tsx`) and
+NEVER shows the open feed; the one-call overview endpoint is #61. The landing's hero is one
+compact band (`FeedHero`) and its heading subline carries the LIVE facts the page already
+fetched — chains from the registry, markets from the facets, the fee from
+`/v1/platform/config` — each omitted, never invented, when its read failed. Every chain
+named anywhere is `components/shared/ChainBadge` over shared `chainDisplay`.
 
 **The same trap has a second form: `error.tsx` is a client component too.** Its
 fallback is swapped in by the hydration script, so a server-side read failure
@@ -138,7 +150,7 @@ alone was measured to change nothing at all.
 
 Put `min-w-0` only where it is load-bearing and **verify by removing it**: on
 this surface exactly one was (the feed card). The same class on the `<li>`, on
-`/home`'s `<li>` and on the detail `<article>` was measured to make no
+the workspace list's `<li>` and on the detail `<article>` was measured to make no
 difference and is not shipped — a class that does nothing beside a comment
 saying it matters is worse than no class.
 

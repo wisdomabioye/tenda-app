@@ -12,6 +12,7 @@ import { LIST_KEYBOARD_HINT } from './copy'
 import { ListEmpty, ListError, ListSkeleton } from './ListStates'
 import { ListHeader } from './ListHeader'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { Kbd } from '@/components/ui/Kbd'
 import { useListKeyboard } from '@/hooks/workspace/useListKeyboard'
 import type { ListColumnProps } from './list.types'
 
@@ -31,6 +32,8 @@ export function ListColumn<TRow>({
   pinned,
   footer,
   skeletonRows,
+  tools,
+  filters,
 }: ListColumnProps<TRow>) {
   const router = useRouter()
   const titleId = useId()
@@ -91,9 +94,11 @@ export function ListColumn<TRow>({
         countLabel={countLabel}
         tabs={tabs}
         onOpenPalette={onOpenPalette}
+        tools={tools}
+        filters={filters}
       />
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-5 pt-1">
         {/* Above the rows AND outside every async state: a pinned broadcast is
             not part of the list it sits over, so an empty or failed personal
             feed must not take it off the screen. */}
@@ -119,7 +124,9 @@ export function ListColumn<TRow>({
                 )}
                 <ul
                   aria-labelledby={labelled ? groupLabelId : undefined}
-                  className="flex flex-col gap-1"
+                  // No gap: the rows are hairline-ruled (#60), and a gap
+                  // between ruled rows reads as a broken rule.
+                  className="flex flex-col"
                 >
                   {group.rows.map((row, rowIndex) => {
                     const index = groupOffsets[groupIndex] + rowIndex
@@ -143,21 +150,13 @@ export function ListColumn<TRow>({
             {footer}
             <p className="m-3 text-xs leading-[18px] text-content-tertiary">
               {LIST_KEYBOARD_HINT.move.map((key) => (
-                <Key key={key} label={key} />
+                <span key={key} className="mr-1"><Kbd>{key}</Kbd></span>
               ))}{' '}
-              move · <Key label={LIST_KEYBOARD_HINT.open} /> open · {LIST_KEYBOARD_HINT.suffix}
+              move · <Kbd>{LIST_KEYBOARD_HINT.open}</Kbd> open · {LIST_KEYBOARD_HINT.suffix}
             </p>
           </div>
         )}
       </div>
     </section>
-  )
-}
-
-function Key({ label }: { label: string }) {
-  return (
-    <kbd className="mr-1 rounded-[5px] border border-border-default bg-surface-inset px-1.5 py-px font-numeric text-[11px]">
-      {label}
-    </kbd>
   )
 }

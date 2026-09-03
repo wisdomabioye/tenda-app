@@ -25,15 +25,18 @@ export function GigEscrowAside({ gig, actions }: { gig: GigDetail; actions?: Rea
 
   return (
     <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
-      <div className="rounded-card border border-border-default bg-surface-card p-6 shadow-card">
-        <Eyebrow>{GIG_DETAIL_COPY.locked}</Eyebrow>
+      {/* The money card is one of the two receipt-style objects on the page,
+          so it keeps its shadow (#60 cards pass: the card shadow token only
+          on the receipt-style objects). */}
+      <div className="rounded-card border border-border-default bg-surface-card px-6 py-[22px] shadow-card">
+        <Eyebrow tone="secondary">{GIG_DETAIL_COPY.locked}</Eyebrow>
         <div className="mt-2.5 flex items-end gap-2">
-          <span className="font-numeric text-[40px] font-bold leading-[44px] tracking-[-1px] text-utility-money">
+          <span className="font-numeric text-[40px] font-semibold leading-[44px] tracking-[-1px] text-utility-money">
             {amount}
           </span>
           {/* See GigCard: the space is for textContent, not for layout. */}
           {' '}
-          <span className="pb-1 font-numeric text-[15px] leading-[22px] text-content-tertiary">
+          <span className="pb-1.5 font-numeric text-xs leading-4 text-content-tertiary">
             {symbol}
           </span>
         </div>

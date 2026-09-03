@@ -1,8 +1,9 @@
 /**
- * The rail's two selectable shapes: a full-width ROW (category, arrangement)
- * and a compact CHIP (market). Both are links, never buttons — a filter is a
- * URL here, so every narrowed view is linkable, indexable, and survives the
- * back button with no client state at all.
+ * The rail's one selectable shape since #60: a full-width ROW. Every section
+ * — category, market, arrangement, chain, sort — is a list of these, as the
+ * preview draws them. Links, never buttons: a filter is a URL here, so every
+ * narrowed view is linkable, indexable, and survives the back button with no
+ * client state at all.
  *
  * `aria-current="true"` rather than the comps' `aria-pressed`: pressed
  * describes a toggle BUTTON, and announcing a link as pressed tells a screen
@@ -19,6 +20,7 @@ export function FilterRow({
   active,
   dotClassName,
   count,
+  label,
   children,
 }: {
   href: string
@@ -33,10 +35,13 @@ export function FilterRow({
    */
   count?: number
   /**
-   * A plain string, not a node: with a count present the row states its
-   * accessible name EXPLICITLY (below), and that name has to be buildable.
+   * The row's plain text, always: with a count present the row states its
+   * accessible name EXPLICITLY (below), and that name has to be buildable
+   * even when the rendered content is a node (a chain badge).
    */
-  children: string
+  label: string
+  /** Rendered content; the label itself when omitted. */
+  children?: ReactNode
 }) {
   return (
     <Link
@@ -48,47 +53,21 @@ export function FilterRow({
       // trimmed before joining. Stating the name outright also says what the
       // number COUNTS, which a bare "Delivery 7" never does. The pluralisation
       // is the feed's existing one rather than a second copy of the rule.
-      aria-label={count === undefined ? undefined : `${children} ${FEED_COPY.feed.count(count)}`}
+      aria-label={count === undefined ? undefined : `${label} ${FEED_COPY.feed.count(count)}`}
       className={cn(
-        'flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-sm font-medium transition-colors',
+        'flex h-8 items-center gap-2.5 rounded-xs px-2.5 text-sm font-medium transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
         active
-          ? 'bg-control-selected-background text-content-primary'
+          ? 'bg-surface-inset text-content-primary'
           : 'text-content-secondary hover:bg-surface-inset hover:text-content-primary',
       )}
     >
       {dotClassName !== undefined && (
         <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} />
       )}
-      <span className="flex-1 text-left">{children}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{children ?? label}</span>
       {count !== undefined && (
         <span className="font-numeric text-xs tabular-nums text-content-tertiary">{count}</span>
       )}
-    </Link>
-  )
-}
-
-export function FilterChip({
-  href,
-  active,
-  children,
-}: {
-  href: string
-  active: boolean
-  children: ReactNode
-}) {
-  return (
-    <Link
-      href={href}
-      scroll={false}
-      aria-current={active ? 'true' : undefined}
-      className={cn(
-        'rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors',
-        active
-          ? 'border-control-selected-border bg-control-selected-background text-brand-primary'
-          : 'border-border-default bg-surface-card text-content-secondary hover:border-border-strong hover:text-content-primary',
-      )}
-    >
-      {children}
     </Link>
   )
 }

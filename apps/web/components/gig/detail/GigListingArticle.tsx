@@ -2,7 +2,7 @@
  * The LISTING half of a gig detail — header, brief, terms, required proof,
  * poster, reviews — extracted (2026-08-24, spec-correction #48) from the two
  * surfaces that were each composing it by hand: the public /gig/[id] page and
- * the workspace's /home/gigs/[id] pane. One composition, so the section set
+ * the workspace's /gigs/[id] pane. One composition, so the section set
  * and its order (terms BEFORE the poster — the reader is deciding on the
  * agreement, not the person) cannot drift between them.
  *

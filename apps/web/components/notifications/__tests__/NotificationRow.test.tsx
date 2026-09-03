@@ -1,14 +1,12 @@
 /**
- * Row rendering + the icon map: unread carries the dot and aria suffix,
- * icons derive from the shared screen vocabulary.
+ * Row rendering: unread carries the brand dot, the weight and the aria
+ * suffix; a read row keeps its place in the list with neither.
  */
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
-import { Bell, Handshake, ArrowLeftRight, Scale } from 'lucide-react'
 import type { NotificationWire } from '@tenda/shared'
 import { NotificationRow } from '@/components/notifications/NotificationRow'
-import { notificationIcon } from '@/components/notifications/notification-icon'
 
 function notice(over: Partial<NotificationWire> = {}): NotificationWire {
   return {
@@ -22,22 +20,24 @@ function notice(over: Partial<NotificationWire> = {}): NotificationWire {
   }
 }
 
-test('unread row: inset dot, aria suffix, click fires', async () => {
+test('unread row: brand dot, weighted title, aria suffix, click fires', async () => {
   const onPress = vi.fn()
   render(<NotificationRow notification={notice()} onPress={onPress} />)
   const row = screen.getByRole('button', { name: 'Gig accepted, unread' })
-  expect(screen.getByTestId('notification-unread-dot')).toBeInTheDocument()
+  expect(screen.getByTestId('notification-unread-dot').className).toContain('bg-brand-primary')
+  expect(screen.getByText('Gig accepted').className).toContain('font-semibold')
   expect(screen.getByText('Bola accepted your gig')).toBeInTheDocument()
   await userEvent.click(row)
   expect(onPress).toHaveBeenCalled()
 })
 
-test('read row: no dot, plain aria label', () => {
+test('read row: no unread dot, no weight, plain aria label', () => {
   render(
     <NotificationRow notification={notice({ read_at: '2026-08-15T11:00:00.000Z' })} onPress={vi.fn()} />,
   )
   expect(screen.getByRole('button', { name: 'Gig accepted' })).toBeInTheDocument()
   expect(screen.queryByTestId('notification-unread-dot')).toBeNull()
+  expect(screen.getByText('Gig accepted').className).not.toContain('font-semibold')
 })
 
 test('stamps the row with the instant the notice arrived', () => {
@@ -45,12 +45,4 @@ test('stamps the row with the instant the notice arrived', () => {
   // <time dateTime> is the stable half; the relative label moves with the clock.
   const { container } = render(<NotificationRow notification={notice()} onPress={vi.fn()} />)
   expect(container.querySelector('time')).toHaveAttribute('dateTime', notice().created_at)
-})
-
-test('icon map: gig→Handshake, exchange→ArrowLeftRight, dispute→Scale, else Bell', () => {
-  expect(notificationIcon({ screen: 'escrow', kind: 'gig' })).toBe(Handshake)
-  expect(notificationIcon({ screen: 'escrow', kind: 'exchange' })).toBe(ArrowLeftRight)
-  expect(notificationIcon({ screen: 'dispute' })).toBe(Scale)
-  expect(notificationIcon({ screen: 'other' })).toBe(Bell)
-  expect(notificationIcon(null)).toBe(Bell)
 })

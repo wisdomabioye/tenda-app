@@ -8,11 +8,11 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatFullName, type GigSummary, type MyApplication } from '@tenda/shared'
+import { chainLabel, formatFullName, gigPlaceLabel, type GigSummary, type MyApplication } from '@tenda/shared'
 import type { PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { MyGigsListColumn } from '@/components/gig/my-gigs/MyGigsListColumn'
 import { MY_GIGS_COPY, myGigHref, myGigsHref, myGigsTab } from '@/components/gig/my-gigs/copy'
-import { gigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
+import { GigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
 import { useMyGigs } from '@/hooks/gig/useMyGigs'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { deliveryGig, photoGig } from '@/e2e/fixtures/gigs'
@@ -250,11 +250,16 @@ describe('MyGigsListColumn', () => {
   })
 })
 
-describe('gigRowSubtitle', () => {
+describe('GigRowSubtitle', () => {
   it('says where and on which chain — the two things the wire actually has', () => {
     // The comp puts "4 applicants" or the counterparty's name here. Neither is
     // on `GigSummary`, and inventing them is spec-correction #13's mistake.
-    expect(gigRowSubtitle(deliveryGig)).toContain('·')
-    expect(gigRowSubtitle(deliveryGig)).not.toMatch(/applicant/i)
+    const { container } = render(<GigRowSubtitle gig={deliveryGig} />)
+    expect(container.textContent).toContain(gigPlaceLabel(deliveryGig))
+    expect(container.textContent).toContain('·')
+    expect(container.textContent).not.toMatch(/applicant/i)
+    // The chain is the shared badge (#60), not a grey word.
+    expect(container.querySelector(`[data-chain-badge="${deliveryGig.chain_id}"]`)).not.toBeNull()
+    expect(container.textContent).toContain(chainLabel(deliveryGig.chain_id))
   })
 })

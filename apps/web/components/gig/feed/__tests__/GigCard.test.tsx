@@ -149,18 +149,50 @@ describe('GigCard', () => {
     expect(screen.getByText(chainLabel(deliveryGig.chain_id))).toBeInTheDocument()
   })
 
-  it('WRAPS its top row rather than squeezing a label, now that three things share it', () => {
-    // Measured: without the wrap the category read "DELIVE…" at 1280px too,
-    // because the grid gives a card ~280px whatever the viewport. jsdom cannot
-    // lay out, so this asserts the rule that produces the behaviour; the e2e
-    // measures the actual overflow at 320/360/390 and 768/900/1100/1280.
+  it('gives the chain pair its OWN grid area, and lets the pair wrap, so no label is squeezed', () => {
+    // Before #60 the category, the chain and the window shared one flex row
+    // and the category read "DELIVE…" at 1280px too (a card is ~280px at every
+    // viewport). Now the category and the pair are separate NAMED AREAS, and
+    // the pair wraps so the window badge drops under the chain pill on the
+    // 272px card a 320px phone gets. jsdom cannot lay out, so this asserts the
+    // rule; the e2e measures the overflow at 320/360/390 and 768-1280.
     render(<GigCard gig={deliveryGig} />)
     const eyebrow = screen.getByText(CATEGORY_LABELS[deliveryGig.category])
-    const row = eyebrow.parentElement
-    expect(row?.className).toContain('flex-wrap')
+    expect(eyebrow.parentElement?.className).toContain('[grid-area:meta]')
+    const pair = screen.getByText(GIG_CARD_COPY.open).parentElement
+    expect(pair?.className).toContain('[grid-area:chain]')
+    expect(pair?.className).toContain('flex-wrap')
+    expect(pair?.querySelector(`[data-chain-badge="${deliveryGig.chain_id}"]`)).not.toBeNull()
     // And no truncation dressing on a label that is one short word: every
     // CATEGORY_LABELS entry fits, so a `truncate` here would be inert.
     expect(eyebrow.className).not.toContain('truncate')
+  })
+
+  it('draws a ROW density for the list view: one-line title, the verb on the time line', () => {
+    // The #60 preview's list row keeps the title to one line (a row truncates,
+    // a card breaks — CLAUDE.md, "text a poster wrote") and moves the take
+    // verb from the footer to the place/time line; the grid card does the
+    // opposite. Both densities carry every fact — only the placement moves.
+    render(<GigCard gig={deliveryGig} density="row" />)
+    const card = screen.getByRole('link')
+    expect(card).toHaveAttribute('data-gig-density', 'row')
+    expect(card.className).not.toContain('rounded-card')
+    expect(card.className).toContain('border-b')
+    const title = screen.getByRole('heading', { level: 3 })
+    expect(title.className).toContain('truncate')
+    expect(title.className).not.toContain('break-words')
+    const verb = screen.getByText(GIG_CARD_COPY.accept)
+    expect(verb.parentElement?.className).toContain('[grid-area:time]')
+    expect(screen.getByText('Lagos, Nigeria')).toBeInTheDocument()
+    expect(screen.getByText(chainLabel(deliveryGig.chain_id))).toBeInTheDocument()
+  })
+
+  it('defaults to the GRID density: a card with the verb in its footer', () => {
+    render(<GigCard gig={deliveryGig} />)
+    const card = screen.getByRole('link')
+    expect(card).toHaveAttribute('data-gig-density', 'grid')
+    expect(card.className).toContain('rounded-card')
+    expect(screen.getByText(GIG_CARD_COPY.accept).parentElement?.className).toContain('[grid-area:foot]')
   })
 
   it('can shrink below its content, and lets a poster-written title break', () => {

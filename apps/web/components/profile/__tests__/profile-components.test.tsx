@@ -17,6 +17,7 @@ const usersApi = vi.hoisted(() => ({
 vi.mock('@/api/client', () => ({ api: { users: usersApi } }))
 
 import { ReviewCard, RestrictionBanner, StandingBadge } from '@/components/profile'
+import { REVIEW_CARD_COPY } from '@/components/profile/ReviewCard'
 import { PersonCard } from '@/components/shared/PersonCard'
 import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../../test/factories/user'
@@ -38,19 +39,24 @@ beforeEach(() => {
 
 test('ReviewCard: anonymous reviewer reads Counterparty; stars carry the score', () => {
   render(<ReviewCard review={REVIEW} />)
-  expect(screen.getByText('Counterparty')).toBeInTheDocument()
-  expect(screen.getByLabelText('4 of 5 stars')).toBeInTheDocument()
+  expect(screen.getByText(REVIEW_CARD_COPY.counterparty)).toBeInTheDocument()
+  expect(screen.getByLabelText(REVIEW_CARD_COPY.score(4))).toBeInTheDocument()
   expect(screen.getByText('Great to work with')).toBeInTheDocument()
 })
 
-test('ReviewCard: the "about" caption is the shared Eyebrow, and absent when there is none', () => {
-  // Mobile's ReviewCard sets this caption in the eyebrow style; web drew it
-  // with a hand-rolled mono caption until #59c. The atom is the contract.
+test('ReviewCard: a reviewer with no name on file reads Anonymous, not an empty line', () => {
+  render(<ReviewCard review={REVIEW} reviewer={{ first_name: null, last_name: null, avatar_url: null }} />)
+  expect(screen.getByText(REVIEW_CARD_COPY.anonymous)).toBeInTheDocument()
+})
+
+test('ReviewCard: the "about" label is a neutral badge beside the name, and absent when there is none', () => {
+  // The #60 preview sets the label as a badge on the name line, with the
+  // score as one mono figure beside it — the row is scanned, not read.
   const { unmount } = render(<ReviewCard review={REVIEW} label="About the poster" />)
-  const caption = screen.getByText('About the poster')
-  expect(caption.className).toContain('type-eyebrow')
-  expect(caption.className).toContain('uppercase')
-  expect(caption.className).not.toMatch(/text-\[|tracking-wider|font-numeric/)
+  const label = screen.getByText('About the poster')
+  expect(label.className).toContain('rounded-full')
+  expect(label.className).toContain('bg-surface-inset')
+  expect(screen.getByLabelText('4 of 5 stars')).toHaveTextContent('★ 4.0')
   unmount()
   render(<ReviewCard review={REVIEW} />)
   expect(screen.queryByText('About the poster')).toBeNull()

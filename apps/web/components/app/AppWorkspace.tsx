@@ -10,13 +10,13 @@
  * socket is opened once, not re-opened per route.
  */
 import type { ReactNode } from 'react'
-import { useSelectedLayoutSegment, useSelectedLayoutSegments } from 'next/navigation'
+import { usePathname, useSelectedLayoutSegment, useSelectedLayoutSegments } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
 import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { DetailPane, WorkspaceShell } from '@/components/app/workspace'
-import { listHomeFor, paneBackFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
+import { isComposerPath, listHomeFor, paneBackFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
 import { CommandPalette, surfaceCommands } from '@/components/app/workspace/palette'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
@@ -32,7 +32,10 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
   const surface = useSelectedLayoutSegment()
   const segments = useSelectedLayoutSegments()
   const selection = selectionKey(segments)
-  const paneBack = paneBackFor(surface, selection)
+  // A composer (`/gigs/new`) reads as a selection of the gigs surface by
+  // URL shape alone; it is a wizard, not a row, and gets no "All open gigs".
+  const pathname = usePathname()
+  const paneBack = isComposerPath(pathname) ? null : paneBackFor(surface, selection)
 
   /**
    * Whether this SURFACE has a list at all — not whether the slot rendered

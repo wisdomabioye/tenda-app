@@ -118,7 +118,7 @@ export default function MyGigDetailPage() {
   // Relationship, not URL, picks the composition (#49). The dossier is party
   // furniture — money block, timeline, counterparty — and carries no brief, so
   // a viewer who is NOT a party (a subscriber opening a new-gig notice, an
-  // applicant from the Applied tab) gets the SAME listing body /home/gigs
+  // applicant from the Applied tab) gets the SAME listing body /gigs
   // renders: the brief they came to read, with the shared CTA branches still
   // offering accept/apply. This is what lets every gig notification target
   // this one URL. The wire makes the test safe: `counterparty` is served

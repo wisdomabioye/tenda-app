@@ -22,6 +22,14 @@ export {
   firstEvmChainIdByKind,
 } from './manifest-queries'
 export {
+  CHAIN_FALLBACK_GLYPH,
+  CHAIN_GLYPH_INK,
+  chainFamilyDisplay,
+  chainGlyphInk,
+  type ChainFamilyDisplay,
+  type ChainGlyphInk,
+} from './display'
+export {
   evmAppKitNetworkOf,
   evmAppKitNetworks,
   type EvmAppKitNetwork,

@@ -57,29 +57,29 @@ function availableFrame(escrowId: string, title: string, revision: string) {
   }
 }
 
-test('a gig posted while the reader sits on /home appears without a reload', async ({ page, request }) => {
+test('a gig posted while the reader sits on /gigs appears without a reload', async ({ page, request }) => {
   await signInToHome(page)
-  await page.goto('/home')
-  await expect(page.locator('[data-list] a[href^="/home/gigs/"]').first()).toBeVisible()
+  await page.goto('/gigs')
+  await expect(page.locator('[data-list] a[href^="/gigs/"]').first()).toBeVisible()
 
   const delivered = await publish(request, availableFrame('live-new', 'Posted while you watched', '90'))
   expect(delivered, 'the frame reached no socket — this test would pass vacuously').toBeGreaterThan(0)
 
   await expect(page.getByText('Posted while you watched')).toBeVisible()
   // The frame CARRIED the gig, so the row arrives without asking the server.
-  await expect(page.locator(`[data-list] a[href="/home/gigs/live-new"]`)).toBeVisible()
+  await expect(page.locator(`[data-list] a[href="/gigs/live-new"]`)).toBeVisible()
 })
 
 test('a gig somebody else takes leaves the list', async ({ page, request }) => {
   await signInToHome(page)
-  await page.goto('/home')
-  await expect(page.locator('[data-list] a[href^="/home/gigs/"]').first()).toBeVisible()
+  await page.goto('/gigs')
+  await expect(page.locator('[data-list] a[href^="/gigs/"]').first()).toBeVisible()
 
   // Its OWN gig, arriving and then taken — never a seeded row, which a
   // concurrent spec may be asserting on.
   const arrived = await publish(request, availableFrame('live-taken', 'Yours for now', '92'))
   expect(arrived, 'the frame reached no socket').toBeGreaterThan(0)
-  const row = page.locator('[data-list] a[href="/home/gigs/live-taken"]')
+  const row = page.locator('[data-list] a[href="/gigs/live-taken"]')
   await expect(row).toBeVisible()
 
   const taken = await publish(request, {

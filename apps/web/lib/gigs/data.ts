@@ -7,6 +7,7 @@ import {
   type GigListQuery,
   type GigSummary,
   type PaginatedResponse,
+  type PlatformConfig,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 
@@ -114,6 +115,26 @@ export const getGig = cache(async (id: string): Promise<GigDetail | null> => {
     throw error
   }
 })
+
+/**
+ * The platform fee for the feed heading's facts line (#60) — a LIVE read of
+ * GET /v1/platform/config, one of the three public endpoints the Next server
+ * may call (CLAUDE.md). `null` on any failure or a 200 of the wrong shape:
+ * the heading then omits the fee rather than printing the static copy figure
+ * as if it were live. Same `cache()` treatment as the other reads.
+ */
+const platformConfigOnce = cache(async (): Promise<PlatformConfig | null> => {
+  try {
+    const config = await api.platform.config()
+    return typeof config?.fee_bps === 'number' ? config : null
+  } catch {
+    return null
+  }
+})
+
+export function readPlatformConfigOnce(): Promise<PlatformConfig | null> {
+  return platformConfigOnce()
+}
 
 /** A chain the RUNNING deployment actually serves, as the filter offers it. */
 export interface GigChainOption {

@@ -1,14 +1,17 @@
 /**
  * Chain registry for the landing — DERIVED from @tenda/shared CHAIN_MANIFEST
  * (the monorepo's single source of chain truth), so a chain added there shows
- * up across the landing with zero code changes here. Only marketing display
- * extras — brand colour, glyph, one-line pitch, and the bare `strength` phrase
- * the copy builds "<chain>'s <strength>" from — live in this file, keyed by
- * manifest `family`. Everything else is read from the manifest itself.
+ * up across the landing with zero code changes here. Only the MARKETING
+ * extras — the one-line pitch and the bare `strength` phrase the copy builds
+ * "<chain>'s <strength>" from — live in this file, keyed by manifest `family`.
+ * The name, glyph and brand colour come from shared's `chainFamilyDisplay`
+ * (#60); everything else is read from the manifest itself.
  */
 
 import {
+  CHAIN_FALLBACK_GLYPH,
   CHAIN_MANIFEST,
+  chainFamilyDisplay,
   gigAssetByChain,
   nativeCurrencyOf,
   type GasPolicy,
@@ -21,7 +24,7 @@ export interface ChainDisplay {
   name: string
   /** Single-character mark used in badges and panels. */
   glyph: string
-  /** Chain brand colour — the one place a per-chain hex is allowed. */
+  /** Chain brand colour — shared's display table is the one place a per-chain hex lives. */
   color: string
   /** One-line positioning used on chain badges / ecosystem panels. */
   pitch: string
@@ -35,34 +38,27 @@ export interface ChainDisplay {
   strength: string
 }
 
-/** Display extras per manifest family. Add a row when a new family ships. */
-const FAMILY_DISPLAY: Record<string, ChainDisplay> = {
+/**
+ * MARKETING extras per manifest family — the pitch and the strength phrase.
+ * The name, glyph and brand colour are NOT here any more: they moved to
+ * `@tenda/shared` (`chainFamilyDisplay`, #60) so the web app's chain badge
+ * and this landing draw the same facts from one table. Add a row when a new
+ * family ships.
+ */
+const FAMILY_MARKETING: Record<string, Pick<ChainDisplay, 'pitch' | 'strength'>> = {
   '0g': {
-    name: '0G',
-    glyph: '◈',
-    // 0G's violet accent, read from 0g.ai's own palette (2026-08-27).
-    color: '#C681FF',
     pitch: 'The AI-native L1 — where agents come to hire humans.',
     strength: 'AI-native settlement',
   },
   solana: {
-    name: 'Solana',
-    glyph: '◎',
-    color: '#9945FF',
     pitch: 'Sub-second settlement, fees too small to notice.',
     strength: 'sub-second settlement',
   },
   base: {
-    name: 'Base',
-    glyph: '●',
-    color: '#0052FF',
     pitch: 'Coinbase’s L2 — USDC-native, built to onboard everyone.',
     strength: 'USDC-native rails',
   },
   celo: {
-    name: 'Celo',
-    glyph: '◍',
-    color: '#FCFF52',
     pitch: 'Mobile-first L2 where stablecoins pay their own gas.',
     strength: 'stablecoin-paid gas',
   },
@@ -88,24 +84,26 @@ export interface LandingChain {
 
 /**
  * Display extras for a family, with the fallbacks a chain gets when it reaches
- * the MANIFEST before it reaches FAMILY_DISPLAY — which is the supported
- * order: adding a chain is a manifest entry plus secrets, and the marketing
- * row can follow. Exported because that fallback path is the one nobody
- * exercises until the day a chain is added, and an inline object literal
- * inside a .map() cannot be tested before then.
+ * the MANIFEST before it reaches shared's display table or FAMILY_MARKETING
+ * above — which is the supported order: adding a chain is a manifest entry
+ * plus secrets, and the display and marketing rows can follow. Exported
+ * because that fallback path is the one nobody exercises until the day a
+ * chain is added, and an inline object literal inside a .map() cannot be
+ * tested before then.
  *
  * `strength` falls back to EMPTY rather than to a guess: copy that builds
  * "<name>'s <strength>" skips a chain with no strength instead of rendering a
  * possessive with nothing after it.
  */
 export function displayFor(family: string, displayName: string): ChainDisplay {
-  const display = Object.hasOwn(FAMILY_DISPLAY, family) ? FAMILY_DISPLAY[family] : undefined
+  const display = chainFamilyDisplay(family)
+  const marketing = Object.hasOwn(FAMILY_MARKETING, family) ? FAMILY_MARKETING[family] : undefined
   return {
     name: display?.name ?? displayName,
-    glyph: display?.glyph ?? '●',
+    glyph: display?.glyph ?? CHAIN_FALLBACK_GLYPH,
     color: display?.color ?? 'var(--brand-primary)',
-    pitch: display?.pitch ?? '',
-    strength: display?.strength ?? '',
+    pitch: marketing?.pitch ?? '',
+    strength: marketing?.strength ?? '',
   }
 }
 
@@ -245,7 +243,7 @@ export const SOLANA_CHAIN_NAMES_PROSE = chainNamesProseByNamespace(NAMESPACE.sol
  *
  * A chain with no declared `strength` is SKIPPED rather than rendered as a
  * possessive with nothing after it: a new family that reaches the manifest
- * before it reaches FAMILY_DISPLAY should shorten this sentence, not break it.
+ * before it reaches FAMILY_MARKETING should shorten this sentence, not break it.
  */
 export const CHAIN_STRENGTHS_PROSE = prose(
   LANDING_CHAINS.filter((c) => c.strength !== '').map((c) => `${c.name}’s ${c.strength}`),

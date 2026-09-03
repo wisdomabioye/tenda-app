@@ -49,6 +49,10 @@ export interface ListColumnProps<TRow> {
   tabs?: readonly ListTab[]
   /** Opens the command palette; the ⌘K button is hidden when absent. */
   onOpenPalette?: () => void
+  /** Controls on the title row's right — a view toggle (#60). */
+  tools?: ReactNode
+  /** Controls under the title row — a search field, a chip row (#60). */
+  filters?: ReactNode
   /** Re-runs the fetch from the error state. Omit only for a list that cannot fail. */
   onRetry?: () => void
   /**

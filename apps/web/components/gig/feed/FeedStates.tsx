@@ -14,16 +14,28 @@ import Link from 'next/link'
 import { RotateCw, SearchX, Undo2 } from 'lucide-react'
 import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
 import { EMPTY_ACTION_CLASS, EmptyPanel } from '@/components/ui/EmptyPanel'
+import type { GigsView } from '@/lib/gigs/browse-view'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 import { FEED_COPY } from './copy'
 
-/** The card grid, shared by the list and its skeleton so they cannot drift apart. */
-export const FEED_GRID_CLASS =
-  'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3'
+/**
+ * The container for either density (#60): a hairline-ruled column of rows, or
+ * a card grid that fills with as many 272px tracks as fit. Shared by the list
+ * and its skeleton so they cannot drift apart.
+ */
+export function feedListClass(view: GigsView): string {
+  return view === 'grid'
+    ? 'grid grid-cols-[repeat(auto-fill,minmax(272px,1fr))] gap-3.5'
+    : 'flex flex-col border-t border-border-default'
+}
 
+/**
+ * The GRID's skeleton only: the list surfaces draw `ListSkeleton` in their
+ * column, and the public feed is server-rendered with no loading state.
+ */
 export function FeedSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className={FEED_GRID_CLASS} aria-hidden>
+    <div className={feedListClass('grid')} aria-hidden>
       {Array.from({ length: Math.min(count, GIGS_PAGE_SIZE) }, (_, index) => (
         <div
           key={index}

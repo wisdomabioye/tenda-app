@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import type { ListTab } from './list.types'
 
@@ -12,22 +13,35 @@ export function ListHeader({
   countLabel,
   tabs,
   onOpenPalette,
+  tools,
+  filters,
 }: {
   title: string
   titleId: string
   countLabel?: string
   tabs?: readonly ListTab[]
   onOpenPalette?: () => void
+  /** Controls on the title row's right — a view toggle (#60). */
+  tools?: ReactNode
+  /** Controls under the title row — a search field, a chip row (#60). */
+  filters?: ReactNode
 }) {
   return (
-    <header className="flex flex-col gap-3.5 border-b border-border-subtle px-5 pb-3.5 pt-4.5">
-      <div className="flex items-center gap-3">
+    <header className="flex flex-col gap-3 border-b border-border-subtle px-4 pb-3 pt-[18px]">
+      <div className="flex items-center gap-2.5">
         <h1
           id={titleId}
-          className="flex-1 font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary"
+          className="font-display text-lg font-semibold leading-6 text-content-primary"
         >
           {title}
         </h1>
+        {/* The count sits beside the title, as the #60 preview's column
+            head draws it — one line for "what" and "how many". */}
+        {countLabel !== undefined && countLabel !== '' && (
+          <p className="font-numeric text-xs leading-4 text-content-tertiary">{countLabel}</p>
+        )}
+        <span className="flex-1" aria-hidden />
+        {tools}
         {onOpenPalette !== undefined && (
           <button
             type="button"
@@ -66,9 +80,7 @@ export function ListHeader({
         </div>
       )}
 
-      {countLabel !== undefined && countLabel !== '' && (
-        <p className="font-numeric text-xs leading-4 text-content-tertiary">{countLabel}</p>
-      )}
+      {filters}
     </header>
   )
 }

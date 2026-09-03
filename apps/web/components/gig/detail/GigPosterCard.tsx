@@ -24,7 +24,9 @@ export function GigPosterCard({ creator }: { creator: UserRef }) {
 
   return (
     <>
-      <div className="flex max-w-[60ch] items-center gap-4 rounded-card border border-border-subtle bg-surface-card p-5 shadow-card">
+      {/* The poster card is the other receipt-style object on the page and
+          keeps its shadow (#60); everything around it is ruled. */}
+      <div className="flex max-w-[60ch] items-center gap-4 rounded-card border border-border-subtle bg-surface-card px-5 py-[18px] shadow-card">
         <Avatar size="lg" name={name} src={creator.avatar_url} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-xl font-semibold leading-[26px] text-content-primary">{name}</p>
@@ -37,10 +39,10 @@ export function GigPosterCard({ creator }: { creator: UserRef }) {
             </p>
           ) : (
             <>
-              <p className="font-numeric text-[22px] font-bold leading-7 text-content-primary">
+              <p className="type-mono-mid text-content-primary">
                 {rating}
               </p>
-              <p className="text-xs leading-4 text-content-tertiary">
+              <p className="text-[11px] font-medium leading-[14px] tracking-[0.12px] text-content-tertiary">
                 {GIG_DETAIL_COPY.ratingCaption}
               </p>
             </>

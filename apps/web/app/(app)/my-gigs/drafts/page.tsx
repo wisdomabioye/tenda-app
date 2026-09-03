@@ -13,7 +13,7 @@
 import { FileClock } from 'lucide-react'
 import { useDraftGigs } from '@/hooks/gig/useDraftGigs'
 import { EscrowRow } from '@/components/app/workspace/rows'
-import { gigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
+import { GigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
 import { PaginatedList } from '@/components/shared/PaginatedList'
 
 export default function DraftsPage() {
@@ -34,7 +34,7 @@ export default function DraftsPage() {
             category={gig.category}
             amountRaw={gig.amount_raw}
             asset={gig.asset}
-            subtitle={gigRowSubtitle(gig)}
+            subtitle={<GigRowSubtitle gig={gig} />}
             at={gig.created_at}
           />
         )}

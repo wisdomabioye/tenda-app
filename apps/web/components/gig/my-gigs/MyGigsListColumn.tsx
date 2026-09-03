@@ -30,7 +30,7 @@ import { useNow } from '@/hooks/timing/useNow'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 import { useMyGigsRoute } from '@/hooks/gig/useMyGigsRoute'
 import { MY_GIGS_COPY, MY_GIGS_TABS, myGigHref, myGigsHref } from './copy'
-import { gigRowSubtitle } from './row-subtitle'
+import { GigRowSubtitle } from './row-subtitle'
 
 export function MyGigsListColumn() {
   const router = useRouter()
@@ -154,7 +154,7 @@ export function MyGigsListColumn() {
           category={gig.category}
           amountRaw={gig.amount_raw}
           asset={gig.asset}
-          subtitle={gigRowSubtitle(gig)}
+          subtitle={<GigRowSubtitle gig={gig} />}
           at={gig.created_at}
           // On Working the creator is the OTHER party — worth a face. On
           // Posted it is the reader; telling someone their own name is

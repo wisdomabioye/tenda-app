@@ -36,6 +36,10 @@ test('the wizard gates each step on its own first actionable requirement', async
   await page.getByRole('button', { name: 'Create' }).click()
   await page.getByRole('menuitem', { name: 'Create gig' }).click()
   await expect(page).toHaveURL(/\/gigs\/new/)
+  // #60 put a browse surface at /gigs; the wizard under it is still a
+  // composer: no "All open gigs" back bar over it, no lit Gigs item.
+  await expect(page.locator('[data-pane-back]')).toHaveCount(0)
+  await expect(page.locator('nav[aria-label="Workspace"] a[aria-label="Gigs"]')).not.toHaveAttribute('aria-current', 'page')
 
   const next = page.getByRole('button', { name: 'Continue' })
   await expect(page.getByText('Step 1 of 5')).toBeVisible()

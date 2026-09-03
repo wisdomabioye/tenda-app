@@ -44,6 +44,15 @@ describe('isRailItemActive', () => {
     expect(isRailItemActive('/wallet', '/messages')).toBe(false)
   })
 
+  it('lights NOTHING on a composer — /gigs/new is the Create action, not a gig', () => {
+    // #60 gave /gigs a rail item; the wizard already lived under that segment,
+    // and it lit nothing before, so it must light nothing now.
+    for (const item of RAIL_ITEMS) expect(isRailItemActive('/gigs/new', item.href)).toBe(false)
+    for (const item of RAIL_ITEMS) expect(isRailItemActive('/create', item.href)).toBe(false)
+    // …while an actual open gig does light Gigs.
+    expect(isRailItemActive('/gigs/gig-delivery-1', '/gigs')).toBe(true)
+  })
+
   it('matches nothing when the pathname is the bare root', () => {
     for (const item of RAIL_ITEMS) expect(isRailItemActive('/', item.href)).toBe(false)
   })

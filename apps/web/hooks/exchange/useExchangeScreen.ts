@@ -15,12 +15,11 @@ import type {
   ExchangeListQuery,
   ExchangeSummary,
   SupportedCurrency,
-  UserEscrowsQuery,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
-import { useAuthStore } from '@/stores/auth.store'
-import { myTradesCache, offerBookCache } from '@/lib/account-state'
+import { offerBookCache } from '@/lib/account-state'
+import { useMyTrades } from './useMyTrades'
 
 export interface ExchangeScreenState {
   market: PaginatedListState<ExchangeSummary>
@@ -39,15 +38,12 @@ export interface ExchangeScreenFilters {
 }
 
 const offerKey = (offer: ExchangeSummary) => offer.escrow_id
-const escrowKey = (row: EscrowListRow) => row.id
 
 export function useExchangeScreen({
   currency,
   chainId,
   enabled = true,
 }: ExchangeScreenFilters): ExchangeScreenState {
-  const user = useAuthStore((s) => s.user)
-
   const market = usePaginatedList<ExchangeSummary, ExchangeListQuery>({
     fetchPage: (params) => api.exchange.list(params),
     query: {
@@ -59,18 +55,8 @@ export function useExchangeScreen({
     cache: offerBookCache,
   })
 
-  const userId = user?.id ?? null
-  const myTrades = usePaginatedList<EscrowListRow, UserEscrowsQuery>({
-    // No role filter → both sides: offers posted (creator) and offers
-    // accepted (counterparty). The row derives selling/buying from creator_id.
-    fetchPage: (params) => api.users.escrows({ id: userId ?? '' }, params),
-    query: { kind: 'exchange', chain_id: chainId ?? undefined },
-    keyOf: escrowKey,
-    // Never issue the request without an id — it would 403 on someone
-    // else's escrows rather than simply not running.
-    enabled: enabled && userId !== null,
-    cache: myTradesCache,
-  })
+  // The reader's own side of the book, shared with the dashboard (#60).
+  const myTrades = useMyTrades(chainId, enabled)
 
   return { market, myTrades }
 }

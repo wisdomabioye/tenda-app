@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * One notice in the centre — web twin of mobile's NotificationRow: screen-
- * derived icon, unread = inset background + brand dot, relative timestamp.
+ * One notice in the centre — the #60 preview's notification row: an unread
+ * dot (brand while unread, the hairline tone once read), the title carrying
+ * the weight only while unread, the body as a caption, the relative time in
+ * mono on the right, one hairline between rows. No icon tile and no inset
+ * fill: the dot is the whole unread signal, and the row is scanned by title.
  */
-import { createElement } from 'react'
 import type { NotificationWire } from '@tenda/shared'
 import { RelativeTime } from '@/components/ui/RelativeTime'
-import { notificationIcon } from './notification-icon'
 import { cn } from '@/lib/cn'
 
 export function NotificationRow({
@@ -24,32 +25,34 @@ export function NotificationRow({
       type="button"
       onClick={onPress}
       aria-label={`${notification.title}${unread ? ', unread' : ''}`}
-      className={cn(
-        'flex w-full items-start gap-3 rounded-[14px] px-4 py-3 text-left transition-opacity hover:opacity-80',
-        unread ? 'bg-surface-inset' : 'bg-transparent',
-      )}
+      className="grid w-full grid-cols-[8px_minmax(0,1fr)_auto] items-start gap-3 border-b border-border-subtle px-1 py-3 text-left transition-colors hover:bg-surface-inset"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-background">
-        {/* createElement: a capitalized render-alias trips react-hooks/static-components */}
-        {createElement(notificationIcon(notification.data), { size: 18, className: 'text-content-secondary' })}
-      </span>
+      <span
+        aria-hidden
+        // The test id names the UNREAD state, which is what the dot means
+        // only while it is brand-coloured; a read row's dot is furniture.
+        data-testid={unread ? 'notification-unread-dot' : undefined}
+        className={cn('mt-1.5 size-2 rounded-full', unread ? 'bg-brand-primary' : 'bg-border-strong')}
+      />
 
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14.5px] font-semibold text-content-primary">
+      <span className="min-w-0">
+        <span
+          className={cn(
+            'block truncate text-[13px] leading-[18px]',
+            unread ? 'font-semibold text-content-primary' : 'text-content-secondary',
+          )}
+        >
           {notification.title}
         </span>
-        <span className="mt-0.5 line-clamp-2 block text-[13.5px] leading-[18px] text-content-secondary">
+        <span className="mt-0.5 line-clamp-2 block text-[11px] font-medium leading-[14px] tracking-[0.12px] text-content-tertiary">
           {notification.body}
         </span>
-        <RelativeTime
-          iso={notification.created_at}
-          className="mt-1 block text-xs text-content-tertiary"
-        />
       </span>
 
-      {unread && (
-        <span data-testid="notification-unread-dot" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-solid" />
-      )}
+      <RelativeTime
+        iso={notification.created_at}
+        className="font-numeric text-xs leading-4 text-content-tertiary"
+      />
     </button>
   )
 }

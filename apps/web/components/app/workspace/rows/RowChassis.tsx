@@ -67,12 +67,15 @@ export function RowChassis({
       href={href}
       aria-label={label}
       aria-current={selected ? 'true' : undefined}
+      // Hairline rows, not stacked cards (#60 cards pass): one rule between
+      // rows, the inset fill on hover, and the OPEN row marked by the same
+      // fill plus a 3px ink bar on its left edge — the #60 preview's column.
       className={cn(
-        'block rounded-card border p-3.5 transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
+        'block border-b border-border-subtle px-2.5 py-3 transition-colors duration-(--motion-fast) ease-(--motion-ease-standard)',
         arriving && 'animate-arrive',
         selected
-          ? 'border-border-strong bg-surface-card text-content-primary'
-          : 'border-border-subtle bg-surface-card hover:border-border-strong',
+          ? 'rounded-sm bg-surface-inset text-content-primary shadow-[inset_3px_0_0_var(--content-primary)]'
+          : 'hover:rounded-sm hover:bg-surface-inset',
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -99,7 +102,7 @@ export function RowChassis({
         )}
       </div>
 
-      <p className="mt-2 line-clamp-2 font-display text-[15px] font-semibold leading-[21px] text-content-primary">
+      <p className="mt-1.5 line-clamp-2 font-display text-base font-semibold leading-[22px] text-content-primary">
         {title}
       </p>
 
@@ -112,7 +115,7 @@ export function RowChassis({
             </span>
           )}
           {amount !== undefined && (
-            <span className="shrink-0 whitespace-nowrap font-numeric text-[13px] font-bold leading-[18px] text-utility-money">
+            <span className="shrink-0 whitespace-nowrap font-numeric text-[17px] font-semibold leading-6 text-utility-money">
               {amount}
             </span>
           )}

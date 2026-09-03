@@ -1,12 +1,38 @@
 import { vi } from 'vitest'
 
 vi.mock('@/api/client', () => ({
-  api: { gigs: { list: vi.fn(), get: vi.fn(), facets: vi.fn() }, platform: { chains: vi.fn() } },
+  api: { gigs: { list: vi.fn(), get: vi.fn(), facets: vi.fn() }, platform: { chains: vi.fn(), config: vi.fn() } },
 }))
 
 import { ApiClientError, LOCATIONS, type GigFacets } from '@tenda/shared'
 import { api } from '@/api/client'
-import { getGig, listEnabledChains, listGigFacetsOnce, listGigs, listGigsOnce } from '@/lib/gigs/data'
+import {
+  getGig,
+  listEnabledChains,
+  listGigFacetsOnce,
+  listGigs,
+  listGigsOnce,
+  readPlatformConfigOnce,
+} from '@/lib/gigs/data'
+
+describe('readPlatformConfigOnce — the fee on the feed heading', () => {
+  it('returns the live config on success', async () => {
+    vi.mocked(api.platform.config).mockResolvedValue({ fee_bps: 250, seeker_fee_bps: 100, grace_period_seconds: 3600 })
+    expect(await readPlatformConfigOnce()).toMatchObject({ fee_bps: 250 })
+  })
+
+  it('answers null when the read fails, so the heading omits the fee rather than printing static copy', async () => {
+    vi.mocked(api.platform.config).mockRejectedValue(new ApiClientError(500, 'Internal', 'boom'))
+    expect(await readPlatformConfigOnce()).toBeNull()
+  })
+
+  it('answers null for a 200 of the wrong shape', async () => {
+    vi.mocked(api.platform.config).mockResolvedValue({ hello: 'world' } as never)
+    expect(await readPlatformConfigOnce()).toBeNull()
+    vi.mocked(api.platform.config).mockResolvedValue(undefined as never)
+    expect(await readPlatformConfigOnce()).toBeNull()
+  })
+})
 
 const gigsApi = vi.mocked(api.gigs)
 const platformApi = vi.mocked(api.platform)

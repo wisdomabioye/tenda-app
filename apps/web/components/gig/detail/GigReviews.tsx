@@ -13,7 +13,9 @@ export function GigReviews({ gig, revealParties = false }: { gig: GigDetail; rev
 
   return (
     <GigDetailSection title={`Reviews (${gig.reviews.length})`}>
-      <div className="rounded-card border border-border-subtle bg-surface-card px-3">
+      {/* Ruled rows straight under the section title (#60): the ReviewCard
+          rules itself, so a card around the run would draw a box in a box. */}
+      <div>
         {gig.reviews.map((review) => (
           <ReviewCard
             key={review.id}

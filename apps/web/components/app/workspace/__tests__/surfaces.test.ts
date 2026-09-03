@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SURFACE_TITLE,
+  isComposerPath,
   paneBackFor,
   selectionKey,
   surfaceTitle,
 } from '@/components/app/workspace/surfaces'
+import { ROUTES } from '@/lib/routes'
+
+describe('isComposerPath', () => {
+  it('names the two composers — the wizard sits under /gigs but is not a gig', () => {
+    expect(isComposerPath(ROUTES.createGig)).toBe(true)
+    expect(isComposerPath(ROUTES.create)).toBe(true)
+    expect(ROUTES.createGig.startsWith('/gigs/')).toBe(true)
+  })
+
+  it('leaves a real selection, the bare surface and a deeper path alone', () => {
+    expect(isComposerPath('/gigs/gig-delivery-1')).toBe(false)
+    expect(isComposerPath('/gigs')).toBe(false)
+    expect(isComposerPath('/gigs/new/step')).toBe(false)
+    expect(isComposerPath('/create/gig')).toBe(false)
+  })
+})
 
 describe('surfaceTitle', () => {
   it.each([

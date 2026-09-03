@@ -11,8 +11,8 @@ import { DISPUTES_LIST_COPY } from '../components/dispute/copy'
  * destination and the identity are announced together).
  *
  * Named in full rather than matched loosely on "Ada Okafor" — the seeded
- * poster has the same name, so every gig card on /home carries it too and a
- * substring match is ambiguous.
+ * poster has the same name, so a gig row on /home or /gigs carries it too and
+ * a substring match is ambiguous.
  */
 const PROFILE_LINK = 'Your profile, Ada Okafor'
 
@@ -40,7 +40,7 @@ test('sign-up: email → code → profile setup → home shell', async ({ page }
   await page.getByLabel(AUTH_COPY.profile.last).fill('Eze')
   await page.getByRole('button', { name: AUTH_COPY.profile.cta }).click()
   await expect(page).toHaveURL(/\/home/)
-  await expect(page.getByRole('link', { name: 'My Gigs' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'My Gigs', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Your profile, Chidi Eze' })).toBeVisible()
 })
 

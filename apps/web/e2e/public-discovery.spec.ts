@@ -218,6 +218,53 @@ test.describe('feed — /', () => {
     expect(html).not.toContain('Celo Sepolia')
   })
 
+  test('the first gigs sit ABOVE THE FOLD at 1280×800 — the hero is one compact band (#60)', async ({
+    page,
+  }) => {
+    // The user's own words on the previous hero: "occupies too much space,
+    // difficult to see open gigs at a glance". The gate is the first card's
+    // bottom edge inside the viewport on a cold load, before any scroll.
+    const fold = { width: 1280, height: 800 }
+    await page.setViewportSize(fold)
+    await page.goto('/')
+    // One compact band: the artifact's hero is ~194px here (30/26 padding,
+    // one-line h1, the lede at 62ch and the guarantee at 56ch each wrapping
+    // once), i.e. under a quarter of the fold. The old hero was over half.
+    const hero = await page.locator('[data-feed-hero]').boundingBox()
+    expect(hero, 'the hero band did not render').not.toBeNull()
+    expect(hero?.height ?? Infinity).toBeLessThanOrEqual(fold.height / 4)
+    const card = await page.locator('[data-gig-card]').first().boundingBox()
+    expect(card, 'no gig card rendered').not.toBeNull()
+    expect((card?.y ?? 0) + (card?.height ?? 0)).toBeLessThanOrEqual(fold.height)
+    // The heading's subline carries the LIVE facts the page already fetched.
+    const facts = page.locator('[data-feed-facts]')
+    await expect(facts).toContainText(/\d+ gigs?/)
+    await expect(facts).toContainText(/2 chains/)
+    await expect(facts).toContainText(/2\.5% fee/)
+  })
+
+  test('the filter rail stays in reach while the feed scrolls (#60)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/')
+    // The stub serves three gigs, so the feed column is SHORTER than the rail
+    // and a sticky rail has no room to act (sticky never leaves its grid row).
+    // Give the column the height a full 30-gig page has; the rail's own
+    // CSS is untouched, so dropping `lg:sticky` sends it off the top with
+    // the page and the assertion below fails.
+    await page.addStyleTag({ content: '[data-feed-surface] { min-height: 3000px }' })
+    const rail = page.getByRole('complementary', { name: 'Filter gigs' })
+    const before = await rail.boundingBox()
+    await page.mouse.wheel(0, 1200)
+    await page.waitForTimeout(150)
+    const after = await rail.boundingBox()
+    expect(before, 'rail not rendered').not.toBeNull()
+    expect(after, 'rail not rendered after scroll').not.toBeNull()
+    // The page scrolled (the rail is higher than it was) but the rail's top
+    // stayed inside the viewport instead of leaving with the page.
+    expect(after?.y ?? Infinity).toBeLessThan(before?.y ?? 0)
+    expect(after?.y ?? -1).toBeGreaterThanOrEqual(0)
+  })
+
   test.describe('on a phone', () => {
     // 360 and 390 are the two commonest widths in this product's markets; 320
     // is the floor. The public feed is the anonymous front door and most of

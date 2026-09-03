@@ -8,12 +8,12 @@
  */
 import type { ReactNode } from 'react'
 import {
-  chainLabel,
   formatAssetAmount,
   formatDuration,
   gigPlaceLabel,
   type GigDetail,
 } from '@tenda/shared'
+import { ChainBadge } from '@/components/shared/ChainBadge'
 import { RelativeTime } from '@/components/ui'
 import { GIG_DETAIL_COPY } from './copy'
 
@@ -60,7 +60,9 @@ export function gigTerms(gig: GigDetail): Term[] {
       value: formatAssetAmount(gig.amount_raw, gig.asset),
       numeric: true,
     },
-    { label: GIG_DETAIL_COPY.terminology.chain, value: chainLabel(gig.chain_id) },
+    // The shared badge (#60, correction c) — the same mark as the card and
+    // the header, so the network reads alike wherever it is named.
+    { label: GIG_DETAIL_COPY.terminology.chain, value: <ChainBadge chainId={gig.chain_id} /> },
     { label: GIG_DETAIL_COPY.terminology.location, value: gigPlaceLabel(gig) },
   ]
   if (gig.completion_duration_seconds !== null) {
@@ -87,7 +89,7 @@ export function gigTerms(gig: GigDetail): Term[] {
 
 export function GigTerms({ gig }: { gig: GigDetail }) {
   return (
-    <dl className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-8 gap-y-6">
+    <dl className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-8 gap-y-[22px]">
       {gigTerms(gig).map((term) => (
         <div key={term.label}>
           <dt className="mb-1 text-[13px] leading-[18px] text-content-tertiary">{term.label}</dt>

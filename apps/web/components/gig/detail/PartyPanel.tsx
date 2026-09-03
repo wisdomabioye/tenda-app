@@ -8,7 +8,7 @@
  * building blocks as the workspace dossier — PersonCard for the counterparty
  * (profile link + message-in-context, mobile's affordance), the dossier's
  * proof rows — so one escrow's party experience dresses one way on
- * /gig/[id], /home/gigs/[id] and /my-gigs/[id] alike.
+ * /gig/[id], /gigs/[id] and /my-gigs/[id] alike.
  */
 import {
   STATUS_LABEL,

@@ -141,13 +141,6 @@ export default defineConfig({
         'components/gig/feed/**/*.{ts,tsx}',
         'components/gig/gig-form/**/*.{ts,tsx}',
         'components/gig/gig-applications/**/*.{ts,tsx}',
-        'components/chat/**/*.{ts,tsx}',
-        'components/notifications/**/*.{ts,tsx}',
-        'components/dispute/**/*.{ts,tsx}',
-        // #17: the my-gigs and notification columns and their detail panes.
-        'components/gig/my-gigs/**/*.{ts,tsx}',
-        'components/notifications/**/*.{ts,tsx}',
-        'lib/account-state.ts',
         'components/exchange/**/*.{ts,tsx}',
         'components/payout/**/*.{ts,tsx}',
         'components/profile/**/*.{ts,tsx}',
@@ -192,7 +185,13 @@ export default defineConfig({
         'components/ui/**/*.{ts,tsx}',
         'components/app/**/*.{ts,tsx}',
         'components/home/**/*.{ts,tsx}',
+        // #60: browsing moved to /gigs (column, grid, slot, detail pane), the
+        // page that picks between its views, and the blue-period headline the
+        // hero, the feed heading and the dashboard greeting share.
+        'components/gigs/**/*.{ts,tsx}',
+        'app/(app)/gigs/page.tsx',
         'components/public/BrandMark.tsx',
+        'components/public/BrandPeriod.tsx',
         'components/public/NotFoundPanel.tsx',
         'components/public/foundations/**/*.{ts,tsx}',
         'components/public/support/**/*.{ts,tsx}',

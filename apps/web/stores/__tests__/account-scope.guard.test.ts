@@ -42,6 +42,8 @@ const ACCOUNT_AGNOSTIC: Record<string, string> = {
     'public enabled-chain registry — token addresses, identical for every reader. Clearing it would blank a rendered balance while it refetched',
   'platform-config.store.ts':
     'public fee tiers and rates, identical for every reader',
+  'gigs-browse.store.ts':
+    'a category and a search over the PUBLIC open-gig feed (#60) — the same rows for every reader, nothing personal. Left set across a same-tab switch it narrows a public list for the next account and leaks nothing',
   'realtime.store.ts':
     'the STORE holds only `connected`, derived from the socket, and useRealtimeConnection tears that socket down when isAuthenticated goes false. The module also holds `openConversationId` (#47): not state that needs clearing — useChatRealtime releases it on unmount, and a conversation id left behind is a uuid that can never match the next account\'s',
 }

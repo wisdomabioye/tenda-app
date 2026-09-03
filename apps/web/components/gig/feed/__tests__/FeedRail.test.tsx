@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CATEGORY_LABELS, GIG_CATEGORIES, LOCATIONS } from '@tenda/shared'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
@@ -93,25 +93,44 @@ describe('FeedRail', () => {
     expect(screen.queryByText(FEED_COPY.rail.chain)).not.toBeInTheDocument()
   })
 
-  it('offers every sort the URL contract accepts, and nothing it does not', () => {
+  it('offers every sort the URL contract accepts as a LINK, and nothing it does not', () => {
+    // Rows since #60, like every other section — each ordering is a URL.
     renderRail()
-    const select = screen.getByLabelText(FEED_COPY.rail.sort)
-    const options = within(select).getAllByRole('option').map((o) => o.textContent)
-    expect(options).toEqual(Object.values(GIG_SORT_LABELS))
+    const sort = screen.getByRole('group', { name: FEED_COPY.rail.sort })
+    const labels = within(sort).getAllByRole('link').map((link) => link.textContent)
+    expect(labels).toEqual(Object.values(GIG_SORT_LABELS))
     // The comp offers a fourth, "Accept deadline", that no sort value backs.
-    expect(options).not.toContain('Accept deadline')
+    expect(labels).not.toContain('Accept deadline')
   })
 
-  it('submits the DEFAULT ordering as an empty value, keeping the canonical URL', () => {
-    renderRail()
-    const select = screen.getByLabelText(FEED_COPY.rail.sort)
-    const recency = within(select).getByRole('option', { name: GIG_SORT_LABELS.created_at })
-    expect(recency).toHaveValue('')
+  it('links the DEFAULT ordering to the bare view, keeping the canonical URL', () => {
+    renderRail({ category: 'photo', sort: 'amount_desc' })
+    const sort = screen.getByRole('group', { name: FEED_COPY.rail.sort })
+    expect(within(sort).getByRole('link', { name: GIG_SORT_LABELS.created_at })).toHaveAttribute('href', '/?category=photo')
+    expect(within(sort).getByRole('link', { name: GIG_SORT_LABELS.amount_asc })).toHaveAttribute('href', '/?category=photo&sort=amount_asc')
   })
 
-  it('preselects the active sort', () => {
+  it('marks the active sort as CURRENT', () => {
     renderRail({ sort: 'amount_desc' })
-    expect(screen.getByLabelText(FEED_COPY.rail.sort)).toHaveValue('amount_desc')
+    const sort = screen.getByRole('group', { name: FEED_COPY.rail.sort })
+    expect(within(sort).getByRole('link', { name: GIG_SORT_LABELS.amount_desc })).toHaveAttribute('aria-current', 'true')
+    expect(within(sort).getByRole('link', { name: GIG_SORT_LABELS.created_at })).not.toHaveAttribute('aria-current')
+  })
+
+  it('carries a non-default sort through a SEARCH as a hidden field, and never the default', () => {
+    const { container, unmount } = renderRail({ sort: 'amount_asc' })
+    expect(container.querySelector('input[type="hidden"][name="sort"]')).toHaveAttribute('value', 'amount_asc')
+    unmount()
+    const bare = renderRail().container
+    expect(bare.querySelector('input[type="hidden"][name="sort"]')).toBeNull()
+  })
+
+  it('draws each chain row as the shared badge, named by the chain', () => {
+    renderRail()
+    const chains = screen.getByRole('group', { name: FEED_COPY.rail.chain })
+    const row = within(chains).getByRole('link', { name: 'Solana Devnet' })
+    expect(row.querySelector('[data-chain-badge="solana:devnet"]')).not.toBeNull()
+    expect(within(chains).getByRole('link', { name: FEED_COPY.rail.allChains })).toHaveAttribute('href', '/')
   })
 
   it('carries filters with no form control of their own as hidden fields', () => {
@@ -158,11 +177,12 @@ describe('FeedRail', () => {
   })
 
   it('changes sort without resetting the reader to the top', () => {
+    // Next's <Link scroll={false}> — the row is a link, and the walk from
+    // the reader's place in the feed to a re-sorted one must not jump.
     renderRail({ category: 'photo' })
-    fireEvent.change(screen.getByLabelText(FEED_COPY.rail.sort), {
-      target: { value: 'amount_asc' },
-    })
-    expect(mockPush).toHaveBeenCalledWith('/?category=photo&sort=amount_asc', { scroll: false })
+    const sort = screen.getByRole('group', { name: FEED_COPY.rail.sort })
+    expect(within(sort).getByRole('link', { name: GIG_SORT_LABELS.amount_asc })).toHaveAttribute('href', '/?category=photo&sort=amount_asc')
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('offers a submit for readers with no JavaScript', () => {
@@ -211,20 +231,26 @@ describe('FeedRail', () => {
     expect(within(category).getByRole('link', { name: CATEGORY_LABELS.digital })).toBeInTheDocument()
   })
 
-  it('leaves the single-control blocks as LABELS, which is the stronger tie', () => {
-    // A <label> already associates the name with its control; wrapping those
-    // in a group as well would announce the name twice.
+  it('leaves the single-control block as a LABEL, which is the stronger tie', () => {
+    // A <label> already associates the name with its control; wrapping it in
+    // a group as well would announce the name twice. Sort is a group of links
+    // since #60, so it is named the way the other link runs are.
     renderRail()
     expect(screen.queryByRole('group', { name: FEED_COPY.rail.search })).toBeNull()
-    expect(screen.queryByRole('group', { name: FEED_COPY.rail.sort })).toBeNull()
     expect(screen.getByLabelText(FEED_COPY.rail.search)).toBeInTheDocument()
-    expect(screen.getByLabelText(FEED_COPY.rail.sort)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: FEED_COPY.rail.sort })).toBeInTheDocument()
   })
 
-  it('states the keyboard walk it enables', () => {
+  it('states no keyboard hint of its own — that moved to the feed heading (#60)', () => {
     renderRail()
-    expect(screen.getByText('j')).toBeInTheDocument()
-    expect(screen.getByText('k')).toBeInTheDocument()
-    expect(screen.getByText('Enter')).toBeInTheDocument()
+    expect(document.querySelector('kbd')).toBeNull()
+  })
+
+  it('is sticky beside the list and scrolls within itself on a tall rail', () => {
+    renderRail()
+    const rail = screen.getByRole('complementary', { name: 'Filter gigs' })
+    expect(rail.className).toContain('lg:sticky')
+    expect(rail.className).toContain('lg:overflow-y-auto')
+    expect(rail.className).toContain('lg:max-h-')
   })
 })

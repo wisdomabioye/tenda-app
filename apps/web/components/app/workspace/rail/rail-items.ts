@@ -10,6 +10,7 @@ import {
   ArrowLeftRight,
   Bell,
   Home,
+  LayoutList,
   ListChecks,
   MessageSquare,
   Scale,
@@ -17,7 +18,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from 'lucide-react'
-import { listHomeFor } from '../surfaces'
+import { isComposerPath, listHomeFor } from '../surfaces'
 
 /** Which live counter an item surfaces. */
 export type RailBadgeSource = 'messages' | 'notifications'
@@ -38,6 +39,10 @@ export interface RailItem {
  */
 export const RAIL_ITEMS: readonly RailItem[] = [
   { href: '/home', label: 'Home', icon: Home },
+  // #60: /home became the dashboard, and browsing the open feed got its own
+  // surface. `LayoutList` reads as "the list of everything", beside My Gigs'
+  // ticked list of the reader's own.
+  { href: '/gigs', label: 'Gigs', icon: LayoutList },
   { href: '/my-gigs', label: 'My Gigs', icon: ListChecks },
   { href: '/messages', label: 'Messages', icon: MessageSquare, badge: 'messages' },
   { href: '/notifications', label: 'Notifications', icon: Bell, badge: 'notifications' },
@@ -77,8 +82,12 @@ export const RAIL_LINK_WALLET = {
  * but its item is Disputes. surfaces.ts already owns that mapping
  * (SURFACE_LIST_HOME feeds the ≤900px back link from it), so the rail resolves
  * through it rather than re-encoding which list owns which surface.
+ *
+ * A composer lights nothing: `/gigs/new` sits under the /gigs segment but is
+ * the Create action's destination, not a place in the Gigs list (surfaces.ts).
  */
 export function isRailItemActive(pathname: string, href: string): boolean {
+  if (isComposerPath(pathname)) return false
   if (pathname === href || pathname.startsWith(`${href}/`)) return true
   const surface = pathname.split('/')[1] ?? ''
   return listHomeFor(surface)?.href === href

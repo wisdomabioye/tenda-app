@@ -97,6 +97,26 @@ describe('ListColumn — header', () => {
     renderList()
     expect(screen.queryByText('12 open')).not.toBeInTheDocument()
   })
+
+  it('renders the tools beside the title and the filters under it, inside the header (#60)', () => {
+    renderList({
+      tools: <button type="button">toggle</button>,
+      filters: <input aria-label="Search" />,
+    })
+    const header = screen.getByRole('heading', { name: COPY.title }).closest('header')
+    expect(header).not.toBeNull()
+    expect(header).toContainElement(screen.getByRole('button', { name: 'toggle' }))
+    expect(header).toContainElement(screen.getByRole('textbox', { name: 'Search' }))
+    // Order: the title row (with the tool) precedes the filters.
+    const nodes = Array.from(header?.querySelectorAll('button, input') ?? [])
+    expect(nodes.map((node) => node.tagName)).toEqual(['BUTTON', 'INPUT'])
+  })
+
+  it('renders no slot furniture when neither tools nor filters are given', () => {
+    renderList()
+    const header = screen.getByRole('heading', { name: COPY.title }).closest('header')
+    expect(header?.querySelectorAll('button, input')).toHaveLength(0)
+  })
 })
 
 describe('ListColumn — grouping', () => {

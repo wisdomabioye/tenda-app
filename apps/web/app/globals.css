@@ -238,3 +238,30 @@ body {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Gig card densities (#60) ───────────────────────────────────────────
+ * The GigCard lays its six cells out by NAMED AREA, and the two templates
+ * live here rather than as arbitrary utilities because one of them is a
+ * breakpoint rule: the three-column ROW only exists from `sm` up. Below that
+ * a row stacks exactly like the grid card, so a 320px phone — where the feed
+ * hands a card 272px — never sees the chain pills, the amount and the title
+ * fighting over one line. Children address the areas with `[grid-area:…]`.
+ */
+[data-gig-density] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'meta chain'
+    'title title'
+    'amt amt'
+    'time time'
+    'foot foot';
+}
+@media (min-width: 640px) {
+  [data-gig-density='row'] {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'meta chain amt'
+      'title chain amt'
+      'foot chain time';
+  }
+}

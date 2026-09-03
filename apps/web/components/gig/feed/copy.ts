@@ -36,13 +36,28 @@ export const FEED_COPY = {
     remote: 'Remote only',
     crossBorder: 'Cross-border',
   },
+  /**
+   * The hero's two calls to action — labels, not pitch strings (those are
+   * APP_INFO's). `post` is also the dashboard's, which imports it from here.
+   */
+  cta: {
+    post: 'Post a gig',
+    how: 'How escrow works',
+  },
   feed: {
     heading: 'Open gigs',
     searchHeading: 'Search results',
     /** The whole filtered set, not this page — see the call site. */
     count: (total: number) => (total === 1 ? '1 gig' : `${total} gigs`),
-    /** The rail's keyboard hint, split so the keys can be rendered as <kbd>. */
-    keyboardHint: { walk: 'to walk the feed', open: 'to open' },
+    /**
+     * The LIVE feed facts on the heading's subline (#60): chains from the
+     * running registry, markets from the facets, the fee from platform config.
+     */
+    chains: (count: number) => (count === 1 ? '1 chain' : `${count} chains`),
+    markets: (count: number) => (count === 1 ? '1 market' : `${count} markets`),
+    fee: (bps: number) => `${bps / 100}% fee`,
+    /** The keyboard hint beside the facts, split so the keys render as <kbd>. */
+    keyboardHint: { walk: 'walk', open: 'open' },
     amountNote:
       'Amounts are the escrowed net — the fee is already taken out. Cards labelled Apply need the poster’s approval; Accept gigs start the moment you take them.',
   },

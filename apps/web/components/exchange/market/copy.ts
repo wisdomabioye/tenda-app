@@ -68,8 +68,9 @@ export function exchangeCurrency(raw: string | null): SupportedCurrency | null {
  * a motion token changed on one silently left the other behind. The layout
  * differs (`block` vs a flex row) and stays with each card.
  */
+/** Hairlines, not shadows (#60 cards pass): the rule lifts on hover, nothing floats. */
 export const EXCHANGE_ROW_CLASS =
-  'rounded-card border border-border-subtle bg-surface-card p-5 text-content-primary shadow-card transition-[border-color,box-shadow] duration-(--motion-fast) ease-(--motion-ease-standard) hover:border-border-strong hover:no-underline hover:shadow-elevated'
+  'rounded-card border border-border-subtle bg-surface-card p-5 text-content-primary transition-[border-color] duration-(--motion-fast) ease-(--motion-ease-standard) hover:border-border-strong hover:no-underline'
 
 export const EXCHANGE_COPY = {
   eyebrow: 'Exchange',

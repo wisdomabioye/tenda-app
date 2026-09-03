@@ -1,36 +1,54 @@
 /**
  * The public feed's hero — the front door for an anonymous visitor.
  *
- * EVERY string here comes from shared `APP_INFO`, and each is used in the role
- * that file documents for it: the tagline as the brand line, the description
- * as the product summary, the guarantee as the specific right a worker gets.
- * Nothing is retyped — `packages/shared/test/constants/pitch-strings.test.ts`
- * fails if an app hardcodes a value shared already owns, and a locally-written
- * headline here is precisely the drift that guard exists to catch. It is also
- * why `FEED_COPY.hero` was deleted rather than wired up: it held a second,
- * competing headline and lede that nothing rendered.
+ * ONE COMPACT BAND (#60, correction a): tendahq's type and rhythm — the h1
+ * ending on the blue period, one lede, two CTAs — carrying the web landing's
+ * OWN three strings, and none of tendahq's hero objects: no stamps, no
+ * example receipt, no marketing stat row. The feed is this page's object,
+ * and the first gigs sit above the fold at 1280×800 (measured in e2e).
  *
- * `APP_INFO.guarantee` is the STATIC form of the window. app-info.ts sanctions
- * it for "surfaces that have no config", which this one is — the feed page
- * fetches gigs, facets and chains, not platform config. If this hero ever
- * needs the live window it should read `/v1/platform/config` like the other
- * live surfaces, not interpolate a number here.
+ * EVERY string here comes from shared `APP_INFO`, each in the role that
+ * file documents for it: the tagline as the brand line, the description as
+ * the product summary (VERBATIM — it is derived, never reworded), the
+ * guarantee as the specific right a worker gets. Nothing is retyped —
+ * `packages/shared/test/constants/pitch-strings.test.ts` fails if an app
+ * hardcodes a value shared already owns. `APP_INFO.guarantee` is the STATIC
+ * form of the window, sanctioned for surfaces with no config.
  */
+import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { APP_INFO } from '@tenda/shared'
+import { BrandPeriod } from '@/components/public/BrandPeriod'
+import { buttonVariants } from '@/components/ui/Button'
+import { FEED_COPY } from './copy'
+
+export const FEED_HERO_HREF = { post: '/create', how: '/support/escrow' } as const
 
 export function FeedHero() {
   return (
-    <section className="border-b border-border-subtle bg-surface-background-alt">
-      <div className="mx-auto w-full max-w-content px-6 py-10 sm:py-14">
-        <h1 className="max-w-[20ch] text-balance font-display text-[30px] font-semibold leading-9 tracking-[-0.7px] text-content-primary sm:text-[40px] sm:leading-[46px] sm:tracking-[-1px]">
-          {APP_INFO.tagline}
+    <section
+      data-feed-hero
+      className="mx-auto grid w-full max-w-content items-center gap-x-8 gap-y-5 px-6 pb-[26px] pt-[30px] lg:grid-cols-[minmax(0,1fr)_auto]"
+    >
+      <div className="min-w-0">
+        <h1 className="type-h1 text-balance text-content-primary">
+          <BrandPeriod text={APP_INFO.tagline} />
         </h1>
-        <p className="mt-4 max-w-[54ch] text-[15px] leading-6 text-content-secondary sm:text-base sm:leading-7">
+        <p className="mt-2.5 max-w-[62ch] text-[15px] leading-[22px] text-content-secondary">
           {APP_INFO.description}
         </p>
-        <p className="mt-5 max-w-[48ch] text-[13px] leading-5 text-content-tertiary">
+        <p className="mt-1.5 max-w-[56ch] text-[13px] leading-[18px] text-content-tertiary">
           {APP_INFO.guarantee}
         </p>
+      </div>
+      <div className="flex flex-wrap gap-2.5 lg:justify-end">
+        <Link href={FEED_HERO_HREF.post} className={buttonVariants({ variant: 'primary', size: 'md' })}>
+          {FEED_COPY.cta.post}
+          <ArrowRight size={15} aria-hidden />
+        </Link>
+        <Link href={FEED_HERO_HREF.how} className={buttonVariants({ variant: 'outline', size: 'md' })}>
+          {FEED_COPY.cta.how}
+        </Link>
       </div>
     </section>
   )
