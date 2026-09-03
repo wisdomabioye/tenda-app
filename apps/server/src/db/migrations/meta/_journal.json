@@ -281,6 +281,13 @@
       "when": 1788310344321,
       "tag": "0039_mysterious_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788419524317,
+      "tag": "0040_right_doctor_octopus",
+      "breakpoints": true
     }
   ]
 }

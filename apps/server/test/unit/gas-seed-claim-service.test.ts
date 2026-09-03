@@ -11,7 +11,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
-import { claimGasSeed, pendingTxRef } from '@server/features/gas-seed'
+import { claimGasSeed } from '@server/features/gas-seed'
 import { AppError } from '@server/lib/errors'
 import { makeDeps, MOBILE, SOLANA, ZEROG } from '../helpers/gas-seed-claim'
 
@@ -38,7 +38,11 @@ test('the claim records WHO was paid and WHICH hot wallet pays', async () => {
   await claimGasSeed(deps, MOBILE, 'eip155:16661')
   assert.strictEqual(grants[0]?.wallet_address, '0xE')
   assert.strictEqual(grants[0]?.funder_address, 'funder-of-eip155:16661')
-  assert.strictEqual(grants[0]?.tx_ref, pendingTxRef('u-1', 'eip155:16661'))
+  // No reference yet, and that IS the state: nothing has been signed. Before
+  // #58 this asserted a `pending:<user>:<chain>` placeholder standing in for a
+  // transaction that did not exist.
+  assert.strictEqual(grants[0]?.status, 'claimed')
+  assert.strictEqual(grants[0]?.tx_ref, null)
 })
 
 test('a SEQUENTIAL double tap is idempotent — 202, under way, nothing re-queued', async () => {
@@ -67,7 +71,6 @@ test('a CONCURRENT double tap gives the same answer as a sequential one', async 
   // above — it reaches the claim — and it must land on the same answer, or the
   // same user action would return a 202 or a 409 depending on the millisecond.
   const { deps, enqueued } = makeDeps({ wallets: { eip155: '0xE' } })
-  const winner = pendingTxRef('u-1', 'eip155:16661')
   let readsBeforeInsert = 0
   const racing: typeof deps = {
     ...deps,
@@ -78,7 +81,9 @@ test('a CONCURRENT double tap gives the same answer as a sequential one', async 
       // the losing insert has come back — exactly what the race looks like.
       async findGrant() {
         readsBeforeInsert += 1
-        return readsBeforeInsert === 1 ? null : { tx_ref: winner }
+        // The winner's row is `claimed` — its slot is taken and its broadcast
+        // job is queued, which is exactly what the loser must report.
+        return readsBeforeInsert === 1 ? null : { status: 'claimed' }
       },
     },
   }
@@ -97,6 +102,7 @@ test('claiming again AFTER the transfer landed reports claimed, and queues nothi
         user_id: 'u-1',
         chain_id: 'eip155:16661',
         amount_raw: '10000000000000000',
+        status: 'delivered',
         tx_ref: '0xrealhash',
       },
     ],

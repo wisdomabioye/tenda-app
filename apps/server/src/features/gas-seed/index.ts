@@ -13,9 +13,17 @@
  * notice it, may not want it, and the spend landed on everyone who ever linked
  * a wallet rather than on the people who came back.
  *
- * `dispatchGasSeeds` survives that removal on purpose: it is the mechanism the
- * claim's background job drives, and its claim-before-send ordering is what
- * makes a double pay impossible.
+ * `dispatchGasSeeds` did NOT survive: #58 deleted it. It had claimed to be "the
+ * mechanism the claim's background job drives", and that was simply untrue —
+ * `claim/job.ts` drives the store and the sender directly, and the type checker
+ * confirmed nothing in `src/` had called the orchestrator since #53c-2 removed
+ * the auto-send path. What made it worth deleting rather than leaving is that it
+ * carried a SECOND copy of the send-and-interpret logic whose only correct
+ * version now lives in the two claim jobs.
+ *
+ * Claim-before-send survives, because that is the property that matters: the
+ * `(user_id, chain_id)` primary key only prevents a double pay if the row exists
+ * before any money moves.
  *
  * WHY IT LIVES IN ONE PLACE. The seed must be removable without unpicking it
  * from a dozen files — the same property `features/alerts` and
@@ -26,11 +34,12 @@
  *   1. delete this directory;
  *   2. delete `src/routes/v1/wallet/gas-seed/` (autoloaded, so the folder IS
  *      the registration for both endpoints);
- *   3. delete the three registry lines: the `'gas-seed'` payload in
- *      `plugins/queue/payloads.ts`, its processor in `workers/processors.ts`,
- *      and its `WORKER_CONCURRENCY` entry in `plugins/workers.ts` — that last
- *      one is not optional, the map is `Record<JobName, number>` and omitting
- *      it fails the type check;
+ *   3. delete the registry lines for BOTH queues — `'gas-seed'` and
+ *      `'gas-seed-confirm'` (#58 split broadcasting from confirming) — in
+ *      `plugins/queue/payloads.ts`, `workers/processors.ts`, and
+ *      `plugins/workers.ts`'s `WORKER_CONCURRENCY`; that last one is not
+ *      optional, the map is `Record<JobName, number>` and omitting an entry
+ *      fails the type check;
  *   4. delete the `GAS_SEED_SUPPORT` import in `db/seed/rows.ts` and let the
  *      gas columns seed NULL;
  *   5. delete the seed's ALERT — `features/alerts/kinds/gas-seed-low-balance.ts`,
@@ -69,16 +78,14 @@
  */
 
 export {
-  dispatchGasSeeds,
   drizzleGasSeedStore,
-  pendingTxRef,
-  PENDING_TX_REF_PREFIX,
-  type GasSeedDeps,
-  type GasSeedResult,
+  type GrantForJob,
   type GasSeedSender,
   type GasSeedStore,
+  type GasSeedTransferStatus,
   type SeedableChain,
-} from './dispatch'
+  type SignedGasSeedTransfer,
+} from './grants'
 
 export {
   buildGasSeedSenders,
@@ -124,16 +131,20 @@ export {
 
 export { drizzleGasSeedClaimStore, type GasSeedClaimStore } from './claim/store'
 
+export { handleGasSeedClaim, type GasSeedJobDeps, type GasSeedJobOutcome } from './claim/job'
+
 export {
-  handleGasSeedClaim,
+  handleGasSeedConfirm,
+  type GasSeedConfirmDeps,
+  type GasSeedConfirmOutcome,
   type GasSeedGrantedNotice,
-  type GasSeedJobDeps,
-  type GasSeedJobOutcome,
-} from './claim/job'
+} from './claim/confirm'
 
 export {
   buildGasSeedClaimDeps,
+  buildGasSeedConfirmDeps,
   buildGasSeedJobDeps,
+  gasSeedConfirmJobId,
   cachedFunders,
   gasSeedFunders,
   gasSeedJobId,

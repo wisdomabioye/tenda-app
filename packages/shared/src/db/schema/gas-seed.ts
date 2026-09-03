@@ -13,9 +13,28 @@
  * operational switch. Neither says anything about who a user is.
  */
 
-import { boolean, index, numeric, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  numeric,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
+import { GAS_GRANT_STATUSES } from '../../constants/gas-seed'
 import { chains } from './chains'
 import { users } from './identity'
+
+/**
+ * Derived from the shared tuple rather than re-listed, the convention every
+ * other status enum here follows (see escrow/enums.ts): the DB column, the
+ * claim evaluator and the confirm job then have exactly one source, and a
+ * hand-copied literal cannot drift from it without the compiler noticing.
+ */
+export const gasGrantStatusEnum = pgEnum('gas_grant_status', GAS_GRANT_STATUSES)
 
 // First-link native-gas seed grants. PRIMARY KEY (user_id, chain_id) keeps
 // the grant idempotent across wallet rotations on the same chain.
@@ -29,9 +48,41 @@ export const gas_grants = pgTable(
       .notNull()
       .references(() => chains.id, { onDelete: 'restrict' }),
     amount_raw: numeric('amount_raw', { precision: 78, scale: 0 }).notNull(),
-    // UNIQUE so a retried insert with the same on-chain ref is rejected at
-    // the DB layer — defence in depth on top of the (user_id, chain_id) PK.
-    tx_ref: text('tx_ref').notNull().unique('gas_grants_tx_ref_uq'),
+    /**
+     * Where the grant is in its lifecycle (#58). See GAS_GRANT_STATUSES for why
+     * there are three and why none of them is `failed`.
+     *
+     * The default is `claimed` because that is what a bare insert means — the
+     * slot is reserved and nothing has been broadcast. Every other value is
+     * reached by an explicit update from the job that observed the change.
+     */
+    status: gasGrantStatusEnum('status').notNull().default('claimed'),
+    /**
+     * The on-chain reference, NULL until a transaction has actually been signed
+     * (#58). It used to be NOT NULL, carrying a `pending:<user>:<chain>`
+     * placeholder for a slot with no transaction — state encoded in a string
+     * because there was no status column to put it in. There is one now, so the
+     * absence of a transaction is spelled as the absence of a reference.
+     *
+     * STILL UNIQUE, and it still costs nothing to leave it that way: Postgres
+     * treats NULLs as distinct in a unique index, so every unbroadcast claim can
+     * hold NULL while two grants can never share one real hash. That constraint
+     * is the last line of defence against stamping one transfer onto two users.
+     */
+    tx_ref: text('tx_ref').unique('gas_grants_tx_ref_uq'),
+    /**
+     * When the signed transaction was recorded — NOT when it was confirmed.
+     *
+     * Read by the confirm job and handed to the chain leaf, because one
+     * namespace needs it to answer at all: a Solana transaction is signed
+     * against a blockhash and PROVABLY cannot land once that blockhash expires,
+     * so "the cluster has no record, and it was broadcast long enough ago that
+     * it never will" is a definitive failure there. An EVM transaction is pinned
+     * at a nonce and never expires, so the same age means nothing and that leaf
+     * ignores this. Storing it keeps the asymmetry in the chain adapters where
+     * it belongs, rather than in a shared function arbitrating between them.
+     */
+    submitted_at: timestamp('submitted_at', { withTimezone: true }),
     /**
      * WHICH wallet was paid, recorded at claim time (#53c-1). The grant is
      * keyed by user, but a user may hold several wallets on one chain and may

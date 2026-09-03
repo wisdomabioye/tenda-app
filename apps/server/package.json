@@ -30,6 +30,7 @@
     "dedupe-wallets": "tsx src/scripts/dedupe-wallets.ts",
     "wallet:address": "tsx src/scripts/wallet-address.ts",
     "post-gigs": "tsx src/scripts/post-gigs/main.ts",
+    "db:backfill-gas-grant-status": "tsx src/scripts/backfill-gas-grant-status.ts",
     "verify:celo-fee-currency": "tsx src/scripts/verify-celo-feecurrency.ts",
     "verify:gas-seed": "tsx src/scripts/verify-gas-seed/index.ts",
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",

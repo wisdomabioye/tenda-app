@@ -19,7 +19,6 @@ import {
   type ChainClaimFacts,
   type ClaimantFacts,
 } from '@server/features/gas-seed'
-import { pendingTxRef } from '@server/features/gas-seed'
 
 /** A claimant who passes every account-side gate. */
 const OK_CLAIMANT: ClaimantFacts = {
@@ -63,14 +62,27 @@ test('a phone-verified app user with a wallet and a funded hot wallet may claim'
 
 // ---------- state derivation ---------------------------------------------------
 
-test('grantState reads the tx_ref, with no status column to disagree with it', () => {
+test('grantState: only `delivered` reads as claimed; the other three are all in progress', () => {
+  // The mapping the client sees. Three DB states collapse to `in_progress`
+  // because they differ in what an operator must do, not in what the user can
+  // do — and `unresolved` in particular must NOT read as `unclaimed`, or the
+  // surface would offer a button for a slot that is still held.
   assert.strictEqual(grantState(null), 'unclaimed')
-  assert.strictEqual(grantState({ tx_ref: pendingTxRef('u-1', 'solana:devnet') }), 'in_progress')
-  assert.strictEqual(grantState({ tx_ref: '5Xy…realSignature' }), 'claimed')
+  assert.strictEqual(grantState({ status: 'claimed' }), 'in_progress')
+  assert.strictEqual(grantState({ status: 'submitted' }), 'in_progress')
+  assert.strictEqual(grantState({ status: 'unresolved' }), 'in_progress')
+  assert.strictEqual(grantState({ status: 'delivered' }), 'claimed')
 })
 
+// A forgotten status is caught by the COMPILER, not from here. `CLIENT_STATE`
+// is a total `Record<GasGrantStatus, GasSeedState>`, so adding a status without
+// deciding what the client sees fails the build. The loop that used to sit here
+// asserted every status produced `claimed` or `in_progress` — which a
+// two-armed ternary satisfies unconditionally, for any input, so it could never
+// have failed and never guarded what its name claimed.
+
 test('a claimed grant is never re-offered, and reports itself as claimed', () => {
-  const verdict = evaluateClaim(OK_CLAIMANT, chain({ grant: { tx_ref: '0xrealhash' } }))
+  const verdict = evaluateClaim(OK_CLAIMANT, chain({ grant: { status: 'delivered' } }))
   assert.strictEqual(verdict.available, false)
   assert.strictEqual(verdict.state, 'claimed')
   assert.strictEqual(verdict.reason, 'already_granted')
@@ -78,12 +90,12 @@ test('a claimed grant is never re-offered, and reports itself as claimed', () =>
 
 test('a DOUBLE TAP is told the claim is under way, never "already claimed"', () => {
   // The distinction the DoD calls out: a user who tapped twice must not be told
-  // they already have gas they cannot see. `in_progress` covers the queued job
-  // AND the transfer that landed but could not be stamped — the same row, and
-  // the same correct behaviour (do not offer it again).
+  // they already have gas they cannot see. `in_progress` covers the queued job,
+  // the broadcast awaiting confirmation, and the one nobody could resolve — the
+  // same correct behaviour for all three (do not offer it again).
   const verdict = evaluateClaim(
     OK_CLAIMANT,
-    chain({ grant: { tx_ref: pendingTxRef('u-1', 'eip155:16661') } }),
+    chain({ grant: { status: 'claimed' } }),
   )
   assert.strictEqual(verdict.state, 'in_progress')
   assert.strictEqual(verdict.reason, 'already_granted')
@@ -194,7 +206,7 @@ test('the balance is the LAST check, so an already-granted user never depends on
   // a real refusal.
   const verdict = evaluateClaim(
     OK_CLAIMANT,
-    chain({ funder_balance: null, grant: { tx_ref: '0xreal' } }),
+    chain({ funder_balance: null, grant: { status: 'delivered' } }),
   )
   assert.strictEqual(verdict.reason, 'already_granted')
 })

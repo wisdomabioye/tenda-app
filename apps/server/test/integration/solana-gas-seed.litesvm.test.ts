@@ -1,5 +1,6 @@
 /**
- * The Solana gas seed's TRANSFER, against the real Solana runtime (#53b item 5).
+ * The Solana gas seed's TRANSFER, against the real Solana runtime (#53b item 5,
+ * extended at #58).
  *
  * This is the gap #53a made visible rather than caused: its EVM twin reached
  * 100% while the whole body of Solana's `send` — the SystemProgram transfer
@@ -12,6 +13,13 @@
  * The task's own instruction was to do this BEFORE funding a hot wallet: an
  * untested transfer body is the last thing standing between a funded seed
  * wallet and a user.
+ *
+ * SINCE #58 it also proves the two properties the rework rests on, and neither
+ * is checkable against a mock: that the signature is known BEFORE anything is
+ * submitted (so the grant row can record it first), and that a transaction the
+ * runtime accepted and then FAILED reads as `failed` rather than `delivered`.
+ * That second one is #57 — the bug that marked users permanently seeded having
+ * received nothing.
  */
 import { after, before, test } from 'node:test'
 import assert from 'node:assert'
@@ -22,6 +30,19 @@ import type { GasSeedSender } from '@server/features/gas-seed'
 import { litesvmGasSeedPort, litesvmSkip, startLiteSvm, type LiteSvmFixture } from '../helpers/litesvm'
 
 const skip = litesvmSkip
+
+/**
+ * Sign and broadcast, the way the claim job does it minus the database.
+ *
+ * A local helper rather than a `send()` on the sender, because the split IS the
+ * design: production records the reference between these two calls, and a test
+ * helper that hid the seam would stop the suite from noticing if it closed.
+ */
+async function payOut(s: GasSeedSender, to_address: string, amount_raw: string): Promise<string> {
+  const signed = await s.sign({ to_address, amount_raw })
+  await signed.broadcast()
+  return signed.tx_ref
+}
 
 /** The manifest's Solana seed today — lamports, not wei. */
 const SEED_LAMPORTS = '7000000'
@@ -49,10 +70,7 @@ test('the seed LANDS: a fresh wallet gains exactly the granted lamports', { skip
   const recipient = Keypair.generate().publicKey
   assert.strictEqual(fx.svm.getBalance(recipient) ?? 0n, 0n, 'a fresh account holds nothing')
 
-  const { tx_ref } = await sender.send({
-    to_address: recipient.toBase58(),
-    amount_raw: SEED_LAMPORTS,
-  })
+  const tx_ref = await payOut(sender, recipient.toBase58(), SEED_LAMPORTS)
 
   assert.strictEqual(fx.svm.getBalance(recipient), BigInt(SEED_LAMPORTS))
   // A real signature, not a fabricated string: `gas_grants.tx_ref` is what
@@ -65,7 +83,7 @@ test('the funder PAYS: the lamports come out of the hot wallet, plus fees', { sk
   const before_ = fx.svm.getBalance(funder.publicKey) ?? 0n
   const recipient = Keypair.generate().publicKey
 
-  await sender.send({ to_address: recipient.toBase58(), amount_raw: SEED_LAMPORTS })
+  await payOut(sender, recipient.toBase58(), SEED_LAMPORTS)
 
   const after_ = fx.svm.getBalance(funder.publicKey) ?? 0n
   const spent = before_ - after_
@@ -86,23 +104,58 @@ test('a seed ADDS to a wallet that already holds something', { skip }, async () 
   // property of the harness, not of the sender.
   const recipient = Keypair.generate().publicKey
   const second = '3000000'
-  await sender.send({ to_address: recipient.toBase58(), amount_raw: SEED_LAMPORTS })
-  await sender.send({ to_address: recipient.toBase58(), amount_raw: second })
+  await payOut(sender, recipient.toBase58(), SEED_LAMPORTS)
+  await payOut(sender, recipient.toBase58(), second)
   assert.strictEqual(fx.svm.getBalance(recipient), BigInt(SEED_LAMPORTS) + BigInt(second))
 })
 
-test('an UNFUNDED hot wallet fails instead of half-succeeding', { skip }, async () => {
-  // The state every new deployment starts in. `dispatchGasSeeds` and the claim
-  // job both release the claimed slot on this throw, so the user is seeded
-  // later rather than recorded as seeded with nothing to show for it.
+test('an UNFUNDED hot wallet does not pay, and the failure is VISIBLE (#57)', { skip }, async () => {
+  // The state every new deployment starts in, and since #58 the interesting part
+  // is no longer just that nothing moved — it is that the runtime's rejection
+  // reaches `checkStatus` as `failed` rather than being mistaken for a delivery.
+  // The old code confirmed such a transaction and discarded the error it carried,
+  // so the user was stamped seeded with nothing.
   const empty = Keypair.generate()
   const broke = solanaGasSeedSenderFromPort(litesvmGasSeedPort(fx.svm, empty))
   const recipient = Keypair.generate().publicKey
 
-  await assert.rejects(() =>
-    broke.send({ to_address: recipient.toBase58(), amount_raw: SEED_LAMPORTS }),
-  )
+  const signed = await broke.sign({ to_address: recipient.toBase58(), amount_raw: SEED_LAMPORTS })
+  await signed.broadcast()
+
   assert.strictEqual(fx.svm.getBalance(recipient) ?? 0n, 0n, 'nothing moved')
+  const status = await broke.checkStatus({ tx_ref: signed.tx_ref, submitted_at: new Date() })
+  assert.strictEqual(status, 'failed', 'a transfer the runtime refused must never read as delivered')
+})
+
+test('the SIGNATURE is known before anything is broadcast', { skip }, async () => {
+  // The property the whole ordering depends on: the claim job records this
+  // reference BEFORE the transfer can move money. If signing did not yield it,
+  // there would be no moment at which the hash is known and the money is safe.
+  const recipient = Keypair.generate().publicKey
+  const signed = await sender.sign({ to_address: recipient.toBase58(), amount_raw: SEED_LAMPORTS })
+
+  assert.strictEqual(bs58.decode(signed.tx_ref).length, 64, 'a real 64-byte signature')
+  assert.strictEqual(fx.svm.getBalance(recipient) ?? 0n, 0n, 'signing must move nothing')
+
+  await signed.broadcast()
+  assert.strictEqual(fx.svm.getBalance(recipient), BigInt(SEED_LAMPORTS))
+  // And the reference recorded before the broadcast is the one the runtime
+  // executed — a mismatch here would leave every grant pointing at a phantom.
+  assert.strictEqual(
+    await sender.checkStatus({ tx_ref: signed.tx_ref, submitted_at: new Date() }),
+    'delivered',
+  )
+})
+
+test('a signature the cluster never saw is PENDING while it could still land', { skip }, async () => {
+  // The absence that must not be read as failure yet. Solana resolves it later,
+  // by expiry — but "later" is the whole point, and doing it immediately is what
+  // released a slot whose money had already left.
+  const unseen = bs58.encode(Buffer.alloc(64, 7))
+  assert.strictEqual(
+    await sender.checkStatus({ tx_ref: unseen, submitted_at: new Date() }),
+    'pending',
+  )
 })
 
 test('a malformed destination throws HERE, before any transfer is attempted', { skip }, async () => {
@@ -110,14 +163,16 @@ test('a malformed destination throws HERE, before any transfer is attempted', { 
   // web3.js buries the failure several frames down, and the address comes from
   // `user_wallets` — data, not a literal.
   const before_ = fx.svm.getBalance(funder.publicKey) ?? 0n
-  await assert.rejects(() => sender.send({ to_address: 'not-a-solana-address', amount_raw: SEED_LAMPORTS }))
+  await assert.rejects(() =>
+    sender.sign({ to_address: 'not-a-solana-address', amount_raw: SEED_LAMPORTS }),
+  )
   assert.strictEqual(fx.svm.getBalance(funder.publicKey), before_, 'the hot wallet was untouched')
 })
 
 test('a non-numeric amount throws before the transfer, not during it', { skip }, async () => {
   const before_ = fx.svm.getBalance(funder.publicKey) ?? 0n
   await assert.rejects(() =>
-    sender.send({ to_address: Keypair.generate().publicKey.toBase58(), amount_raw: 'lots' }),
+    sender.sign({ to_address: Keypair.generate().publicKey.toBase58(), amount_raw: 'lots' }),
   )
   assert.strictEqual(fx.svm.getBalance(funder.publicKey), before_)
 })

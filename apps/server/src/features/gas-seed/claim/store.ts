@@ -3,16 +3,18 @@
  * who the claimant is, whether they already hold a grant, and whether an
  * operator has switched this chain's claims off.
  *
- * Split from the dispatch store rather than bolted onto it because they are
- * used by different callers: the auto-send path (#53a) never asks about device
- * tokens or account status, and widening its interface would make every one of
- * its test doubles implement reads it never performs.
+ * Split from `GasSeedStore` (../grants) rather than bolted onto it because they
+ * are used by different callers: the jobs that sign, broadcast and confirm never
+ * ask about device tokens or account status, and widening the write store's
+ * interface would make every one of its test doubles implement reads it never
+ * performs.
  */
 
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { device_tokens, user_identities, users } from '@tenda/shared/db/schema'
 import { gas_grants, gas_seed_settings } from '@tenda/shared/db/schema/gas-seed'
 import type { AppDatabase } from '@server/plugins/db'
+import type { GrantForJob } from '../grants'
 import type { ClaimantFacts, GrantFacts } from './eligibility'
 
 export interface GasSeedClaimStore {
@@ -21,18 +23,24 @@ export interface GasSeedClaimStore {
   /** This user's grant on this chain, or null. */
   findGrant(user_id: string, chain_id: string): Promise<GrantFacts | null>
   /**
-   * The claimed grant as the TRANSFER needs it: how much was promised and to
-   * which wallet.
+   * The grant as the JOBS need it: where it is, what was promised, and to which
+   * wallet.
    *
-   * Read from the grant row rather than re-derived from config, because the job
-   * runs after the claim and both could have moved: an operator may have
+   * NOT `findClaimedGrant`, which is what this was called until `claimed` became
+   * an actual status value (#58). A method named for one status that routinely
+   * returns `submitted` and `unresolved` rows reads as a filter it is not.
+   *
+   * Read from the grant row rather than re-derived from config, because the jobs
+   * run after the claim and both could have moved: an operator may have
    * re-seeded a different amount, and the user may have linked another wallet.
    * The row records what they were promised, and that is what gets paid.
+   *
+   * Carries the STATUS and `submitted_at` since #58: the broadcast job needs to
+   * know whether a transaction already exists for this slot (signing a second
+   * one would put two transfers on the chain for one grant), and the confirm job
+   * needs to know when the first was recorded.
    */
-  findClaimedGrant(
-    user_id: string,
-    chain_id: string,
-  ): Promise<{ tx_ref: string; amount_raw: string; wallet_address: string | null } | null>
+  findGrantForJob(user_id: string, chain_id: string): Promise<GrantForJob | null>
   /**
    * Chains whose claims an operator has switched OFF.
    *
@@ -89,20 +97,22 @@ export function drizzleGasSeedClaimStore(db: AppDatabase): GasSeedClaimStore {
 
     async findGrant(user_id, chain_id) {
       const rows = await db
-        .select({ tx_ref: gas_grants.tx_ref })
+        .select({ status: gas_grants.status })
         .from(gas_grants)
         .where(and(eq(gas_grants.user_id, user_id), eq(gas_grants.chain_id, chain_id)))
         .limit(1)
       const row = rows[0]
-      return row === undefined ? null : { tx_ref: row.tx_ref }
+      return row === undefined ? null : { status: row.status }
     },
 
-    async findClaimedGrant(user_id, chain_id) {
+    async findGrantForJob(user_id, chain_id) {
       const rows = await db
         .select({
+          status: gas_grants.status,
           tx_ref: gas_grants.tx_ref,
           amount_raw: gas_grants.amount_raw,
           wallet_address: gas_grants.wallet_address,
+          submitted_at: gas_grants.submitted_at,
         })
         .from(gas_grants)
         .where(and(eq(gas_grants.user_id, user_id), eq(gas_grants.chain_id, chain_id)))

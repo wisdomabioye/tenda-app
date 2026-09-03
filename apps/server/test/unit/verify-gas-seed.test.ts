@@ -30,6 +30,9 @@ function grant(overrides: Partial<GrantRow> = {}): GrantRow {
     user_id: 'u1',
     chain_id: 'solana:devnet',
     amount_raw: '7000000',
+    // `delivered` is the only status with a confirmed transaction to check; the
+    // unfinished ones are their own tests.
+    status: 'delivered',
     tx_ref: 'sig-abc',
     // Null by default: the audit then falls back to the chain's CURRENT funder,
     // which is how every grant written before #53c-1 added the column reads.
@@ -91,16 +94,31 @@ test('parseSystemTransfer: malformed info fields → undefined', () => {
 
 // ---------- checkGrant ------------------------------------------------------
 
-test('checkGrant: placeholder tx_ref fails without touching the chain', async () => {
-  let called = false
-  const fetch: FetchParsedTx = () => {
-    called = true
-    return Promise.resolve(null)
+test('checkGrant: an unfinished grant fails without touching the chain', async () => {
+  // Same three states the EVM arm reports, and the same reason each gets its own
+  // wording: `claimed` is safe to release, `submitted` may still resolve itself,
+  // and `unresolved` is the only one that needs a person.
+  const cases = [
+    { status: 'claimed' as const, tx_ref: null, expect: /nothing was ever signed/ },
+    { status: 'submitted' as const, tx_ref: 'sig-abc', expect: /awaiting confirmation/ },
+    { status: 'unresolved' as const, tx_ref: 'sig-abc', expect: /UNRESOLVED/ },
+  ]
+  for (const c of cases) {
+    let called = false
+    const fetch: FetchParsedTx = () => {
+      called = true
+      return Promise.resolve(null)
+    }
+    const r = await checkGrant(
+      fetch,
+      grant({ status: c.status, tx_ref: c.tx_ref }),
+      FUNDER,
+      walletsAlways([WALLET]),
+    )
+    assert.strictEqual(r.ok, false, `${c.status} must be reported as a finding`)
+    assert.match(r.detail, c.expect)
+    assert.strictEqual(called, false, `${c.status}: touched the chain`)
   }
-  const r = await checkGrant(fetch, grant({ tx_ref: 'pending:u1:solana:devnet' }), FUNDER, walletsAlways([WALLET]))
-  assert.strictEqual(r.ok, false)
-  assert.match(r.detail, /placeholder/)
-  assert.strictEqual(called, false)
 })
 
 test('checkGrant: tx not found → fails', async () => {

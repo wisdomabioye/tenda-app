@@ -15,18 +15,17 @@
 
 import { ErrorCode } from '@tenda/shared'
 import type {
+  GasGrantStatus,
   GasSeedAvailability,
   GasSeedState,
   GasSeedUnavailableReason,
   SessionClient,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-// The placeholder's ONE definition lives with the code that writes it.
-import { PENDING_TX_REF_PREFIX } from '../dispatch'
 
-/** The grant row as this decision needs it: does one exist, and is it finished. */
+/** The grant row as this decision needs it: does one exist, and where is it. */
 export interface GrantFacts {
-  tx_ref: string
+  status: GasGrantStatus
 }
 
 /**
@@ -86,15 +85,42 @@ export interface ChainClaimFacts {
 }
 
 /**
- * `unclaimed` / `in_progress` / `claimed`, derived from the tx_ref alone.
+ * What each stored status means to a CLIENT.
  *
- * No status column: the `pending:` prefix already carries this, and a second
- * source of truth is one that can disagree. See `GasSeedState` in the shared
- * contract for why "queued" and "sent but unstamped" are ONE state here.
+ * A total `Record`, not a ternary, and that is the whole point: adding a status
+ * to GAS_GRANT_STATUSES without deciding what the client sees is a COMPILE
+ * error here. The ternary this replaced (`status === 'delivered' ? … : …`)
+ * silently mapped anything new to `in_progress` — and the test that claimed to
+ * guard against that could not, because a two-armed ternary has no third answer
+ * to catch. The compiler can catch it; an assertion could not.
+ *
+ * THREE OF THE FOUR MAP TO `in_progress`, and that is deliberate rather than
+ * lossy. `claimed` (nothing signed yet), `submitted` (broadcast, awaiting the
+ * chain) and `unresolved` (broadcast, and we stopped asking) differ in what an
+ * OPERATOR must do, not in what the user can do — which in all three cases is
+ * wait. Exposing the difference would put an internal recovery state on a
+ * consumer surface and invite a client to branch on it; `verify:gas-seed` is
+ * where that distinction is meant to be read.
+ *
+ * `unresolved` deliberately does NOT map to `unclaimed`: the slot is held, so
+ * offering the button again would be offering a seed that cannot be claimed.
+ */
+const CLIENT_STATE: Record<GasGrantStatus, GasSeedState> = {
+  claimed: 'in_progress',
+  submitted: 'in_progress',
+  unresolved: 'in_progress',
+  delivered: 'claimed',
+}
+
+/**
+ * The stored lifecycle, narrowed to the three states the client is given.
+ *
+ * It used to read a `pending:` prefix off the tx_ref, because there was no
+ * status column and the string was carrying the state (#58 gave it one). This
+ * is the same decision expressed against the real field.
  */
 export function grantState(grant: GrantFacts | null): GasSeedState {
-  if (grant === null) return 'unclaimed'
-  return grant.tx_ref.startsWith(PENDING_TX_REF_PREFIX) ? 'in_progress' : 'claimed'
+  return grant === null ? 'unclaimed' : CLIENT_STATE[grant.status]
 }
 
 /**

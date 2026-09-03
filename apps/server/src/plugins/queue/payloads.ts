@@ -132,12 +132,28 @@ export interface JobPayload {
    */
   alerts: AlertJob
   /**
-   * #53c-1: pay one gas seed a user CLAIMED. Carries the pair that identifies
-   * the grant and nothing else — the amount and the destination wallet are read
-   * from the `gas_grants` row inside the handler, because the row records what
-   * the user was actually promised and config may have moved since.
+   * #53c-1: sign and broadcast one gas seed a user CLAIMED. Carries the pair
+   * that identifies the grant and nothing else — the amount and the destination
+   * wallet are read from the `gas_grants` row inside the handler, because the
+   * row records what the user was actually promised and config may have moved
+   * since.
    */
   'gas-seed': GasSeedClaimJob
+  /**
+   * #58: ask the chain what became of a broadcast seed, and record the answer.
+   *
+   * A SEPARATE queue from `gas-seed` rather than more work inside it, and that
+   * separation is the fix rather than a tidying. Confirmation is unbounded in
+   * time — an EVM transfer can mine hours later — so a handler that both
+   * broadcast and confirmed had to either hold a worker slot for the duration or
+   * give up and GUESS an outcome. It guessed, twice, and both guesses lost
+   * money. Split, "not confirmed yet" is a RetryableError and the queue's
+   * backoff is the waiting.
+   *
+   * Same payload as the broadcast job: the grant's key, and nothing that could
+   * go stale between the two.
+   */
+  'gas-seed-confirm': GasSeedClaimJob
   /**
    * #53b: read every gas-seed hot wallet and alert on the ones running low.
    * Tick id only, like the other repeatables — the handler derives its work

@@ -1,10 +1,34 @@
 /**
- * Solana GasSeedSender, transfers the one-time SOL seed from the hot
- * wallet (`CHAIN_<ID>_GAS_SEED_KEY`) to a newly linked wallet.
+ * Solana GasSeedSender (reworked at #58): transfers the one-time SOL seed from
+ * the hot wallet (`CHAIN_<ID>_GAS_SEED_KEY`) to a newly linked wallet.
  *
- * A leaf beside its EVM twin: ../dispatch orchestrates via the GasSeedSender
- * interface and never touches web3.js, so the seed can be removed without the
- * chain adapters noticing.
+ * A leaf beside its EVM twin: the claim jobs orchestrate through the
+ * `GasSeedSender` interface and never touch web3.js, so the seed can be removed
+ * without the chain adapters noticing.
+ *
+ * TWO BUGS DIED HERE, and they were opposite halves of one mistake — trying to
+ * learn a transfer's fate from whether a synchronous confirmation call threw.
+ *
+ *   Measured on devnet: `sendAndConfirmTransaction` confirms over a WebSocket
+ *   signature subscription, and where the provider's HTTP key does not authorise
+ *   WS, confirmation degrades to blockhash-expiry polling and threw ~20s AFTER
+ *   the transfer had landed. The caller read that as "it did not happen",
+ *   released the claimed slot, and the paid user could claim again.
+ *
+ *   The mirror image, and the subtler one: web3's confirmation RESOLVES for a
+ *   transaction that landed and FAILED. The resolved value carries the error and
+ *   the old code discarded it, so a transfer that moved no lamports was stamped
+ *   delivered — and `gas_grants`' (user_id, chain_id) key made that permanent.
+ *   The user could never be seeded again, having received nothing.
+ *
+ * Neither is reachable now. Nothing here confirms anything; `checkStatus` reads
+ * the signature's status and reports what the cluster actually says, and the
+ * failed case is on the MAIN path rather than a fallback nobody consults.
+ *
+ * THE SOLANA-SPECIFIC RULE, and it is the opposite of the EVM leaf's: a Solana
+ * transaction is signed against a blockhash and PROVABLY cannot land once that
+ * blockhash expires. So "the cluster has no record" is temporary at first and
+ * definitive later, which is why `checkStatus` is given the moment of broadcast.
  */
 
 import {
@@ -15,7 +39,8 @@ import {
   type TransactionError,
 } from '@solana/web3.js'
 import bs58 from 'bs58'
-import type { GasSeedSender } from '../dispatch'
+import { SOLANA_BLOCKHASH_VALIDITY_SECONDS } from '@tenda/shared'
+import type { GasSeedSender, GasSeedTransferStatus } from '../grants'
 import type { GasSeedFunder } from './index'
 import {
   commitmentFor,
@@ -34,6 +59,28 @@ import type { ChainId } from '@server/chains/types'
 export function gasSeedAddressFromSecret(secret_key_base58: string): string {
   return Keypair.fromSecretKey(bs58.decode(secret_key_base58)).publicKey.toBase58()
 }
+
+/**
+ * How long after broadcast an unknown signature becomes a DEAD one.
+ *
+ * A blockhash is usable for ~150 slots — `SOLANA_BLOCKHASH_VALIDITY_SECONDS`,
+ * the shared constant the relay quotes expire on — after which the cluster will
+ * refuse the transaction outright. The margin below is not caution about that
+ * number; it is time for the OBSERVATION to become trustworthy. The status read
+ * runs with `searchTransactionHistory`, and a transfer that landed just before
+ * its blockhash died must be findable before its absence may be called proof.
+ *
+ * Five validity windows. The cost of being early is a second payment, which is
+ * unrecoverable; the cost of being late is that a user whose transfer genuinely
+ * died waits a few more minutes to claim again. Those are not close, so the
+ * margin is generous on purpose.
+ *
+ * Worth stating plainly: the code this replaced treated an unknown signature as
+ * definitive failure IMMEDIATELY, with no margin at all.
+ */
+export const SOLANA_SEED_EXPIRY_MARGIN = 5
+export const SOLANA_SEED_EXPIRY_MS =
+  SOLANA_BLOCKHASH_VALIDITY_SECONDS * 1_000 * SOLANA_SEED_EXPIRY_MARGIN
 
 /**
  * The paying wallet on Solana — see `evmGasSeedFunder` for why this is a port
@@ -55,23 +102,11 @@ export function solanaGasSeedFunder(args: {
    * monitor treats unreadable as "no alert" — so one blip on the primary both
    * hides the balance AND suppresses the notice that would have told anyone.
    * Observed on a live tick before this existed.
-   *
-   * A required key, matching every other builder that reaches a chain from a
-   * secret (`web3SolanaRelayer`, `viemEvmRelayer`, both EVM gas-seed entry
-   * points). The audit that added those found the SAME omission five times, each
-   * one a value that stopped a hop short; leaving this one optional would leave
-   * the last place it can happen again.
    */
   rpc_url_fallback: string | undefined
   chain_id: ChainId
   secret_key_base58: string
-  /**
-   * Per-attempt budget override. Same knob `createSolanaRpc` and
-   * `web3SolanaRelayer` expose, for the same reason — the derived default is
-   * six seconds, which a suite proving the hung-endpoint path should not have
-   * to sit through. Production never passes it: `GasSeedChainArgs` carries no
-   * timeout, so the derived value is what every real caller gets.
-   */
+  /** Per-attempt budget override; production never passes it. */
   timeout_ms?: number
 }): GasSeedFunder {
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
@@ -81,8 +116,7 @@ export function solanaGasSeedFunder(args: {
   const connections = solanaConnections(args)
   // The per-attempt budget is the ONLY bound on this read — nothing upstream
   // imposes one, and the caller is a 15-minute monitor tick that walks chains
-  // in sequence, so one hung endpoint would stall every later chain in the tick
-  // as well as this one.
+  // in sequence, so one hung endpoint would stall every later chain in the tick.
   const timeout_ms = perEndpointTimeoutMs(args)
   return {
     address: keypair.publicKey.toBase58(),
@@ -93,134 +127,100 @@ export function solanaGasSeedFunder(args: {
   }
 }
 
+/** A signature's status as the seed's decision needs it; null = no record. */
+export type SolanaSignatureStatus = { err: TransactionError | null } | null
+
 /**
- * The one chain operation the Solana seed needs, as a port — the same seam
- * `evmGasSeedSenderFromPort` uses, and for the same reason.
+ * The chain operations the Solana seed needs, as a port — the same seam the
+ * EVM leaf uses, and for the same reason.
  *
- * Without it the whole body of `send` was unreachable from a test: it builds a
+ * Without it the transfer body was unreachable from a test: it builds a
  * `Connection` from an RPC URL and broadcasts through it, so proving that it
- * moves lamports needed a live cluster. Its EVM twin sat at 100% while this sat
- * at 66% of its functions — the transfer that actually pays a user was the
- * untested part.
- *
- * Behind the port sits web3.js on a real cluster; in the suite sits LiteSVM
- * running the same runtime, so "the lamports arrived" is proved rather than
- * assumed.
+ * moves lamports needed a live cluster. Behind the port sits web3.js on a real
+ * cluster; in the suite sits LiteSVM running the same runtime, so "the lamports
+ * arrived" is proved rather than assumed.
  */
 export interface SolanaGasSeedPort {
-  /** Move `lamports` from the hot wallet to `to`, confirmed. Returns the signature. */
-  transfer(args: { to: PublicKey; lamports: bigint }): Promise<string>
+  /** Sign a transfer WITHOUT broadcasting. Returns the signature and the bytes. */
+  sign(args: { to: PublicKey; lamports: bigint }): Promise<{ signature: string; raw: Uint8Array }>
+  /** Put previously signed bytes on the cluster. Does not confirm. */
+  send(raw: Uint8Array): Promise<void>
+  /** The cluster's status for a signature, or null when it has no record. */
+  signatureStatus(signature: string): Promise<SolanaSignatureStatus>
 }
 
 /**
- * The sender's DECISIONS, over any port: parse the destination, convert the
- * amount, hand back the signature as the tx_ref.
+ * What the cluster's answer MEANS — the three distinct statuses a signature can
+ * have, collapsed into the outcome the grant needs.
+ *
+ *   { err: null }  — landed and succeeded. Delivered.
+ *   { err: <any> } — landed and FAILED. On chain, but the lamports never moved,
+ *                    so stamping it delivered marks a user paid who was not.
+ *                    THIS CASE IS THE ONE THAT WAS BROKEN: the old code reached
+ *                    the equivalent rule only on a fallback path, and the main
+ *                    path — a confirmation that resolved — never consulted it.
+ *   null           — no record. Temporary while the blockhash can still be used,
+ *                    definitive once it cannot. See SOLANA_SEED_EXPIRY_MS.
+ *
+ * Pure, so every branch is reachable without a cluster — which is what the
+ * failed case never was.
+ *
+ * `confirmationStatus` IS DELIBERATELY IGNORED, and this paragraph is what stops
+ * someone adding it back. web3's `SignatureStatus` also carries
+ * `'processed' | 'confirmed' | 'finalized'`, and requiring the chain's
+ * commitment looks more rigorous. It is the wrong direction here: a transaction
+ * sitting at `'processed'` would read as NOT landed, this would answer
+ * `pending`, and the confirm job would keep retrying a transfer that has in fact
+ * been paid — harmless, but it would eventually exhaust and leave the row
+ * unresolved for an operator. The lamports have moved either way.
+ */
+export function classifySolanaStatus(
+  status: SolanaSignatureStatus,
+  age_ms: number,
+): GasSeedTransferStatus {
+  if (status !== null) return status.err === null ? 'delivered' : 'failed'
+  return age_ms > SOLANA_SEED_EXPIRY_MS ? 'failed' : 'pending'
+}
+
+/**
+ * The sender's DECISIONS, over any port.
  *
  * `new PublicKey(to_address)` is the guard worth naming — a malformed address
  * throws HERE, named, rather than inside web3.js several frames down, and the
- * caller (`dispatchGasSeeds`, or the claim job) releases the slot on that throw
- * so the user is not marked seeded for a transfer that never happened.
+ * claim job releases the slot on that throw so the user is not marked seeded for
+ * a transfer that was never signed.
  */
-export function solanaGasSeedSenderFromPort(port: SolanaGasSeedPort): GasSeedSender {
+export function solanaGasSeedSenderFromPort(
+  port: SolanaGasSeedPort,
+  now: () => Date = () => new Date(),
+): GasSeedSender {
   return {
-    async send({ to_address, amount_raw }) {
-      const tx_ref = await port.transfer({
+    async sign({ to_address, amount_raw }) {
+      const { signature, raw } = await port.sign({
         to: new PublicKey(to_address),
         lamports: BigInt(amount_raw),
       })
-      return { tx_ref }
+      return { tx_ref: signature, broadcast: () => port.send(raw) }
+    },
+    async checkStatus({ tx_ref, submitted_at }) {
+      const status = await port.signatureStatus(tx_ref)
+      return classifySolanaStatus(status, now().getTime() - submitted_at.getTime())
     },
   }
 }
 
 /**
- * A confirmation that failed, resolved against the CHAIN rather than believed.
+ * STILL ONE ENDPOINT for the send, and now for a plainer reason than before.
  *
- * THE BUG THIS EXISTS FOR, measured on devnet: `sendAndConfirmTransaction`
- * confirms over a WebSocket signature subscription. Where that subscription
- * cannot be established — a provider whose HTTP key does not authorise WS
- * answers 401 — confirmation degrades to blockhash-expiry polling and throws
- * "block height exceeded" roughly 20 seconds AFTER the transfer has landed.
- * `dispatchGasSeeds` then reads that throw as "the transfer did not happen",
- * releases the claimed slot, and the user is PAID AND STILL CLAIMABLE — one
- * grant per attempt, out of the hot wallet.
- *
- * So a failed confirmation is a question, not an answer. Ask the chain.
- *
- * INCONCLUSIVE COUNTS AS SUCCESS, and that is the deliberate half. When the
- * status check itself fails we do not know whether the money moved, and the two
- * mistakes are not equal: a false SUCCESS strands a grant row that
- * `verify:gas-seed` already reports as "claimed but never finalized" — visible,
- * repairable, paid once — while a false FAILURE frees the slot and pays a second
- * time. ../dispatch makes the same trade one step later, for the same reason.
- */
-/**
- * Does a signature status mean the seed was DELIVERED?
- *
- * Extracted, and not inlined in the closure below, because it is the one place
- * three distinct chain answers collapse into a yes/no about money:
- *   null            — the cluster has never seen it. Not delivered.
- *   { err: null }   — landed and succeeded. Delivered.
- *   { err: <any> }  — landed and FAILED. On chain, but the lamports never moved,
- *                     so treating it as delivered would stamp a grant for a
- *                     transfer that did not happen.
- *
- * Inline it was unreachable from a test: the only caller is inside the web3
- * body that needs a live cluster, so the third case — the one that would
- * silently pay nobody — had no coverage at all.
- *
- * `confirmationStatus` IS DELIBERATELY IGNORED, and this is the paragraph that
- * stops someone adding it back. web3's `SignatureStatus` also carries
- * `'processed' | 'confirmed' | 'finalized'`, and requiring at least the chain's
- * commitment looks like the more rigorous check. It is the wrong direction
- * here: a transaction sitting at `'processed'` would then read as NOT landed,
- * this returns false, `settleSignature` rethrows, ../dispatch releases the slot
- * — and the user who was in fact paid can claim again. Every other trade in
- * this path is made the same way round: a grant stamped for a transaction that
- * later drops leaves a row `verify:gas-seed` reports, and nobody is paid twice.
- */
-export function signatureDelivered(value: { err: TransactionError | null } | null): boolean {
-  return value !== null && value.err === null
-}
-
-export async function settleSignature(args: {
-  signature: string
-  /** Wait for confirmation; may reject on WS failure or blockhash expiry. */
-  confirm: () => Promise<unknown>
-  /** Did it land? Consulted ONLY after `confirm` rejects. */
-  landed: (signature: string) => Promise<boolean>
-}): Promise<string> {
-  try {
-    await args.confirm()
-    return args.signature
-  } catch (confirmError) {
-    let landed: boolean
-    try {
-      landed = await args.landed(args.signature)
-    } catch {
-      // Cannot tell. Keep the claim: see the header for why this direction.
-      return args.signature
-    }
-    if (landed) return args.signature
-    throw confirmError
-  }
-}
-
-/**
- * STILL ONE ENDPOINT — but no longer because failover would be unsafe.
- *
- * It used to be: `sendAndConfirmTransaction` signed INSIDE the call against a
- * blockhash it fetched itself, so a second endpoint meant re-signing against a
+ * It used to be that `sendAndConfirmTransaction` signed INSIDE the call against
+ * a blockhash it fetched itself, so a second endpoint meant re-signing against a
  * fresh blockhash — a different signature, a second distinct transfer, and a
- * user paid twice if the first had landed.
- *
- * That blocker is GONE. `transfer` below now signs ONCE against a known
- * blockhash and broadcasts the raw bytes, so sending those same bytes to a
- * second endpoint is the same transaction with the same signature and the
- * cluster de-duplicates it — exactly the property that makes EVM's nonce-pinned
- * re-broadcast safe. Adding the fallback here is now a parameter rather than a
- * rework, and it is tracked separately (see the task queue) rather than
- * smuggled into a change that was about not losing money.
+ * user paid twice if the first had landed. That is no longer the shape: `sign`
+ * below signs ONCE and `send` broadcasts those exact bytes, so a second endpoint
+ * would be the same transaction with the same signature and the cluster would
+ * de-duplicate it. Adding the fallback is now a parameter rather than a rework,
+ * and it is tracked separately rather than smuggled into a change about not
+ * losing money.
  */
 export function solanaGasSeedSender(args: {
   rpc_url: string
@@ -235,37 +235,32 @@ export function solanaGasSeedSender(args: {
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
 
   return solanaGasSeedSenderFromPort({
-    async transfer({ to, lamports }) {
-      // Signed and broadcast EXPLICITLY rather than through
-      // `sendAndConfirmTransaction`, because that helper couples send and
-      // confirm: when its confirmation fails the signature is buried in an error
-      // message, and a transfer that landed cannot be told from one that did
-      // not. Splitting them keeps the signature in hand for `settleSignature`.
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(commitment)
+    async sign({ to, lamports }) {
+      const { blockhash } = await connection.getLatestBlockhash(commitment)
       const tx = new Transaction().add(
         SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
       )
       tx.recentBlockhash = blockhash
       tx.feePayer = keypair.publicKey
       tx.sign(keypair)
-
-      const signature = await connection.sendRawTransaction(tx.serialize(), {
-        preflightCommitment: commitment,
+      const raw = tx.serialize()
+      // The signature is known the moment the transaction is signed — it IS the
+      // reference the cluster will report — so the caller can record it before
+      // any bytes leave this process.
+      const signature = bs58.encode(tx.signature ?? Buffer.alloc(0))
+      return { signature, raw }
+    },
+    async send(raw) {
+      await connection.sendRawTransaction(raw, { preflightCommitment: commitment })
+    },
+    async signatureStatus(signature) {
+      // `searchTransactionHistory`: the signature may have left the recent
+      // status cache by the time the confirm job asks, which is exactly the
+      // window this check has to cover.
+      const { value } = await connection.getSignatureStatus(signature, {
+        searchTransactionHistory: true,
       })
-      return settleSignature({
-        signature,
-        confirm: () =>
-          connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, commitment),
-        landed: async (sig) => {
-          // `searchTransactionHistory`: the signature may have left the recent
-          // status cache during the confirmation timeout, which is exactly the
-          // window this check covers.
-          const { value } = await connection.getSignatureStatus(sig, {
-            searchTransactionHistory: true,
-          })
-          return signatureDelivered(value)
-        },
-      })
+      return value === null ? null : { err: value.err }
     },
   })
 }

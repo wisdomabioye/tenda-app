@@ -10,6 +10,7 @@
  */
 
 import * as assert from 'node:assert'
+import type { GasGrantStatus } from '@tenda/shared'
 import type {
   ClaimIdentity,
   GasSeedClaimDeps,
@@ -36,7 +37,10 @@ export interface GrantRow {
   user_id: string
   chain_id: string
   amount_raw: string
-  tx_ref: string
+  /** Where the grant sits. Since #58 this, not a tx_ref prefix, IS the state. */
+  status: GasGrantStatus
+  tx_ref: string | null
+  submitted_at?: Date | null
   wallet_address?: string
   funder_address?: string
 }
@@ -72,11 +76,18 @@ export function makeDeps(opts: {
     },
     async claimGrant(row) {
       if (grants.some((g) => g.user_id === row.user_id && g.chain_id === row.chain_id)) return false
-      grants.push(row)
+      // `claimed` with no reference — the shape the endpoint actually inserts.
+      grants.push({ ...row, status: 'claimed', tx_ref: null, submitted_at: null })
       return true
     },
-    async finalizeGrant() {
-      assert.fail('the claim endpoint must never finalize — that is the job')
+    async markSubmitted() {
+      assert.fail('the claim endpoint must never record a transfer — that is the job')
+    },
+    async markDelivered() {
+      assert.fail('the claim endpoint must never deliver — that is the confirm job')
+    },
+    async markUnresolved() {
+      assert.fail('the claim endpoint must never resolve — that is the confirm job')
     },
     async releaseGrant(user_id, chain_id) {
       released.push({ user_id, chain_id })
@@ -97,9 +108,9 @@ export function makeDeps(opts: {
     },
     async findGrant(user_id, chain_id) {
       const g = grants.find((x) => x.user_id === user_id && x.chain_id === chain_id)
-      return g === undefined ? null : { tx_ref: g.tx_ref }
+      return g === undefined ? null : { status: g.status }
     },
-    async findClaimedGrant() {
+    async findGrantForJob() {
       assert.fail('only the job reads the claimed grant')
     },
     async disabledChains() {

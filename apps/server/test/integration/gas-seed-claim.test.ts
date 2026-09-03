@@ -17,11 +17,13 @@ import {
   buildGasSeedClaimDeps,
   buildGasSeedJobDeps,
   resetGasSeedFunderCache,
+  gasSeedFunders,
   claimGasSeed,
   drizzleGasSeedClaimStore,
   gasSeedAvailability,
   gasSeedJobId,
-  pendingTxRef,
+  gasSeedConfirmJobId,
+  buildGasSeedConfirmDeps,
 } from '@server/features/gas-seed'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 import { installCapture } from '../helpers/side-effects'
@@ -58,7 +60,12 @@ test('a claim records the paid wallet AND the paying hot wallet, per grant', { s
   // flag this grant as funded by the wrong wallet.
   assert.strictEqual(row.funder_address, FUNDER)
   assert.strictEqual(row.amount_raw, AMOUNT)
-  assert.strictEqual(row.tx_ref, pendingTxRef(user.id, CHAIN))
+  // No reference and no stamp: nothing has been signed. Before #58 this was a
+  // `pending:<user>:<chain>` string standing in for a transaction that did not
+  // exist, because the table had nowhere else to record that.
+  assert.strictEqual(row.status, 'claimed')
+  assert.strictEqual(row.tx_ref, null)
+  assert.strictEqual(row.submitted_at, null)
 })
 
 test('the PRIMARY KEY is what stops a double pay, not the fake in the unit suite', { skip }, async () => {
@@ -119,7 +126,7 @@ test('an ENABLED row is not in the disabled set — only exceptions are stored',
 
 // ---------- what the JOB reads back ------------------------------------------------
 
-test('findClaimedGrant returns what was PROMISED: amount, wallet and placeholder', { skip }, async () => {
+test('findGrantForJob returns what was PROMISED: amount, wallet, and no transaction yet', { skip }, async () => {
   // The job pays from this row rather than from config, so these three fields
   // are the contract between the claim and the transfer.
   const app = getApp()
@@ -127,25 +134,27 @@ test('findClaimedGrant returns what was PROMISED: amount, wallet and placeholder
   const user = await eligibleUser(app)
   await claimGasSeed(deps(app), { user_id: user.id, client: 'mobile' }, CHAIN)
 
-  const grant = await drizzleGasSeedClaimStore(app.db).findClaimedGrant(user.id, CHAIN)
+  const grant = await drizzleGasSeedClaimStore(app.db).findGrantForJob(user.id, CHAIN)
   assert.deepStrictEqual(grant, {
-    tx_ref: pendingTxRef(user.id, CHAIN),
+    status: 'claimed',
+    tx_ref: null,
+    submitted_at: null,
     amount_raw: AMOUNT,
     wallet_address: user.wallet,
   })
 })
 
-test('findClaimedGrant is null for a user who never claimed, and scoped per chain', { skip }, async () => {
+test('findGrantForJob is null for a user who never claimed, and scoped per chain', { skip }, async () => {
   const app = getApp()
   await withSeedableChain(app)
   const user = await eligibleUser(app)
   const store = drizzleGasSeedClaimStore(app.db)
 
-  assert.strictEqual(await store.findClaimedGrant(user.id, CHAIN), null)
+  assert.strictEqual(await store.findGrantForJob(user.id, CHAIN), null)
   await claimGasSeed(deps(app), { user_id: user.id, client: 'mobile' }, CHAIN)
   // Claimed on 0G; another chain must not read back that grant.
-  assert.strictEqual(await store.findClaimedGrant(user.id, 'solana:devnet'), null)
-  assert.notStrictEqual(await store.findClaimedGrant(user.id, CHAIN), null)
+  assert.strictEqual(await store.findGrantForJob(user.id, 'solana:devnet'), null)
+  assert.notStrictEqual(await store.findGrantForJob(user.id, CHAIN), null)
 })
 
 // ---------- the live wiring --------------------------------------------------------
@@ -160,23 +169,48 @@ test('the live deps builders assemble against a booted app', { skip }, async () 
 
   assert.strictEqual(typeof claimDeps.seed.findSeedableChains, 'function')
   assert.strictEqual(typeof claimDeps.claim.claimantFacts, 'function')
-  assert.strictEqual(typeof jobDeps.notify, 'function')
+  assert.strictEqual(typeof jobDeps.enqueueConfirm, 'function')
+  assert.strictEqual(typeof buildGasSeedConfirmDeps(app).notify, 'function')
   // Funders and senders are built from the same secrets, so a deployment that
   // can send can also report a balance — the pairing the unit suite asserts
   // over fixtures, here over whatever this environment actually configured.
   assert.deepStrictEqual([...claimDeps.funders.keys()].sort(), [...jobDeps.senders.keys()].sort())
 })
 
-test('the job deps notify through the app\'s real notification path', { skip }, async () => {
+test('the JOB gets an uncached funder map, the endpoint gets the shared one', { skip }, async () => {
+  // The endpoint's map memoises each balance for 30s, which is correct for a UI
+  // hint many clients poll. The job's balance check DECIDES WHETHER TO SIGN, and
+  // a memoised answer is not good enough for that: claims cluster, this queue
+  // runs at concurrency 1, and several jobs inside one TTL window would all read
+  // the same pre-drain balance, all pass the pre-flight, and all sign against a
+  // wallet that covers one of them. Every broadcast after the first is refused,
+  // and a refused broadcast is ambiguous — so those grants sit until they age
+  // into `unresolved` rather than being released. The pre-flight exists to stop
+  // exactly that.
+  const app = getApp()
+  const shared = gasSeedFunders()
+  const claimDeps = buildGasSeedClaimDeps(app)
+  const jobDeps = buildGasSeedJobDeps(app)
+
+  assert.strictEqual(claimDeps.funders, shared, 'the endpoint must reuse the process cache')
+  assert.notStrictEqual(jobDeps.funders, shared, 'the job must NOT read a memoised balance')
+  // Same chains either way — the two maps differ in caching, never in coverage,
+  // or the job would refuse a chain the endpoint offered.
+  assert.deepStrictEqual([...jobDeps.funders.keys()].sort(), [...shared.keys()].sort())
+})
+
+test('the CONFIRM deps notify through the app\'s real notification path', { skip }, async () => {
   // `notify` is a closure over `enqueueNotification`, so nothing but driving it
   // proves the seed's notice reaches the same queue every other notice uses —
-  // and that its `data` bag carries what a client would route on.
+  // and that its `data` bag carries what a client would route on. It moved to
+  // the confirm deps at #58: the announcement belongs with the step that learns
+  // the transfer actually landed, not with the one that broadcast it.
   const app = getApp()
   await withSeedableChain(app)
   const user = await createUser(app)
   const capture = installCapture(app)
 
-  await buildGasSeedJobDeps(app).notify({
+  await buildGasSeedConfirmDeps(app).notify({
     user_id: user.row.id,
     chain_id: CHAIN,
     amount_raw: AMOUNT,
@@ -215,6 +249,35 @@ test('the claim deps enqueue onto the gas-seed queue, keyed for dedup', { skip }
   assert.strictEqual(job.name, 'gas-seed')
   assert.deepStrictEqual(job.payload, { user_id: 'u-1', chain_id: CHAIN })
   assert.strictEqual(job.opts?.job_id, gasSeedJobId({ user_id: 'u-1', chain_id: CHAIN }))
+})
+
+test('the broadcast job queues its confirmation under a DISTINCT id', { skip }, async () => {
+  // The collision that would silently lose money's paper trail. BullMQ dedupes
+  // on the job id across a queue's retained history, and the broadcast job for a
+  // grant is normally still sitting in `completed` when its confirmation is
+  // enqueued — so a shared id would drop the confirmation, and the transfer
+  // would never be resolved by anything.
+  //
+  // Driven through the REAL deps builder rather than by calling the id function,
+  // because the thing that can go wrong is the wiring: the right id computed and
+  // handed to the wrong queue proves nothing.
+  const app = getApp()
+  await withSeedableChain(app)
+  const capture = installCapture(app)
+  const job = { user_id: 'u-1', chain_id: CHAIN }
+
+  await buildGasSeedJobDeps(app).enqueueConfirm(job)
+
+  const [queued] = capture.enqueued
+  assert.ok(queued, 'no confirmation was queued')
+  assert.strictEqual(queued.name, 'gas-seed-confirm')
+  assert.deepStrictEqual(queued.payload, job)
+  assert.strictEqual(queued.opts?.job_id, gasSeedConfirmJobId(job))
+  assert.notStrictEqual(
+    gasSeedConfirmJobId(job),
+    gasSeedJobId(job),
+    'the two queues must not share an id, or confirmations are deduped away',
+  )
 })
 
 test('the funder cache is built ONCE for the process, not once per request', { skip }, async () => {

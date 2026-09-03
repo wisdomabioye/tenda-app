@@ -7,15 +7,17 @@
  * each file inside the line budget.
  */
 
-/** The prefix a CLAIMED-but-unfinished grant's tx_ref carries. */
-export const PLACEHOLDER_PREFIX = 'pending:'
+import type { GasGrantStatus } from '@tenda/shared'
 
 /** One grant row, as the audit reads it. */
 export interface GrantRow {
   user_id: string
   chain_id: string
   amount_raw: string
-  tx_ref: string
+  /** Where the grant stopped. #58 replaced the `pending:` tx_ref prefix with this. */
+  status: GasGrantStatus
+  /** NULL while nothing has been signed — see `unfinishedResult`. */
+  tx_ref: string | null
   /**
    * Which hot wallet PAID this grant, recorded per grant since #53c-1.
    *
@@ -34,7 +36,7 @@ export interface GrantRow {
 export interface CheckResult {
   user_id: string
   chain_id: string
-  tx_ref: string
+  tx_ref: string | null
   ok: boolean
   detail: string
 }
@@ -50,20 +52,36 @@ export function parseUserFilter(argv: readonly string[]): string | undefined {
 }
 
 /**
- * The one check every namespace shares: a grant still carrying the placeholder
- * never reached the chain at all, so there is nothing to look up.
+ * The one check every namespace shares: a grant that is not `delivered` has
+ * nothing on chain to verify, so it is reported rather than looked up.
  *
- * Returned as a RESULT rather than thrown: it is a real finding the operator
- * needs listed beside the others, not an error that stops the run.
+ * THE THREE UNFINISHED STATES ARE NOT EQUALLY URGENT, and the detail text is
+ * what tells them apart — before #58 they were one indistinguishable `pending:`
+ * string, which is precisely why a stuck grant looked like a fresh one:
+ *
+ *   claimed    — nothing was ever signed. Harmless in itself: no money left, and
+ *                the user can be released to claim again.
+ *   submitted  — a transfer is out there and the confirm job is still asking.
+ *                Usually transient; only interesting if it stays.
+ *   unresolved — the confirm job GAVE UP. This is the row that needs a person:
+ *                the money may or may not have moved, and only a human looking
+ *                at the chain can decide whether to stamp it or release it.
+ *
+ * Returned as a RESULT rather than thrown: they are findings the operator needs
+ * listed beside the others, not errors that stop the run.
  */
-export function placeholderResult(grant: GrantRow): CheckResult | null {
-  if (!grant.tx_ref.startsWith(PLACEHOLDER_PREFIX)) return null
+export function unfinishedResult(grant: GrantRow): CheckResult | null {
+  if (grant.status === 'delivered') return null
+  const base = { user_id: grant.user_id, chain_id: grant.chain_id, tx_ref: grant.tx_ref, ok: false }
+  if (grant.status === 'claimed') {
+    return { ...base, detail: 'slot claimed but nothing was ever signed — safe to release' }
+  }
+  if (grant.status === 'submitted') {
+    return { ...base, detail: 'broadcast, awaiting confirmation — check again before acting' }
+  }
   return {
-    user_id: grant.user_id,
-    chain_id: grant.chain_id,
-    tx_ref: grant.tx_ref,
-    ok: false,
-    detail: 'placeholder tx_ref — slot claimed but transfer never finalized',
+    ...base,
+    detail: 'UNRESOLVED — confirmation gave up; settle this one by hand against the chain',
   }
 }
 

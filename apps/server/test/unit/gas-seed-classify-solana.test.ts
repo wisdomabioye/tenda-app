@@ -1,87 +1,87 @@
 /**
- * `settleSignature` — the guard between "confirmation failed" and "no money
- * moved", which are not the same thing.
+ * `classifySolanaStatus` — what the cluster's answer about a seed transfer
+ * MEANS, and the file where #57 is pinned.
  *
- * MEASURED ON DEVNET, which is why this file exists: the Solana seed sender
- * threw "Signature … has expired: block height exceeded" after 20,698ms while
- * the recipient held the full 7,000,000 lamports. `dispatchGasSeeds` reads a
- * throw from `send()` as "the transfer did not happen" and RELEASES the claimed
- * slot, so that user was paid and still claimable — one grant per attempt, out
- * of the hot wallet. The root cause was a provider whose HTTP key does not
- * authorise WebSockets, so the confirmation subscription 401'd and confirmation
- * degraded to blockhash-expiry polling.
+ * TWO REAL BUGS, both measured, live behind these five assertions.
  *
- * Every case below is about which way the ambiguity is resolved.
+ * The first was a transfer that LANDED while confirmation threw: on devnet the
+ * sender threw "block height exceeded" after 20,698ms with all 7,000,000
+ * lamports already in the recipient's account, because the provider's HTTP key
+ * did not authorise the WebSocket the confirmation subscribed on. The caller
+ * read the throw as "it did not happen", released the claimed slot, and the
+ * paid user could claim again — one grant per attempt, out of the hot wallet.
+ *
+ * The second is the mirror image and the subtler one: web3's confirmation
+ * RESOLVES for a transaction that landed and FAILED. The resolved value carries
+ * the error; the old code discarded it. So a transfer that moved no lamports was
+ * stamped delivered, and `gas_grants`' (user_id, chain_id) key made that
+ * permanent — that user could never be seeded again, having received nothing.
+ *
+ * Neither is expressible now. Nothing confirms; this function reads a status and
+ * says which of three things the chain is telling us, and the case that used to
+ * be unreachable from a test is the second assertion below.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { settleSignature, signatureDelivered } from '@server/features/gas-seed/senders/solana'
+import { SOLANA_BLOCKHASH_VALIDITY_SECONDS } from '@tenda/shared'
+import {
+  classifySolanaStatus,
+  SOLANA_SEED_EXPIRY_MS,
+} from '@server/features/gas-seed/senders/solana'
 
-const SIG = '3dzGsZL1zD6dZLRiq8B7T4wi8NkRy2MCzpENJhYYkEh4F2ehdoM6KUb1TgnmCvqN27sV1nXHYvENmeywmKLFU6pq'
+/** Comfortably inside the window — a transfer broadcast moments ago. */
+const FRESH = 1_000
 
-test('a clean confirmation returns the signature and never asks the chain', async () => {
-  let asked = 0
-  const got = await settleSignature({
-    signature: SIG,
-    confirm: async () => undefined,
-    landed: async () => { asked += 1; return true },
-  })
-  assert.strictEqual(got, SIG)
-  assert.strictEqual(asked, 0, 'the status check costs a round trip; do not pay it when confirmation worked')
+test('a signature with no error is delivered', () => {
+  assert.strictEqual(classifySolanaStatus({ err: null }, FRESH), 'delivered')
 })
 
-test('confirmation FAILED but the transfer LANDED: success, not a throw', async () => {
-  // The drain, in one assertion. A throw here frees the claimed slot and the
-  // user — already paid — can claim again.
-  const got = await settleSignature({
-    signature: SIG,
-    confirm: async () => { throw new Error('Signature has expired: block height exceeded') },
-    landed: async () => true,
-  })
-  assert.strictEqual(got, SIG, 'a landed transfer must be reported as delivered')
-})
-
-test('confirmation failed and the transfer did NOT land: the ORIGINAL error propagates', async () => {
-  // The honest failure, and the caller depends on it: releasing the slot is
-  // correct here, so this must still throw — and with the confirmation error,
-  // not something invented by the status check.
-  const boom = new Error('blockhash not found')
-  await assert.rejects(
-    () => settleSignature({ signature: SIG, confirm: async () => { throw boom }, landed: async () => false }),
-    (err: unknown) => {
-      assert.strictEqual(err, boom, 'the very error the chain gave us')
-      return true
-    },
-  )
-})
-
-// ---------- what a status actually MEANS ------------------------------------
-
-test('signatureDelivered: only a landed transaction with no error is a delivered seed', () => {
-  // Three distinct chain answers, and the middle one is the whole point. This
-  // replaced a test that CLAIMED to cover the reverted case while passing
-  // `landed: false` — byte-identical input to the test above it, so it moved
-  // with that test under every mutation and pinned nothing about reverts. The
-  // rule lived inside the web3 closure, unreachable from any suite.
-  assert.strictEqual(signatureDelivered(null), false, 'never seen by the cluster')
-  assert.strictEqual(signatureDelivered({ err: null }), true, 'landed and succeeded')
+test('a signature that LANDED AND FAILED is a failure, not a delivery (#57)', () => {
+  // THE BUG. On chain, so confirmation resolves — but the lamports never moved,
+  // and stamping it delivered marks a user paid who was not, permanently.
   assert.strictEqual(
-    signatureDelivered({ err: { InstructionError: [0, 'Custom'] } }),
-    false,
-    'on chain but FAILED — the lamports never moved, so this is not a delivered seed',
+    classifySolanaStatus({ err: { InstructionError: [0, 'Custom'] } }, FRESH),
+    'failed',
   )
 })
 
-test('an INCONCLUSIVE status check keeps the claim rather than risking a second payment', async () => {
-  // We cannot tell whether the money moved. The two mistakes are not equal: a
-  // false success strands a grant row that `verify:gas-seed` reports and an
-  // operator repairs, while a false failure pays twice. ../dispatch makes the
-  // same trade one step later.
-  const got = await settleSignature({
-    signature: SIG,
-    confirm: async () => { throw new Error('confirmation timed out') },
-    landed: async () => { throw new Error('rpc unreachable') },
-  })
-  assert.strictEqual(got, SIG)
+test('a failed signature stays failed however long ago it was broadcast', () => {
+  // Age must not soften an answer the chain already gave. A `failed` that aged
+  // into `pending` would put the confirm job back into retrying a transaction
+  // that is definitively finished.
+  assert.strictEqual(
+    classifySolanaStatus({ err: 'AccountNotFound' }, SOLANA_SEED_EXPIRY_MS * 10),
+    'failed',
+  )
 })
 
+test('no record, recently broadcast: PENDING — not yet is not never', () => {
+  // The first bug's half. The cluster may simply not have caught up; treating
+  // this as failure is what released a slot whose money had already left.
+  assert.strictEqual(classifySolanaStatus(null, FRESH), 'pending')
+})
+
+test('no record, past the expiry window: failed — a Solana tx provably dies', () => {
+  // The one place an ABSENCE becomes evidence, and it is legitimate here in a
+  // way it never is on EVM: a Solana transaction is signed against a blockhash
+  // and cannot land once that expires. Its EVM twin has no equivalent and
+  // deliberately never resolves an absent receipt to failure.
+  assert.strictEqual(classifySolanaStatus(null, SOLANA_SEED_EXPIRY_MS + 1), 'failed')
+})
+
+test('the expiry boundary is exclusive — exactly at the window is still pending', () => {
+  // Pinned because the comparison is the whole rule, and `>=` here would call a
+  // transfer dead at the precise moment its blockhash is still usable.
+  assert.strictEqual(classifySolanaStatus(null, SOLANA_SEED_EXPIRY_MS), 'pending')
+})
+
+test('the window is derived from blockhash validity, with room to observe', () => {
+  // Not a magic number: it must outlast the blockhash itself, or an absence
+  // would be called definitive while the transaction can still land. The
+  // multiple exists so `searchTransactionHistory` has time to find a transfer
+  // that landed just before its blockhash died.
+  assert.ok(
+    SOLANA_SEED_EXPIRY_MS > SOLANA_BLOCKHASH_VALIDITY_SECONDS * 1_000,
+    `expiry ${SOLANA_SEED_EXPIRY_MS}ms must exceed one blockhash lifetime`,
+  )
+})

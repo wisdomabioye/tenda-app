@@ -33,7 +33,12 @@ import {
   handleGasSeedBalanceCheck,
   seededChainBalance,
 } from '@server/features/alerts'
-import { buildGasSeedJobDeps, handleGasSeedClaim } from '@server/features/gas-seed'
+import {
+  buildGasSeedConfirmDeps,
+  buildGasSeedJobDeps,
+  handleGasSeedClaim,
+  handleGasSeedConfirm,
+} from '@server/features/gas-seed'
 import { buildOtpSenders } from '@server/lib/onboarding-deps'
 import { deliverOtp } from '@server/lib/otp'
 import {
@@ -246,11 +251,18 @@ export function buildProcessors(
         payload,
       ),
 
-    // The transfer half of a claimed gas seed (#53c-1). A thin binding, and one
-    // of the three lines that removing the feature deletes — the handler owns
-    // every decision about releasing or holding the claim, so a try/catch here
-    // would override the one place that knows which failures are safe to retry.
+    // The BROADCAST half of a claimed gas seed (#53c-1). A thin binding — the
+    // handler owns every decision about releasing or holding the claim, so a
+    // try/catch here would override the one place that knows which failures are
+    // safe to retry.
     'gas-seed': (payload) => handleGasSeedClaim(buildGasSeedJobDeps(fastify), payload),
+
+    // The CONFIRM half (#58). Also thin, and here the thinness is load-bearing:
+    // the handler throws RetryableError while the chain has no answer, and a
+    // catch here would swallow the one signal that makes BullMQ wait and ask
+    // again instead of leaving a transfer unresolved.
+    'gas-seed-confirm': (payload) =>
+      handleGasSeedConfirm(buildGasSeedConfirmDeps(fastify), payload),
 
     // The hot-wallet monitor (#53b). The floor is named HERE rather than inside
     // the handler so the policy number has one home in shared config and a test

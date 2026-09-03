@@ -164,7 +164,7 @@ export interface ChainManifestEntry {
    * One-time native-gas seed, in the chain's native base units (lamports for
    * Solana), granted to a new user's first wallet on this chain. Only meaningful
    * with `gasPolicy: 'native-seed'`; absent = the seed stays dormant (the DB's
-   * gas_seed columns remain NULL and `dispatchGasSeeds` skips the chain). The
+   * gas_seed columns remain NULL and the claim surface offers nothing). The
    * FUNDING wallet is not recorded here — it's derived from the deployment's hot
    * wallet secret (`CHAIN_<id>_GAS_SEED_KEY`) at seed time, so the two can't drift.
    */

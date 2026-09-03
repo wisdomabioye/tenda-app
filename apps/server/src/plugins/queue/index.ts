@@ -42,6 +42,7 @@ export type { QueueConnectionOptions } from './connection'
 export {
   DEFAULT_JOB_OPTIONS,
   VERIFY_TX_JOB_OPTIONS,
+  GAS_SEED_CONFIRM_JOB_OPTIONS,
   queueOptions,
   resolveJobId,
   toJobOptions,

@@ -14,8 +14,7 @@ import type {
   SessionClient,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { GasSeedStore, SeedableChain } from '../dispatch'
-import { pendingTxRef } from '../dispatch'
+import type { GasSeedStore, SeedableChain } from '../grants'
 import type { GasSeedFunder } from '../senders'
 import {
   claimRefusal,
@@ -144,9 +143,10 @@ export async function gasSeedAvailability(
 /**
  * Take the claim: check, reserve the slot, then queue the transfer.
  *
- * CLAIM BEFORE SEND, the same order `dispatchGasSeeds` uses and for the same
- * reason — the `(user_id, chain_id)` primary key is what makes a double-pay
- * impossible, and it only helps if the row exists before any money moves.
+ * CLAIM BEFORE SEND — the `(user_id, chain_id)` primary key is what makes a
+ * double-pay impossible, and it only helps if the row exists before any money
+ * moves. ./job carries that discipline one step further: it records the signed
+ * transaction's reference before broadcasting it.
  */
 export async function claimGasSeed(
   deps: GasSeedClaimDeps,
@@ -213,11 +213,13 @@ export async function claimGasSeed(
   // failing a payout the user was already told they could have.
   const funder = deps.funders.get(chain_id)
   const amount_raw = chain.gas_seed_amount_raw
+  // No tx_ref: nothing has been signed, and since #58 that absence is spelled as
+  // a NULL reference plus status `claimed` rather than as a `pending:` string
+  // standing in for a transaction that does not exist.
   const claimed = await deps.seed.claimGrant({
     user_id: identity.user_id,
     chain_id,
     amount_raw,
-    tx_ref: pendingTxRef(identity.user_id, chain_id),
     ...(facts.wallet_address !== null ? { wallet_address: facts.wallet_address } : {}),
     ...(funder !== undefined ? { funder_address: funder.address } : {}),
   })
@@ -234,9 +236,9 @@ export async function claimGasSeed(
     await deps.enqueue({ user_id: identity.user_id, chain_id })
   } catch (err) {
     // The slot is reserved and nothing will service it. Release, so the user can
-    // try again — the transfer has NOT happened, which is exactly the case where
-    // releasing is safe (see the two catch blocks in ../dispatch for the case
-    // where it is not).
+    // try again — nothing has been signed, let alone broadcast, which is exactly
+    // the case where releasing is safe. ./job draws the opposite conclusion once
+    // a transaction exists: see its `broadcast-uncertain` branch.
     await deps.seed.releaseGrant(identity.user_id, chain_id)
     deps.log.warn({ err, user_id: identity.user_id, chain_id }, 'gas seed claim could not be queued')
     throw new AppError(

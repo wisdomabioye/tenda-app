@@ -39,7 +39,7 @@ export { parseSystemTransfer, checkGrant } from './solana'
 export type { FetchParsedTx, ParsedTxView } from './solana'
 export { checkEvmGrant } from './evm'
 export type { FetchEvmTx, EvmTxView } from './evm'
-export { parseUserFilter, expectedFunder, placeholderResult, PLACEHOLDER_PREFIX } from './shared'
+export { parseUserFilter, expectedFunder, unfinishedResult } from './shared'
 export type { CheckResult, GrantRow } from './shared'
 
 type Db = ReturnType<typeof drizzle>
@@ -131,11 +131,23 @@ async function main(): Promise<void> {
       return
     }
 
-    const allGrants = (await db
+    // NOT cast to GrantRow[], deliberately — the inferred row type IS the check.
+    //
+    // It used to end `)) as GrantRow[]`, and that cast hid a real break: when
+    // #58 added `status` to GrantRow, this select did not gain the column, so
+    // every `grant.status` was `undefined` at runtime. `unfinishedResult`
+    // compares against three literals and falls through to the last branch, so
+    // the audit would have reported EVERY grant as "UNRESOLVED — settle by hand"
+    // and verified nothing on-chain. The unit suites could not see it: they
+    // build GrantRow fixtures directly and never run this query. Letting the
+    // compiler match the select against the interface makes the next added
+    // column a build error instead of a silent one.
+    const allGrants: GrantRow[] = await db
       .select({
         user_id: gas_grants.user_id,
         chain_id: gas_grants.chain_id,
         amount_raw: gas_grants.amount_raw,
+        status: gas_grants.status,
         tx_ref: gas_grants.tx_ref,
         funder_address: gas_grants.funder_address,
         wallet_address: gas_grants.wallet_address,
@@ -149,7 +161,7 @@ async function main(): Promise<void> {
               inArray(gas_grants.chain_id, seeded.map((c) => c.id)),
               eq(gas_grants.user_id, userFilter),
             ),
-      )) as GrantRow[]
+      )
 
     let passed = 0
     let total = 0

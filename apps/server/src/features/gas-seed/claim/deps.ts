@@ -13,11 +13,12 @@ import { getConfig } from '@server/config'
 import { enqueueNotification } from '@server/lib/notify'
 import type { QueueService } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
-import { drizzleGasSeedStore } from '../dispatch'
+import { drizzleGasSeedStore } from '../grants'
 import { buildGasSeedFunders, buildGasSeedSenders, type GasSeedFunder } from '../senders'
 import { drizzleGasSeedClaimStore } from './store'
 import type { GasSeedClaimDeps, GasSeedClaimJob } from './service'
-import type { GasSeedJobDeps, GasSeedGrantedNotice } from './job'
+import type { GasSeedJobDeps } from './job'
+import type { GasSeedConfirmDeps, GasSeedGrantedNotice } from './confirm'
 
 /**
  * What the claim surface needs from the app. A real FastifyInstance satisfies
@@ -119,12 +120,16 @@ export function resetGasSeedFunderCache(): void {
 /**
  * The process-wide funder map — the ONLY way to get one.
  *
- * Exported because the claim surface is no longer the only reader: #53b's
- * hot-wallet monitor reads the same balances every 15 minutes, and building its
- * own map would mean a second set of RPC clients per chain and a second
- * balance-cache TTL. Two caches for one fact is how the availability endpoint
- * and the monitor come to disagree about what a wallet holds — which is exactly
- * the disagreement the alert would be reporting on.
+ * Exported because the claim surface is not its only reader: #53b's hot-wallet
+ * monitor reads the same balances every 15 minutes, and building its own map
+ * would mean a second set of RPC clients per chain and a second balance-cache
+ * TTL. Two caches for one fact is how the availability endpoint and the monitor
+ * come to disagree about what a wallet holds — which is exactly the
+ * disagreement the alert would be reporting on.
+ *
+ * ITS READERS ARE THE ONES THAT ONLY LOOK. The broadcast job deliberately does
+ * NOT use this — its balance check decides whether to sign, and a memoised
+ * answer is not good enough for that. See `buildGasSeedJobDeps`.
  */
 export function gasSeedFunders(): ReadonlyMap<string, GasSeedFunder> {
   funderCache ??= cachedFunders(buildGasSeedFunders(getChainSecrets()))
@@ -135,9 +140,9 @@ export function gasSeedFunders(): ReadonlyMap<string, GasSeedFunder> {
  * The queue's de-duplication key for one claim.
  *
  * Derived from the grant's PRIMARY KEY, so two jobs for the same (user, chain)
- * collapse into one. The key is not what makes the seed safe — the grant row is,
- * and the handler refuses a redelivery that finds a finished tx_ref — it just
- * saves the duplicate the round trip of discovering that.
+ * collapse into one. The key is not what makes the seed safe — the grant row and
+ * its status guard are, and the handlers refuse a redelivery whose slot is
+ * already past them — it just saves the duplicate the round trip.
  *
  * A named function rather than an inline template, because the closure it came
  * out of is unreachable from the suite: the test harness runs the app WITHOUT
@@ -146,6 +151,19 @@ export function gasSeedFunders(): ReadonlyMap<string, GasSeedFunder> {
  */
 export function gasSeedJobId(job: GasSeedClaimJob): string {
   return `gas-seed:${job.user_id}:${job.chain_id}`
+}
+
+/**
+ * The confirm queue's key, PREFIXED SEPARATELY (#58).
+ *
+ * It must not collide with `gasSeedJobId`: BullMQ de-duplicates on the job id
+ * across a queue's whole retained history, and the broadcast job for a grant is
+ * usually still in `completed` when its confirmation is enqueued. Sharing the id
+ * would silently drop confirmations — the exact job whose absence leaves a
+ * transfer unresolved forever.
+ */
+export function gasSeedConfirmJobId(job: GasSeedClaimJob): string {
+  return `gas-seed-confirm:${job.user_id}:${job.chain_id}`
 }
 
 export function buildGasSeedClaimDeps(host: GasSeedClaimHost): GasSeedClaimDeps {
@@ -187,13 +205,43 @@ export function buildGasSeedJobDeps(host: GasSeedClaimHost): GasSeedJobDeps {
     seed: drizzleGasSeedStore(host.db),
     claim: drizzleGasSeedClaimStore(host.db),
     senders: buildGasSeedSenders(getChainSecrets()),
+    /**
+     * UNCACHED, and deliberately NOT the map `gasSeedFunders()` hands the
+     * availability endpoint.
+     *
+     * That map memoises each balance for 30 seconds, which is right for a UI
+     * hint several clients poll and WRONG for the check that decides whether to
+     * sign. Claims cluster — a push, a launch — and this queue runs at
+     * concurrency 1, so several jobs land inside one TTL window and every one of
+     * them would read the same pre-drain balance. On a wallet holding exactly one
+     * grant they would all pass the pre-flight, all sign, and every broadcast
+     * after the first would be refused for insufficient funds — which this job
+     * cannot distinguish from a dropped connection, so it holds the slot and the
+     * grant becomes `unresolved` hours later. The pre-flight exists to prevent
+     * precisely that, so it must not read a cached number.
+     *
+     * A fresh map per job is cheap: both namespaces build lazily and open no
+     * socket until a call is made (see `evmHotWallet`).
+     */
+    funders: buildGasSeedFunders(getChainSecrets()),
+    enqueueConfirm: async (job) => {
+      await host.queue.enqueue('gas-seed-confirm', job, { job_id: gasSeedConfirmJobId(job) })
+    },
+    log: host.log,
+  }
+}
+
+export function buildGasSeedConfirmDeps(host: GasSeedClaimHost): GasSeedConfirmDeps {
+  return {
+    seed: drizzleGasSeedStore(host.db),
+    claim: drizzleGasSeedClaimStore(host.db),
+    senders: buildGasSeedSenders(getChainSecrets()),
     notify: (notice: GasSeedGrantedNotice) =>
       enqueueNotification(host.queue, {
         user_id: notice.user_id,
         ...grantedNotice(notice.chain_id),
         // No `screen`: NOTIFICATION_SCREEN carries no wallet destination, and
         // inventing one here would deep-link the app somewhere it cannot route.
-        // #53c-2 owns where a tap should land, and adds it with the surface.
         data: { kind: 'gas_seed', chain_id: notice.chain_id, tx_ref: notice.tx_ref },
       }),
     log: host.log,

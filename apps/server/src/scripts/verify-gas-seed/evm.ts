@@ -14,7 +14,7 @@
 
 import { getAddress } from 'viem'
 import type { CheckResult, GrantRow } from './shared'
-import { expectedFunder, placeholderResult } from './shared'
+import { expectedFunder, unfinishedResult } from './shared'
 
 /** One transaction, as this audit needs it. Null = unknown to the node. */
 export interface EvmTxView {
@@ -52,10 +52,17 @@ export async function checkEvmGrant(
   chainFunder: string,
 ): Promise<CheckResult> {
   const base = { user_id: grant.user_id, chain_id: grant.chain_id, tx_ref: grant.tx_ref }
-  const placeholder = placeholderResult(grant)
-  if (placeholder !== null) return placeholder
+  // Anything not `delivered` has no confirmed transaction to inspect; the
+  // detail text distinguishes "never signed" from "gave up asking".
+  const unfinished = unfinishedResult(grant)
+  if (unfinished !== null) return unfinished
 
   try {
+    // Narrowed, not asserted: `delivered` always carries a reference, but the
+    // column is nullable and a hand-repaired row could contradict that.
+    if (grant.tx_ref === null) {
+      return { ...base, ok: false, detail: 'delivered grant has no tx_ref — repair this row' }
+    }
     const tx = await fetchTx(grant.tx_ref)
     if (tx === null) {
       return { ...base, ok: false, detail: 'tx not found on-chain at the required commitment' }

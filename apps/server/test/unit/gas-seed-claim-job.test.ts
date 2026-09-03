@@ -1,172 +1,289 @@
 /**
- * The transfer half of a claim (#53c-1): every way it can end, and which of
- * those endings releases the slot.
+ * The BROADCAST job (features/gas-seed/claim/job) — #58.
  *
- * The release decision is the whole point of this file. Releasing a slot whose
- * transfer FAILED costs a retry; releasing one whose transfer SUCCEEDED costs a
- * second payment out of the hot wallet. They are one `catch` apart, and no
- * behavioural test above this layer would notice them being swapped.
+ * WHAT THIS FILE IS REALLY GUARDING is an ORDER, not a set of return values:
+ * sign, then record, then broadcast. Every assertion below exists because some
+ * other order loses money.
+ *
+ *   record before sign   → a reference for a transaction that does not exist.
+ *   broadcast before record → a crash in the gap leaves money gone and nothing
+ *                             in the database pointing at it.
+ *   release after broadcast → the transfer lands anyway and the user, already
+ *                             paid, claims a second time. This is the drain that
+ *                             was measured on devnet.
+ *
+ * It also absorbs the idempotency cases that used to belong to `dispatchGasSeeds`
+ * (deleted with #58, it had been dead since #53c-2): a redelivered job must
+ * never put a second transfer on the chain for one grant.
  */
-
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
   handleGasSeedClaim,
-  pendingTxRef,
-  type GasSeedGrantedNotice,
+  type GrantForJob,
   type GasSeedJobDeps,
   type GasSeedSender,
 } from '@server/features/gas-seed'
 
-const CHAIN = 'eip155:16661'
 const USER = 'u-1'
+const CHAIN = 'eip155:16661'
+const JOB = { user_id: USER, chain_id: CHAIN }
 const AMOUNT = '10000000000000000'
+const TX = '0xdeadbeef'
 
-interface StoredGrant {
-  tx_ref: string
-  amount_raw: string
-  wallet_address: string | null
+function grant(over: Partial<GrantForJob> = {}): GrantForJob {
+  return {
+    status: 'claimed',
+    tx_ref: null,
+    amount_raw: AMOUNT,
+    wallet_address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    submitted_at: null,
+    ...over,
+  }
+}
+
+interface Recorder {
+  calls: string[]
+  submitted: Array<{ tx_ref: string; submitted_at: Date }>
+  released: number
+  confirmsQueued: number
 }
 
 function makeDeps(opts: {
-  grant?: StoredGrant | null
-  senderFails?: boolean
-  finalizeFails?: boolean
+  grant?: GrantForJob | null
+  signFails?: boolean
+  broadcastFails?: boolean
+  recordRefused?: boolean
   noSender?: boolean
-}) {
-  const released: string[] = []
-  const finalized: Array<{ chain_id: string; tx_ref: string }> = []
-  const notices: GasSeedGrantedNotice[] = []
-  const transfers: Array<{ to_address: string; amount_raw: string }> = []
-
+  balance?: bigint | null
+  enqueueFails?: boolean
+} = {}): { deps: GasSeedJobDeps; rec: Recorder } {
+  const rec: Recorder = { calls: [], submitted: [], released: 0, confirmsQueued: 0 }
   const sender: GasSeedSender = {
-    async send({ to_address, amount_raw }) {
-      if (opts.senderFails ?? false) throw new Error('rpc down')
-      transfers.push({ to_address, amount_raw })
-      return { tx_ref: '0xrealhash' }
+    async sign() {
+      rec.calls.push('sign')
+      if (opts.signFails ?? false) throw new Error('nonce fetch failed')
+      return {
+        tx_ref: TX,
+        async broadcast() {
+          rec.calls.push('broadcast')
+          if (opts.broadcastFails ?? false) throw new Error('connection reset')
+        },
+      }
+    },
+    async checkStatus() {
+      assert.fail('the broadcast job must never confirm — that is the confirm job')
     },
   }
-
   const deps: GasSeedJobDeps = {
     seed: {
-      async finalizeGrant(_user_id, chain_id, tx_ref) {
-        if (opts.finalizeFails ?? false) throw new Error('connection terminated')
-        finalized.push({ chain_id, tx_ref })
+      async markSubmitted({ tx_ref, submitted_at }) {
+        rec.calls.push('markSubmitted')
+        if (opts.recordRefused ?? false) return false
+        rec.submitted.push({ tx_ref, submitted_at })
+        return true
       },
-      async releaseGrant(_user_id, chain_id) {
-        released.push(chain_id)
+      async releaseGrant() {
+        rec.calls.push('release')
+        rec.released += 1
       },
     },
     claim: {
-      async findClaimedGrant() {
-        return opts.grant === undefined
-          ? { tx_ref: pendingTxRef(USER, CHAIN), amount_raw: AMOUNT, wallet_address: '0xEvm' }
-          : opts.grant
+      async findGrantForJob() {
+        return opts.grant === undefined ? grant() : opts.grant
       },
     },
-    senders: (opts.noSender ?? false) ? new Map() : new Map([[CHAIN, sender]]),
-    async notify(notice) {
-      notices.push(notice)
+    senders: opts.noSender === true ? new Map() : new Map([[CHAIN, sender]]),
+    funders:
+      opts.balance === null
+        ? new Map()
+        : new Map([
+            [
+              CHAIN,
+              {
+                address: 'funder',
+                balance: async () => {
+                  rec.calls.push('balance')
+                  return opts.balance ?? BigInt(AMOUNT)
+                },
+              },
+            ],
+          ]),
+    async enqueueConfirm() {
+      rec.calls.push('enqueueConfirm')
+      if (opts.enqueueFails ?? false) throw new Error('redis down')
+      rec.confirmsQueued += 1
     },
     log: { info() {}, warn() {} },
   }
-  return { deps, released, finalized, notices, transfers }
+  return { deps, rec }
 }
 
-test('the happy path pays the claimed wallet, stamps the real hash, then notifies', async () => {
-  const { deps, finalized, notices, transfers, released } = makeDeps({})
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
+// ---------- the order --------------------------------------------------------
 
-  assert.strictEqual(outcome, 'granted')
-  assert.deepStrictEqual(transfers, [{ to_address: '0xEvm', amount_raw: AMOUNT }])
-  assert.deepStrictEqual(finalized, [{ chain_id: CHAIN, tx_ref: '0xrealhash' }])
-  assert.deepStrictEqual(released, [], 'a successful grant released its slot')
-  assert.deepStrictEqual(notices, [
-    { user_id: USER, chain_id: CHAIN, amount_raw: AMOUNT, tx_ref: '0xrealhash' },
+test('THE ORDER: balance, sign, record, broadcast, then queue the confirmation', async () => {
+  // The single most important assertion in the feature. `markSubmitted` sits
+  // between `sign` and `broadcast`, which is what makes a crash at any point
+  // leave a transaction that can still be attributed to its grant.
+  const { deps, rec } = makeDeps()
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'submitted')
+  assert.deepStrictEqual(rec.calls, [
+    'balance',
+    'sign',
+    'markSubmitted',
+    'broadcast',
+    'enqueueConfirm',
   ])
 })
 
-test('it pays what the ROW recorded, not what config says now', async () => {
-  // The row is the record of what the user was promised. Re-deriving the amount
-  // from the chain at send time would pay a different number than the claim
-  // showed them if an operator re-seeded in between.
-  const { deps, transfers } = makeDeps({
-    grant: { tx_ref: pendingTxRef(USER, CHAIN), amount_raw: '777', wallet_address: '0xOther' },
-  })
-  await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-  assert.deepStrictEqual(transfers, [{ to_address: '0xOther', amount_raw: '777' }])
+test('the recorded reference is the one that was signed', async () => {
+  const { deps, rec } = makeDeps()
+  await handleGasSeedClaim(deps, JOB)
+  assert.strictEqual(rec.submitted[0]?.tx_ref, TX)
 })
 
-test('a transfer failure RELEASES the slot so the user can claim again', async () => {
-  const { deps, released, finalized, notices } = makeDeps({ senderFails: true })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-
-  assert.strictEqual(outcome, 'transfer-failed')
-  assert.deepStrictEqual(released, [CHAIN])
-  assert.deepStrictEqual(finalized, [])
-  assert.deepStrictEqual(notices, [], 'told the user about a transfer that never happened')
+test('submitted_at is stamped from the injected clock, not left to the DB', async () => {
+  // The confirm job measures its give-up window from this value, so it has to
+  // be a real instant recorded here rather than a default filled in later.
+  const fixed = new Date('2026-09-03T04:00:00.000Z')
+  const { deps, rec } = makeDeps()
+  deps.now = () => fixed
+  await handleGasSeedClaim(deps, JOB)
+  assert.deepStrictEqual(rec.submitted[0]?.submitted_at, fixed)
 })
 
-test('a transfer that LANDS but cannot be stamped keeps the slot — never pays twice', async () => {
-  // The asymmetry this file exists for. The money has left the hot wallet;
-  // releasing here would let the next claim pay the same user a second time.
-  // The `pending:` row that survives is exactly what verify-gas-seed reports.
-  const { deps, released, notices } = makeDeps({ finalizeFails: true })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
+// ---------- releasing is only ever safe BEFORE a signature -------------------
 
-  assert.strictEqual(outcome, 'granted-not-recorded')
-  assert.deepStrictEqual(released, [], 'released a slot whose money had already left')
-  assert.deepStrictEqual(notices, [], 'announced a grant the database does not record')
+test('signing failure releases the slot — nothing can have moved', async () => {
+  const { deps, rec } = makeDeps({ signFails: true })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'sign-failed')
+  assert.strictEqual(rec.released, 1)
+  assert.deepStrictEqual(rec.calls, ['balance', 'sign', 'release'])
 })
 
-test('a job whose claim was already released does nothing at all', async () => {
-  const { deps, released, finalized, transfers } = makeDeps({ grant: null })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-
-  assert.strictEqual(outcome, 'no-claim')
-  assert.deepStrictEqual(transfers, [], 'paid a claim that no longer exists')
-  assert.deepStrictEqual(released, [])
-  assert.deepStrictEqual(finalized, [])
+test('a BROADCAST failure does NOT release — it is ambiguous, and confirm settles it', async () => {
+  // THE DRAIN, inverted into a guard. The node may have accepted the transaction
+  // and then dropped the connection; releasing on a maybe is exactly how a user
+  // gets paid twice. The slot stays and the confirmation is queued.
+  const { deps, rec } = makeDeps({ broadcastFails: true })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'broadcast-uncertain')
+  assert.strictEqual(rec.released, 0, 'a slot whose transfer may have landed must never be freed')
+  assert.strictEqual(rec.confirmsQueued, 1, 'the chain has to be asked about it')
 })
 
-test('a REDELIVERED job for a finished grant does not pay again', async () => {
-  // BullMQ can redeliver, and the payload carries no proof of what already
-  // happened. The finished tx_ref is that proof.
-  const { deps, transfers } = makeDeps({
-    grant: { tx_ref: '0xalreadydone', amount_raw: AMOUNT, wallet_address: '0xEvm' },
-  })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-
-  assert.strictEqual(outcome, 'already-finalized')
-  assert.deepStrictEqual(transfers, [], 'paid a grant that had already landed')
+test('an empty hot wallet releases BEFORE signing, so nothing is left unresolvable', async () => {
+  // An empty funder is an ordinary operational state and makes the node refuse
+  // the broadcast. Caught here it is a released slot the user can reclaim;
+  // caught after signing it would be a recorded transaction that can never land,
+  // which on EVM nothing can resolve automatically.
+  const { deps, rec } = makeDeps({ balance: 1n })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'funder-empty')
+  assert.strictEqual(rec.released, 1)
+  assert.deepStrictEqual(rec.calls, ['balance', 'release'], 'it must not have signed')
 })
 
-test('a claim whose wallet vanished releases rather than paying nowhere', async () => {
-  const { deps, released, transfers } = makeDeps({
-    grant: { tx_ref: pendingTxRef(USER, CHAIN), amount_raw: AMOUNT, wallet_address: null },
-  })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-
-  assert.strictEqual(outcome, 'no-wallet')
-  assert.deepStrictEqual(released, [CHAIN])
-  assert.deepStrictEqual(transfers, [])
+test('a funder that can EXACTLY cover the grant is allowed to pay it', async () => {
+  // Boundary: `>=`, not `>`. A wallet holding precisely one grant must not be
+  // refused, or the last seed a topped-up wallet can pay is never paid.
+  const { deps } = makeDeps({ balance: BigInt(AMOUNT) })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'submitted')
 })
 
-test('a chain whose key was pulled between claim and delivery releases the slot', async () => {
-  // Otherwise the claim is stuck `in_progress` forever: no sender will ever
-  // exist for it, and the user cannot claim again.
-  const { deps, released } = makeDeps({ noSender: true })
-  const outcome = await handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN })
-
-  assert.strictEqual(outcome, 'sender-missing')
-  assert.deepStrictEqual(released, [CHAIN])
+test('an UNREADABLE balance does not block the claim', async () => {
+  // Refusing to pay because a read failed would strand users over a transient
+  // RPC outage. The broadcast is allowed to be the judge instead.
+  const { deps, rec } = makeDeps()
+  deps.funders = new Map([
+    [CHAIN, { address: 'f', balance: async () => { throw new Error('rpc down') } }],
+  ])
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'submitted')
+  assert.strictEqual(rec.released, 0)
 })
 
-test('the handler never throws, so BullMQ does not retry work already undone', async () => {
-  // Throwing would hand the job back for four more attempts, each finding the
-  // slot released and doing nothing — four `failed` log lines saying nothing.
-  for (const opts of [{ senderFails: true }, { finalizeFails: true }, { noSender: true }]) {
+// ---------- redelivery: never a second transfer ------------------------------
+
+test('a redelivered job for a SUBMITTED grant re-queues confirmation, never re-signs', async () => {
+  // Two transfers for one grant is the double-pay the whole ordering prevents.
+  // Re-queueing is right rather than doing nothing: the previous attempt may
+  // have died before it managed to.
+  const { deps, rec } = makeDeps({ grant: grant({ status: 'submitted', tx_ref: TX }) })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'already-submitted')
+  assert.deepStrictEqual(rec.calls, ['enqueueConfirm'])
+})
+
+test('a redelivered job for a DELIVERED grant does nothing at all', async () => {
+  const { deps, rec } = makeDeps({ grant: grant({ status: 'delivered', tx_ref: TX }) })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'already-delivered')
+  assert.deepStrictEqual(rec.calls, [])
+})
+
+test('losing the record race abandons OUR signed transfer rather than broadcasting it', async () => {
+  // `markSubmitted` is status-guarded, so a concurrent attempt that recorded
+  // first wins. Broadcasting ours anyway would put a second transfer on the
+  // chain for one grant — the guard is worthless if its answer is ignored.
+  const { deps, rec } = makeDeps({ recordRefused: true })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'already-submitted')
+  assert.ok(!rec.calls.includes('broadcast'), 'the losing attempt must not broadcast')
+  assert.strictEqual(rec.released, 0, 'the winner’s slot must not be released')
+})
+
+// ---------- the world changed after the claim --------------------------------
+
+test('no grant to pay: nothing happens', async () => {
+  const { deps, rec } = makeDeps({ grant: null })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'no-claim')
+  assert.deepStrictEqual(rec.calls, [])
+})
+
+test('a claim whose wallet was unlinked is released', async () => {
+  const { deps, rec } = makeDeps({ grant: grant({ wallet_address: null }) })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'no-wallet')
+  assert.strictEqual(rec.released, 1)
+})
+
+test('a chain whose sender key was pulled is released', async () => {
+  const { deps, rec } = makeDeps({ noSender: true })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'sender-missing')
+  assert.strictEqual(rec.released, 1)
+})
+
+// ---------- the queue is not what makes it safe ------------------------------
+
+test('a broadcast whose confirmation cannot be queued THROWS, so it is retried', async () => {
+  // The dead end this exists for. The money is on its way and the row records
+  // it, so releasing would be unforgivable — but returning quietly would leave a
+  // grant nothing ever asks the chain about: it sits `submitted`, no confirm job
+  // exists, and `unresolved` is unreachable because only the confirm job sets
+  // it. Throwing hands it back to BullMQ, whose redelivery re-queues the
+  // confirmation without signing a second transfer.
+  const { deps, rec } = makeDeps({ enqueueFails: true })
+  await assert.rejects(() => handleGasSeedClaim(deps, JOB), /redis down/)
+  assert.strictEqual(rec.released, 0, 'a broadcast transfer must never free its slot')
+  assert.ok(rec.calls.includes('broadcast'), 'it did broadcast before the enqueue failed')
+})
+
+test('a REDELIVERY after that failure re-queues the confirmation and signs nothing', async () => {
+  // The other half of the retry being safe. Without this, throwing above would
+  // just move the problem: the point is that the second attempt finds the grant
+  // already `submitted` and does the one missing thing.
+  const { deps, rec } = makeDeps({ grant: grant({ status: 'submitted', tx_ref: TX }) })
+  assert.strictEqual(await handleGasSeedClaim(deps, JOB), 'already-submitted')
+  assert.strictEqual(rec.confirmsQueued, 1)
+  assert.ok(!rec.calls.includes('sign'), 'a redelivery must never sign a second transfer')
+})
+
+test('the job never throws for anything a retry cannot fix', async () => {
+  // Everything except the enqueue failure above: either the slot is gone or a
+  // transaction is already recorded, and in both cases a retry would achieve
+  // nothing. Retrying an unconfirmed transfer belongs to the confirm job, which
+  // retries against the chain instead of the wallet.
+  for (const opts of [
+    { signFails: true },
+    { broadcastFails: true },
+    { noSender: true },
+    { grant: null },
+  ]) {
     const { deps } = makeDeps(opts)
-    await assert.doesNotReject(() => handleGasSeedClaim(deps, { user_id: USER, chain_id: CHAIN }))
+    await assert.doesNotReject(() => handleGasSeedClaim(deps, JOB))
   }
 })

@@ -25,6 +25,9 @@ function grant(over: Partial<GrantRow> = {}): GrantRow {
     user_id: 'u1',
     chain_id: 'eip155:16602',
     amount_raw: AMOUNT,
+    // `delivered` is the default because that is the only status with a
+    // confirmed transaction to check; the unfinished ones are their own tests.
+    status: 'delivered',
     tx_ref: '0xc9a1353e969b7248d8dce11424a1e9dc977802fa32fa8e463d648d5bb9b22f04',
     funder_address: FUNDER,
     wallet_address: WALLET,
@@ -116,19 +119,38 @@ test('a tx_ref the node has never seen is a finding, not a crash', async () => {
   assert.match(r.detail, /not found on-chain/)
 })
 
-test('a PLACEHOLDER ref is reported without any chain lookup at all', async () => {
-  // The `granted but not recorded` state: the slot is held, the transfer may
-  // have happened, and there is no hash to look up. Looking one up would be
-  // asking the chain about a string that was never a transaction.
-  let asked = false
-  const fetch: FetchEvmTx = () => {
-    asked = true
-    return Promise.resolve(null)
+test('an UNFINISHED grant is reported without any chain lookup at all', async () => {
+  // Nothing but a `delivered` grant has a confirmed transaction to inspect, and
+  // asking the chain about one would be asking about a hash that either does not
+  // exist or is not yet meaningful.
+  //
+  // The three states get DIFFERENT text, which is the point of #58 replacing the
+  // one `pending:` string: they need different actions from an operator.
+  const cases = [
+    { status: 'claimed' as const, tx_ref: null, expect: /nothing was ever signed/ },
+    { status: 'submitted' as const, tx_ref: '0xabc', expect: /awaiting confirmation/ },
+    { status: 'unresolved' as const, tx_ref: '0xabc', expect: /UNRESOLVED/ },
+  ]
+  for (const c of cases) {
+    let asked = false
+    const fetch: FetchEvmTx = () => {
+      asked = true
+      return Promise.resolve(null)
+    }
+    const r = await checkEvmGrant(fetch, grant({ status: c.status, tx_ref: c.tx_ref }), FUNDER)
+    assert.strictEqual(r.ok, false, `${c.status} must be reported as a finding`)
+    assert.match(r.detail, c.expect)
+    assert.strictEqual(asked, false, `${c.status}: looked up a ref it should not have`)
   }
-  const r = await checkEvmGrant(fetch, grant({ tx_ref: 'pending:u1:eip155:16602' }), FUNDER)
+})
+
+test('a DELIVERED grant with no reference is reported, not dereferenced', async () => {
+  // Unreachable through the code — the write that sets `delivered` always has a
+  // reference — but the columns are independently nullable and a hand-repaired
+  // row can contradict that. It must report, not throw.
+  const r = await checkEvmGrant(returning(tx()), grant({ tx_ref: null }), FUNDER)
   assert.strictEqual(r.ok, false)
-  assert.match(r.detail, /placeholder tx_ref/)
-  assert.strictEqual(asked, false, 'looked up a ref that was never a transaction')
+  assert.match(r.detail, /no tx_ref/)
 })
 
 test('a grant predating wallet_address verifies, with the gap NAMED', async () => {

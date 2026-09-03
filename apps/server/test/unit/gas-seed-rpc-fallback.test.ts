@@ -29,6 +29,14 @@ import { within } from '../helpers/settle'
 // how this file first failed with 'provided secretKey is invalid'. Same
 // convention as helpers/solana.ts.
 const SOL_KEY = bs58.encode(Keypair.generate().secretKey)
+/**
+ * A syntactically valid recent blockhash: 32 zero bytes in base58.
+ *
+ * It has to parse, because the sender signs against it and serialises the
+ * result — a placeholder string would throw inside web3.js and the test would
+ * pass for the wrong reason.
+ */
+const BLOCKHASH = bs58.encode(Buffer.alloc(32))
 const EVM_KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d' as const
 
 /** A node that is UP and failing, plus one that answers. See stub-rpc's header. */
@@ -149,18 +157,26 @@ test('evm funder: a fallback DUPLICATING the primary buys no second endpoint', a
 // ---------- the deliberate asymmetry ---------------------------------------
 
 test('the Solana SENDER never fails over, even when a fallback is configured', async () => {
-  // Not an oversight, and this pins it as a decision: `sendAndConfirmTransaction`
-  // signs against a blockhash it fetches itself, so a second endpoint would
-  // produce a DIFFERENT signature — a second transfer, not a retry. If the
-  // primary's send landed and only its confirmation failed, failing over pays
-  // the user twice.
+  // Not an oversight, and this pins it as a decision. It PREDATES #58 and still
+  // holds for a different reason: the sender now signs once and broadcasts those
+  // exact bytes, so a second endpoint would carry the same signature and the
+  // cluster would de-duplicate it — safe, but still not wired, and wiring it is
+  // tracked separately rather than smuggled in here.
+  //
+  // THE BROADCAST IS WHAT THIS MUST EXERCISE. An earlier version failed the
+  // primary outright, so `sign` threw and `send` was never reached — leaving
+  // "the fallback was never contacted" trivially true and saying nothing about
+  // the broadcast, which is the call that would cost money. So the primary
+  // answers the blockhash fetch and fails only `sendTransaction`.
   //
   // Asserted through GAS_SEED_SUPPORT (the seam that HAS the fallback in hand
   // and chooses not to pass it), so someone threading it in has to delete this.
-  const primary = await startStubRpc(() => {
-    throw new Error('primary is down')
+  const blockhash = { context: { slot: 1 }, value: { blockhash: BLOCKHASH, lastValidBlockHeight: 100 } }
+  const primary = await startStubRpc((method) => {
+    if (method === 'sendTransaction') throw new Error('primary refused the broadcast')
+    return blockhash
   })
-  const secondary = await startStubRpc(() => ({ context: { slot: 1 }, value: 1 }))
+  const secondary = await startStubRpc(() => blockhash)
   try {
     const sender = GAS_SEED_SUPPORT.solana.buildSender({
       chain_id: 'solana:devnet',
@@ -168,11 +184,19 @@ test('the Solana SENDER never fails over, even when a fallback is configured', a
       rpc_url_fallback: secondary.url,
       key: SOL_KEY,
     })
-    await assert.rejects(() =>
-      sender.send({ to_address: Keypair.generate().publicKey.toBase58(), amount_raw: '1000' }),
+    const signed = await sender.sign({
+      to_address: Keypair.generate().publicKey.toBase58(),
+      amount_raw: '1000',
+    })
+    await assert.rejects(() => signed.broadcast(), 'the primary refused, so the broadcast must fail')
+
+    assert.ok(primary.callsTo('sendTransaction').length >= 1, 'the primary was asked to broadcast')
+    assert.strictEqual(
+      secondary.callsTo('sendTransaction').length,
+      0,
+      'the fallback must NEVER be asked to broadcast — that is a second transfer',
     )
-    assert.ok(primary.calls.length >= 1, 'the primary was used')
-    assert.strictEqual(secondary.calls.length, 0, 'the fallback must NEVER be contacted for a send')
+    assert.strictEqual(secondary.calls.length, 0, 'the fallback was not contacted at all')
   } finally {
     await primary.close()
     await secondary.close()

@@ -1,67 +1,103 @@
 /**
- * First-link native-gas seed (stage-1-onboarding.md, decision #16):
- * phone-verified users with a wallet on a seed-bearing chain receive a
- * one-time native-token grant. Chain-driven, a chain qualifies iff
- * `chains.gas_seed_amount_raw IS NOT NULL` — which db:seed writes from the
- * manifest's `gasSeedAmountRaw` — so adding a future chain is a manifest
- * entry + its env secrets + a re-seed, with no code change here, for any
- * namespace ./senders supports (since #53a, both of them).
+ * The gas grant's storage and the contract a chain must satisfy to pay one.
  *
- * Idempotency: `gas_grants` PK (user_id, chain_id) + insert-before-send.
- * The grant row is claimed FIRST with a placeholder tx_ref; only the
- * claimer performs the transfer, then stamps the real tx_ref. CONCURRENT
- * calls therefore cannot double-pay: the loser of the insert race exits
- * without transferring.
+ * WHAT CHANGED AT #58, because the shape of this file is the fix. It used to
+ * also hold `dispatchGasSeeds`, an orchestrator that claimed a slot, called
+ * `sender.send()` — which broadcast AND waited for confirmation — and then
+ * stamped the result. That single call was the defect: confirmation is not
+ * something a function return value can express honestly, so a wait that timed
+ * out had to be read as either success or failure, and both readings lost money
+ * in production (a released slot paying a user twice on Solana, the same shape
+ * latent on EVM). It was also DEAD — #53c-2 removed the auto-send path and
+ * `claim/job.ts` drives the store and the sender directly, so nothing in `src/`
+ * had called it since; the type checker confirms it.
  *
- * What that does NOT cover is a transfer whose OUTCOME is unknown. A sender
- * that throws — including on a receipt timeout — releases the slot so the
- * user is not permanently marked seeded for a transfer that never landed,
- * and a tx that lands after that release would be paid a second time. The
- * senders bound that window rather than eliminating it (see the receipt wait
- * in ./senders/evm.ts); the alternative, keeping the slot, strands the user
- * instead. Losing one seed to a slow chain is the cheaper failure.
- *
- * The transfer itself is behind `GasSeedSender` so tests run offline and
- * each chain's impl stays a leaf.
+ * Paying is now THREE steps with durable state between them, and a queue between
+ * the second and the third: `sign` produces a transaction and its final
+ * reference without broadcasting, the caller records that reference, and
+ * `checkStatus` later asks the chain what became of it. Nothing infers an
+ * outcome from a timeout, because nothing has to.
  */
 
 import { and, eq } from 'drizzle-orm'
 import { chains } from '@tenda/shared/db/schema/chains'
 import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
+import type { GasGrantStatus } from '@tenda/shared'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- sender abstraction ------------------------------------------------
 
-export interface GasSeedSender {
-  /** Transfer `amount_raw` native units to `address`; returns the tx_ref. */
-  send(args: { to_address: string; amount_raw: string }): Promise<{ tx_ref: string }>
+/**
+ * What the chain says about a transfer we broadcast — three answers, and the
+ * middle one is the whole point of the rework.
+ *
+ *   delivered — the chain confirmed it succeeded. The user has their gas.
+ *   failed    — the chain confirmed it FAILED. On EVM a reverted receipt, on
+ *               Solana a signature whose status carries an `err`. The money did
+ *               not move, so the slot is released and the user may claim again.
+ *   pending   — the chain has no answer yet. NOT a failure, and reading it as
+ *               one is exactly the bug this replaced. The confirm job retries.
+ *
+ * A namespace whose transactions EXPIRE may resolve `pending` to `failed` on its
+ * own once expiry is provable — see the Solana sender. That decision belongs to
+ * the chain leaf that knows its own rules, not to a shared arbiter.
+ */
+export type GasSeedTransferStatus = 'pending' | 'delivered' | 'failed'
+
+/**
+ * A transfer that is SIGNED but not yet on the chain.
+ *
+ * Two steps rather than one `send()`, and the split is the point: a signed
+ * transaction already has its final on-chain reference, so the caller can record
+ * that reference BEFORE any money can possibly move. Collapse these back into
+ * one call and a crash in the gap leaves a transaction reaching the chain with
+ * nothing in the database pointing at it — money gone, unattributable, and the
+ * user still marked as owed. That window is small; it is not zero, and this
+ * feature's whole history is small windows costing real payments.
+ */
+export interface SignedGasSeedTransfer {
+  /** The reference this transaction WILL carry on chain, derived from its signature. */
+  tx_ref: string
+  /** Put it on the chain. Returns as soon as the node accepts it — never waits. */
+  broadcast(): Promise<void>
 }
 
-/**
- * The prefix a CLAIMED-but-unfinished grant's tx_ref carries.
- *
- * One definition, because three things read it: the claim slot is written with
- * it here, the claim surface derives `in_progress` from it
- * (claim/eligibility.ts), and `scripts/verify-gas-seed.ts` reports a row still
- * carrying it as "claimed but never finalized". A second literal anywhere is
- * how one of those three starts disagreeing about what a finished grant is.
- */
-export const PENDING_TX_REF_PREFIX = 'pending:'
-
-/**
- * The placeholder tx_ref for a claimed slot.
- *
- * Derived from the PRIMARY KEY, because `tx_ref` carries its own UNIQUE
- * constraint: a constant placeholder would let one user's claim collide with
- * another's and fail the insert as though the slot were already taken.
- */
-export function pendingTxRef(user_id: string, chain_id: string): string {
-  return `${PENDING_TX_REF_PREFIX}${user_id}:${chain_id}`
+export interface GasSeedSender {
+  /**
+   * Sign a transfer of `amount_raw` native units to `to_address`. Contacts the
+   * chain for what signing needs (a nonce, a blockhash) but broadcasts nothing.
+   */
+  sign(args: { to_address: string; amount_raw: string }): Promise<SignedGasSeedTransfer>
+  /**
+   * What the chain says about `tx_ref` right now.
+   *
+   * `submitted_at` is when the signed transaction was recorded, and it is here
+   * for the one namespace that can use it: a Solana transaction is signed
+   * against a blockhash and provably cannot land once that expires, so an
+   * absent record plus enough elapsed time IS a definitive failure there. On
+   * EVM a transaction is pinned at a nonce and never expires, so the same
+   * elapsed time means nothing and that implementation ignores it.
+   */
+  checkStatus(args: { tx_ref: string; submitted_at: Date }): Promise<GasSeedTransferStatus>
 }
 
 // ---------- store abstraction ---------------------------------------------------
+
+/**
+ * One grant as the two jobs read it — in ANY status, which is why it is no
+ * longer called `ClaimedGrant`: `claimed` became an actual status value at #58,
+ * and a type named for one status that routinely carries `submitted`,
+ * `delivered` and `unresolved` rows reads as a filter it is not.
+ */
+export interface GrantForJob {
+  status: GasGrantStatus
+  tx_ref: string | null
+  amount_raw: string
+  wallet_address: string | null
+  submitted_at: Date | null
+}
 
 export interface SeedableChain {
   chain_id: string
@@ -80,25 +116,61 @@ export interface GasSeedStore {
   /**
    * Claim the grant slot. Returns false when a grant already exists
    * (PK conflict), the caller must not transfer.
+   *
+   * The row lands as `claimed` with a NULL tx_ref — nothing has been signed, so
+   * there is nothing to reference. That is the state the old `pending:` string
+   * placeholder was standing in for.
    */
   claimGrant(row: {
     user_id: string
     chain_id: string
     amount_raw: string
-    tx_ref: string
-    /**
-     * Which wallet is being paid, and which hot wallet pays — both OPTIONAL,
-     * and that is deliberate rather than lazy. The claim path (#53c-1) knows
-     * both at claim time and records them; this auto-send path does not record
-     * the funder, and is removed with #53c-2 rather than grown. Optional also
-     * keeps every existing test double for this store valid.
-     */
     wallet_address?: string
     funder_address?: string
   }): Promise<boolean>
-  /** Stamp the real tx_ref after the transfer lands. */
-  finalizeGrant(user_id: string, chain_id: string, tx_ref: string): Promise<void>
-  /** Roll back a claimed slot whose transfer failed. */
+  /**
+   * Record a signed transaction against the slot: `claimed` → `submitted`.
+   *
+   * THE MOST IMPORTANT WRITE IN THE FEATURE. Until it commits, a transaction may
+   * be about to reach the chain with nothing in the database pointing at it; the
+   * broadcaster therefore calls this BEFORE it broadcasts. Guarded on the
+   * current status so a redelivered job cannot overwrite a reference that a
+   * previous attempt already recorded.
+   *
+   * Returns false when the guard refused, meaning some other attempt got there
+   * first and its reference stands.
+   */
+  markSubmitted(args: {
+    user_id: string
+    chain_id: string
+    tx_ref: string
+    submitted_at: Date
+  }): Promise<boolean>
+  /**
+   * Record the chain's confirmation: `submitted` → `delivered`.
+   *
+   * Status-guarded like the two transitions around it, and the guard is the
+   * point rather than ceremony: unguarded, a caller holding a `claimed` grant —
+   * one for which nothing was ever signed — could stamp its owner as paid, and
+   * the (user_id, chain_id) primary key makes that permanent. Only a slot with a
+   * transaction to confirm may be confirmed.
+   */
+  markDelivered(user_id: string, chain_id: string): Promise<void>
+  /**
+   * Stop asking: `submitted` → `unresolved`.
+   *
+   * Keeps the slot, on purpose. The transfer's fate is unknown, and a user who
+   * may already hold their seed must not be handed a second one — see
+   * GAS_GRANT_STATUSES. This is the row `verify:gas-seed` exists to surface.
+   */
+  markUnresolved(user_id: string, chain_id: string): Promise<void>
+  /**
+   * Roll back a claimed slot so the user can claim again.
+   *
+   * Safe ONLY where the money provably did not move: before a broadcast, or
+   * after the chain has attested a failure. A release on an unresolved transfer
+   * is how a user gets paid twice.
+   */
   releaseGrant(user_id: string, chain_id: string): Promise<void>
 }
 
@@ -137,11 +209,48 @@ export function drizzleGasSeedStore(db: AppDatabase): GasSeedStore {
         .returning({ user_id: gas_grants.user_id })
       return inserted.length > 0
     },
-    async finalizeGrant(user_id, chain_id, tx_ref) {
+    async markSubmitted({ user_id, chain_id, tx_ref, submitted_at }) {
+      // Status-guarded, and the guard is what makes a redelivered broadcast job
+      // safe: only a slot that is still `claimed` accepts a reference, so a
+      // second attempt cannot replace the hash of a transfer already in flight.
+      const updated = await db
+        .update(gas_grants)
+        .set({ status: 'submitted', tx_ref, submitted_at })
+        .where(
+          and(
+            eq(gas_grants.user_id, user_id),
+            eq(gas_grants.chain_id, chain_id),
+            eq(gas_grants.status, 'claimed'),
+          ),
+        )
+        .returning({ user_id: gas_grants.user_id })
+      return updated.length > 0
+    },
+    async markDelivered(user_id, chain_id) {
       await db
         .update(gas_grants)
-        .set({ tx_ref })
-        .where(and(eq(gas_grants.user_id, user_id), eq(gas_grants.chain_id, chain_id)))
+        .set({ status: 'delivered' })
+        .where(
+          and(
+            eq(gas_grants.user_id, user_id),
+            eq(gas_grants.chain_id, chain_id),
+            eq(gas_grants.status, 'submitted'),
+          ),
+        )
+    },
+    async markUnresolved(user_id, chain_id) {
+      // Guarded on `submitted` so a confirmation racing a delivery cannot pull a
+      // stamped grant back into "we do not know".
+      await db
+        .update(gas_grants)
+        .set({ status: 'unresolved' })
+        .where(
+          and(
+            eq(gas_grants.user_id, user_id),
+            eq(gas_grants.chain_id, chain_id),
+            eq(gas_grants.status, 'submitted'),
+          ),
+        )
     },
     async releaseGrant(user_id, chain_id) {
       await db
@@ -151,103 +260,4 @@ export function drizzleGasSeedStore(db: AppDatabase): GasSeedStore {
   }
 }
 
-// ---------- dispatch -------------------------------------------------------------
 
-export interface GasSeedDeps {
-  store: GasSeedStore
-  /**
-   * Sender per CHAIN ID (built by ./senders). Missing chain = that
-   * chain configured no seed key → skip.
-   *
-   * Per chain rather than per namespace (#53a): a deployment runs one chain
-   * per FAMILY, not per namespace, so several EVM chains can be active at
-   * once — each with its own RPC, hot wallet and native decimals. A
-   * namespace-keyed sender would have had to be one of them, chosen
-   * arbitrarily, and would then have paid seeds on the wrong chain.
-   */
-  senders: ReadonlyMap<string, GasSeedSender>
-  log: {
-    info(obj: object, msg: string): void
-    warn(obj: object, msg: string): void
-  }
-}
-
-export interface GasSeedResult {
-  granted: Array<{ chain_id: string; tx_ref: string }>
-  skipped: Array<{ chain_id: string; reason: string }>
-}
-
-/**
- * Run the seed check for one user across every seedable chain. Safe to call
- * on every wallet link AND after phone verification (the retroactive path),
- * non-eligible cases exit cheaply, duplicates are blocked by the claim.
- *
- * Caller must have already established phone verification, this function
- * does not re-check it (single responsibility; the routes own eligibility).
- */
-export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Promise<GasSeedResult> {
-  const result: GasSeedResult = { granted: [], skipped: [] }
-  const chains_ = await deps.store.findSeedableChains()
-
-  for (const chain of chains_) {
-    const sender = deps.senders.get(chain.chain_id)
-    if (sender === undefined) {
-      result.skipped.push({ chain_id: chain.chain_id, reason: 'seed wallet key not configured' })
-      deps.log.warn({ chain_id: chain.chain_id }, 'gas seed skipped, sender not configured')
-      continue
-    }
-    const address = await deps.store.findWalletAddress(user_id, chain.namespace)
-    if (address === null) {
-      result.skipped.push({ chain_id: chain.chain_id, reason: 'no wallet on chain' })
-      continue
-    }
-
-    // Claim first — see `pendingTxRef` for why the placeholder is derived from
-    // the primary key rather than being a constant.
-    const claimed = await deps.store.claimGrant({
-      user_id,
-      chain_id: chain.chain_id,
-      amount_raw: chain.gas_seed_amount_raw,
-      tx_ref: pendingTxRef(user_id, chain.chain_id),
-      wallet_address: address,
-    })
-    if (!claimed) {
-      result.skipped.push({ chain_id: chain.chain_id, reason: 'already granted' })
-      continue
-    }
-
-    let tx_ref: string
-    try {
-      ;({ tx_ref } = await sender.send({
-        to_address: address,
-        amount_raw: chain.gas_seed_amount_raw,
-      }))
-    } catch (err) {
-      // The transfer did not happen: release the slot so a later attempt can
-      // retry. ONLY the send is inside this try — see below.
-      await deps.store.releaseGrant(user_id, chain.chain_id)
-      result.skipped.push({ chain_id: chain.chain_id, reason: 'transfer failed' })
-      deps.log.warn({ err, user_id, chain_id: chain.chain_id }, 'gas seed transfer failed')
-      continue
-    }
-
-    try {
-      await deps.store.finalizeGrant(user_id, chain.chain_id, tx_ref)
-      result.granted.push({ chain_id: chain.chain_id, tx_ref })
-      deps.log.info({ user_id, chain_id: chain.chain_id, tx_ref }, 'gas seed granted')
-    } catch (err) {
-      // The money HAS left the hot wallet; only the stamp failed. Releasing here
-      // — which one shared try/catch used to do — would free the slot and let a
-      // later link pay the same user a second time. Keeping the claim means the
-      // grant survives as a `pending:` row, which is precisely the state
-      // `scripts/verify-gas-seed.ts` reports as "slot claimed but transfer never
-      // finalized": visible, repairable, and paid exactly once.
-      result.skipped.push({ chain_id: chain.chain_id, reason: 'granted but not recorded' })
-      deps.log.warn(
-        { err, user_id, chain_id: chain.chain_id, tx_ref },
-        'gas seed transferred but the grant could not be stamped — slot deliberately NOT released',
-      )
-    }
-  }
-  return result
-}

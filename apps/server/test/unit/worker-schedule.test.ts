@@ -35,6 +35,11 @@ const EVENT_DRIVEN: Partial<Record<JobName, string>> = {
   // the endpoint enqueues the transfer. Scheduling it would be the automatic
   // send this feature exists to replace.
   'gas-seed': 'enqueued by POST /v1/wallet/gas-seed when a user claims their seed',
+  // Enqueued by the broadcast job once a transfer exists to ask about (#58).
+  // NOT scheduled, deliberately: a repeatable would have to scan for submitted
+  // grants, and the job that created one already knows which. Its own retries
+  // are what turn "the chain has not answered" into waiting.
+  'gas-seed-confirm': 'enqueued by the gas-seed broadcast job once a transfer is recorded',
 }
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {

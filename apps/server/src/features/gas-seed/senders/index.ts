@@ -3,8 +3,8 @@
  * knows a seed on Solana is a SystemProgram transfer and a seed on EVM is a
  * value transfer.
  *
- * WHY IT EXISTS. The dispatcher (../dispatch) has always claimed that "adding a future
- * chain is a DB row + env var, no code change". That was true only inside a
+ * WHY IT EXISTS. The feature has always claimed that "adding a future chain is
+ * a DB row + env var, no code change". That was true only inside a
  * namespace that already had a sender, and until #53a only Solana did: two
  * separate places hardcoded `namespace === 'solana'` — the deps builder (now
  * ../trigger, then in lib/onboarding-deps) and the funder-address resolution in
@@ -18,7 +18,7 @@
  */
 
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
-import type { GasSeedSender } from '../dispatch'
+import type { GasSeedSender } from '../grants'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import {
   gasSeedAddressFromSecret,
@@ -36,9 +36,9 @@ import {
  * (#53c-1): which address pays, and whether it can still cover a grant.
  *
  * Its own port rather than methods on `GasSeedSender`, because the two are used
- * by different callers for different reasons — `dispatchGasSeeds` only sends,
- * availability only looks — and widening the sender would force every test
- * double in the feature to implement an RPC call it never calls.
+ * by different callers for different reasons — the claim jobs sign, broadcast
+ * and confirm; availability only looks — and widening the sender would force
+ * every test double in the feature to implement an RPC call it never calls.
  *
  * `address` is a value, not a promise: it is derived locally from the same
  * secret the sender signs with, contacting nothing. That is what lets the job
