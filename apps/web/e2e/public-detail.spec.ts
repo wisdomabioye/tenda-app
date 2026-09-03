@@ -72,6 +72,18 @@ test.describe('detail — /gig/[id]', () => {
     expect(html).toContain('noindex')
   })
 
+  test('states the worker payout with the ticker ONCE — the exact sentence (#65)', async ({ page }) => {
+    // The stub's fee is 2.50% and the fixture is 25 USDC, so the net is
+    // 24.375. Pinned as the literal sentence: the copy used to append the
+    // symbol to an amount the shared formatter had already rendered with it,
+    // and every public and in-app detail read "24.375 USDC USDC".
+    await page.goto(`/gig/${deliveryGigDetail.escrow_id}`)
+    await expect(
+      page.getByText('Worker receives 24.375 USDC after the 2.50% platform fee.', { exact: true }),
+    ).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('USDC USDC')
+  })
+
   test('serves a real OG image', async ({ request }) => {
     const detailHtml = await (await request.get(`/gig/${deliveryGigDetail.escrow_id}`)).text()
     const match = detailHtml.match(/<meta property="og:image" content="([^"]+)"/)

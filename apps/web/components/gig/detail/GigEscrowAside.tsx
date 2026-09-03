@@ -40,7 +40,7 @@ export function GigEscrowAside({ gig, actions }: { gig: GigDetail; actions?: Rea
             {symbol}
           </span>
         </div>
-        <GigFeeNote isSeeker={gig.is_seeker} amountRaw={gig.amount_raw} asset={gig.asset} symbol={symbol} />
+        <GigFeeNote isSeeker={gig.is_seeker} amountRaw={gig.amount_raw} asset={gig.asset} />
 
         <div className="my-5 h-px bg-border-subtle" />
 

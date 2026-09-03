@@ -45,9 +45,12 @@ export const GIG_DETAIL_COPY = {
   locked: 'Locked in escrow',
   feePending: 'The worker payout is this funded amount minus the platform fee.',
   /** Both figures or neither: `escrowFeeBreakdown` answers all-null until the
-   *  config loads, so the caller shows `feePending` instead of calling this. */
-  workerReceives: (amount: string, symbol: string, feePct: string) =>
-    `Worker receives ${amount} ${symbol} after the ${feePct}% platform fee.`,
+   *  config loads, so the caller shows `feePending` instead of calling this.
+   *  `amount` is the shared `formatAssetAmount` figure — ticker INCLUDED. It
+   *  took a separate symbol once (#65) and every detail read "24.375 USDC
+   *  USDC"; one renderer of the ticker, and it is shared's. */
+  workerReceives: (amount: string, feePct: string) =>
+    `Worker receives ${amount} after the ${feePct}% platform fee.`,
   lockedOn: (chain: string) =>
     `Funds were locked on ${chain} before this gig was listed. Neither side can move them alone.`,
   settleTitle: 'How it settles',
