@@ -205,13 +205,13 @@ Assert it as `['rows:N']` across the navigation, not "the list is still visible"
 skeleton is visible too.
 
 **And whatever outlives the component also outlives the SESSION.** Sign-out is a soft
-navigation (`router.replace('/gigs')`), so one tab can switch accounts without ever
-dropping the JS context — every store and every module-scoped cache carries straight into
-the next session. Measured: the second account's inbox column listed the first account's
-threads, and its disputes column listed their disputes. So `logout` empties them, beside
-the notifications store it has always reset. **Register a module-scoped cache in
-`lib/account-caches.ts`** rather than declaring one beside its hook; a cache nobody can
-clear is a leak with a comment on it.
+navigation (`router.replace(ROUTES.root)` — the public feed at `/`), so one tab can switch
+accounts without ever dropping the JS context — every store and every module-scoped cache
+carries straight into the next session. Measured: the second account's inbox column listed
+the first account's threads, and its disputes column listed their disputes. So `logout`
+empties them, beside the notifications store it has always reset. **Register a
+module-scoped cache in `lib/account-caches.ts`** rather than declaring one beside its hook;
+a cache nobody can clear is a leak with a comment on it.
 
 Testing that needs a stub that scopes rows to the CALLER. Ours did not — `handleChat`
 served the seeded conversation to any bearer — so the first version of this test "passed"

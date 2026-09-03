@@ -38,6 +38,7 @@ function resetStore() {
     isLoading: true,
     profileComplete: null,
     identities: [],
+    identitiesStatus: 'idle',
     wallets: [],
     walletsStatus: 'idle',
   })

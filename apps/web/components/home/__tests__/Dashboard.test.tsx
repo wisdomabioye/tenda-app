@@ -43,7 +43,9 @@ vi.mock('@/hooks/profile/useStanding', () => ({
   useMyStanding: () => ({ completion_rate: 0.96, completed_count: 27, is_limited: false, restriction: null }),
 }))
 vi.mock('@/hooks/wallet/useWalletScreen', () => ({
-  useWalletScreen: () => ({ section: 'ready', balances: [], totalUsdc: 0, earnedUsdc: 0, spentUsdc: 0, isLoading: false }),
+  useWalletScreen: () => ({
+    section: 'no-wallet', balances: [], totalUsdc: 0, earnedUsdc: 0, spentUsdc: 0, isLoading: false, retryWallets: vi.fn(),
+  }),
 }))
 
 import { Dashboard } from '@/components/home'
@@ -57,6 +59,7 @@ beforeEach(() => {
     user: makeUser({ id: 'me', first_name: 'Adaeze', review_score: '4.80' }),
     wallets: [],
     identities: [],
+    identitiesStatus: 'ready',
     loadMethods: seams.loadMethods,
   })
   useNotificationsStore.setState({ feedStatus: 'ready', announcements: [], notifications: [], unread: 0 })
@@ -121,12 +124,30 @@ it('never shows the open-gigs feed — no list column, no "Open gigs"', () => {
   expect(screen.queryByText('Open gigs')).toBeNull()
 })
 
-it('asks for the sign-in methods once when the store has none, and not when it has them', () => {
+it('asks for the sign-in methods once while nothing has, and shows the cell PENDING until they answer', () => {
+  useAuthStore.setState({ identitiesStatus: 'idle' })
   const { unmount } = render(<Dashboard />)
   expect(seams.loadMethods).toHaveBeenCalledTimes(1)
+  const cell = () => screen.getByRole('link', { name: /Sign-in methods/ })
+  expect(cell()).toHaveTextContent(HOME_COPY.health.pending)
+  expect(cell()).not.toHaveTextContent(HOME_COPY.health.signInEmpty)
   unmount()
-  useAuthStore.setState({ identities: [{ kind: 'email', identifier: 'a', email: 'a', verified: true }] })
+  useAuthStore.setState({
+    identities: [{ kind: 'email', identifier: 'a', email: 'a', verified: true }],
+    identitiesStatus: 'ready',
+  })
   render(<Dashboard />)
   expect(seams.loadMethods).toHaveBeenCalledTimes(1)
-  expect(screen.getByRole('link', { name: /Sign-in methods/ })).toHaveTextContent('Email')
+  expect(cell()).toHaveTextContent('Email')
+})
+
+it('says "add a sign-in method" only once the list has ANSWERED empty', () => {
+  // ready + [] + no wallet is the one honest case for that line; an idle or
+  // failed read is not. (No reader can actually reach it — they signed in
+  // somehow — but the rule is what keeps the pending case from lying.)
+  useAuthStore.setState({ identities: [], identitiesStatus: 'ready', wallets: [] })
+  render(<Dashboard />)
+  expect(screen.getByRole('link', { name: /Sign-in methods/ })).toHaveTextContent(HOME_COPY.health.signInEmpty)
+  // Answered is answered: an empty list is not a reason to ask again.
+  expect(seams.loadMethods).not.toHaveBeenCalled()
 })

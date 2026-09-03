@@ -1,15 +1,15 @@
 import { create } from 'zustand'
 import {
   ApiClientError,
-  ErrorCode,
   hasCompleteName,
   withRetry,
   type IdentityMethodWire,
   type LinkedWallet,
+  type LoadStatus,
   type User,
   type VerifyBody,
 } from '@tenda/shared'
-import { SIGNED_OUT, isRetriableMeError } from './auth/session-helpers'
+import { SIGNED_OUT, isRetriableMeError, purgeIfStaleSession } from './auth/session-helpers'
 import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
@@ -38,6 +38,9 @@ export interface AuthState {
   /** null until known; false routes to /onboarding/profile. */
   profileComplete: boolean | null
   identities: IdentityMethodWire[]
+  /** The methods read's lifecycle — `identities` is empty for EVERY account
+   *  until it answers, so a surface needs this to tell "none" from "not yet". */
+  identitiesStatus: LoadStatus
   /** Server-verified linked wallets (never the live connection). */
   wallets: LinkedWallet[]
   walletsStatus: 'idle' | 'loading' | 'ready' | 'error'
@@ -59,17 +62,8 @@ export interface AuthState {
   setProfileComplete: (complete: boolean) => void
 }
 
-/**
- * A SIGN-IN call answered 401 UNAUTHORIZED — only the server's JWT guard
- * mints that code, so a dead stored token leaked onto the request. Purge it
- * so the very next attempt starts clean (mobile's purgeIfStaleSession).
- */
-async function purgeIfStaleSession(e: unknown): Promise<void> {
-  if (e instanceof ApiClientError && e.statusCode === 401 && e.code === ErrorCode.UNAUTHORIZED) {
-    await clearAuthStorage()
-    useAuthStore.setState({ jwt: null, isAuthenticated: false })
-  }
-}
+/** The signed-out write a stale-bearer purge makes (session-helpers). */
+const markSignedOut = () => useAuthStore.setState({ jwt: null, isAuthenticated: false })
 
 export { SIGNED_OUT } from './auth/session-helpers'
 
@@ -85,7 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signInWithVerify: async (body) => {
     const res = await api.auth.verify(body).catch(async (e: unknown) => {
-      await purgeIfStaleSession(e)
+      await purgeIfStaleSession(e, markSignedOut)
       throw e
     })
     await setJwtToken(res.token)
@@ -111,7 +105,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signInWithWallet: async (adapter) => {
     const result = await walletSignIn(adapter).catch(async (e: unknown) => {
-      await purgeIfStaleSession(e)
+      await purgeIfStaleSession(e, markSignedOut)
       throw e
     })
     if (result === null) return false // declined in the wallet
@@ -197,12 +191,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Identities are the account's own sign-in methods, so a late response
     // lists the previous account's on the next one's security screen (#45).
     const gen = accountGeneration()
+    set({ identitiesStatus: 'loading' })
     try {
       const res = await api.auth.methods()
       if (!isSameAccount(gen)) return
-      set({ identities: res.identities })
+      set({ identities: res.identities, identitiesStatus: 'ready' })
     } catch {
-      // Non-fatal; the security surface offers a retry.
+      // Non-fatal: the last list stays; the status says the read failed.
+      if (!isSameAccount(gen)) return
+      set({ identitiesStatus: 'error' })
     }
   },
 

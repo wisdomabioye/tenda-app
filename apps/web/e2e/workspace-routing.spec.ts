@@ -189,9 +189,11 @@ test('phone sidebar is collapsed by default without horizontal overflow', async 
  *
  * What closes it is `AppWorkspace`, which passes the slot on only for a surface
  * `SURFACE_LIST_HOME` names. NOT a `@list/[...rest]` catch-all: that answers
- * every surface and also makes every URL matchable inside (app) — measured,
- * `/gigs` began answering 200 instead of 404, caught by "unpublished legacy
- * routes do not exist" in this same file.
+ * every surface and also makes every URL matchable inside (app) — measured
+ * before #60, when `/gigs` was still unpublished: it began answering 200
+ * instead of 404, caught by "unpublished legacy routes do not exist" in this
+ * same file. That list no longer holds `/gigs`; `/post` and `/offers/new`
+ * are the tripwires now.
  *
  * Driven by CLICKING the rail, never `goto`: a hard load was always correct,
  * so a navigation-free version of this test would pass against the bug.

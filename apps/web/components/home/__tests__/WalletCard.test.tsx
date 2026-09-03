@@ -4,6 +4,7 @@
  * the link-a-wallet invitation in every state.
  */
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chainLabel, truncateWallet, type WalletChainBalance } from '@tenda/shared'
 import { LINK_WALLET_HREF, WALLET_HREF, WalletCard } from '@/components/home/WalletCard'
@@ -17,6 +18,7 @@ const screenState = vi.hoisted(() => ({
   earnedUsdc: 2910 as number | null,
   spentUsdc: 1625.5 as number | null,
   isLoading: false,
+  retryWallets: vi.fn(async () => {}),
 }))
 vi.mock('@/hooks/wallet/useWalletScreen', () => ({ useWalletScreen: () => screenState }))
 
@@ -35,6 +37,7 @@ function balance(over: Partial<WalletChainBalance>): WalletChainBalance {
 beforeEach(() => {
   screenState.section = 'ready'
   screenState.isLoading = false
+  screenState.retryWallets.mockClear()
   screenState.totalUsdc = 1284.5
   screenState.balances = [
     balance({}),
@@ -100,6 +103,45 @@ describe('WalletCard', () => {
     expect(screen.getByRole('link', { name: HOME_COPY.wallet.link })).toHaveAttribute('href', LINK_WALLET_HREF)
     expect(screen.queryByText('1,284.50')).toBeNull()
     expect(screen.getByText(HOME_COPY.wallet.linked(0))).toBeInTheDocument()
+  })
+
+  it('claims no count and offers no invitation while the wallet LIST is still loading', () => {
+    // On every dashboard mount the list is re-read, and on a cold sign-in it
+    // is empty until /v1/users/me answers — so the card said "0 wallets
+    // linked · link one" to a reader with two, for as long as that took.
+    // The shared resolver's rule: idle/loading is never "no wallet linked".
+    screenState.section = 'loading'
+    screenState.isLoading = true
+    screenState.balances = []
+    useAuthStore.setState({ wallets: [] })
+    render(<WalletCard />)
+    expect(screen.getByTestId('wallet-card-skeleton')).toBeInTheDocument()
+    expect(screen.queryByText(HOME_COPY.wallet.linked(0))).toBeNull()
+    expect(screen.queryByText(HOME_COPY.wallet.linkFirst)).toBeNull()
+    expect(screen.queryByRole('link', { name: HOME_COPY.wallet.link })).toBeNull()
+  })
+
+  it('says the wallet list could not be read, with a working retry, instead of inviting a link', async () => {
+    screenState.section = 'wallets-error'
+    screenState.balances = []
+    useAuthStore.setState({ wallets: [] })
+    render(<WalletCard />)
+    expect(screen.getByText(HOME_COPY.wallet.walletsError)).toBeInTheDocument()
+    expect(screen.queryByText(HOME_COPY.wallet.linked(0))).toBeNull()
+    expect(screen.queryByText(HOME_COPY.wallet.linkFirst)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: HOME_COPY.wallet.retry }))
+    expect(screenState.retryWallets).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the LAST-GOOD list through a refresh — a known wallet is not unknown again', () => {
+    // Section 'loading' with wallets held: the registry or the balances are
+    // settling, not the list. The count is real and stays.
+    screenState.section = 'loading'
+    screenState.isLoading = true
+    screenState.balances = []
+    render(<WalletCard />)
+    expect(screen.getByText(HOME_COPY.wallet.linked(2))).toBeInTheDocument()
+    expect(screen.getByText(HOME_COPY.wallet.linkHint)).toBeInTheDocument()
   })
 
   it('shows a skeleton while balances load, and says so when they are unavailable', () => {

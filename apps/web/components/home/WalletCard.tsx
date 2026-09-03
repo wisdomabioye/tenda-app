@@ -65,12 +65,23 @@ function ChainRow({ balance, primary }: { balance: WalletChainBalance; primary: 
   )
 }
 
+function HeadlineSkeleton() {
+  return <span data-testid="wallet-card-skeleton" className="h-9 w-36 animate-shimmer rounded-xs bg-surface-inset" />
+}
+
 export function WalletCard() {
   const wallets = useAuthStore((s) => s.wallets)
-  const { section, balances, totalUsdc, earnedUsdc, spentUsdc, isLoading } = useWalletScreen()
+  const { section, balances, totalUsdc, earnedUsdc, spentUsdc, isLoading, retryWallets } = useWalletScreen()
   const primaryAddresses = new Set(wallets.filter((w) => w.is_primary).map((w) => w.address))
   const linked = wallets.length
-  const hasWallet = section !== 'no-wallet' && linked > 0
+  // The list is KNOWN once it holds a wallet (a last-good list counts) or has
+  // settled empty. While it is still loading, or failed with nothing held, the
+  // count and the invitation would both be claims about a registry nobody has
+  // read — "0 wallets linked · link one" to a reader with two, for as long as
+  // /v1/users/me takes on every mount. The shared resolver's own rule:
+  // idle/loading is never advertised as "no wallet linked".
+  const walletsKnown = linked > 0 || section === 'no-wallet'
+  const hasWallet = walletsKnown && linked > 0
   // A balance row is one (wallet, chain) pair — two wallets on one chain are
   // two rows — and the caption promises CHAINS. Omitted while no row has
   // resolved: "across 0 chains" beside "2 wallets linked" is a claim the
@@ -80,14 +91,31 @@ export function WalletCard() {
   return (
     <DashCard
       title={HOME_COPY.wallet.title}
-      pill={<DashPill dot={linked > 0 ? 'live' : 'quiet'}>{HOME_COPY.wallet.linked(linked)}</DashPill>}
+      pill={
+        walletsKnown ? (
+          <DashPill dot={linked > 0 ? 'live' : 'quiet'}>{HOME_COPY.wallet.linked(linked)}</DashPill>
+        ) : undefined
+      }
       more={{ href: WALLET_HREF, label: HOME_COPY.wallet.open }}
     >
+      {!walletsKnown && section === 'wallets-error' && (
+        <p className="mt-4 flex flex-wrap items-center gap-3 text-[13px] leading-[18px] text-content-tertiary">
+          <span>{HOME_COPY.wallet.walletsError}</span>
+          <button type="button" onClick={() => void retryWallets()} className="font-semibold text-content-link">
+            {HOME_COPY.wallet.retry}
+          </button>
+        </p>
+      )}
+      {!walletsKnown && section !== 'wallets-error' && (
+        <p className="mt-4" aria-busy>
+          <HeadlineSkeleton />
+        </p>
+      )}
       {hasWallet && (
         <>
           <p className="mt-4 flex flex-wrap items-baseline gap-2.5" aria-busy={isLoading}>
             {isLoading ? (
-              <span data-testid="wallet-card-skeleton" className="h-9 w-36 animate-shimmer rounded-xs bg-surface-inset" />
+              <HeadlineSkeleton />
             ) : (
               <span className="type-mono-large text-content-primary">{formatAmountOrUnknown(totalUsdc, formatUsdcFigure)}</span>
             )}
@@ -123,14 +151,16 @@ export function WalletCard() {
           )}
         </>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border-strong px-3.5 py-3">
-        <span className="min-w-0 flex-1 text-[13px] leading-[18px] text-content-secondary">
-          {hasWallet ? HOME_COPY.wallet.linkHint : HOME_COPY.wallet.linkFirst}
-        </span>
-        <Link href={LINK_WALLET_HREF} className={buttonVariants({ variant: 'outline', size: 'md' })}>
-          {HOME_COPY.wallet.link}
-        </Link>
-      </div>
+      {walletsKnown && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border-strong px-3.5 py-3">
+          <span className="min-w-0 flex-1 text-[13px] leading-[18px] text-content-secondary">
+            {hasWallet ? HOME_COPY.wallet.linkHint : HOME_COPY.wallet.linkFirst}
+          </span>
+          <Link href={LINK_WALLET_HREF} className={buttonVariants({ variant: 'outline', size: 'md' })}>
+            {HOME_COPY.wallet.link}
+          </Link>
+        </div>
+      )}
     </DashCard>
   )
 }

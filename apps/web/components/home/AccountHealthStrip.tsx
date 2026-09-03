@@ -8,6 +8,12 @@
  *                        owned by the settings page; nothing to summarise here
  *   - sign-in methods    the account's identity kinds + its linked wallets
  *   - standing           MyStandingResponse    → limited / completion rate
+ *
+ * A read that has not answered is `null`, and its cell shows the pending
+ * mark rather than a claim: `identities` is empty for EVERY account until
+ * the methods read lands, so a cell keyed on the list alone told each
+ * email or phone reader to "add a sign-in method" — with the warning dot —
+ * until then, and for good when the read failed.
  */
 import Link from 'next/link'
 import type { BankAccountSummary, IdentityMethodWire, MyStandingResponse } from '@tenda/shared'
@@ -60,14 +66,23 @@ export function AccountHealthStrip({
 }: {
   /** null while the first load is pending. */
   accounts: BankAccountSummary[] | null
-  identities: readonly IdentityMethodWire[]
+  /** null until the methods read has answered. */
+  identities: readonly IdentityMethodWire[] | null
   walletCount: number
   standing: MyStandingResponse | null
 }) {
   const verified = (accounts ?? []).filter((a) => a.verified)
   const countries = [...new Set(verified.map((a) => a.country.toUpperCase()))]
-  const kinds = [...new Set(identities.filter((i) => i.verified).map((i) => IDENTITY_KIND_LABEL[i.kind]))]
-  const signIn = kinds.length === 0 && walletCount === 0 ? HOME_COPY.health.signInEmpty : HOME_COPY.health.signInValue(kinds, walletCount)
+  const kinds =
+    identities === null
+      ? null
+      : [...new Set(identities.filter((i) => i.verified).map((i) => IDENTITY_KIND_LABEL[i.kind]))]
+  const signIn =
+    kinds === null
+      ? HOME_COPY.health.pending
+      : kinds.length === 0 && walletCount === 0
+        ? HOME_COPY.health.signInEmpty
+        : HOME_COPY.health.signInValue(kinds, walletCount)
 
   let standingValue = ''
   let standingDot: Dot = null
@@ -99,7 +114,7 @@ export function AccountHealthStrip({
         href={HEALTH_HREF.signIn}
         label={HOME_COPY.health.signIn}
         value={signIn}
-        dot={kinds.length + walletCount > 0 ? 'good' : 'warn'}
+        dot={kinds === null ? null : kinds.length + walletCount > 0 ? 'good' : 'warn'}
       />
       <Cell href={HEALTH_HREF.standing} label={HOME_COPY.health.standing} value={standingValue === '' ? HOME_COPY.health.pending : standingValue} dot={standingDot} />
     </nav>

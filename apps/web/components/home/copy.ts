@@ -6,6 +6,8 @@ import { FEED_COPY } from '@/components/gig/feed/copy'
 
 /** The head's trade action and the quick link say the same thing — one label. */
 const TRADE_LABEL = 'Buy / sell USDC'
+/** One retry label for every read the dashboard can ask again. */
+const RETRY = 'Try again'
 
 export const HOME_COPY = {
   greeting: {
@@ -43,7 +45,7 @@ export const HOME_COPY = {
     reviews: (count: number) => `/ ${count} ${count === 1 ? 'review' : 'reviews'}`,
     unrated: '—',
     unavailable: 'Counts unavailable',
-    retry: 'Try again',
+    retry: RETRY,
   },
   myGigs: {
     title: 'My gigs',
@@ -71,6 +73,9 @@ export const HOME_COPY = {
     linkFirst: 'Link a wallet to see balances and take gigs.',
     link: 'Link a wallet',
     unavailable: 'Balances are unavailable right now.',
+    /** The wallet LIST could not be read — not "no wallet", not a zero. */
+    walletsError: 'Your wallets could not be read.',
+    retry: RETRY,
   },
   notifications: {
     title: 'Notifications',

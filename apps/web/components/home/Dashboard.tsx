@@ -43,6 +43,7 @@ export function Dashboard() {
   const user = useAuthStore((s) => s.user)
   const wallets = useAuthStore((s) => s.wallets)
   const identities = useAuthStore((s) => s.identities)
+  const identitiesStatus = useAuthStore((s) => s.identitiesStatus)
   const loadMethods = useAuthStore((s) => s.loadMethods)
   const userId = user?.id ?? ''
 
@@ -54,10 +55,12 @@ export function Dashboard() {
   const standing = useMyStanding()
 
   // The sign-in methods are the security page's read; the health strip only
-  // needs them listed, so it asks once and lets the store keep them.
+  // needs them listed, so it asks once while nothing has (the way the
+  // announcement band asks for the feed) and lets the store keep them. A
+  // failed read stays pending here — the security page re-asks on its mount.
   useEffect(() => {
-    if (identities.length === 0) void loadMethods()
-  }, [identities.length, loadMethods])
+    if (identitiesStatus === 'idle') void loadMethods()
+  }, [identitiesStatus, loadMethods])
 
   const attention = attentionItems({
     posted: lists.posted.items,
@@ -88,7 +91,9 @@ export function Dashboard() {
 
       <AccountHealthStrip
         accounts={accounts}
-        identities={identities}
+        // Only a KNOWN list: the store's list is empty for every account
+        // until the read answers, and the strip must not read that as none.
+        identities={identitiesStatus === 'ready' ? identities : null}
         walletCount={wallets.length}
         standing={standing}
       />

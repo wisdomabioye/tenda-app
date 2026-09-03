@@ -205,6 +205,17 @@ describe('AccountHealthStrip', () => {
     expect(screen.getByRole('link', { name: /Payout accounts/ })).toHaveTextContent(HOME_COPY.health.pending)
   })
 
+  it('shows the pending mark for sign-in methods that have not answered — never "add one" first', () => {
+    // `identities` starts empty for EVERY account, so keying the cell on the
+    // list alone told every email or phone reader to add a sign-in method
+    // until the read landed — with the warning dot — and for good if it failed.
+    render(<AccountHealthStrip accounts={[]} identities={null} walletCount={0} standing={null} />)
+    const cell = screen.getByRole('link', { name: /Sign-in methods/ })
+    expect(cell).toHaveTextContent(HOME_COPY.health.pending)
+    expect(cell).not.toHaveTextContent(HOME_COPY.health.signInEmpty)
+    expect(cell.querySelector('[aria-hidden]')).toBeNull()
+  })
+
   it('shows the pending mark for a standing that has not answered', () => {
     render(<AccountHealthStrip accounts={[]} identities={[]} walletCount={0} standing={null} />)
     expect(screen.getByRole('link', { name: /Standing/ })).toHaveTextContent(HOME_COPY.health.pending)
