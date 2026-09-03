@@ -32,7 +32,14 @@ before(async () => {
 })
 after(async () => { await rpc.close() })
 
-const relayer = () => viemEvmRelayer({ rpc_url: rpc.url, chain_id: CHAIN_ID, private_key: KEY, timeout_ms: 200 })
+const relayer = () => viemEvmRelayer({
+    rpc_url: rpc.url,
+    // One stub node: this suite asserts what goes ON THE WIRE.
+    rpc_url_fallback: undefined,
+    chain_id: CHAIN_ID,
+    private_key: KEY,
+    timeout_ms: 200,
+  })
 
 test('the probe is one eth_call of the typehash getter, true only for the canonical constant', async () => {
   assert.strictEqual(relayer().address, privateKeyToAccount(KEY).address)

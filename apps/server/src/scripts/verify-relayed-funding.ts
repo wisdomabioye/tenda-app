@@ -56,7 +56,15 @@ async function main(): Promise<void> {
   assert(Number.isFinite(amount_sol) && amount_sol > 0, 'amount_sol must be a positive number')
   const amount = BigInt(Math.round(amount_sol * LAMPORTS_PER_SOL))
 
-  const relayer = web3SolanaRelayer({ rpc_url, chain_id: CHAIN_ID, secret_key_base58: relayer_key })
+  const relayer = web3SolanaRelayer({
+    rpc_url,
+    // A one-off verification run against ONE endpoint, by hand — redundancy is
+    // not what this script is checking. Stated explicitly because the parameter
+    // is a required key precisely so nobody omits it by accident.
+    rpc_url_fallback: undefined,
+    chain_id: CHAIN_ID,
+    secret_key_base58: relayer_key,
+  })
   const adapter = solanaAdapter({
     chain_id: CHAIN_ID,
     rpc_url,

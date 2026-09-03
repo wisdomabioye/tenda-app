@@ -59,7 +59,14 @@ async function main(): Promise<void> {
   const rpc_url = requireEnv(`${prefix}_RPC_URL`)
   const escrow_contract = requireEnv(`${prefix}_ESCROW_ADDR`) as Hex
   const agent = privateKeyToAccount(requireHexKey('RELAY_SMOKE_AGENT_KEY'))
-  const relayer = viemEvmRelayer({ rpc_url, chain_id, private_key: requireHexKey(`${prefix}_RELAYER_KEY`) })
+  const relayer = viemEvmRelayer({
+    rpc_url,
+    // A hand-run verification against ONE endpoint; redundancy is not what this
+    // script checks. Named because the parameter is required.
+    rpc_url_fallback: undefined,
+    chain_id,
+    private_key: requireHexKey(`${prefix}_RELAYER_KEY`),
+  })
   const adapter = evmAdapter({
     chain_id,
     rpc_url,

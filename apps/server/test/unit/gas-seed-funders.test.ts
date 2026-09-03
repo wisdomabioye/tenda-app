@@ -102,11 +102,13 @@ test('each namespace builds a funder without contacting its chain', () => {
   // wait on the network before any guard had even been evaluated.
   const evm = evmGasSeedFunder({
     rpc_url: 'https://rpc.invalid',
+    rpc_url_fallback: undefined,
     chain_id: 'eip155:84532',
     private_key: EVM_KEY,
   })
   const solana = solanaGasSeedFunder({
     rpc_url: 'https://rpc.invalid',
+    rpc_url_fallback: undefined,
     chain_id: 'solana:devnet',
     secret_key_base58: SOLANA_KEY,
   })

@@ -104,6 +104,16 @@ export function evmGasSeedSenderFromPort(port: EvmGasSeedPort): GasSeedSender {
  */
 export function evmGasSeedFunder(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint. Handed straight to `evmHotWallet`, which builds the
+   * failover transport — so the reader AND the wallet client both get it, and
+   * a broadcast survives one provider stalling. Safe here because the nonce
+   * pins the transaction; Solana's sender deliberately has no equivalent.
+   *
+   * A required key, like every other builder of an EVM hot wallet: optional is
+   * how the relayer beside this one ended up with no failover at all.
+   */
+  rpc_url_fallback: string | undefined
   chain_id: string
   private_key: `0x${string}`
 }): GasSeedFunder {
@@ -119,6 +129,16 @@ export function evmGasSeedFunder(args: {
 
 export function evmGasSeedSender(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint. Handed straight to `evmHotWallet`, which builds the
+   * failover transport — so the reader AND the wallet client both get it, and
+   * a broadcast survives one provider stalling. Safe here because the nonce
+   * pins the transaction; Solana's sender deliberately has no equivalent.
+   *
+   * A required key, like every other builder of an EVM hot wallet: optional is
+   * how the relayer beside this one ended up with no failover at all.
+   */
+  rpc_url_fallback: string | undefined
   /** CAIP-2 id of a manifest EVM chain, e.g. `'eip155:16661'`. */
   chain_id: string
   /** 0x-hex secp256k1 private key of the seed hot wallet. */

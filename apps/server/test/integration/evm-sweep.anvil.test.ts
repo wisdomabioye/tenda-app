@@ -43,6 +43,7 @@ before(async () => {
   fx = await startAnvilFixture(PORT)
   const relayer = viemEvmRelayer({
     rpc_url: fx.rpc_url,
+    rpc_url_fallback: undefined,
     chain_id: ANVIL_CHAIN_ID,
     private_key: ANVIL_KEYS.relayer,
   })

@@ -60,6 +60,13 @@ after(async () => {
  *   so an unhandled method degrades the way the real thing does rather than
  *   erroring in a way no production code has to handle. May return a Promise:
  *   a responder that resolves late is how a timeout test gets a slow node.
+ *
+ *   THROWING answers HTTP 500 with a JSON-RPC error — a node that is up and
+ *   failing, which is the shape a failover test needs. Returning a bad `result`
+ *   is not a substitute: viem's `fallback` transport only fails over on
+ *   TRANSPORT errors, so a 200 carrying nonsense fails inside the client with
+ *   the second endpoint never tried. The request is still recorded in `calls`,
+ *   which is what lets a test prove the primary was attempted exactly once.
  */
 export async function startStubRpc(
   respond: (method: string, params: unknown[]) => unknown,
@@ -73,9 +80,20 @@ export async function startStubRpc(
       const parsed = JSON.parse(body) as { id: number; method: string; params?: unknown[] }
       const params = parsed.params ?? []
       calls.push({ method: parsed.method, params })
-      const result = (await respond(parsed.method, params)) ?? null
       res.setHeader('content-type', 'application/json')
-      res.end(JSON.stringify({ jsonrpc: '2.0', id: parsed.id, result }))
+      try {
+        const result = (await respond(parsed.method, params)) ?? null
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: parsed.id, result }))
+      } catch (err) {
+        res.statusCode = 500
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: parsed.id,
+            error: { code: -32000, message: err instanceof Error ? err.message : String(err) },
+          }),
+        )
+      }
     })
   })
 

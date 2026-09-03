@@ -71,7 +71,13 @@ before(async () => {
   fx = await startAnvilFixture(PORT)
   seedKey = generatePrivateKey()
   seedAddress = privateKeyToAccount(seedKey).address
-  sender = evmGasSeedSender({ rpc_url: fx.rpc_url, chain_id: ANVIL_CHAIN_ID, private_key: seedKey })
+  sender = evmGasSeedSender({
+    rpc_url: fx.rpc_url,
+    // One anvil node; this suite measures gas, not redundancy.
+    rpc_url_fallback: undefined,
+    chain_id: ANVIL_CHAIN_ID,
+    private_key: seedKey,
+  })
 })
 
 after(() => {
@@ -191,6 +197,7 @@ test('the funder reports the hot wallet\'s real balance, from the same key', { s
   // non-zero value rather than the zero every fresh account reports.
   const funder = evmGasSeedFunder({
     rpc_url: fx.rpc_url,
+    rpc_url_fallback: undefined,
     chain_id: ANVIL_CHAIN_ID,
     private_key: seedKey,
   })

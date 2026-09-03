@@ -7,14 +7,15 @@
  * Gas float only: fees plus, at most once per creator, the rent their escrow
  * accounts need (see relay/index.ts on the shortfall rule).
  */
-import { Connection, Keypair, PublicKey, VersionedTransaction, type TransactionError } from '@solana/web3.js'
+import { Keypair, PublicKey, VersionedTransaction, type TransactionError } from '@solana/web3.js'
 import bs58 from 'bs58'
+import { DEFAULT_RPC_TIMEOUT_MS, withSolanaRpcTimeout } from '@server/chains/solana/rpc'
 import {
-  DEFAULT_RPC_TIMEOUT_MS,
   commitmentFor,
-  solanaConnectionConfig,
-  withSolanaRpcTimeout,
-} from '@server/chains/solana/rpc'
+  perEndpointTimeoutMs,
+  solanaConnections,
+  withRpcFallback,
+} from '@server/chains/rpc'
 import type { ChainId } from '@server/chains/types'
 
 export interface SolanaRelayer {
@@ -81,26 +82,64 @@ export function solanaRelayerFromConnection(
 
 export function web3SolanaRelayer(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint. REQUIRED as a key, `undefined` as a value — deliberately
+   * not optional.
+   *
+   * WITHOUT it the failover below is dead code, which is exactly what it was:
+   * the relayer hardcoded `has_fallback: false`, and even after that was removed
+   * the URL still never reached here, so a relayer on a chain with a configured
+   * fallback silently had none. Nothing failed; there was simply no redundancy.
+   *
+   * Optional would let the next caller omit it and reintroduce that silently.
+   * A required key means forgetting is a COMPILE error, which is a stronger
+   * guarantee than the test that would otherwise have to notice — and the site
+   * that got it wrong (plugins/chains.ts) is one nobody unit-tests.
+   */
+  rpc_url_fallback: string | undefined
   chain_id: ChainId
   /** base58-encoded 64-byte secret key of the hot wallet (CHAIN_<ID>_RELAYER_KEY). */
   secret_key_base58: string
-  /** Per-call budget; defaults to the adapter's DEFAULT_RPC_TIMEOUT_MS. */
+  /** Budget for the WHOLE operation; defaults to DEFAULT_RPC_TIMEOUT_MS. */
   timeout_ms?: number
 }): SolanaRelayer {
   const commitment = commitmentFor(args.chain_id)
-  // One endpoint, no failover: the same config the read seam builds for a
-  // lone endpoint (web3's 429 backoff stays on, its only recovery).
-  const connection = new Connection(args.rpc_url, solanaConnectionConfig({ chain_id: args.chain_id, has_fallback: false }))
+  // Clients from the central seam; the reads below fail over across them. Why
+  // that was worth doing is on `rpc_url_fallback` above, not repeated here.
+  const connections = solanaConnections(args)
+  // PER ATTEMPT, deliberately derived without the caller's `timeout_ms`. That
+  // override is the budget for the whole operation, and
+  // `solanaRelayerFromConnection` already applies it OUTSIDE these calls — so
+  // using it here too would let one hung endpoint consume the entire budget and
+  // the outer timeout would fire before the fallback was ever tried. Two
+  // endpoints at 6s sit inside the 15s default; one endpoint gets the full 15s,
+  // the same bound it had before.
+  const attempt_timeout_ms = perEndpointTimeoutMs({
+    rpc_url: args.rpc_url,
+    ...(args.rpc_url_fallback !== undefined ? { rpc_url_fallback: args.rpc_url_fallback } : {}),
+  })
+  const failover = <T>(run: (c: (typeof connections)[number]) => Promise<T>): Promise<T> =>
+    withRpcFallback(connections, run, { timeout_ms: attempt_timeout_ms })
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
   return solanaRelayerFromConnection(
     {
-      getBalance: (address) => connection.getBalance(address, commitment),
-      getMinimumBalanceForRentExemption: (bytes) => connection.getMinimumBalanceForRentExemption(bytes),
-      isBlockhashValid: (blockhash) => connection.isBlockhashValid(blockhash, { commitment }),
+      getBalance: (address) => failover((c) => c.getBalance(address, commitment)),
+      getMinimumBalanceForRentExemption: (bytes) =>
+        failover((c) => c.getMinimumBalanceForRentExemption(bytes)),
+      isBlockhashValid: (blockhash) => failover((c) => c.isBlockhashValid(blockhash, { commitment })),
       // Signatures are checked in preflight: a bad creator signature is
       // refused here, before the relayer's own signature ever leaves.
-      simulateTransaction: (tx) => connection.simulateTransaction(tx, { sigVerify: true, commitment }),
-      sendRawTransaction: (raw) => connection.sendRawTransaction(raw, { preflightCommitment: commitment }),
+      simulateTransaction: (tx) =>
+        failover((c) => c.simulateTransaction(tx, { sigVerify: true, commitment })),
+      // NOT failed over, unlike the four reads above. A re-broadcast to a second
+      // endpoint is safe on EVM because the nonce pins the transaction; here the
+      // caller has already signed against one blockhash, and a second send is a
+      // second chance for the SAME signature to land — which is fine — but a
+      // failure that is really "already processed" would be retried as if it
+      // were a network fault. Sends stay on the primary; the reads that decide
+      // whether to send are what needed the redundancy.
+      sendRawTransaction: (raw) =>
+        connections[0].sendRawTransaction(raw, { preflightCommitment: commitment }),
     },
     keypair,
     args.timeout_ms,

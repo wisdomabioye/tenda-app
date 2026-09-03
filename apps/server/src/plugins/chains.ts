@@ -102,6 +102,11 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
           ? {
               relayer: web3SolanaRelayer({
                 rpc_url: secret.rpcUrl,
+                // The chain's OWN fallback, same as the adapter above gets. Its
+                // absence here is what made the relayer's failover dead code, so
+                // the parameter is a REQUIRED key: this line cannot go missing
+                // again without failing the build.
+                rpc_url_fallback: secret.rpcUrlFallback,
                 chain_id: chainId,
                 secret_key_base58: secret.relayerKey,
               }),
@@ -136,6 +141,8 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
           ? {
               relayer: viemEvmRelayer({
                 rpc_url: secret.rpcUrl,
+                // Same fallback the adapter and the Solana relayer get.
+                rpc_url_fallback: secret.rpcUrlFallback,
                 chain_id: chainId,
                 private_key: secret.relayerKey as `0x${string}`,
               }),

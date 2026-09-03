@@ -16,6 +16,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `auth-message.ts` | `issueNonce()` + `buildAuthMessage()` — wallet-auth flow helpers |
 | `admin-auth.ts` | `issueAdminCode()` — admin email-OTP login helper |
 | `oauth-env.ts` | `GOOGLE_TEST_AUDIENCE` — a side-effect module that configures the Google OAuth audience; **import it first**, since config and the strategy registry both memoise on first use and cannot be influenced afterwards |
+| `settle.ts` | `within()` — bounds a promise so a test that is asserting a TIMEOUT fails instead of hanging the runner when that timeout regresses (#48's lesson, applied to the RPC failover suites) |
 | `queue-double.ts` | `queueDouble()`, `notificationsOf()`, `alertsOf()` — the recorder that answers "what got enqueued?", typed as a union over `JobName` so a producer writing to the wrong queue fails to compile |
 | `side-effects.ts` | `installCapture()`, `interceptQueue()` — the same question against a LIVE fastify instance, adding the WS seam; between them, everything by which news reaches a user leaves this process |
 | `fanout.ts` | `drainSubscriberFanout()` — runs the captured expansion jobs as a worker would, so a "who hears about this gig?" test can cross the queue hop `fanOutEscrowEvent` stops at |
