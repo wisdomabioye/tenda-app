@@ -27,6 +27,8 @@
     "admin:bootstrap": "tsx src/scripts/bootstrap-super-admin.ts",
     "admin:grant-email": "tsx src/scripts/grant-admin-email.ts",
     "dedupe-wallets": "tsx src/scripts/dedupe-wallets.ts",
+    "wallet:address": "tsx src/scripts/wallet-address.ts",
+    "post-gigs": "tsx src/scripts/post-gigs/main.ts",
     "verify:celo-fee-currency": "tsx src/scripts/verify-celo-feecurrency.ts",
     "verify:gas-seed": "tsx src/scripts/verify-gas-seed.ts",
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",

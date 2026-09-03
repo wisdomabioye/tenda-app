@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   }
 
   phase('Agent registers by wallet proof — POST /v1/agent/register')
-  const reg = await registerAgent(api, agent, CHAIN_ID, 'Dispatch Bot')
+  const reg = await registerAgent(api, agent, CHAIN_ID, 'Dispatch Bot', BASE_URL)
   console.log(`   is_new=${reg.is_new} is_agent=${reg.user.is_agent} id=${reg.user.id}`)
 
   const approveOnly = process.env.E2E_APPROVE_TASK
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   }
 
   phase('Worker signs in (OTP), names themselves, links their wallet')
-  const w = await onboardWorker(api, worker, CHAIN_ID, LOG_PATH)
+  const w = await onboardWorker(api, worker, CHAIN_ID, LOG_PATH, BASE_URL)
   console.log(`   worker ${w.how} → ${w.id}`)
 
   phase('Agent posts the task — POST /v1/agent/tasks (no X-PAYMENT) → 402')

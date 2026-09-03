@@ -56,14 +56,29 @@ export function expectStatus(
   }
 }
 
-/** The message shape `lib/auth-message.ts` parses (URI unchecked outside production). */
-function authMessage(address: string, chainId: string, nonce: string, issuedAt: string): string {
+/**
+ * The message shape `lib/auth-message.ts` parses.
+ *
+ * THE URI IS THE CALLER'S, and it is a required argument rather than a constant
+ * because the server CHECKS it outside development: a proof carrying
+ * `http://127.0.0.1:3000` is refused by any deployed environment with
+ * "auth message URI ... does not match expected ...". Hardcoding it made these
+ * helpers work locally and nowhere else, which is exactly the shape of bug that
+ * only shows up the first time someone points them at preview.
+ */
+function authMessage(
+  address: string,
+  chainId: string,
+  nonce: string,
+  issuedAt: string,
+  origin: string,
+): string {
   return [
     'Tenda wants you to sign in with your wallet:',
     address,
     '',
     `Chain: ${chainId}`,
-    `URI: http://127.0.0.1:3000`,
+    `URI: ${origin}`,
     `Nonce: ${nonce}`,
     `Issued At: ${issuedAt}`,
   ].join('\n')
@@ -74,11 +89,12 @@ export async function walletProof(
   api: Api,
   account: PrivateKeyAccount,
   chainId: string,
+  origin: string,
 ): Promise<{ chain_id: string; address: string; message: string; signature: string }> {
   const nonceRes = await api(apiRoutes.auth.nonce, { method: 'POST' })
   expectStatus('POST /v1/auth/nonce', nonceRes, 200)
   const { nonce, issued_at } = nonceRes.json as { nonce: string; issued_at: string }
-  const message = authMessage(account.address, chainId, nonce, issued_at)
+  const message = authMessage(account.address, chainId, nonce, issued_at, origin)
   return {
     chain_id: chainId,
     address: account.address,
@@ -93,8 +109,9 @@ export async function registerAgent(
   account: PrivateKeyAccount,
   chainId: string,
   name: string,
+  origin: string,
 ): Promise<AgentRegisterResponse> {
-  const proof = await walletProof(api, account, chainId)
+  const proof = await walletProof(api, account, chainId, origin)
   const res = await api(apiRoutes.agent.register, { method: 'POST', body: { ...proof, name } })
   expectStatus('POST /v1/agent/register', res, 200)
   return res.json as unknown as AgentRegisterResponse
@@ -151,10 +168,11 @@ export async function onboardWorker(
   account: PrivateKeyAccount,
   chainId: string,
   logPath: string,
+  origin: string,
 ): Promise<{ token: string; id: string; how: string }> {
   const returning = await api(apiRoutes.auth.verify, {
     method: 'POST',
-    body: { method: 'wallet', ...(await walletProof(api, account, chainId)) },
+    body: { method: 'wallet', ...(await walletProof(api, account, chainId, origin)) },
   })
   if (returning.status === 200) {
     const { token, user } = returning.json as { token: string; user: { id: string } }
@@ -178,7 +196,7 @@ export async function onboardWorker(
   await ensureName(api, token)
   expectStatus(
     'POST /v1/auth/link-wallet',
-    await api(apiRoutes.auth.linkWallet, { method: 'POST', token, body: await walletProof(api, account, chainId) }),
+    await api(apiRoutes.auth.linkWallet, { method: 'POST', token, body: await walletProof(api, account, chainId, origin) }),
     200,
   )
   return { token, id: user.id, how: `new (OTP ${phone})` }
