@@ -8,7 +8,7 @@
  */
 
 import bs58 from 'bs58'
-import { CHAIN_MANIFEST, type ChainManifestEntry } from '@tenda/shared'
+import { CHAIN_MANIFEST, isEvmAddress, type ChainManifestEntry } from '@tenda/shared'
 import { ABSOLUTE_PREFIX, isAbsoluteUrl } from '@server/lib/env'
 
 /** An ed25519 secret key as web3's `Keypair.fromSecretKey` takes it: 64 raw bytes. */
@@ -247,7 +247,12 @@ export function isValid(kind: SecretKind, value: string): boolean {
       // the failure to runtime.
       return isAbsoluteUrl(value, CHAIN_ENDPOINT_PROTOCOLS)
     case 'evmAddr':
-      return /^0x[0-9a-fA-F]{40}$/.test(value)
+      // The shared predicate (#104), not a third copy of the literal. Case is
+      // deliberately not checked: operators paste the checksummed spelling a
+      // block explorer shows, and this runs at BOOT, so refusing it would fail
+      // a deploy over an EIP-55 display convention. `evmKey` below stays its
+      // own literal — {64} is a PRIVATE KEY, a different predicate entirely.
+      return isEvmAddress(value)
     case 'evmKey':
       return /^0x[0-9a-fA-F]{64}$/.test(value)
     case 'base58':

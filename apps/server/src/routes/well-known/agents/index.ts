@@ -19,15 +19,12 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { ErrorCode, normalizeChainAddress } from '@tenda/shared'
+import { ErrorCode, isEvmAddress, normalizeChainAddress } from '@tenda/shared'
 import { buildAgentCard, drizzleAgentCardStore } from '@server/features/agent-card'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
 
 export const autoPrefix = '/.well-known/agents'
-
-/** `0x` + 40 hex. Checked BEFORE any query — an unbounded path segment must not reach the DB. */
-const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/
 
 /**
  * REQUIRED, not stripped-if-present. The suffix is part of the key rather than
@@ -55,7 +52,9 @@ const route: FastifyPluginAsync = async (fastify) => {
     // both a bare address and a malformed one.
     const { file } = request.params
     const raw = file.endsWith(JSON_SUFFIX) ? file.slice(0, -JSON_SUFFIX.length) : ''
-    if (!EVM_ADDRESS.test(raw)) {
+    // `isEvmAddress` BEFORE any query — an unbounded path segment must not
+    // reach the database.
+    if (!isEvmAddress(raw)) {
       // Thrown, not hand-rolled: the shared handler (lib/http-errors) is what
       // gives every other route's 404 its four-field envelope.
       throw new AppError(404, ErrorCode.NOT_FOUND, 'not an agent card address')

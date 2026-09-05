@@ -27,6 +27,7 @@
 
 import type { ChainNamespace } from '../db/schema/chains'
 import { getAssetMeta } from '../constants/assets'
+import { isEvmAddress } from '../utils/address'
 
 /** How gas is paid on a chain — selects the registry's per-chain dep wiring. */
 export type GasPolicy =
@@ -531,7 +532,7 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     if (entry.feeCurrencyAdapter !== undefined && entry.feeCurrency === undefined) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter set without feeCurrency`)
     }
-    if (entry.feeCurrencyAdapter !== undefined && !/^0x[0-9a-fA-F]{40}$/.test(entry.feeCurrencyAdapter)) {
+    if (entry.feeCurrencyAdapter !== undefined && !isEvmAddress(entry.feeCurrencyAdapter)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter is not a valid EVM address`)
     }
     if (entry.feeCurrency !== undefined && feeCurrencyAddress(entry) === null) {
