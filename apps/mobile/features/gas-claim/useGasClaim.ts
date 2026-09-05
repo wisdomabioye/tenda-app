@@ -59,6 +59,29 @@ export interface UseGasClaimOptions {
   enabled?: boolean
 }
 
+
+/**
+ * Is this array entry usable as an offer?
+ *
+ * NARROW ON PURPOSE: an object carrying a string `chain_id`, because that is the
+ * field every consumer indexes by and the one whose absence turns a lookup into
+ * a crash. It is NOT a shape validation and must not grow into one by accident —
+ * whether the client should validate responses properly is the open question
+ * #101 carries, and it is a decision about the whole client, not this endpoint.
+ *
+ * Exists because guarding only the CONTAINER was not enough: a well-formed array
+ * holding a null still reached `gasClaimForChain`, whose `c.chain_id` threw on
+ * it — the same wallet-screen crash, one level down. Found by re-running the
+ * adversarial pass against the first fix instead of trusting it.
+ */
+function isOffer(entry: unknown): entry is GasSeedAvailability {
+  return (
+    typeof entry === 'object' &&
+    entry !== null &&
+    typeof (entry as { chain_id?: unknown }).chain_id === 'string'
+  )
+}
+
 export function useGasClaim({ enabled = true }: UseGasClaimOptions = {}): GasClaimState {
   const [chains, setChains] = useState<GasSeedAvailability[]>([])
   // Not loading when we are not going to read: `loading` means "an answer is
@@ -82,7 +105,7 @@ export function useGasClaim({ enabled = true }: UseGasClaimOptions = {}): GasCla
       // asserts for every endpoint, so validating responses generally is a real
       // decision about the whole client and must not arrive as a side effect of
       // one crash fix. #101 records it.
-      setChains(Array.isArray(res.chains) ? res.chains : [])
+      setChains(Array.isArray(res.chains) ? res.chains.filter(isOffer) : [])
     } catch {
       // Availability is an OFFER, not a fact the screen depends on: a failed
       // read renders no card at all rather than an error the user can do

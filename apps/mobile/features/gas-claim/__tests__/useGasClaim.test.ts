@@ -154,3 +154,38 @@ test.each([
   expect(result.current.chains).toEqual([])
   expect(() => gasClaimForChain(result.current.chains, 'eip155:16661')).not.toThrow()
 })
+
+/**
+ * The ELEMENTS, not just the container (#101, second half).
+ *
+ * The first guard checked that `chains` was an array and stopped there, so a
+ * well-formed array holding a junk entry still reached `gasClaimForChain`, whose
+ * `c.chain_id` then threw on it — the same crash, one level down. Found by
+ * re-running the adversarial pass against the fix rather than trusting it.
+ *
+ * The predicate is deliberately NARROW: an entry must be an object carrying a
+ * string `chain_id`, because that is the field every consumer indexes by. It is
+ * not a shape validation and does not pretend to be — whether the client should
+ * validate responses properly is still the open question #101 carries.
+ */
+test.each([
+  ['a null entry', [null]],
+  ['an undefined entry', [undefined]],
+  ['a string entry', ['eip155:16661']],
+  ['an entry with no chain_id', [{ available: true }]],
+  ['an entry whose chain_id is not a string', [{ chain_id: 42, available: true }]],
+])('a junk entry (%s) is dropped rather than crashing a consumer', async (_label, chains) => {
+  mockAvailability.mockResolvedValue({ chains })
+  const { result } = renderHook(() => useGasClaim())
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  expect(result.current.chains).toEqual([])
+  expect(() => gasClaimForChain(result.current.chains, 'eip155:16661')).not.toThrow()
+})
+
+test('a good entry SURVIVES the element filter — the guard must not eat real offers', async () => {
+  const good = { chain_id: 'eip155:16661', available: true, amount_raw: '1', state: 'unclaimed', reason: null }
+  mockAvailability.mockResolvedValue({ chains: [null, good] })
+  const { result } = renderHook(() => useGasClaim())
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  expect(result.current.chains).toEqual([good])
+})
