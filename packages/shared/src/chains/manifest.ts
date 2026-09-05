@@ -27,7 +27,7 @@
 
 import type { ChainNamespace } from '../db/schema/chains'
 import { getAssetMeta } from '../constants/assets'
-import { isEvmAddress } from '../utils/address'
+import { isEvmAddress, isEvmChainId } from '../utils/address'
 
 /** How gas is paid on a chain — selects the registry's per-chain dep wiring. */
 export type GasPolicy =
@@ -516,6 +516,17 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' must have exactly one native asset`)
+    }
+    // The CAIP-2 reference of an EVM chain is its numeric chain id, and readers
+    // parse it back out: the agent card (#105) emits it as ERC-8004's numeric
+    // `chainId`, where a NaN would serialise to `null` in a document committed
+    // on-chain. Checked here for the same reason `status` is — the landing
+    // consumes this module through a Vite source alias and other packages
+    // through the CJS dist, so a hand-edited id reaches them with no type error.
+    if (entry.namespace === 'eip155' && !isEvmChainId(entry.id)) {
+      throw new Error(
+        `CHAIN_MANIFEST: EVM chain '${entry.id}' must be 'eip155:<positive integer>'`,
+      )
     }
     if (entry.namespace === 'eip155' && (entry.publicRpcUrl ?? '').length === 0) {
       throw new Error(`CHAIN_MANIFEST: EVM chain '${entry.id}' must set a publicRpcUrl`)

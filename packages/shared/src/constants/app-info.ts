@@ -90,6 +90,16 @@ export const APP_INFO = {
 
   external: {
     website: 'https://tendahq.com',
+    /**
+     * The brand mark, as an absolute URL.
+     *
+     * ABSOLUTE ON PURPOSE: the agent card (#105) is an ERC-8004 registration
+     * file read by registries and wallets that have no page context to resolve
+     * a relative path against. It is the app icon rather than a purpose-made
+     * OG image because that is the only image we actually serve today; a
+     * per-agent avatar overrides it whenever the agent has uploaded one.
+     */
+    logo: 'https://tendahq.com/favicon.png',
     tendaPlayStore: 'https://play.google.com/store/apps/details?id=com.tendahq.mobile',
   },
 
