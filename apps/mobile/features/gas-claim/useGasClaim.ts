@@ -71,7 +71,18 @@ export function useGasClaim({ enabled = true }: UseGasClaimOptions = {}): GasCla
   const refresh = useCallback(async () => {
     try {
       const res = await api.wallet.gasSeedAvailability()
-      setChains(res.chains)
+      // GUARDED, because `request<T>` asserts the shape rather than parsing it
+      // (#101). A 200 whose body is not what we asked for — a proxy's own page,
+      // a CDN error, a version skew — otherwise reached `setChains` intact and
+      // crashed the wallet screen from `gasClaimForChain` during RENDER, since
+      // the catch below only fires on a REJECTED request.
+      //
+      // An empty list is the same answer this file already gives for "we
+      // learned nothing", one line down. Deliberately LOCAL: `request<T>`
+      // asserts for every endpoint, so validating responses generally is a real
+      // decision about the whole client and must not arrive as a side effect of
+      // one crash fix. #101 records it.
+      setChains(Array.isArray(res.chains) ? res.chains : [])
     } catch {
       // Availability is an OFFER, not a fact the screen depends on: a failed
       // read renders no card at all rather than an error the user can do

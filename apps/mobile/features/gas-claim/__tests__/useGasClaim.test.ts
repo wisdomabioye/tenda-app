@@ -125,3 +125,32 @@ describe('gasClaimForChain', () => {
     expect(gasClaimForChain(chains, 'eip155:8453')).toBeNull()
   })
 })
+
+/**
+ * A 200 that is not the shape we asked for (#101).
+ *
+ * `request<GasSeedAvailabilityResponse>` is a TYPE ASSERTION, not a parse —
+ * whatever the transport returns is handed to `setChains` as if it had the
+ * declared shape. The Tenda server never sends this, but the server is not the
+ * only thing that can answer a request: a proxy, a CDN or a captive portal can
+ * return 200 with a body of its own, and a version skew can move the shape.
+ *
+ * `refresh`'s catch does NOT cover it — that arm fires on a REJECTED request,
+ * not on a resolved one carrying the wrong body. So the bad value was stored and
+ * the failure surfaced later, from `gasClaimForChain` DURING RENDER of the
+ * wallet screen: `TypeError: Cannot read properties of undefined (reading
+ * 'find')`. A crash, on the app's most-visited screen, not a degradation.
+ */
+test.each([
+  ['no `chains` key at all', {}],
+  ['`chains` explicitly null', { chains: null }],
+  ['`chains` is an object, not an array', { chains: { 'eip155:16661': true } }],
+  ['`chains` is a string', { chains: 'eip155:16661' }],
+])('a 200 with %s leaves an EMPTY offer list, not a crash', async (_label, body) => {
+  mockAvailability.mockResolvedValue(body)
+  const { result } = renderHook(() => useGasClaim())
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  // The same answer the catch arm already gives for "we learned nothing".
+  expect(result.current.chains).toEqual([])
+  expect(() => gasClaimForChain(result.current.chains, 'eip155:16661')).not.toThrow()
+})
