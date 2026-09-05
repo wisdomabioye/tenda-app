@@ -13,7 +13,7 @@ import {
   WalletEmptyState,
   WalletLoadError,
 } from '@/components/wallet'
-import { GasClaimSection, gasClaimWalletByChain } from '@/features/gas-claim'
+import { useGasClaimChip } from '@/features/gas-claim'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
 import { END_REACHED_THRESHOLD } from '@tenda/shared'
 
@@ -37,6 +37,13 @@ export default function WalletScreen() {
     handleRefresh,
   } = useWalletScreen()
 
+  // The gas claim (#100). ONE line: the feature owns its own fetch, its states,
+  // its copy and its failure toast — see features/gas-claim. It returns a
+  // renderer rather than a block, so the offer lands on the balance row of the
+  // chain that actually has no gas instead of as a card stack of its own.
+  // Called unconditionally, above the branch below: it is a hook.
+  const renderGasChip = useGasClaimChip()
+
   // One branch per settled fact, resolved in the hook (resolveWalletSection).
   // A failed load must NOT read as "no wallet linked", and an unreadable chain
   // registry must NOT read as a zero balance — those were the two bugs. While
@@ -45,12 +52,7 @@ export default function WalletScreen() {
     section === 'ready' ? (
       <>
         <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
-        <WalletBalanceRows balances={balances} />
-        {/* The gas claim (#53c-2). One line: the feature owns its own fetch,
-            states and copy — see features/gas-claim. Placed under the balances
-            so a user who has just seen "0 gas" on a chain reads the offer
-            next, and above the actions because it is what unblocks them. */}
-        <GasClaimSection walletByChain={gasClaimWalletByChain(balances)} />
+        <WalletBalanceRows balances={balances} renderChainAction={renderGasChip} />
         <WalletActions />
         <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
       </>

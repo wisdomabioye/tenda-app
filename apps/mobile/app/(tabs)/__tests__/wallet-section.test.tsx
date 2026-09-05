@@ -70,8 +70,10 @@ jest.mock('@/components/ui', () => {
 // failing — plus it settles after the test ends, which is what produced
 // "update not wrapped in act" noise across every case in the file.
 jest.mock('@/features/gas-claim', () => ({
-  GasClaimSection: () => null,
-  gasClaimWalletByChain: () => ({}),
+  // Returns a RENDERER, matching the real hook's shape (#100) — a mock that
+  // returned a component would let the screen compile against a contract the
+  // feature no longer has.
+  useGasClaimChip: () => () => null,
 }))
 jest.mock('@/components/reputation', () => ({ RestrictionBanner: () => null }))
 jest.mock('@/components/sync/FailedSyncPanel', () => ({ FailedSyncPanel: () => null }))

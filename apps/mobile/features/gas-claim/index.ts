@@ -1,39 +1,44 @@
 /**
  * The gas-seed CLAIM, on mobile — the whole feature, in one directory.
  *
- * WHY IT IS SHAPED THIS WAY (user, 2026-09-02): the claim must be reachable
- * from two places — the wallet screen, where it is findable, and the moment a
- * user has no gas on a chain, where it is most needed — and BOTH of those must
- * be nothing more than an import and a render. Every decision (what to fetch,
- * which states exist, what each one says, when the button may appear) lives
- * here; a host contributes placement and nothing else.
+ * WHERE IT APPEARS (#100, replacing the wallet-screen card stack): as a small
+ * chip at the end of the balance row for a chain the user holds no gas on. The
+ * zero balance IS the trigger, so the offer shows up exactly where the problem
+ * is and a user with gas everywhere never sees it. Nothing else renders — not a
+ * heading, not a card, and not an explanation of why a claim is unavailable.
  *
- * That is not tidiness. Two placements with two copies of "when may I offer
- * this?" is how one of them ends up offering a claim to a user who already has
- * the money.
+ * WHAT THAT REPLACED, so nobody rebuilds it: a `GasClaimSection` that rendered
+ * one bordered card PER CHAIN between the balance rows and the wallet actions,
+ * including cards whose only content was a refusal. On a deployment with several
+ * seedable chains that was a wall of text in the middle of the app's
+ * most-visited screen, and for anyone who had already claimed it never went
+ * away. The component also carried a `variant="inline"` for the contextual
+ * placement that was never wired — the two-surface design was documented, half
+ * built, and the intrusive half is what shipped.
+ *
+ * A HOST CONTRIBUTES PLACEMENT AND NOTHING ELSE. What to fetch, which chains may
+ * be offered, what the chip says and what happens when a claim fails all live
+ * here. That is not tidiness: two placements each deciding "may I offer this?"
+ * is how one of them ends up offering a claim to a user who already has the
+ * money.
  *
  * HOW TO ADD A PLACEMENT
- *   `<GasClaimSection />`                        — the full block, fetches for itself
- *   `<GasClaimCard offer={…} variant="inline" />` — one chain, inside a host that
- *                                                   already holds the offers
+ *   const renderGasChip = useGasClaimChip()
+ *   …pass it wherever a per-chain slot exists, e.g.
+ *   <WalletBalanceRows balances={balances} renderChainAction={renderGasChip} />
  *
  * REMOVAL RECIPE — keep this true:
  *   1. delete this directory;
- *   2. delete the `<GasClaimSection />` line from `app/(tabs)/wallet.tsx`;
+ *   2. delete the `useGasClaimChip()` call and the `renderChainAction` prop from
+ *      `app/(tabs)/wallet.tsx` (the `renderChainAction` prop on
+ *      `WalletBalanceRows` is generic and may stay or go — it names no feature);
  *   3. delete the `wallet:` line from `createApiClient` in
  *      `@tenda/shared/api/client` and `api/client/wallet.ts` beside it.
  * The session client stamp in `api/request.ts` STAYS: it records which client
  * minted a session, which is a generic fact this feature happens to read.
  */
 
-export { GasClaimSection, type GasClaimSectionProps } from './GasClaimSection'
-export { GasClaimCard, type GasClaimCardProps } from './GasClaimCard'
+export { GasClaimChip, type GasClaimChipProps } from './GasClaimChip'
+export { useGasClaimChip } from './useGasClaimChip'
 export { useGasClaim, gasClaimForChain, type GasClaimState } from './useGasClaim'
-export { gasClaimWalletByChain } from './wallet-map'
-export {
-  GAS_CLAIM_COPY,
-  GAS_CLAIM_REASON_COPY,
-  GAS_CLAIM_STATE_COPY,
-  GAS_CLAIM_UNAVAILABLE_FALLBACK,
-  gasClaimMessage,
-} from './copy'
+export { GAS_CLAIM_COPY } from './copy'

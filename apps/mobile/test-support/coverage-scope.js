@@ -136,13 +136,14 @@ module.exports = [
   'hooks/useHomeFeed.ts',
   'features/gig-feed/*.ts',
   '!features/gig-feed/index.ts',
-  // The gas claim (#53c-2). The whole feature is gated: it decides when money
-  // is offered to a user, and an untested branch here is one that offers a
-  // grant already claimed. The barrel and the presentational section are
-  // excluded — a re-export list has nothing to exercise, and GasClaimSection is
-  // assembly over the hook and card that ARE gated.
+  // The gas claim (#53c-2, resurfaced at #100). The whole feature is gated: it
+  // decides when money is offered to a user, and an untested branch here is one
+  // that offers a grant already claimed. Both `.ts` and `.tsx` — the surface is
+  // a chip and a renderer hook now, and a `*.ts`-only pattern silently dropped
+  // them from the gate the moment they were written. Only the barrel is
+  // excluded: a re-export list has nothing to exercise.
   'features/gas-claim/*.ts',
-  'features/gas-claim/GasClaimCard.tsx',
+  'features/gas-claim/*.tsx',
   '!features/gas-claim/index.ts',
   'hooks/useMyGigs.ts',
   'hooks/useMyDisputes.ts',

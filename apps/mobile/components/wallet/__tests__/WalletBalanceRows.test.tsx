@@ -7,6 +7,7 @@
  * since it was written, and its own header explains why — "you have nothing
  * here" and "we could not read this" are different facts.
  */
+import { Text } from 'react-native'
 import { render, screen } from '@testing-library/react-native'
 import type { WalletChainBalance } from '@tenda/shared'
 import { WalletBalanceRows } from '../WalletBalanceRows'
@@ -77,4 +78,39 @@ test('no chains at all renders nothing — not an empty padded wrapper', () => {
   // assertion passes either way. Measured — that mutant survived until this
   // asserted on the tree itself.
   expect(render(<WalletBalanceRows balances={[]} />).toJSON()).toBeNull()
+})
+
+/**
+ * The per-chain action slot (#100).
+ *
+ * Generic on purpose — the rows must not know that a gas claim is what fills
+ * it. These two cases pin the contract the gas-claim chip relies on: the slot
+ * receives THIS row's chain id, and a null answer leaves the row exactly as it
+ * was. Without the second one, a feature that returns null for most chains
+ * could still be quietly adding an empty view to every row.
+ */
+test('renderChainAction is called with each row’s own chain id, and its node is rendered', () => {
+  const seen: string[] = []
+  render(
+    <WalletBalanceRows
+      balances={[chain(), chain({ chainId: 'solana:devnet', address: 'So1111' })]}
+      renderChainAction={(id) => {
+        seen.push(id)
+        return id === 'solana:devnet' ? <Text>GET GAS</Text> : null
+      }}
+    />,
+  )
+  expect(seen).toEqual(['eip155:84532', 'solana:devnet'])
+  // Only the chain whose renderer returned a node shows one.
+  expect(screen.getAllByText('GET GAS')).toHaveLength(1)
+})
+
+test('a row with no action renders exactly what it did before the slot existed', () => {
+  const withSlot = render(
+    <WalletBalanceRows balances={[chain()]} renderChainAction={() => null} />,
+  ).toJSON()
+  const without = render(<WalletBalanceRows balances={[chain()]} />).toJSON()
+  // Structural equality, not a snapshot file: the claim is that an empty slot
+  // is invisible, and a snapshot would happily record it becoming visible.
+  expect(withSlot).toStrictEqual(without)
 })
