@@ -91,9 +91,9 @@ export function GasClaimChip({ offer, claiming, onClaim }: GasClaimChipProps) {
 
 const s = StyleSheet.create({
   chip: {
-    // Literal, like Button's own HEIGHTS — control heights are not tokenised yet
-  // (#64 tracks that). Tokenising this one alone would be the drift inverted.
-  height: 20,
+    // Literal, like Button's own HEIGHTS — control heights are not tokenised
+    // yet (#64 tracks that). Tokenising this one alone would invert the drift.
+    height: 20,
     minWidth: 54,
     paddingHorizontal: 8,
     // `radius.full`, not a literal. Every other control on mobile reads a radius
