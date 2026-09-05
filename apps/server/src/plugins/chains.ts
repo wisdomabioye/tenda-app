@@ -30,6 +30,7 @@ import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
 import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
+import { assertAttributionCodes } from '@server/features/attribution'
 
 type ChainNs = 'solana' | 'eip155'
 
@@ -192,6 +193,12 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
       'no chains configured, set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
     )
   }
+  // A malformed attribution code is a deployment error whose only other symptom
+  // is a 500 on whoever first funds an escrow on Celo — so it is asserted here,
+  // as a boot failure naming the env var (#83). Scoped to the chains this
+  // deployment actually runs: a code for a chain we do not transact on is not
+  // this process's problem to refuse.
+  assertAttributionCodes(adapters.map((a) => a.chain_id))
 
   // Refuse to serve a registry that disagrees with the chains we actually
   // transact on. The stored copy is what a stale `db:seed` leaves behind, and

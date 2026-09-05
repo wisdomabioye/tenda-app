@@ -8,6 +8,7 @@
  * the signer asked for — and it checks that before spending gas.
  */
 import { encodeFunctionData } from 'viem'
+import { tagCalldata } from '@server/features/attribution'
 import {
   ErrorCode,
   RELAY_QUOTE_TTL_SECONDS,
@@ -151,15 +152,21 @@ export function evmEscrowRelay(ctx: EvmAdapterContext, relayer: EvmRelayer): Esc
       }
       const call = {
         to: contract,
-        data: encodeFunctionData({
-          abi: ESCROW_EVM_ABI,
-          functionName: 'createEscrowFor',
-          args: [
-            auth.from,
-            r.params,
-            { validAfter: auth.valid_after, validBefore: auth.valid_before, v: auth.v, r: auth.r, s: auth.s },
-          ],
-        }),
+        // Tagged BEFORE simulate, so what is simulated is byte-for-byte what is
+        // sent — a suffix added between the two would make the simulation a
+        // check of different calldata (#83).
+        data: tagCalldata(
+          chain_id,
+          encodeFunctionData({
+            abi: ESCROW_EVM_ABI,
+            functionName: 'createEscrowFor',
+            args: [
+              auth.from,
+              r.params,
+              { validAfter: auth.valid_after, validBefore: auth.valid_before, v: auth.v, r: auth.r, s: auth.s },
+            ],
+          }),
+        ),
       }
       try {
         await relayer.simulate(call)

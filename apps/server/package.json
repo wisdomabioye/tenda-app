@@ -33,6 +33,7 @@
     "post-gigs": "tsx src/scripts/post-gigs/main.ts",
     "db:backfill-gas-grant-status": "tsx src/scripts/backfill-gas-grant-status.ts",
     "verify:celo-fee-currency": "tsx src/scripts/verify-celo-feecurrency.ts",
+    "verify:celo-tag": "tsx src/scripts/verify-celo-tag.ts",
     "verify:gas-seed": "tsx src/scripts/verify-gas-seed/index.ts",
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",
     "verify:relayed-funding-evm": "tsx src/scripts/verify-relayed-funding-evm.ts",
@@ -43,6 +44,7 @@
   "author": "",
   "license": "BUSL-1.1",
   "dependencies": {
+    "@celo/attribution-tags": "^0.3.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@fastify/autoload": "^6.0.0",
     "@fastify/cors": "^11.2.0",

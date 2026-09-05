@@ -9,10 +9,16 @@
  *   - everything else → value = 0
  *
  * ERC-20 escrows need their allowance satisfied before the call lands:
- * either the client approves first (the adapter emits an `approval` hint on
- * the UnsignedTx), or the payload carries an EIP-2612 `permit` and this
- * builder encodes the *WithPermit entry point so the allowance rides the
- * same transaction.
+ * either the client approves first, or the payload carries an EIP-2612
+ * `permit` and this builder encodes the *WithPermit entry point so the
+ * allowance rides the same transaction.
+ *
+ * BOTH HALVES OF THAT DECISION LIVE HERE — `buildEvmCall` encodes the permit
+ * path, and `approvalHint` below tells the wallet to approve separately when it
+ * does not. They must never disagree (one would leave the transaction with no
+ * allowance at all), and they were in two different files until the adapter
+ * grew past its line budget; co-locating them is what makes the agreement
+ * visible rather than a comment asking you to trust it.
  */
 
 import { encodeFunctionData } from 'viem'
@@ -22,7 +28,7 @@ import { AppError } from '@server/lib/errors'
 import { ESCROW_EVM_ABI } from './rpc'
 import { parsePermitSignature } from './permit'
 import { buildCreateParams, escrowIdHex } from './create-params'
-import type { BuildTxArgs } from '@server/chains/types'
+import type { AmountRaw, BuildTxArgs } from '@server/chains/types'
 
 export interface BuiltCall {
   data: `0x${string}`
@@ -49,7 +55,8 @@ export interface BuildContext {
    * signed with the CURRENT contract as spender (the permit-payload endpoint is
    * chain-scoped and takes no escrow), so it cannot authorise a pull by a
    * different one. The builder then encodes the plain entry point and the
-   * adapter emits an approval hint instead — see `encodesPermit` in ./index.
+   * approval hint takes over instead — see `encodesPermit` at the foot of this
+   * file, which mirrors the condition `buildEvmCall` uses above it.
    */
   permit_encodable: boolean
 }
@@ -184,4 +191,57 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
         value_raw: '0',
       }
   }
+}
+
+/**
+ * ERC-20 prerequisite the wallet must satisfy before broadcasting a PLAIN
+ * call: allowance(owner → escrow) ≥ the pull amount. Permit-built calls
+ * carry their own allowance; native assets fund via msg.value.
+ */
+export function approvalHint(
+  build: BuildTxArgs,
+  ctx: { asset_address: string | null; permit_encodable: boolean },
+  spender: `0x${string}`,
+): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
+  if (ctx.asset_address === null) return {}
+  const token = ctx.asset_address
+
+  // Driven by what the call ACTUALLY encodes, never by what the caller
+  // supplied. A permit that `buildEvmCall` declines to encode (its spender
+  // cannot match a superseded contract) still leaves the pull needing an
+  // allowance, so the hint has to take over — and both branches must agree on
+  // that, or one of them emits neither a permit nor a hint and the
+  // transaction reverts on a zero allowance.
+  //
+  // The spender is the contract that will actually pull the tokens: the
+  // escrow's own, not the chain's current one.
+  if (build.action === 'createEscrow' && !encodesPermit(build, ctx.permit_encodable)) {
+    return { approval: { token, spender, amount_raw: build.payload.amount_raw } }
+  }
+  if (
+    build.action === 'disputeEscrow' &&
+    !encodesPermit(build, ctx.permit_encodable) &&
+    build.payload.bond_raw !== '0'
+  ) {
+    return { approval: { token, spender, amount_raw: build.payload.bond_raw } }
+  }
+  return {}
+}
+
+/**
+ * Will this build encode a `*WithPermit` entry point?
+ *
+ * Mirrors `buildEvmCall`'s condition exactly — the two must not be able to
+ * disagree, since one decides whether the allowance rides the transaction and
+ * the other whether the wallet is told to grant it separately.
+ *
+ * `permit_encodable` is decided once, in `buildContext`: a permit's spender is
+ * fixed when the payload is signed, and `/v1/blockchain/permit-payload` mints
+ * it for the chain's CURRENT contract (it takes no escrow and cannot know
+ * about a superseded one), so against any other contract the signature is
+ * unusable by construction.
+ */
+function encodesPermit(build: BuildTxArgs, permit_encodable: boolean): boolean {
+  if (build.action !== 'createEscrow' && build.action !== 'disputeEscrow') return false
+  return build.payload.permit !== undefined && permit_encodable
 }

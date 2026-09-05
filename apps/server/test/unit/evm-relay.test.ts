@@ -9,6 +9,8 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { decodeFunctionData, hashDomain, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { decodeTag } from '@server/features/attribution'
+import { withAttributionCode } from '../helpers/attribution-env'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
 import type { EvmRpc } from '@server/chains/evm/rpc'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
@@ -297,4 +299,113 @@ test('relay refuses every departure from the terms before spending gas', async (
   await assert.rejects(relay.relay({ ...args(), payment: garbage }), rejectedWith(/signature is not a valid signature|does not recover/), 'garbage signature')
   assert.strictEqual(relayer.simulated.length, 0)
   assert.strictEqual(relayer.sent.length, 0)
+})
+
+// ---------- attribution (#83) ------------------------------------------------
+
+const CELO_CHAIN_ID = 'eip155:42220'
+const ATTRIBUTION_CODE = 'celo_558f532905be'
+
+/**
+ * The relayer's calldata is the OTHER place the server originates a Celo
+ * transaction, and it is the one that carries the agent story — so "is it
+ * tagged?" has to be asked here too, not inferred from the client-signed path.
+ *
+ * The domain separator is recomputed for Celo's chain id because the relay
+ * verifies the token's live domain against the one it is about to sign under;
+ * reusing the Base Sepolia fixture would be rejected as a domain mismatch
+ * before the calldata this test is about ever got built.
+ */
+const CELO_DOMAIN_SEPARATOR = hashDomain({
+  domain: { ...DOMAIN, chainId: 42220n },
+  types: { EIP712Domain: [...EIP712_DOMAIN_FIELDS] },
+})
+
+function celoAdapter(relayer: EvmRelayer) {
+  return makeAdapter(
+    relayer,
+    { rpc: fakeRpc({ readPermitFacts: async () => ({ name: DOMAIN.name, nonce: 0n, domain_separator: CELO_DOMAIN_SEPARATOR }) }) },
+    CELO_CHAIN_ID,
+  )
+}
+
+const celoArgs = () => args({ payload: payload({ asset: 'USDC_CELO' }) })
+
+test('relay: createEscrowFor calldata is attributed, and simulate sees exactly what send does', async () => {
+  await withAttributionCode(ATTRIBUTION_CODE, async () => {
+    const relayer = fakeRelayer()
+    const relay = celoAdapter(relayer).relay!
+    const terms = await relay.quote(celoArgs())
+    await relay.relay({ ...celoArgs(), payment: await paymentFor(terms) })
+
+    const sent = relayer.sent[0]!
+    assert.deepStrictEqual(decodeTag(sent.data), {
+      status: 'tagged',
+      codes: [ATTRIBUTION_CODE],
+      schemaId: 0,
+      missing: [],
+    })
+    // A suffix added between the two would make the simulation a check of
+    // different bytes than the ones broadcast — the failure this ordering exists
+    // to prevent.
+    assert.deepStrictEqual(relayer.simulated[0], sent)
+    // And the tag must not have disturbed the call itself.
+    assert.strictEqual(
+      decodeFunctionData({ abi: ESCROW_EVM_ABI, data: sent.data }).functionName,
+      'createEscrowFor',
+    )
+  })
+})
+
+test('relay: the same flow on a NON-Celo chain sends untagged calldata', async () => {
+  await withAttributionCode(ATTRIBUTION_CODE, async () => {
+    const relayer = fakeRelayer()
+    const relay = makeAdapter(relayer).relay!
+    const terms = await relay.quote(args())
+    await relay.relay({ ...args(), payment: await paymentFor(terms) })
+    assert.deepStrictEqual(decodeTag(relayer.sent[0]!.data), { status: 'untagged' })
+  })
+})
+
+test('sweep: the recovery transaction is attributed too, on the SAME calldata it simulates', async () => {
+  // The sweep is the THIRD place the server originates EVM calldata, and it was
+  // the one the first cut of #83 missed — the barrel even claimed there were
+  // only two. It broadcasts through the relayer like the funding path, so an
+  // untagged sweep is a real Celo mainnet transaction that scores nothing.
+  await withAttributionCode(ATTRIBUTION_CODE, async () => {
+    const relayer = fakeRelayer()
+    const sweep = makeAdapter(relayer, { sweepEnabled: true }, CELO_CHAIN_ID).sweep!
+    await sweep.sweep({
+      escrow_id: '0d9cd2a4-3f1e-4b6a-9c3d-2f1e4b6a9c3d',
+      creator_user_id: 'u1',
+      transition: 'reclaim_abandoned',
+      escrow_contract: CONTRACT,
+    })
+    const sent = relayer.sent[0]!
+    assert.deepStrictEqual(decodeTag(sent.data), {
+      status: 'tagged',
+      codes: [ATTRIBUTION_CODE],
+      schemaId: 0,
+      missing: [],
+    })
+    assert.deepStrictEqual(relayer.simulated[0], sent)
+    assert.strictEqual(
+      decodeFunctionData({ abi: ESCROW_EVM_ABI, data: sent.data }).functionName,
+      'reclaimAbandoned',
+    )
+  })
+})
+
+test('sweep: on a non-Celo chain the recovery calldata is untagged', async () => {
+  await withAttributionCode(ATTRIBUTION_CODE, async () => {
+    const relayer = fakeRelayer()
+    const sweep = makeAdapter(relayer, { sweepEnabled: true }).sweep!
+    await sweep.sweep({
+      escrow_id: '0d9cd2a4-3f1e-4b6a-9c3d-2f1e4b6a9c3d',
+      creator_user_id: 'u1',
+      transition: 'refund_expired',
+      escrow_contract: CONTRACT,
+    })
+    assert.deepStrictEqual(decodeTag(relayer.sent[0]!.data), { status: 'untagged' })
+  })
 })

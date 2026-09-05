@@ -9,6 +9,7 @@
 import type { BuildTxArgs } from '@server/chains/types'
 import type { EscrowSweep, SweepArgs } from '@server/chains/types/sweep'
 import { buildEvmCall } from './builders'
+import { tagCalldata } from '@server/features/attribution'
 import type { EvmRelayer } from './relay/relayer'
 
 /** Transition → the contract entry point, typed against the builder's own union. */
@@ -29,7 +30,7 @@ const NO_CONTEXT = {
   permit_encodable: false,
 } as const
 
-export function evmEscrowSweep(relayer: EvmRelayer): EscrowSweep {
+export function evmEscrowSweep(chain_id: string, relayer: EvmRelayer): EscrowSweep {
   return {
     sweeper_address: relayer.address,
     async sweep(args) {
@@ -44,7 +45,11 @@ export function evmEscrowSweep(relayer: EvmRelayer): EscrowSweep {
         },
         NO_CONTEXT,
       )
-      const call = { to: args.escrow_contract as `0x${string}`, data }
+      // The sweep is a transaction Tenda originates, so it carries the same
+      // ERC-8021 attribution as the other two (#83) — tagged BEFORE simulate, so
+      // the simulation checks the bytes that are actually broadcast. The chain id
+      // is threaded in for this: the relayer knows its endpoint, not its chain.
+      const call = { to: args.escrow_contract as `0x${string}`, data: tagCalldata(chain_id, data) }
       // A revert here — wrong status, window not open, or an escrow held by a
       // contract generation that PREDATES #43 and still demands the creator —
       // throws before anything is broadcast.

@@ -12,6 +12,11 @@
  *   5. every OPTIONAL url var is documented, for the same reason as 4 rather
  *      than the same reason as 3: a missing REQUIRED var halts the boot and
  *      names itself, so it cannot stay secret. An optional one just degrades.
+ *   6. every attribution family's code var is documented — same reason as 4,
+ *      and a sharper one: an operator who copies a misspelt name from here gets
+ *      a deployment that sends UNTAGGED transactions, and the tag cannot be
+ *      added afterwards (#83). It is outside the CHAIN_* namespace on purpose,
+ *      so rule 1 does not cover it.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -22,6 +27,7 @@ import { OPTIONAL_URL_ENV_VARS, REQUIRED_ENV_VARS } from '@server/config'
 import { knownChainEnvKeys } from '@server/chains/secrets'
 import { chainEnvPrefix } from '@server/chains/secrets/schema'
 import { knownSlackEnvKeys } from '@server/lib/slack'
+import { ATTRIBUTION_FAMILIES, attributionEnvKey } from '@server/features/attribution'
 
 /** Env-var names documented in .env.example, commented-out lines included. */
 function documentedKeys(): Set<string> {
@@ -140,5 +146,16 @@ test('every optional URL env var is documented in .env.example', () => {
     undocumented,
     [],
     `optional URL vars with no .env.example entry — unset they degrade in silence: ${undocumented.join(', ')}`,
+  )
+})
+
+test('every attribution family documents the env var its code is read from', () => {
+  const documented = documentedKeys()
+  assert.ok(ATTRIBUTION_FAMILIES.length > 0, 'expected at least one attribution scheme')
+  const missing = ATTRIBUTION_FAMILIES.map(attributionEnvKey).filter((k) => !documented.has(k))
+  assert.deepStrictEqual(
+    missing,
+    [],
+    `attribution env var(s) not documented in .env.example: ${missing.join(', ')}`,
   )
 })
