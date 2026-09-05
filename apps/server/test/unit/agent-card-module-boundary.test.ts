@@ -21,10 +21,12 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { APP_INFO } from '@tenda/shared'
 import { stripComments, tsFilesUnder } from '../helpers/source-scan'
 
 const SRC = join(__dirname, '../../src')
 const FEATURE_DIR = join(SRC, 'features/agent-card')
+const CARD_FILE = join(FEATURE_DIR, 'card.ts')
 
 /**
  * Import specifiers naming the agent-card feature — both the `@server/...`
@@ -80,4 +82,35 @@ test('the scan can actually see an importer — it is not passing on an empty wa
   // and the one importer above was really found by the same predicate.
   assert.ok(tsFilesUnder(SRC).length > 100, 'the source walk returned almost nothing')
   assert.strictEqual(importersOutsideTheFeature().length, 1)
+})
+
+test('the card carries no BRAND literal — those are shared facts, not strings here', () => {
+  // A source scan, because no value assertion can catch this: replacing
+  // `APP_INFO.support.email` with the identical literal 'hello@tendahq.com'
+  // passes every behavioural test, which is exactly what happened — mutation
+  // W5 survived. The defect modelled is not a wrong value today but a value
+  // that stops tracking APP_INFO tomorrow, and only the SOURCE shows that.
+  //
+  // RAW source, and QUOTED matches — deliberately not `stripComments`. That
+  // helper is documented as "not a tokenizer": a `//` inside a string literal
+  // truncates the line, so `'https://tendahq.com'` becomes `'https:` and the
+  // scan goes blind to every URL. Mutation W6 survived on exactly that, while
+  // W5 (an email, no slashes) died — the guard silently covered one literal and
+  // not the other. Requiring the QUOTED form is what makes raw source safe:
+  // a docblock mentioning a URL in prose does not wrap it in quotes.
+  const source = readFileSync(CARD_FILE, 'utf8')
+  const literals = [
+    APP_INFO.support.email,
+    APP_INFO.external.website,
+    APP_INFO.external.logo,
+    APP_INFO.description,
+  ]
+  for (const literal of literals) {
+    for (const quoted of [`'${literal}'`, `"${literal}"`, `\`${literal}\``]) {
+      assert.ok(
+        !source.includes(quoted),
+        `card.ts hardcodes ${quoted} — read it from APP_INFO instead`,
+      )
+    }
+  }
 })

@@ -14,7 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
-import { buildAgentCard } from '@server/features/agent-card'
+import { buildAgentCard, REGISTRATION_TYPE } from '@server/features/agent-card'
 import { servedPaths } from '../helpers/route-table'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, linkWallet, testEvmAddress } from '../helpers/test-app'
 
@@ -75,7 +75,7 @@ test('a registered agent gets a card carrying its name and ITS OWN reputation UR
   assert.strictEqual(card.registered, true)
   assert.strictEqual(card.name, 'Scout')
   assert.strictEqual(card.address, address.toLowerCase())
-  assert.strictEqual(card.type, 'Agent', 'the standard fixes `type`, and only the live app proves it ships')
+  assert.strictEqual(card.type, REGISTRATION_TYPE, 'only the live app proves the served `type` is right')
   // The full path, not `endsWith('/standing')` — that suffix is identical for
   // EVERY user, so it passes just as well when the store maps the card to the
   // wrong agent, which is a card advertising someone else's standing. Mutation
@@ -225,10 +225,17 @@ test('every URL the card advertises is a path this server actually serves', { sk
     api_base_url: API_BASE,
     identity: { user_id: USER_ID, name: 'Scout', description: null, image: null },
   })
-  // Service entries only: a `wallet` entry carries an address and a chainId,
-  // not a URL, and is not a path this server serves.
-  const urls = card.endpoints.flatMap((e) => (e.type === 'wallet' ? [] : [e.url]))
-  assert.strictEqual(urls.length, 3, 'every endpoint on the card must be checked, not some of them')
+  // SERVER-HOSTED services only. A `wallet` entry carries an address and a
+  // chain id rather than a URL; `web` and `email` are shared brand facts that
+  // deliberately live off this server. Checking those against the route table
+  // would assert that tendahq.com is a Fastify route.
+  const HOSTED: string[] = ['tasks', 'openapi', 'reputation']
+  // Narrow on `wallet` FIRST: a membership test does not narrow the union, so
+  // `e.url` is only reachable once the wallet variant is excluded.
+  const urls = card.endpoints.flatMap((e) =>
+    e.type !== 'wallet' && HOSTED.includes(e.type) ? [e.url] : [],
+  )
+  assert.strictEqual(urls.length, HOSTED.length, 'every hosted endpoint must be checked, not some of them')
 
   for (const url of urls) {
     assert.ok(url.startsWith(`${API_BASE}/`), `${url} is not under the configured base URL`)
@@ -290,7 +297,7 @@ test('the served document satisfies the ERC-8004 required-field set', { skip }, 
     assert.strictEqual(typeof card[field], 'string', `${field} must be a present string`)
     assert.notStrictEqual(card[field], '', `${field} must not be empty`)
   }
-  assert.strictEqual(card.type, 'Agent')
+  assert.strictEqual(card.type, REGISTRATION_TYPE)
   // `services` is REQUIRED by the EIP and is a different shape from Celo's
   // `endpoints`; the served document has to satisfy both readers.
   assert.ok(Array.isArray(card.services), 'services must be an array, the EIP requires it')

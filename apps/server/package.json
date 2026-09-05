@@ -6,7 +6,7 @@
   "directories": {
     "test": "test"
   },
-  "//test": "The gate's memory settings are sized from MEASUREMENT, and the binding consumer is NOT a test worker: c8's report pass merges ~1.7GB of raw V8 coverage JSON (306 files) in ONE process after the workers have exited, and it OOMs at 1536 and at 2560 (observed 2026-08-31, dying at 1523.8MB and 2548.1MB — right at each limit). 4096 is the value that completes it. --max-old-space-size applies to every child too (verified: node --test children report the inherited limit), so it cannot be tuned per phase. What DOES bound the worker phase is --test-concurrency: 4 workers at 4096 inside MemoryMax=8G could reach the cgroup wall and take the desktop down with it, which happened. At concurrency 2 with workers observed under 1.5GB each, the worker phase peaks near 3GB and the report near 3.5GB, so MemoryMax=6G bounds both and never approaches the 8G that crashed the box. Do not lower the heap without re-measuring coverage/tmp first.",
+  "//test": "The gate's memory settings are sized from MEASUREMENT, and the binding consumer is NOT a test worker: c8's report pass merges ~1.7GB of raw V8 coverage JSON (306 files) in ONE process after the workers have exited, and it OOMs at 1536 and at 2560 (observed 2026-08-31, dying at 1523.8MB and 2548.1MB \u2014 right at each limit). 4096 is the value that completes it. --max-old-space-size applies to every child too (verified: node --test children report the inherited limit), so it cannot be tuned per phase. What DOES bound the worker phase is --test-concurrency: 4 workers at 4096 inside MemoryMax=8G could reach the cgroup wall and take the desktop down with it, which happened. At concurrency 2 with workers observed under 1.5GB each, the worker phase peaks near 3GB and the report near 3.5GB, so MemoryMax=6G bounds both and never approaches the 8G that crashed the box. Do not lower the heap without re-measuring coverage/tmp first.",
   "scripts": {
     "test": "npm run build:ts && tsc -p test/tsconfig.json && TS_NODE_TRANSPILE_ONLY=1 NODE_OPTIONS=--max-old-space-size=4096 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 c8 node --test --test-concurrency=2 -r ts-node/register \"test/**/*.test.ts\"",
     "test:unit": "TS_NODE_TRANSPILE_ONLY=1 node --test --test-concurrency=4 -r ts-node/register \"test/unit/**/*.test.ts\"",
@@ -34,6 +34,7 @@
     "db:backfill-gas-grant-status": "tsx src/scripts/backfill-gas-grant-status.ts",
     "verify:celo-fee-currency": "tsx src/scripts/verify-celo-feecurrency.ts",
     "verify:celo-tag": "tsx src/scripts/verify-celo-tag.ts",
+    "mint:agent-id": "tsx src/scripts/mint-agent-id/index.ts",
     "verify:gas-seed": "tsx src/scripts/verify-gas-seed/index.ts",
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",
     "verify:relayed-funding-evm": "tsx src/scripts/verify-relayed-funding-evm.ts",

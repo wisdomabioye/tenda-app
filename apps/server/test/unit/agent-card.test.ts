@@ -20,7 +20,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { APP_INFO, CHAIN_MANIFEST, PROOF_TYPES } from '@tenda/shared'
-import { buildAgentCard } from '@server/features/agent-card'
+import { buildAgentCard, REGISTRATION_TYPE } from '@server/features/agent-card'
 import type { AgentCard, AgentIdentity, ServiceEndpoint, WalletEndpoint } from '@server/features/agent-card'
 
 const ADDRESS = '0x00000000000000000000000000000000000000a1'
@@ -61,7 +61,12 @@ for (const [label, identity] of [
       assert.strictEqual(typeof c[field], 'string', `${field} must be a string`)
       assert.notStrictEqual(c[field], '', `${field} must not be empty`)
     }
-    assert.strictEqual(c.type, 'Agent', 'the standard fixes `type` to "Agent"')
+    // The registration-format URI, not the word "Agent" — 8004scan rejects
+    // that with WA002. Asserted against the exported constant AND against the
+    // wrong value, so a revert to "Agent" fails loudly.
+    assert.strictEqual(c.type, REGISTRATION_TYPE)
+    assert.ok(String(c.type).startsWith('https://'), '`type` is a URI, not a word')
+    assert.notStrictEqual(String(c.type), 'Agent', 'the bare word is what the scanner refused')
   })
 }
 
@@ -89,10 +94,18 @@ test('the EIP-shaped `services` array is present and REQUIRED-field complete', (
   for (const s of c.services) {
     assert.strictEqual(typeof s.name, 'string')
     assert.notStrictEqual(s.name, '')
-    assert.ok(s.endpoint.startsWith(BASE), `${s.endpoint} is not under the base URL`)
+    assert.notStrictEqual(s.endpoint, '')
+    if (SERVER_HOSTED.includes(s.name)) {
+      assert.ok(s.endpoint.startsWith(BASE), `${s.name} is server-hosted but not under the base URL`)
+    }
     assert.ok(!('type' in s), 'the EIP shape uses `name`, not `type`')
     assert.ok(!('url' in s), 'the EIP shape uses `endpoint`, not `url`')
   }
+  assert.deepStrictEqual(
+    c.services.filter((s) => SERVER_HOSTED.includes(s.name)).map((s) => s.name),
+    SERVER_HOSTED,
+    'a registered card advertises all three server-hosted services',
+  )
 })
 
 test('`services` and `endpoints` describe the SAME endpoints — one source, no drift', () => {
@@ -122,6 +135,48 @@ test('a wallet entry carries a NUMERIC chainId, as the standard shows it', () =>
     assert.strictEqual(typeof w.chainId, 'number', 'chainId must be a number')
     assert.ok(Number.isInteger(w.chainId) && w.chainId > 0, `${w.chainId} is not a chain id`)
     assert.strictEqual(w.address, ADDRESS)
+  }
+})
+
+/** The names ERC-8004 readers recognise. Custom names are allowed beside them. */
+const ERC8004_SERVICE_NAMES = ['web', 'A2A', 'MCP', 'OASF', 'ENS', 'DID', 'email']
+
+/**
+ * Two kinds of service, and conflating them is what four tests did until the
+ * card gained `web` and `email`. SERVER-HOSTED endpoints are paths on this API
+ * and must follow the configured base URL — that is the hardcoded-host guard.
+ * BRAND endpoints are shared product facts and must NOT follow it: a `web`
+ * pointing at the API host would be wrong, not merely unhosted.
+ */
+const SERVER_HOSTED = ['tasks', 'openapi', 'reputation']
+const BRAND = ['web', 'email']
+
+test('the card declares at least one service name the standard RECOGNISES', () => {
+  // The regression this exists for: #105 shipped `tasks` and `openapi` only,
+  // both of which are ours, and 8004scan reported the card as declaring no
+  // services at all. A custom name is permitted but invisible; at least one
+  // vocabulary name has to be there or the card advertises nothing to a reader
+  // that has not heard of Tenda.
+  const declared = card(IDENTITY).services.map((s) => s.name as string)
+  const recognised = declared.filter((n) => ERC8004_SERVICE_NAMES.includes(n))
+  assert.ok(recognised.length > 0, `none of ${JSON.stringify(declared)} is a standard service name`)
+  assert.ok(recognised.includes('web'), 'the public site is the minimum a stranger can follow')
+})
+
+test('web and email are the SHARED brand facts, not literals in this file', () => {
+  const c = card()
+  const web = c.services.find((s) => s.name === 'web')
+  const email = c.services.find((s) => s.name === 'email')
+  assert.strictEqual(web?.endpoint, APP_INFO.external.website)
+  assert.strictEqual(email?.endpoint, APP_INFO.support.email)
+})
+
+test('the card does NOT claim A2A or MCP — we serve neither', () => {
+  // An overclaim in a document whose URI is committed on-chain. Delete this
+  // test only alongside an actual A2A or MCP endpoint.
+  const declared = card(IDENTITY).services.map((s) => s.name as string)
+  for (const unserved of ['A2A', 'MCP', 'OASF', 'ENS', 'DID']) {
+    assert.ok(!declared.includes(unserved), `card claims ${unserved} without serving it`)
   }
 })
 
@@ -164,11 +219,12 @@ test('an unregistered card falls back to the shared brand description and image'
 
 test('an unregistered card offers no reputation endpoint', () => {
   // There is no user to have standing. A link to `/v1/users/null/standing`
-  // would be a promise that 404s.
-  assert.deepStrictEqual(
-    services(card(null)).map((s) => s.type),
-    ['tasks', 'openapi'],
-  )
+  // would be a promise that 404s. Asserted as an ABSENCE rather than an exact
+  // list, so adding an honest service (as `web` and `email` were) does not make
+  // this fail for a reason it does not care about.
+  const names = services(card(null)).map((s) => s.type)
+  assert.ok(!names.includes('reputation'), 'an unregistered card has no standing to link to')
+  assert.ok(names.includes('tasks') && names.includes('openapi'))
 })
 
 // --- the registered card ---------------------------------------------------
@@ -270,10 +326,21 @@ test('capabilities come from the shared proof vocabulary', () => {
   assert.deepStrictEqual(card().capabilities.proof_types, PROOF_TYPES)
 })
 
-test('every service URL is built from the base URL passed in — no hardcoded host', () => {
+test('every SERVER-HOSTED url follows the base URL passed in — no hardcoded host', () => {
   const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY })
-  for (const s of services(c)) {
+  const hosted = services(c).filter((s) => SERVER_HOSTED.includes(s.type))
+  assert.strictEqual(hosted.length, SERVER_HOSTED.length, 'all three must be present to be checked')
+  for (const s of hosted) {
     assert.ok(s.url.startsWith('https://other.test/'), `${s.url} ignored the configured base URL`)
+  }
+})
+
+test('BRAND urls ignore the base URL — they are product facts, not API paths', () => {
+  // The other half of the same guard: `web` following `api_base_url` would mean
+  // the card points a stranger at the API host instead of the site.
+  const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY })
+  for (const s of services(c).filter((x) => BRAND.includes(x.type))) {
+    assert.ok(!s.url.startsWith('https://other.test'), `${s.type} must not be built from the base URL`)
   }
 })
 

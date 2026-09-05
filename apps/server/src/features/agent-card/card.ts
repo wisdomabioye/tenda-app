@@ -24,6 +24,11 @@
  *
  * Those are different SHAPES, not one field under two names, so the card emits
  * both — built from one internal list below, which is what stops them drifting.
+ *
+ * WHERE THEY CONFLICT ON A VALUE, the EIP wins, because the scanner enforces
+ * it. `type` is the case: Celo's example says "Agent", the EIP says a
+ * registration-format URI, and 8004scan rejected the minted token for the
+ * former. A shape can be emitted twice; a single field's value cannot.
  * A reader that knows only the EIP finds `services`; Celo's own tooling, which
  * this mints against, finds `endpoints` with the wallet entries the EIP shape
  * has nowhere to put. `image` is always emitted: including an optional field
@@ -52,6 +57,13 @@
 import { APP_INFO, CHAIN_MANIFEST, PROOF_TYPES, evmChainNumericId } from '@tenda/shared'
 import type { ProofType } from '@tenda/shared'
 
+/**
+ * The value EIP-8004 gives the `type` field: a URI naming the registration
+ * format, not a human word. Kept as a named constant so the tests assert
+ * against the same string the card emits.
+ */
+export const REGISTRATION_TYPE = 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1'
+
 /** What the store found, or null when this address is not a Tenda agent. */
 export interface AgentIdentity {
   user_id: string
@@ -74,8 +86,23 @@ export interface WalletEndpoint {
   chainId: number
 }
 
-/** The service endpoints a reader can actually call. */
-export type AgentServiceType = 'tasks' | 'openapi' | 'reputation'
+/**
+ * Service names, and the first two are NOT free labels.
+ *
+ * ERC-8004 draws `name` from a vocabulary — `web`, `A2A`, `MCP`, `OASF`, `ENS`,
+ * `DID`, `email` — and although the spec says the list is customizable, a
+ * reader that knows only those sees a card with no recognised service at all.
+ * 8004scan says exactly that out loud: "Metadata does not declare MCP, A2A,
+ * OASF, web, email, ENS, DID, or agent URL services." The first cut of this
+ * card (#105) declared only `tasks` and `openapi`, which are ours, so every
+ * scanner read it as offering nothing.
+ *
+ * `web` and `email` are declared because both are TRUE and public. `A2A` and
+ * `MCP` are deliberately NOT: we serve neither protocol, and a claim in a
+ * document committed on-chain is not a cheap thing to withdraw. Serving a real
+ * A2A card is worth doing — it is filed, not faked.
+ */
+export type AgentServiceType = 'web' | 'email' | 'tasks' | 'openapi' | 'reputation'
 
 /** Celo's documented shape. */
 export interface ServiceEndpoint {
@@ -93,8 +120,17 @@ export type AgentCardEndpoint = WalletEndpoint | ServiceEndpoint
 
 export interface AgentCard {
   // --- ERC-8004 required ---------------------------------------------------
-  /** Fixed by the standard. An ERC-721 app keys on this. */
-  type: 'Agent'
+  /**
+   * The registration-format URI, NOT the word "Agent".
+   *
+   * Celo's docs example says `"type": "Agent"` and that is what this card
+   * shipped first; 8004scan rejected the minted token with
+   * `[WA002] Invalid type field value: Agent`. The EIP's own example is this
+   * URI, and the SCANNER is the arbiter — it is what a judge or a registry
+   * actually runs. Where the two sources conflict on a value (as opposed to a
+   * shape, where both can be emitted), the EIP wins.
+   */
+  type: typeof REGISTRATION_TYPE
   /** Never empty: an unregistered address is named after itself. */
   name: string
   description: string
@@ -190,6 +226,12 @@ export function buildAgentCard(args: {
   const { address, api_base_url: base, identity } = args
 
   const services: ServiceEndpoint[] = [
+    // The vocabulary entries first, so a reader that scans for recognised
+    // names finds them without walking our custom ones.
+    { type: 'web', url: APP_INFO.external.website },
+    // The EIP's own example gives `email` a BARE address, not a mailto: URL.
+    // Emitted identically in both arrays: one value cannot disagree with itself.
+    { type: 'email', url: APP_INFO.support.email },
     { type: 'tasks', url: `${base}/v1/agent/tasks` },
     { type: 'openapi', url: `${base}/v1/openapi.json` },
   ]
@@ -198,7 +240,7 @@ export function buildAgentCard(args: {
   }
 
   return {
-    type: 'Agent',
+    type: REGISTRATION_TYPE,
     // `||`, not `??`, throughout: an agent whose name, bio or avatar is stored
     // as the empty string must fall back, not publish a blank required field.
     // `formatFullName` returns '' for an agent with no name at all.

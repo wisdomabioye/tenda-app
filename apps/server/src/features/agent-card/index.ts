@@ -47,6 +47,7 @@
 
 export {
   buildAgentCard,
+  REGISTRATION_TYPE,
   type AgentCard,
   type AgentCardEndpoint,
   type AgentIdentity,
