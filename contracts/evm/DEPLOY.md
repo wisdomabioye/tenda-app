@@ -21,7 +21,7 @@ A mainnet deploy cannot be trusted-for-production until these exist:
 | **RPC provider account** (e.g. Alchemy) | `CHAIN_<ID>_RPC_URL` (+ optional webhook secret) | server adapter (+ optional push event ingest, § 6) |
 | **Solidity audit** | sign-off | mainnet only |
 | **Deployer EOA** funded with the chain's gas token | `DEPLOYER_KEY` | broadcasting the deploy tx |
-| **Explorer API key** (Basescan etc.) | `--etherscan-api-key` | source verification |
+| **Explorer API key** — ONE key from [etherscan.io](https://etherscan.io/apis), not a per-chain one | `--etherscan-api-key` | source verification (§ 3.1) |
 
 Gasless UserOps (paymaster) are **not** a prerequisite — that path is
 currently on hold (EOA-as-4337-sender limitation), and without
@@ -34,9 +34,16 @@ currently on hold (EOA-as-4337-sender limitation), and without
 ```bash
 cd contracts/evm
 forge build          # must compile (solc pinned in foundry.toml, via_ir)
-forge test           # all tests green, incl. permit paths + invariant suite
+forge test           # permit paths + invariant suite — see the warning below
 forge fmt --check    # style gate
 ```
+
+> ⚠️ **`forge test` is NOT green as of 2026-09-05**: 127 pass, 4 fail, all four
+> in `test/invariant/` with `panic: arithmetic underflow or overflow`, and
+> deterministic across fuzz seeds. Tracked as **#113**. It is unresolved whether
+> the fault is in the handler (harness) or in `TendaEscrow` itself — until that
+> is known, treat the invariant suite as guaranteeing NOTHING, and decide
+> deliberately whether that blocks the deploy rather than reading a green 127.
 
 ---
 
@@ -52,14 +59,21 @@ The deploy script (`script/Deploy.s.sol`) reads these from the environment:
 | `TENDA_DISPUTE_ADMIN` | separate dispute authority (ops key at launch) |
 | `TENDA_TREASURY` | fee recipient — normally the same Safe as `TENDA_ADMIN` |
 
-**Optional (defaults mirror the Solana platform config — keep them unless product says otherwise):**
+**Optional (fee defaults mirror the Solana platform config — keep them unless
+product says otherwise; the approval window deliberately does NOT, see below):**
 
 | Env var | Default | Meaning |
 |---|---|---|
 | `TENDA_FEE_BPS` | `250` | 2.50% platform fee |
 | `TENDA_SEEKER_FEE_BPS` | `100` | 1.00% reduced seeker fee |
-| `TENDA_APPROVAL_WINDOW_S` | `172800` | 48h poster review window |
+| `TENDA_APPROVAL_WINDOW_S` | `86400` | 24h poster review window |
 | `TENDA_GRACE_PERIOD_S` | `3600` | 1h grace period |
+
+> ⚠️ The 24h approval window is a **temporary Celo hackathon setting**, not the
+> product default. Off-chain `platform_config.approval_window_seconds` is still
+> `172800`, so a contract deployed on this default reclaims to the worker a day
+> earlier than the app advertises. Tracked for revert as **#96**; pass
+> `TENDA_APPROVAL_WINDOW_S=172800` explicitly for any deploy that is not Celo.
 
 > These four are validated on-chain (`_validateFeeBps`, `_validateApprovalWindow`,
 > `_validateGracePeriod`). They are also mutable post-deploy via the admin (Safe)
@@ -83,14 +97,20 @@ export TENDA_DISPUTE_ADMIN=0x...   # ops key
 export TENDA_TREASURY=0x...        # = Safe, usually
 export DEPLOYER_KEY=0x...          # funded EOA private key (NOT a Safe)
 export BASE_RPC_URL=https://base-mainnet.g.alchemy.com/v2/<key>
-export BASESCAN_API_KEY=...
+export ETHERSCAN_API_KEY=...     # etherscan.io key — V2 covers every chain
 
 forge script script/Deploy.s.sol:Deploy \
   --rpc-url "$BASE_RPC_URL" \
   --broadcast \
-  --verify --etherscan-api-key "$BASESCAN_API_KEY" \
-  --private-key "$DEPLOYER_KEY"
+  --private-key "$DEPLOYER_KEY" \
+  --verify --watch \
+  --verifier etherscan \
+  --verifier-url "https://api.etherscan.io/v2/api?chainid=8453" \
+  --etherscan-api-key "$ETHERSCAN_API_KEY"
 ```
+
+> Every one of those four verify flags is load-bearing — see § 3.1. `--verify`
+> ALONE silently verifies against Sourcify, not the explorer you expect.
 
 The script logs `TendaEscrow deployed: 0x...` — **that address is
 `CHAIN_<ID>_ESCROW_ADDR`** (for BASE: `CHAIN_EIP155_8453_ESCROW_ADDR`).
@@ -100,6 +120,79 @@ Foundry also writes `broadcast/Deploy.s.sol/<chainid>/run-latest.json`
 > The deployer EOA only constructs the contract; it holds **no** privileged role
 > afterward. All authority sits with `TENDA_ADMIN` (the Safe) and
 > `TENDA_DISPUTE_ADMIN`. There is nothing to renounce.
+
+---
+
+### 3.1 Source verification — three facts that make the naive command fail
+
+All three MEASURED 2026-09-05 against forge 1.7.1. Verification is the step
+most likely to fail silently, and a mainnet contract nobody can read is a
+mainnet contract nobody will use.
+
+**(a) `--verifier` defaults to `sourcify`, NOT etherscan.** `forge
+verify-contract --help` prints `[default: sourcify]` — that flag default is the
+measured part. It follows that `--verify --etherscan-api-key <key>` submits to
+Sourcify and the key is inert; what was NOT measured is whether such a run
+reports success or warns, so do not rely on its exit status to tell you.
+Always pass `--verifier etherscan` explicitly.
+
+**(b) The per-chain V1 explorer APIs are DEAD.** `api.celoscan.io/api` answers:
+
+    "You are using a deprecated V1 endpoint, switch to Etherscan API V2"
+
+Etherscan V2 replaced them with ONE endpoint and ONE key across 61 chains:
+`https://api.etherscan.io/v2/api?chainid=<id>` — Celo (42220), Base (8453) and
+Ethereum (1) are all `status: 1` in `https://api.etherscan.io/v2/chainlist`.
+So there is no `BASESCAN_API_KEY` / `CELOSCAN_API_KEY` any more: get one key
+from etherscan.io and change `chainid=` per chain.
+
+**(c) Pass `--verifier-url` explicitly.** forge carries a built-in chain table
+that may still resolve to the dead V1 host. Naming the V2 URL yourself costs
+nothing and removes the guess.
+
+#### Verifying after the fact
+
+Verification is INDEPENDENT of the deploy and retryable forever — a failed
+`--verify` never costs you the deployment, so never re-broadcast to fix it.
+
+```bash
+forge verify-contract "$ESCROW_ADDR" src/TendaEscrow.sol:TendaEscrow \
+  --chain 42220 --watch \
+  --verifier etherscan \
+  --verifier-url "https://api.etherscan.io/v2/api?chainid=42220" \
+  --etherscan-api-key "$ETHERSCAN_API_KEY" \
+  --constructor-args $(cast abi-encode \
+    "constructor(address,address,address,uint16,uint16,uint64,uint64)" \
+    "$TENDA_ADMIN" "$TENDA_DISPUTE_ADMIN" "$TENDA_TREASURY" \
+    250 100 86400 3600)
+```
+
+The constructor args must be the values ACTUALLY deployed, not the defaults
+copied from here — read them off the script's own log lines (`feeBps`,
+`seekerFeeBps`, `approvalWndS`, `gracePeriodS`), or off
+`broadcast/Deploy.s.sol/<chainid>/run-latest.json`. `--guess-constructor-args`
+can recover them from the creation code if the log is lost.
+
+#### No API key: Blockscout
+
+Needs no key and is live for Celo (`celo.blockscout.com/api` → 200):
+
+```bash
+--verify --verifier blockscout --verifier-url "https://celo.blockscout.com/api/"
+```
+
+Sourcify (the default) also needs no key, but it publishes to sourcify.dev
+rather than to the block explorer a judge or user will actually open.
+
+#### Confirm it landed
+
+Do not trust the run's own output — open the explorer, or:
+
+```bash
+curl -s "https://api.etherscan.io/v2/api?chainid=42220&module=contract\
+&action=getsourcecode&address=$ESCROW_ADDR&apikey=$ETHERSCAN_API_KEY" \
+  | python3 -c 'import json,sys; r=json.load(sys.stdin)["result"]; print(r if isinstance(r,str) else (r[0]["ContractName"] or "NOT VERIFIED"))'
+```
 
 ---
 
@@ -231,6 +324,17 @@ chain-specific addresses; gas handling comes from the manifest's `gasPolicy`:
 - **CELO (eip155:42220):** gas paid in a stablecoin via `feeCurrency` on every
   tx (no paymaster, no UserOps, no `PAYMASTER_URL` — the fee-currency adapter
   address is a manifest constant, like the confirmation margin).
+  Verifier URL: `https://api.etherscan.io/v2/api?chainid=42220` → celoscan.io.
+  **Celo REJECTS the osaka `CLZ` opcode**, exactly like 0G — probed 2026-09-05
+  with `cast call --create 0x60011e5060006000f3`: Celo answers `invalid opcode:
+  CLZ` where Ethereum and Base both return `0x`. The default profile compiles to
+  `evmVersion=osaka`, so this looks like it needs `FOUNDRY_PROFILE=0g`. **It does
+  not** — measured at the same time: `TendaEscrow` emits no `CLZ`, and the osaka
+  and cancun runtimes are byte-identical up to byte 13613 of 13656 (the tail is
+  only the CBOR metadata hash, which differs because `evmVersion` is hashed into
+  the metadata). So the default profile is safe HERE. Re-run the probe and the
+  byte comparison if the contract source changes — a future `<<`/leading-zeros
+  rewrite is exactly what would make solc emit `CLZ`.
 - **New chains:** one manifest entry (id, RPC/explorer, gasPolicy, assets) +
   the env block in § 5 — no server code. Redeploys on an existing chain are
   one `CHAIN_<ID>_ESCROW_ADDR` change: `db:seed` appends the new contract to

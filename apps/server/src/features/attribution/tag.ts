@@ -7,9 +7,19 @@
  * it — and what it buys is that the transaction is attributable to Tenda on
  * Celo's public dashboard.
  *
- * WHAT IT COSTS: one code encodes to 35 bytes, two to 51. The gas is MEASURED
- * as an `eth_estimateGas` delta, tagged vs untagged, 2026-09-05 — Celo mainnet
- * +552 / +809, Celo Sepolia +552 / +808, 0G mainnet +556 / +816.
+ * WHAT IT COSTS: a code costs its own length plus one byte, on top of a 34-byte
+ * envelope — so one 17-character code encodes to 35 bytes, and TWO to 53, not
+ * the 51 an earlier revision of this line recorded (that pair had a 15-character
+ * second code; the tag assigned at registration is 17). The gas is MEASURED as
+ * an `eth_estimateGas` delta, tagged vs untagged, 2026-09-05 — Celo mainnet
+ * +552 / +809, Celo Sepolia +552 / +808, 0G mainnet +556 / +816, all at the
+ * 35/51-byte sizes.
+ *
+ * The pair ACTUALLY configured — `codeFromHostname('tendahq.com')` =
+ * `celo_558f532905be` first, the registration tag `celo_b395323d136c` second —
+ * is 53 bytes and was re-measured on Celo mainnet 2026-09-06 against a 68-byte
+ * ABI body: +549 for one code, **+838 for the pair**. Two more non-zero calldata
+ * bytes than the 51-byte figure, which is the whole of the difference.
  *
  * Byte arithmetic at EIP-2028 rates (34 non-zero x 16 + 1 zero x 4) predicts
  * 548 / 804, so the real charge runs a little above the calldata arithmetic and
