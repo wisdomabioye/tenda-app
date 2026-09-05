@@ -154,13 +154,25 @@ export function gasSeedJobId(job: GasSeedClaimJob): string {
 }
 
 /**
- * The confirm queue's key, PREFIXED SEPARATELY (#58).
+ * The confirm queue's key, prefixed separately (#58).
  *
- * It must not collide with `gasSeedJobId`: BullMQ de-duplicates on the job id
- * across a queue's whole retained history, and the broadcast job for a grant is
- * usually still in `completed` when its confirmation is enqueued. Sharing the id
- * would silently drop confirmations — the exact job whose absence leaves a
- * transfer unresolved forever.
+ * NOT a safety property, and an earlier version of this comment claimed it was.
+ * It said a collision with `gasSeedJobId` would silently drop confirmations,
+ * because BullMQ de-duplicates on the job id across a queue's retained history
+ * and the broadcast job is usually still `completed` when its confirmation is
+ * enqueued. The first half is true; the conclusion is not. De-duplication is
+ * scoped PER QUEUE — `queueName()` gives `gas-seed` and `gas-seed-confirm`
+ * separate Redis keyspaces, and `enqueueConfirm` targets the second — so the two
+ * ids cannot collide however identical their strings are. A mutation proved it:
+ * making this return `gasSeedJobId`'s exact string reddened nothing.
+ *
+ * What the distinct prefix actually buys is legibility. A job id is what an
+ * operator reads in Redis and in a failure log, and `gas-seed-confirm:<user>:
+ * <chain>` says which half of the claim it belongs to without a lookup. Keep it
+ * for that reason, and do not reinstate the safety story: a comment that
+ * overstates a risk is how a harmless refactor gets treated as dangerous, and
+ * how a wrong model of BullMQ spreads to the next queue that really does need
+ * one id.
  */
 export function gasSeedConfirmJobId(job: GasSeedClaimJob): string {
   return `gas-seed-confirm:${job.user_id}:${job.chain_id}`
