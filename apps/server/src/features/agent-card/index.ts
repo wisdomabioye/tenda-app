@@ -37,10 +37,22 @@
  *      `test/integration/api-routes-drift.test.ts`, which otherwise fails
  *      naming a path the server no longer serves;
  *   5. delete `.c8rc.agent-card.json` and its `test:coverage:agent-card` script.
+ * `APP_INFO.external.logo` (#105) is the one thing added OUTSIDE this directory.
+ * It may stay: a brand mark's URL is a standalone product fact that belongs in
+ * shared whether or not this card exists, and no step above needs it removed.
  * Nothing else references it: no plugin, no registry line, no env var — and
  * step 3's boundary test is what keeps that sentence true, by failing if a
  * second importer ever appears.
  */
 
-export { buildAgentCard, type AgentCard, type AgentIdentity } from './card'
+export {
+  buildAgentCard,
+  type AgentCard,
+  type AgentCardEndpoint,
+  type AgentIdentity,
+  type EipService,
+  type AgentServiceType,
+  type ServiceEndpoint,
+  type WalletEndpoint,
+} from './card'
 export { drizzleAgentCardStore, type AgentCardStore } from './store'

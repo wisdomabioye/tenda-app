@@ -7,6 +7,7 @@
  */
 
 import { CHAIN_MANIFEST, isNativeAsset, type ChainAsset, type ChainManifestEntry } from './manifest'
+import { isEvmChainId } from '../utils/address'
 import type { ChainNamespace } from '../db/schema/chains'
 import { getAssetMeta } from '../constants/assets'
 
@@ -68,13 +69,14 @@ export function requireEvmPublicRpcUrl(id: string): string {
  * so a caller can't silently build a network with `id: NaN`.
  */
 export function evmChainNumericId(id: string): number {
-  const [ns, ref] = id.split(':')
-  // Decimal digits only — `Number('0x1')` would otherwise coerce to 1 and let a
-  // malformed reference through. CAIP-2 eip155 references are base-10.
-  if (ns !== 'eip155' || ref === undefined || !/^[0-9]+$/.test(ref) || Number(ref) <= 0) {
+  // The shape test is `isEvmChainId` in utils/address, which is also what
+  // `assertManifestValid` gates every entry on — so for any id that came out of
+  // CHAIN_MANIFEST this function is total and callers need no branch of their
+  // own. Two copies of the predicate is how one of them would drift.
+  if (!isEvmChainId(id)) {
     throw new Error(`chain id '${id}' is not a numeric eip155 CAIP-2 id`)
   }
-  return Number(ref)
+  return Number(id.split(':')[1])
 }
 
 /**

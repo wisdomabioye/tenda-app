@@ -1,10 +1,12 @@
 /**
- * GET /.well-known/agents/:address.json against the real app and database (#84).
+ * GET /.well-known/agents/:address.json against the real app and database
+ * (#84, extended for the ERC-8004 shape in #105).
  *
  * The unit suite covers the DOCUMENT; this covers everything the document
  * cannot see: that the route is mounted where an on-chain URI says it is, that
  * one wallet is one card whatever case the URL uses, that a HUMAN's address
- * never leaks a name from an /agents/ URL, and that the response carries the
+ * never leaks a name from an /agents/ URL, that an agent's OWN bio and avatar
+ * are actually read from the database, and that the response carries the
  * headers a stranger's agent needs to actually consume it.
  */
 
@@ -47,6 +49,14 @@ function shout(address: string): string {
   return upper
 }
 
+/**
+ * The URL of one service endpoint, read out of the array the standard specifies
+ * (#105) rather than the object #84 used to emit.
+ */
+function serviceUrl(card: { endpoints: { type: string; url?: string }[] }, type: string): string | undefined {
+  return card.endpoints.find((e) => e.type === type)?.url
+}
+
 /** Creates the agent and returns ITS user id — the card must point at that one. */
 async function agentWithWallet(address: string): Promise<string> {
   const app = getApp()
@@ -65,11 +75,13 @@ test('a registered agent gets a card carrying its name and ITS OWN reputation UR
   assert.strictEqual(card.registered, true)
   assert.strictEqual(card.name, 'Scout')
   assert.strictEqual(card.address, address.toLowerCase())
+  assert.strictEqual(card.type, 'Agent', 'the standard fixes `type`, and only the live app proves it ships')
   // The full path, not `endsWith('/standing')` — that suffix is identical for
   // EVERY user, so it passes just as well when the store maps the card to the
   // wrong agent, which is a card advertising someone else's standing. Mutation
   // M8 (user_id -> a constant) survived the weaker assertion.
-  assert.strictEqual(card.endpoints.reputation, `${API_BASE}/v1/users/${user_id}/standing`)
+  const reputation = serviceUrl(card, 'reputation')
+  assert.strictEqual(reputation, `${API_BASE}/v1/users/${user_id}/standing`)
 })
 
 test('an unknown address gets a MINIMAL card, never a 404', { skip }, async () => {
@@ -80,8 +92,11 @@ test('an unknown address gets a MINIMAL card, never a 404', { skip }, async () =
   assert.strictEqual(res.statusCode, 200)
   const card = res.json()
   assert.strictEqual(card.registered, false)
-  assert.strictEqual(card.name, undefined)
-  assert.ok(Array.isArray(card.accounts) && card.accounts.length > 0)
+  // `name` is REQUIRED by ERC-8004, so an unregistered card names itself after
+  // its address rather than omitting the field (#105). It must not be blank.
+  assert.strictEqual(typeof card.name, 'string')
+  assert.notStrictEqual(card.name, '')
+  assert.ok(card.endpoints.some((e: { type: string }) => e.type === 'wallet'))
 })
 
 test("a HUMAN's wallet reads as unregistered — a name must not leak from /agents/", { skip }, async () => {
@@ -95,8 +110,12 @@ test("a HUMAN's wallet reads as unregistered — a name must not leak from /agen
 
   const card = (await app.inject({ method: 'GET', url: cardUrl(address) })).json()
   assert.strictEqual(card.registered, false)
-  assert.strictEqual(card.name, undefined)
-  assert.ok(!JSON.stringify(card).includes('Ada'), 'a human name must never appear in an agent card')
+  // The card now always HAS a name (#105), so "absent" is no longer the
+  // property — "not theirs" is. Both halves of the human's name are checked:
+  // a leak of either one is a leak.
+  const json = JSON.stringify(card)
+  assert.ok(!json.includes('Ada'), 'a human first name must never appear in an agent card')
+  assert.ok(!json.includes('Lovelace'), 'a human last name must never appear in an agent card')
 })
 
 test('a checksummed URL and a lowercase one are ONE document', { skip }, async () => {
@@ -204,9 +223,11 @@ test('every URL the card advertises is a path this server actually serves', { sk
   const card = buildAgentCard({
     address: testEvmAddress(),
     api_base_url: API_BASE,
-    identity: { user_id: USER_ID, name: 'Scout' },
+    identity: { user_id: USER_ID, name: 'Scout', description: null, image: null },
   })
-  const urls = Object.values(card.endpoints)
+  // Service entries only: a `wallet` entry carries an address and a chainId,
+  // not a URL, and is not a path this server serves.
+  const urls = card.endpoints.flatMap((e) => (e.type === 'wallet' ? [] : [e.url]))
   assert.strictEqual(urls.length, 3, 'every endpoint on the card must be checked, not some of them')
 
   for (const url of urls) {
@@ -235,5 +256,59 @@ test('a row under another NAMESPACE does not answer the EVM card', { skip }, asy
 
   const card = (await app.inject({ method: 'GET', url: cardUrl(evm) })).json()
   assert.strictEqual(card.registered, false, 'an eip155 lookup must not match a solana row')
-  assert.strictEqual(card.name, undefined)
+  assert.ok(!JSON.stringify(card).includes('Solo'), "the solana row's name must not reach the card")
+})
+
+test("a registered agent's OWN bio and avatar reach the card", { skip }, async () => {
+  // The store gained two columns in #105 and this is the only test that proves
+  // they are actually read: the unit suite passes an identity object straight
+  // in, so a store that never selected `bio` or `avatar_url` would still be
+  // green there while every live card fell back to the brand defaults.
+  const app = getApp()
+  const address = testEvmAddress()
+  const { row } = await createUser(app, {
+    first_name: 'Scout',
+    last_name: '',
+    is_agent: true,
+    bio: 'Verifies business listings across Lagos.',
+    avatar_url: 'https://cdn.example.test/scout.png',
+  })
+  await linkWallet(app, row.id, { chain_ns: 'eip155', address })
+
+  const card = (await app.inject({ method: 'GET', url: cardUrl(address) })).json()
+  assert.strictEqual(card.description, 'Verifies business listings across Lagos.')
+  assert.strictEqual(card.image, 'https://cdn.example.test/scout.png')
+})
+
+test('the served document satisfies the ERC-8004 required-field set', { skip }, async () => {
+  // The contract with the outside world, asserted against what the ROUTE
+  // actually serves rather than against the builder. #84 shipped a document
+  // that satisfied none of these and had a fully green suite, because every
+  // test described our own design back to us.
+  const card = (await getApp().inject({ method: 'GET', url: cardUrl(testEvmAddress()) })).json()
+  for (const field of ['type', 'name', 'description', 'image']) {
+    assert.strictEqual(typeof card[field], 'string', `${field} must be a present string`)
+    assert.notStrictEqual(card[field], '', `${field} must not be empty`)
+  }
+  assert.strictEqual(card.type, 'Agent')
+  // `services` is REQUIRED by the EIP and is a different shape from Celo's
+  // `endpoints`; the served document has to satisfy both readers.
+  assert.ok(Array.isArray(card.services), 'services must be an array, the EIP requires it')
+  assert.ok(card.services.length > 0)
+  for (const s of card.services) {
+    assert.strictEqual(typeof s.name, 'string')
+    assert.strictEqual(typeof s.endpoint, 'string')
+  }
+  assert.ok(Array.isArray(card.endpoints), 'endpoints must be an array, not an object')
+  for (const entry of card.endpoints) {
+    assert.strictEqual(typeof entry.type, 'string')
+    if (entry.type === 'wallet') {
+      assert.strictEqual(typeof entry.chainId, 'number', 'chainId must be numeric')
+      assert.ok(Number.isInteger(entry.chainId) && entry.chainId > 0)
+    } else {
+      assert.strictEqual(typeof entry.url, 'string')
+    }
+  }
+  assert.deepStrictEqual(card.supportedTrust, ['reputation'])
+  assert.strictEqual(card.x402Support, true)
 })

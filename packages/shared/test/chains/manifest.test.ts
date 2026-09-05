@@ -21,6 +21,7 @@ import {
   firstEvmChainIdByKind,
 } from '../../src/chains/manifest-queries'
 import { ASSET_META } from '../../src/constants/assets'
+import { isEvmChainId } from '../../src/utils/address'
 
 // The manifest is a hand-maintained data table that the server registry,
 // seeder, sponsor, and webhooks all key off — these invariants are what keep
@@ -161,6 +162,70 @@ test('exchangeAssetsByChain returns USDC + the native token per chain; empty for
     assert.ok(gigAsset === null || ids.includes(gigAsset), `${entry.id} USDC must be exchange-tradable`)
   }
   assert.deepEqual(exchangeAssetsByChain('unknown:chain'), [])
+})
+
+test('assertManifestValid rejects an EVM chain whose id carries no numeric reference', () => {
+  // Readers PARSE this reference back out — the agent card (#105) emits it as
+  // ERC-8004's numeric `chainId` in a document committed on-chain, where a NaN
+  // serialises to `null`. Nothing type-checks a hand-edited id: the landing
+  // consumes this module through a Vite source alias and other packages through
+  // the CJS dist, exactly as the `status` guard's own comment describes.
+  for (const id of ['eip155:', 'eip155:base', 'eip155:0', 'eip155:-1', 'eip155:1.5']) {
+    const bad: ChainManifestEntry = {
+      id, namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
+      displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+      assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+    }
+    assert.throws(() => assertManifestValid([bad]), /positive integer/, `'${id}' should be refused`)
+  }
+})
+
+test('a HEX reference is refused — it would silently read as chain 1, mainnet', () => {
+  // `Number('0x1')` is 1. A decimal-only test is the difference between
+  // refusing a malformed id and quietly relabelling a chain as Ethereum
+  // mainnet, so this is separated out rather than buried in the loop above.
+  const bad: ChainManifestEntry = {
+    id: 'eip155:0x1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /positive integer/)
+})
+
+test('isEvmChainId and evmChainNumericId agree — one predicate, no second copy', () => {
+  // The parser delegates to the predicate. If they ever diverge, an id the
+  // manifest validator accepts could still throw inside a caller that trusted
+  // the guarantee — which is precisely the branch the agent card omits.
+  for (const id of ['eip155:1', 'eip155:84532', 'eip155:16661']) {
+    assert.equal(isEvmChainId(id), true, id)
+    assert.equal(evmChainNumericId(id), Number(id.split(':')[1]))
+  }
+  for (const id of ['eip155:', 'eip155:0x1', 'eip155:abc', 'solana:devnet', 'eip155:0', 'nonsense']) {
+    assert.equal(isEvmChainId(id), false, id)
+    assert.throws(() => evmChainNumericId(id), /not a numeric eip155/, id)
+  }
+})
+
+test('a NUMERIC reference under another namespace is still refused', () => {
+  // The one input the namespace half of the predicate exists for, and the case
+  // the list above cannot reach: every id there fails the DIGITS test too, so
+  // deleting `namespace === 'eip155'` left them all still false and the mutant
+  // survived (mutation M21). `solana:101` is well-formed CAIP-2 for a different
+  // key space — returning 101 for it is how `evmChainNumericId`'s own docblock
+  // says a caller silently builds a network with the wrong id.
+  for (const id of ['solana:101', 'cosmos:42', 'bip122:0']) {
+    assert.equal(isEvmChainId(id), false, `${id} is not an eip155 chain`)
+    assert.throws(() => evmChainNumericId(id), /not a numeric eip155/, id)
+  }
+})
+
+test('every live EVM entry in the REAL manifest parses to a numeric chain id', () => {
+  // The guarantee the agent card relies on, asserted against the real data
+  // rather than a fixture.
+  for (const entry of CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155')) {
+    const parsed = evmChainNumericId(entry.id)
+    assert.ok(Number.isInteger(parsed) && parsed > 0, `${entry.id} must parse`)
+  }
 })
 
 test('assertManifestValid rejects an asset that declares no roles', () => {

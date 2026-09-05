@@ -27,6 +27,8 @@ export function drizzleAgentCardStore(db: FastifyInstance['db']): AgentCardStore
           first_name: users.first_name,
           last_name: users.last_name,
           is_agent: users.is_agent,
+          bio: users.bio,
+          avatar_url: users.avatar_url,
         })
         .from(user_wallets)
         .innerJoin(users, eq(users.id, user_wallets.user_id))
@@ -64,7 +66,16 @@ export function drizzleAgentCardStore(db: FastifyInstance['db']): AgentCardStore
       // the shared formatter is what every other surface uses and it already
       // drops the empty half. Reading the column directly would be a second,
       // quietly different, notion of an agent's name.
-      return { user_id: row.user_id, name: formatFullName(row.first_name, row.last_name) }
+      // `bio` and `avatar_url` are nullable columns and are handed over as they
+      // are. The card decides what an absent one becomes — it owns the required
+      // -field fallbacks (#105), and a second notion of them here is how the
+      // two drift.
+      return {
+        user_id: row.user_id,
+        name: formatFullName(row.first_name, row.last_name),
+        description: row.bio,
+        image: row.avatar_url,
+      }
     },
   }
 }

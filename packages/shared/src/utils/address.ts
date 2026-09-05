@@ -1,9 +1,16 @@
 /**
- * Namespace-aware wallet-address identity, shared by server (user_wallets
- * dedup + lookups) and client (the admin resolve-sign pre-flight). EVM
- * (eip155) addresses are case-INsensitive — the EIP-55 checksum is a display
- * convention, so the same wallet arrives in different case. Solana (base58)
- * is case-SENSITIVE — different case is a different address.
+ * CAIP-2 / CAIP-10 parsing and namespace-aware wallet-address identity, shared
+ * by server (user_wallets dedup + lookups) and client (the admin resolve-sign
+ * pre-flight). EVM (eip155) addresses are case-INsensitive — the EIP-55
+ * checksum is a display convention, so the same wallet arrives in different
+ * case. Solana (base58) is case-SENSITIVE — different case is a different
+ * address.
+ *
+ * The chain-id and address PREDICATES live here too (`isEvmChainId`,
+ * `isEvmAddress`) because this module has only a type import and therefore no
+ * runtime dependencies — which is what lets `CHAIN_MANIFEST`'s module-load
+ * validator import it without a cycle. Proven at #104 and relied on again at
+ * #105; keep it that way.
  */
 import type { ChainNamespace } from '../db/schema/chains'
 
@@ -16,6 +23,29 @@ import type { ChainNamespace } from '../db/schema/chains'
 export function chainNamespaceOf(chain_id: string): ChainNamespace | undefined {
   const ns = chain_id.split(':')[0]
   return ns === 'solana' || ns === 'eip155' ? ns : undefined
+}
+
+/**
+ * Whether a CAIP-2 id is a well-formed eip155 one: `eip155:<positive integer>`.
+ *
+ * THE ONE DEFINITION of that shape, and it lives beside `chainNamespaceOf`
+ * because both parse a CAIP-2 id and neither may import the manifest. Two
+ * consumers depend on it agreeing with itself: `assertManifestValid` refuses an
+ * eip155 entry it rejects, and `evmChainNumericId` throws on one — which
+ * together are what let the agent card (#105) parse a manifest id with no null
+ * branch of its own.
+ *
+ * Decimal digits only: `Number('0x1')` coerces to 1, so a hex reference would
+ * otherwise pass as chain 1 — mainnet.
+ */
+export function isEvmChainId(chain_id: string): boolean {
+  const [namespace, reference] = chain_id.split(':')
+  return (
+    namespace === 'eip155' &&
+    reference !== undefined &&
+    /^[0-9]+$/.test(reference) &&
+    Number(reference) > 0
+  )
 }
 
 /**
