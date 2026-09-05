@@ -40,5 +40,10 @@
 
 export { GasClaimChip, type GasClaimChipProps } from './GasClaimChip'
 export { useGasClaimChip } from './useGasClaimChip'
-export { useGasClaim, gasClaimForChain, type GasClaimState } from './useGasClaim'
+export {
+  useGasClaim,
+  gasClaimForChain,
+  type GasClaimState,
+  type UseGasClaimOptions,
+} from './useGasClaim'
 export { GAS_CLAIM_COPY } from './copy'

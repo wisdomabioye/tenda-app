@@ -42,7 +42,10 @@ export default function WalletScreen() {
   // renderer rather than a block, so the offer lands on the balance row of the
   // chain that actually has no gas instead of as a card stack of its own.
   // Called unconditionally, above the branch below: it is a hook.
-  const renderGasChip = useGasClaimChip()
+  // `enabled` on the ready branch only: the hook must be called unconditionally
+  // (it is a hook), but there is nothing to offer a chip on until the balance
+  // rows exist — and on `no-wallet` every answer would be `no_wallet` anyway.
+  const renderGasChip = useGasClaimChip({ enabled: section === 'ready' })
 
   // One branch per settled fact, resolved in the hook (resolveWalletSection).
   // A failed load must NOT read as "no wallet linked", and an unreadable chain

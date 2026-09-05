@@ -7,6 +7,7 @@
  * exists only while a claim is genuinely available; every other state is
  * silence, and these tests are what stop that regressing into an explanation.
  */
+import { StyleSheet } from 'react-native'
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GasSeedAvailability } from '@tenda/shared'
 import { GasClaimChip } from '../GasClaimChip'
@@ -19,7 +20,10 @@ jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
       colors: {
-        surface: { card: '#fff' },
+        // DISTINCT values on purpose: `card` is what the balance row paints
+        // itself, and the regression below is the chip reaching for the same
+        // token. Equal stand-ins here would make that test unable to fail.
+        surface: { card: '#fff', inset: '#f2f2f2' },
         border: { default: '#ccc' },
         content: { primary: '#000', secondary: '#444', tertiary: '#666' },
       },
@@ -92,4 +96,23 @@ test('busy state is announced, not just drawn', () => {
     busy: true,
     disabled: true,
   })
+})
+
+/**
+ * REGRESSION (#100 audit, C8). The chip must not be painted in its parent's colour.
+ *
+ * `WalletBalanceRows` paints each row `surface.card`. The first cut of this chip
+ * reached for `surface.card` too, so a CONTROL sat on its background with
+ * nothing but a 1px `border.default` — the divider tone — to say it was there.
+ * Pinned against the row's token rather than a literal, so a later theme change
+ * that merges the two still fails here.
+ */
+test('the chip is not painted in the balance row’s own surface', () => {
+  render(<GasClaimChip offer={offer()} claiming={false} onClaim={jest.fn()} />)
+  const flat = StyleSheet.flatten(
+    screen.getByRole('button').props.style,
+  ) as { backgroundColor?: string }
+  const ROW_SURFACE = '#fff' // what WalletBalanceRows uses: theme.colors.surface.card
+  expect(flat.backgroundColor).toBeDefined()
+  expect(flat.backgroundColor).not.toBe(ROW_SURFACE)
 })

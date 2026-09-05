@@ -65,11 +65,11 @@ export function WalletBalanceRows({ balances, renderChainAction }: WalletBalance
               <Text style={[s.usdc, { color: theme.colors.content.primary }]} numberOfLines={1}>
                 {usdc}
               </Text>
-              {/* The native figure and its action share one line, so an offer
-                  costs the row no height. The action renders even when `native`
-                  is null: no reading and no gas are different facts, and a chain
-                  the server says is claimable is claimable either way. */}
-              <View style={s.nativeLine}>
+              {/* The native figure and its action share one line. The action
+                  renders even when `native` is null: no reading and no gas are
+                  different facts, and a chain the server says is claimable is
+                  claimable either way. */}
+              <View style={s.nativeLine} testID="native-line">
                 {native !== null && (
                   <Text
                     style={[s.native, { color: theme.colors.content.tertiary }]}
@@ -104,10 +104,13 @@ const s = StyleSheet.create({
   chain: { fontSize: 14, fontWeight: '600', letterSpacing: -0.1 },
   addr: { fontFamily: typography.fonts.mono.regular, fontSize: 11, lineHeight: 15, marginTop: 1 },
   right: { alignItems: 'flex-end', flexShrink: 0 },
-  // `minHeight` matches the native text's line height, so a row with an action
-  // and a row without are exactly the same height — the chip is 20pt and would
-  // otherwise grow the line it sits on by 5.
-  nativeLine: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 20 },
+  // CONTENT-SIZED, and deliberately not `minHeight: 20`. The first cut set that
+  // so a row with a chip and a row without would match — they did, at 20pt each,
+  // when the native text's own line box is 16 (lineHeight 15 + marginTop 1). It
+  // bought consistency by making EVERY row 4pt taller, on the screen whose
+  // heaviness is the reason #100 exists. A row that gains a chip may be a little
+  // taller than one that does not; the row with nothing on offer pays nothing.
+  nativeLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   usdc: { fontFamily: typography.fonts.mono.semibold, fontSize: 15, lineHeight: 19, fontWeight: '600' },
   native: { fontFamily: typography.fonts.mono.regular, fontSize: 11, lineHeight: 15, marginTop: 1 },
 })

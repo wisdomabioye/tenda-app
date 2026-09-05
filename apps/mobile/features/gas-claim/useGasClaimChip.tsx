@@ -3,7 +3,7 @@
  *
  * This is the whole public surface of the feature on mobile now. A host writes:
  *
- *   const renderGasChip = useGasClaimChip()
+ *   const renderGasChip = useGasClaimChip({ enabled: section === 'ready' })
  *   <WalletBalanceRows balances={balances} renderChainAction={renderGasChip} />
  *
  * — one import, one hook call, one prop. Everything else (what to fetch, which
@@ -17,11 +17,11 @@
  * "on its way" while its neighbour still offers the grant.
  */
 
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { showToast } from '@/components/ui'
 import { GasClaimChip } from './GasClaimChip'
-import { gasClaimForChain, useGasClaim } from './useGasClaim'
+import { gasClaimForChain, useGasClaim, type UseGasClaimOptions } from './useGasClaim'
 
 /**
  * A renderer for one chain's claim affordance: the chip, or null.
@@ -30,9 +30,15 @@ import { gasClaimForChain, useGasClaim } from './useGasClaim'
  * offer, already claimed, in flight, phone unverified, hot wallet empty. Those
  * are not silences by omission; they are the design. A refusal is an answer to a
  * tap, not a permanent notice on someone's balance screen.
+ *
+ * `enabled` exists because a renderer hook cannot be called conditionally: the
+ * host calls it above its own section branch, so without it the offer is read on
+ * every state including ones with no rows to put a chip on.
  */
-export function useGasClaimChip(): (chain_id: string) => ReactNode {
-  const { chains, claiming, error, claim } = useGasClaim()
+export function useGasClaimChip(
+  options: UseGasClaimOptions = {},
+): (chain_id: string) => ReactNode {
+  const { chains, claiming, claim } = useGasClaim(options)
 
   // A failed claim has to say something, and with no card on screen there is
   // nowhere for it to sit. A toast is the repo's convention for exactly this —
@@ -41,19 +47,28 @@ export function useGasClaimChip(): (chain_id: string) => ReactNode {
   // ("verify your phone number…") and falls back to its own only when a failure
   // carried none.
   //
-  // Safe to key on the value: `useGasClaim` sets `error` to null at the START of
-  // every claim, so two identical failures in a row still read as null → X → and
-  // fire twice. Without that reset the second one would be silent.
-  useEffect(() => {
-    if (error !== null) showToast('error', error)
-  }, [error])
+  // DRIVEN BY WHAT `claim` RETURNS, not by watching its `error` value, and a
+  // test caught the difference. React coalesces the clear-at-start with the
+  // set-in-catch, so a SECOND identical failure never changed the value and an
+  // effect keyed on it never re-ran: one toast for two taps, with the second tap
+  // looking like it had not registered — the exact silence GAS_CLAIM_COPY.failed
+  // exists to prevent.
+  const claimAndReport = useCallback(
+    async (chain_id: string) => {
+      const failure = await claim(chain_id)
+      if (failure !== null) showToast('error', failure)
+    },
+    [claim],
+  )
 
   return useCallback(
     (chain_id: string) => {
       const offer = gasClaimForChain(chains, chain_id)
       if (offer === null || !offer.available) return null
-      return <GasClaimChip offer={offer} claiming={claiming === chain_id} onClaim={claim} />
+      return (
+        <GasClaimChip offer={offer} claiming={claiming === chain_id} onClaim={claimAndReport} />
+      )
     },
-    [chains, claiming, claim],
+    [chains, claiming, claimAndReport],
   )
 }

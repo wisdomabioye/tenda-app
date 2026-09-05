@@ -137,3 +137,53 @@ test('a successful claim toasts NOTHING — the row is the answer', async () => 
   await waitFor(() => expect(mockAvailability).toHaveBeenCalledTimes(2))
   expect(mockToast).not.toHaveBeenCalled()
 })
+
+/**
+ * REGRESSION (#100 audit, C2). No fetch when the host has nothing to render on.
+ *
+ * `GasClaimSection` used to live INSIDE the wallet screen's `section === 'ready'`
+ * branch, so it mounted — and fetched — only when there were balance rows. A
+ * renderer hook cannot be called conditionally, so moving to one silently began
+ * asking for availability on the error, loading and no-wallet paths as well. The
+ * no-wallet case is the plain waste: a brand-new user with no wallet anywhere
+ * gets a round trip whose every answer is `no_wallet`.
+ */
+test('disabled: nothing is fetched, and the renderer answers null for everything', async () => {
+  const { result } = renderHook(() => useGasClaimChip({ enabled: false }))
+  // A tick, so a fetch that WAS going to fire has had its chance to.
+  await act(async () => {
+    await Promise.resolve()
+  })
+  expect(mockAvailability).not.toHaveBeenCalled()
+  expect(result.current(OPEN)).toBeNull()
+})
+
+test('enabled by default — a host that passes nothing still gets the offer', async () => {
+  const { result } = renderHook(() => useGasClaimChip())
+  await waitFor(() => expect(mockAvailability).toHaveBeenCalled())
+  await waitFor(() => expect(result.current(OPEN)).not.toBeNull())
+})
+
+/**
+ * The docblock in useGasClaimChip claims two IDENTICAL failures each toast,
+ * because `useGasClaim` clears `error` at the start of every claim so the value
+ * genuinely changes null → X → null → X. That is a real property of an effect
+ * keyed on the value, and it was asserted in a comment and nowhere else — the
+ * exact shape of defect this audit found in #69's job-id docblock.
+ *
+ * Without the reset the second failure would be silent: same string, no change,
+ * no effect, and a user tapping twice sees feedback once.
+ */
+test('the SAME failure twice toasts twice — the error is cleared between claims', async () => {
+  mockClaim.mockRejectedValue(new ApiClientError(403, 'Forbidden', 'verify your phone number', 'X'))
+  const { result } = renderHook(() => useGasClaimChip())
+  await waitFor(() => expect(mockAvailability).toHaveBeenCalled())
+
+  for (let i = 0; i < 2; i += 1) {
+    const chip = await chipFor(result, OPEN)
+    await act(async () => {
+      chip.props.onClaim(OPEN)
+    })
+  }
+  await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(2))
+})

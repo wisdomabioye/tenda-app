@@ -7,7 +7,7 @@
  * since it was written, and its own header explains why — "you have nothing
  * here" and "we could not read this" are different facts.
  */
-import { Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { render, screen } from '@testing-library/react-native'
 import type { WalletChainBalance } from '@tenda/shared'
 import { WalletBalanceRows } from '../WalletBalanceRows'
@@ -113,4 +113,25 @@ test('a row with no action renders exactly what it did before the slot existed',
   // Structural equality, not a snapshot file: the claim is that an empty slot
   // is invisible, and a snapshot would happily record it becoming visible.
   expect(withSlot).toStrictEqual(without)
+})
+
+/**
+ * REGRESSION (#100 audit, C1). The action slot must not make rows taller.
+ *
+ * The first cut gave the native line `minHeight: 20` so a row with a chip and a
+ * row without would match. They did — at 20pt each, when the native text's own
+ * line box is 16 (lineHeight 15 + marginTop 1). Every row on the screen grew by
+ * 4pt to spare the rare row that gains a chip from changing height, which is
+ * the opposite of the trade #100 exists to make: the offer is supposed to cost
+ * nothing to the user who is not being offered anything.
+ *
+ * Asserted on the style rather than a measured layout because RTL does not lay
+ * out: a `minHeight` on this container is precisely the mistake, so its absence
+ * is the thing worth pinning.
+ */
+test('the action slot imposes no minimum height — a row without an offer is unchanged', () => {
+  render(<WalletBalanceRows balances={[chain()]} renderChainAction={() => null} />)
+  const line = screen.getByTestId('native-line')
+  const flat = StyleSheet.flatten(line.props.style) as { minHeight?: number }
+  expect(flat.minHeight).toBeUndefined()
 })

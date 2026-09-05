@@ -65,7 +65,11 @@ export function GasClaimChip({ offer, claiming, onClaim }: GasClaimChipProps) {
         s.chip,
         {
           borderColor: theme.colors.border.default,
-          backgroundColor: theme.colors.surface.card,
+          // `surface.inset`, NOT `surface.card`: the balance row this sits on is
+          // itself `surface.card` (WalletBalanceRows), so the first cut painted
+          // the chip in exactly its parent's colour and left a 1px divider-toned
+          // border as the only thing separating a CONTROL from its background.
+          backgroundColor: theme.colors.surface.inset,
           opacity: pressed || claiming ? 0.6 : 1,
         },
       ]}

@@ -22,8 +22,17 @@ export interface GasClaimState {
   claiming: string | null
   /** The last claim failure, already human-readable. */
   error: string | null
-  /** Claim one chain's seed, then refresh so the state reflects the server. */
-  claim(chain_id: string): Promise<void>
+  /**
+   * Claim one chain's seed, then refresh so the state reflects the server.
+   *
+   * RETURNS the human-readable failure, or null on success — as well as storing
+   * it in `error`. The return is what a caller should react to: `error` is a
+   * value, and a surface that watched the value missed a SECOND identical
+   * failure, because React coalesces the clear-then-set into one commit and an
+   * effect keyed on an unchanged value never runs. That silence is the exact
+   * thing `GAS_CLAIM_COPY.failed` exists to prevent.
+   */
+  claim(chain_id: string): Promise<string | null>
   /** Re-read availability — for a pull-to-refresh, or after a grant lands. */
   refresh(): Promise<void>
 }
@@ -36,9 +45,26 @@ export interface GasClaimState {
  * (the prompt renders inside it). A module cache here would also have to be
  * registered for sign-out clearing, which is a cost with nothing to buy.
  */
-export function useGasClaim(): GasClaimState {
+export interface UseGasClaimOptions {
+  /**
+   * Whether to read availability at all. Defaults to true.
+   *
+   * Exists because a RENDERER hook cannot be called conditionally (#100): the
+   * wallet screen calls it above its own section branch, so without this the
+   * offer was fetched on the error, loading and no-wallet paths too — states
+   * with no balance row to put a chip on, and in the no-wallet case a round
+   * trip whose every answer is `no_wallet`. The component this replaced only
+   * mounted inside the ready branch and so never asked.
+   */
+  enabled?: boolean
+}
+
+export function useGasClaim({ enabled = true }: UseGasClaimOptions = {}): GasClaimState {
   const [chains, setChains] = useState<GasSeedAvailability[]>([])
-  const [loading, setLoading] = useState(true)
+  // Not loading when we are not going to read: `loading` means "an answer is
+  // coming", and a surface holding its shape for an answer that will never
+  // arrive is the skeleton-forever bug.
+  const [loading, setLoading] = useState(enabled)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,11 +83,12 @@ export function useGasClaim(): GasClaimState {
   }, [])
 
   useEffect(() => {
+    if (!enabled) return
     void refresh()
-  }, [refresh])
+  }, [refresh, enabled])
 
   const claim = useCallback(
-    async (chain_id: string) => {
+    async (chain_id: string): Promise<string | null> => {
       setClaiming(chain_id)
       setError(null)
       try {
@@ -71,13 +98,16 @@ export function useGasClaim(): GasClaimState {
         // there is no second source to disagree with it. It also picks up the
         // idempotent answer when this was a second tap.
         await refresh()
+        return null
       } catch (e) {
         // The server's message is written for this exact refusal — "verify your
         // phone", "claims are paused" — so it beats a generic sentence. But a
         // failure with NO message (a dropped connection) must still say
         // something: silence here is indistinguishable from a tap that never
         // registered.
-        setError(e instanceof ApiClientError ? e.message : GAS_CLAIM_COPY.failed)
+        const message = e instanceof ApiClientError ? e.message : GAS_CLAIM_COPY.failed
+        setError(message)
+        return message
       } finally {
         setClaiming(null)
       }
