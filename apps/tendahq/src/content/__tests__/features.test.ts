@@ -10,6 +10,7 @@ import {
 import { CHAIN_MANIFEST } from '@tenda/shared/chains'
 import { AGENT_BADGE_LABEL } from '@tenda/shared/constants/users'
 import { displayFor, type LandingChain } from '../chains'
+import { LIVE_CHAINS, PLANNED_CHAINS } from '../chain-status'
 
 /**
  * The onboarding cards are the page's claim that gas is not in your way. Two
@@ -273,14 +274,36 @@ describe('gas-free start sentence', () => {
     expect(sentence.endsWith('.')).toBe(true)
   })
 
-  it('includes a rail that works on testnet — it is built, and it is reachable there', () => {
-    // The distinction #51 introduced. A 'testnet' rail belongs in this sentence
-    // (it genuinely works on the networks this release talks to); a 'roadmap'
-    // rail does not, because it does not exist.
-    expect(featureFor('feeCurrency')?.status).toBe('testnet')
+  it('includes a built rail and excludes one that does not exist', () => {
+    // The distinction #51 introduced, and it is about BUILT vs not — never
+    // about which chain. Both 'live' and 'testnet' belong in this sentence
+    // because both describe a rail that genuinely works; only 'roadmap' is
+    // excluded, because that rail does not exist.
+    //
+    // feeCurrency read 'testnet' until Celo mainnet was deployed 2026-09-06 and
+    // now reads 'live'. Pinning the literal made this assertion a snapshot of
+    // which chains happened to be deployed, so it now asserts what the sentence
+    // actually depends on. The testnet arm keeps its own coverage below.
+    expect(featureFor('feeCurrency')?.status).not.toBe('roadmap')
     expect(gasFreeSentence(['feeCurrency'])).not.toBe('')
     expect(featureFor('paymaster')?.status).toBe('roadmap')
     expect(gasFreeSentence(['paymaster'])).toBe('')
+  })
+
+  it('still calls a built rail on an undeployed chain testnet, not live', () => {
+    // Called with arguments rather than read off the manifest, for the reason
+    // statusFor is exported at all: once every chain a rail runs on is live,
+    // the 'testnet' arm stops being reachable from the live manifest — and it
+    // is the arm that has to be right the moment a NEW chain is added ahead of
+    // its deploy. Guarding it through whichever chain happens to be undeployed
+    // today is how this assertion broke when Celo went live.
+    const undeployed = PLANNED_CHAINS
+    expect(undeployed.length).toBeGreaterThan(0)
+    expect(statusFor('built', undeployed)).toBe('testnet')
+    expect(statusFor('unbuilt', undeployed)).toBe('roadmap')
+    // And a mixed set counts as live: one reachable chain is enough.
+    expect(statusFor('built', [...undeployed, ...LIVE_CHAINS])).toBe('live')
+    expect(statusFor('built', [])).toBe('testnet')
   })
 
   it('describes no rail that does not exist', () => {

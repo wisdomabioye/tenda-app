@@ -275,7 +275,15 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     namespace: 'eip155',
     family: 'celo',
     kind: 'mainnet',
-    status: 'planned',
+    // LIVE 2026-09-06. TendaEscrow 0x9D0193f7B607A15079bFE29aE28D69044F62c391,
+    // tx 0x2aa4a7db7b1f70ba39fedf05ede5fb49a9e312d8571a4deaa4c5ef18bfb27241,
+    // block 76748260, receipt status 0x1 — a broadcast transaction WITH a
+    // receipt, which is what this field means. Verified on Celoscan as an exact
+    // match, and the on-chain runtime was compared byte for byte against the
+    // local build. The three null-hash `forge script` simulations the ChainStatus
+    // docblock warns about are the ones on disk before this; the real broadcast
+    // replaced run-latest.json.
+    status: 'live',
     displayName: 'CELO',
     minConfirmations: 3,
     publicRpcUrl: 'https://forno.celo.org',

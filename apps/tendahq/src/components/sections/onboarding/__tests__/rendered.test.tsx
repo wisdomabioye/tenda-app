@@ -97,11 +97,32 @@ describe('onboarding rendered', () => {
     expect(wallet?.status).toBe('live')
   })
 
-  it('shows a Testnet pill for a built rail nobody can reach on mainnet yet', () => {
-    // Not Roadmap: both gas rails are built and verified on-chain, and calling
-    // them unbuilt is the opposite error to calling them live.
-    const testnetCards = ONBOARDING_FEATURES.filter((f) => f.status === 'testnet')
-    expect(testnetCards.length).toBeGreaterThan(0)
-    expect(html).toContain(FEATURE_STATUS_DISPLAY.testnet.label)
+  /**
+   * This replaces an assertion that REQUIRED a Testnet card to exist. It held
+   * while the USDC-gas rail ran only on an undeployed Celo mainnet; Celo went
+   * live 2026-09-06 and the card became Live, so the old test failed for the
+   * best possible reason — the claim it guarded had become true. What has to
+   * keep working is that every status a card can hold renders its own pill and
+   * that they stay distinguishable, which does not depend on which chains
+   * happen to be deployed this week.
+   */
+  it('renders the right pill for every status a card actually holds', () => {
+    const held = new Set(ONBOARDING_FEATURES.map((f) => f.status))
+    expect(held.size).toBeGreaterThan(0)
+    for (const status of held) {
+      expect(html).toContain(FEATURE_STATUS_DISPLAY[status].label)
+    }
+    // A status NO card holds must not appear, or the pill is being rendered
+    // from something other than the card's status.
+    for (const status of ['live', 'testnet', 'roadmap'] as const) {
+      if (held.has(status)) continue
+      expect(html).not.toContain(`>${FEATURE_STATUS_DISPLAY[status].label}<`)
+    }
+    // The three labels are distinct, so containment above cannot pass by one
+    // label being a substring of another.
+    const labels = (['live', 'testnet', 'roadmap'] as const).map(
+      (s) => FEATURE_STATUS_DISPLAY[s].label,
+    )
+    expect(new Set(labels).size).toBe(labels.length)
   })
 })
