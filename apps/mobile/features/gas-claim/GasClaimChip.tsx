@@ -26,6 +26,7 @@
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { GasSeedAvailability } from '@tenda/shared'
+import { radius } from '@/theme/tokens'
 import { Text } from '@/components/ui'
 import { GAS_CLAIM_COPY } from './copy'
 
@@ -75,7 +76,9 @@ export function GasClaimChip({ offer, claiming, onClaim }: GasClaimChipProps) {
       ]}
     >
       {claiming ? (
-        // Sized to the label it replaces, so the row does not reflow mid-claim.
+        // The pill's `minWidth` keeps this from collapsing to the spinner's own
+        // width mid-claim. It is a FLOOR, not a measured match to the label —
+        // saying otherwise would be a number nobody checked.
         <ActivityIndicator size="small" color={theme.colors.content.secondary} />
       ) : (
         <Text size={10.5} weight="semibold" color={theme.colors.content.secondary}>
@@ -88,10 +91,17 @@ export function GasClaimChip({ offer, claiming, onClaim }: GasClaimChipProps) {
 
 const s = StyleSheet.create({
   chip: {
-    height: 20,
+    // Literal, like Button's own HEIGHTS — control heights are not tokenised yet
+  // (#64 tracks that). Tokenising this one alone would be the drift inverted.
+  height: 20,
     minWidth: 54,
     paddingHorizontal: 8,
-    borderRadius: 999,
+    // `radius.full`, not a literal. Every other control on mobile reads a radius
+    // token, and the token block says why in as many words: Button's hand-kept
+    // literals were the thing web and tendahq then copied by hand. A pill here
+    // written as `999` would be the same drift starting again — and a different
+    // number from the 9999 the token holds, for no reason.
+    borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

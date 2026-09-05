@@ -10,6 +10,7 @@
 import { StyleSheet } from 'react-native'
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GasSeedAvailability } from '@tenda/shared'
+import { radius } from '@/theme/tokens'
 import { GasClaimChip } from '../GasClaimChip'
 import { GAS_CLAIM_COPY } from '../copy'
 
@@ -115,4 +116,20 @@ test('the chip is not painted in the balance row’s own surface', () => {
   const ROW_SURFACE = '#fff' // what WalletBalanceRows uses: theme.colors.surface.card
   expect(flat.backgroundColor).toBeDefined()
   expect(flat.backgroundColor).not.toBe(ROW_SURFACE)
+})
+
+/**
+ * REGRESSION (#100 audit, C9). The pill radius comes from the token, not a literal.
+ *
+ * Every other control on mobile reads a `radius.*` token, and tokens.ts says in
+ * as many words why: Button's hand-kept literals were what web and tendahq then
+ * copied by hand. The first cut of this chip wrote `999` — the same drift
+ * starting again, and a different number from the 9999 the token holds.
+ */
+test('the pill radius is the radius.full token, not a hand-written literal', () => {
+  render(<GasClaimChip offer={offer()} claiming={false} onClaim={jest.fn()} />)
+  const flat = StyleSheet.flatten(screen.getByRole('button').props.style) as {
+    borderRadius?: number
+  }
+  expect(flat.borderRadius).toBe(radius.full)
 })
