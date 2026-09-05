@@ -34,7 +34,13 @@ before(async () => {
   fx = await startAnvilFixture(PORT)
   const mint = await fx.creatorWallet.writeContract({ address: fx.tokenAddr, abi: ERC20_ABI, functionName: 'mint', args: [agent.address, 100_000_000n] })
   await fx.pub.waitForTransactionReceipt({ hash: mint })
-  const relayer = viemEvmRelayer({ rpc_url: fx.rpc_url, chain_id: ANVIL_CHAIN_ID, private_key: ANVIL_KEYS.relayer })
+  const relayer = viemEvmRelayer({
+    rpc_url: fx.rpc_url,
+    // One anvil node.
+    rpc_url_fallback: undefined,
+    chain_id: ANVIL_CHAIN_ID,
+    private_key: ANVIL_KEYS.relayer,
+  })
   relayerAddress = relayer.address
   adapter = evmAdapter({
     chain_id: ANVIL_CHAIN_ID,
@@ -97,7 +103,13 @@ test('the server-derived authorization nonce equals the contract\'s authorizatio
 })
 
 test('the live EIP-3009 probe: the mock answers, a contract without the getter does not', { skip }, async () => {
-  const relayer = viemEvmRelayer({ rpc_url: fx.rpc_url, chain_id: ANVIL_CHAIN_ID, private_key: ANVIL_KEYS.relayer })
+  const relayer = viemEvmRelayer({
+    rpc_url: fx.rpc_url,
+    // One anvil node.
+    rpc_url_fallback: undefined,
+    chain_id: ANVIL_CHAIN_ID,
+    private_key: ANVIL_KEYS.relayer,
+  })
   assert.strictEqual(await relayer.supportsReceiveWithAuthorization(fx.tokenAddr), true)
   assert.strictEqual(await relayer.supportsReceiveWithAuthorization(fx.escrowAddr), false)
 })

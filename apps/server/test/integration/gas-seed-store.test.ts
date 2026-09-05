@@ -21,8 +21,9 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { chains } from '@tenda/shared/db/schema/chains'
-import { gas_grants, user_wallets } from '@tenda/shared/db/schema/identity'
-import { dispatchGasSeeds, drizzleGasSeedStore, type GasSeedSender } from '@server/features/gas-seed'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
+import { drizzleGasSeedStore } from '@server/features/gas-seed'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 
@@ -91,8 +92,8 @@ test('one user\'s wallets are never offered to another', { skip }, async () => {
 
 // ---------- the claim/finalize/release cycle, against postgres ---------------
 //
-// The unit suite drives `dispatchGasSeeds` through a hand-written store, so it
-// proves the ORCHESTRATION and nothing about the SQL. Idempotency is the part
+// The unit suites drive the claim jobs through a hand-written store, so they
+// prove the ORCHESTRATION and nothing about the SQL. Idempotency is the part
 // that cannot be taken on trust: the "never double-pay" property is a PRIMARY
 // KEY conflict, and a fake that returns false on a second call demonstrates
 // only that the fake was written that way.
@@ -184,26 +185,78 @@ test('claimGrant is won ONCE — the second caller is refused by the database it
   assert.strictEqual(held[0]?.tx_ref, row.tx_ref)
 })
 
-test('finalizeGrant replaces the placeholder; releaseGrant frees the slot for a retry', { skip }, async () => {
+test('the lifecycle against a real table: claimed → submitted → delivered', { skip }, async () => {
   const app = getApp()
   await withSeedableChain(app)
   const user = await createUser(app)
   const store = drizzleGasSeedStore(app.db)
-  const claim = {
-    user_id: user.row.id,
-    chain_id: SEEDABLE_CHAIN,
-    amount_raw: SEED_AMOUNT,
-    tx_ref: `pending:${user.row.id}:${SEEDABLE_CHAIN}`,
-  }
-  await store.claimGrant(claim)
+  const claim = { user_id: user.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }
+
+  // A fresh claim holds the slot with NO reference — nothing has been signed.
+  assert.strictEqual(await store.claimGrant(claim), true)
+  const [fresh] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(fresh?.status, 'claimed')
+  assert.strictEqual(fresh?.tx_ref, null, 'a claimed slot names no transaction')
+  assert.strictEqual(fresh?.submitted_at, null)
 
   const txRef = `0x${'ab'.repeat(32)}`
-  await store.finalizeGrant(user.row.id, SEEDABLE_CHAIN, txRef)
-  const [stamped] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
-  assert.strictEqual(stamped?.tx_ref, txRef, 'a stranded `pending:` ref is a grant that never paid')
-  assert.strictEqual(stamped?.amount_raw, SEED_AMOUNT)
+  const at = new Date()
+  assert.strictEqual(await store.markSubmitted({ ...claim, tx_ref: txRef, submitted_at: at }), true)
+  const [submitted] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(submitted?.status, 'submitted')
+  assert.strictEqual(submitted?.tx_ref, txRef)
+  assert.strictEqual(submitted?.submitted_at?.getTime(), at.getTime())
+  assert.strictEqual(submitted?.amount_raw, SEED_AMOUNT)
 
-  // Release is what makes a failed transfer retryable rather than permanent.
+  await store.markDelivered(user.row.id, SEEDABLE_CHAIN)
+  const [delivered] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(delivered?.status, 'delivered')
+  assert.strictEqual(delivered?.tx_ref, txRef, 'delivering must not disturb the reference')
+})
+
+test('markSubmitted is status-guarded: only a CLAIMED slot accepts a reference', { skip }, async () => {
+  // The guard that stops a redelivered broadcast job from replacing the hash of
+  // a transfer already in flight — which would leave the first transfer live and
+  // unattributable while the row pointed at a second one.
+  const app = getApp()
+  await withSeedableChain(app)
+  const user = await createUser(app)
+  const store = drizzleGasSeedStore(app.db)
+  const claim = { user_id: user.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }
+  await store.claimGrant(claim)
+
+  const first = `0x${'11'.repeat(32)}`
+  assert.strictEqual(await store.markSubmitted({ ...claim, tx_ref: first, submitted_at: new Date() }), true)
+
+  const second = `0x${'22'.repeat(32)}`
+  assert.strictEqual(
+    await store.markSubmitted({ ...claim, tx_ref: second, submitted_at: new Date() }),
+    false,
+    'a second attempt must be refused, not silently overwrite',
+  )
+  const [row] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(row?.tx_ref, first, 'the first transfer keeps the slot')
+})
+
+test('markUnresolved holds the slot; only a chain-attested failure releases it', { skip }, async () => {
+  const app = getApp()
+  await withSeedableChain(app)
+  const user = await createUser(app)
+  const store = drizzleGasSeedStore(app.db)
+  const claim = { user_id: user.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }
+  await store.claimGrant(claim)
+  await store.markSubmitted({ ...claim, tx_ref: `0x${'cd'.repeat(32)}`, submitted_at: new Date() })
+
+  await store.markUnresolved(user.row.id, SEEDABLE_CHAIN)
+  const [row] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(row?.status, 'unresolved')
+  assert.strictEqual(
+    await store.claimGrant(claim),
+    false,
+    'an unresolved grant must NOT be re-claimable — the money may have moved',
+  )
+
+  // Release is what makes a chain-attested failure retryable rather than permanent.
   await store.releaseGrant(user.row.id, SEEDABLE_CHAIN)
   assert.deepStrictEqual(
     await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id)),
@@ -212,78 +265,96 @@ test('finalizeGrant replaces the placeholder; releaseGrant frees the slot for a 
   assert.strictEqual(await store.claimGrant(claim), true, 'the slot must be claimable again')
 })
 
+test('markDelivered refuses a slot that was never signed', { skip }, async () => {
+  // Defence in depth against the worst outcome this feature has: a user stamped
+  // as paid for a transfer nobody ever made. No caller can reach it today — the
+  // confirm job only acts on `submitted` — but the (user_id, chain_id) key makes
+  // the mistake permanent, so the write refuses it rather than trusting callers.
+  const app = getApp()
+  await withSeedableChain(app)
+  const user = await createUser(app)
+  const store = drizzleGasSeedStore(app.db)
+  await store.claimGrant({ user_id: user.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT })
+
+  await store.markDelivered(user.row.id, SEEDABLE_CHAIN)
+
+  const [row] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(row?.status, 'claimed', 'a claimed slot must not become delivered')
+  assert.strictEqual(row?.tx_ref, null)
+})
+
+test('markUnresolved cannot pull a DELIVERED grant back into doubt', { skip }, async () => {
+  // A confirmation racing a delivery must not un-stamp it. The guard is on the
+  // status, so the late writer finds nothing to update.
+  const app = getApp()
+  await withSeedableChain(app)
+  const user = await createUser(app)
+  const store = drizzleGasSeedStore(app.db)
+  const claim = { user_id: user.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }
+  await store.claimGrant(claim)
+  await store.markSubmitted({ ...claim, tx_ref: `0x${'ef'.repeat(32)}`, submitted_at: new Date() })
+  await store.markDelivered(user.row.id, SEEDABLE_CHAIN)
+
+  await store.markUnresolved(user.row.id, SEEDABLE_CHAIN)
+  const [row] = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user.row.id))
+  assert.strictEqual(row?.status, 'delivered')
+})
+
 test('a user mid-transfer does not block everyone else\'s seed on that chain', { skip }, async () => {
-  // The placeholder must be unique per SLOT, and this is the only arrangement
-  // that can tell: `gas_grants.tx_ref` is UNIQUE, and dispatch replaces the
-  // placeholder as soon as the transfer lands — so two sequential users never
-  // hold two placeholders at once and a chain-only placeholder passes. The
-  // window that matters is a transfer still IN FLIGHT: user A has claimed and
-  // not yet finalized while user B arrives. A placeholder derived from
-  // anything less than the (user, chain) key makes B's claim a duplicate-key
-  // violation, and B is denied a seed by A's timing.
+  // The property that replaced the derived `pending:<user>:<chain>` placeholder.
+  // `gas_grants.tx_ref` is UNIQUE, and a claimed slot now stores NULL there —
+  // Postgres treats NULLs as distinct in a unique index, so any number of users
+  // can hold unbroadcast claims at once. A constant placeholder string would
+  // have made the second claimant a duplicate-key violation, denied a seed by
+  // someone else's timing.
   //
   // The unit suite cannot see this at all: its store fake has no uniqueness.
   const app = getApp()
   await withSeedableChain(app)
   const store = drizzleGasSeedStore(app.db)
-  const log = { info() {}, warn() {} }
+  const a = await createUser(app)
+  const b = await createUser(app)
 
-  async function seedableUser(): Promise<{ id: string; address: string }> {
-    const user = await createUser(app)
-    const address = evmAddress()
-    await app.db
-      .insert(user_wallets)
-      .values({ chain_ns: 'eip155', address, user_id: user.row.id, is_primary: true })
-    return { id: user.row.id, address }
-  }
-
-  const inFlight = await seedableUser()
-  const arriving = await seedableUser()
-
-  // A's transfer never returns until we let it, so A's placeholder row stays.
-  let landA: (result: { tx_ref: string }) => void = () => {}
-  let sendEntered: () => void = () => {}
-  const sending = new Promise<void>((resolve) => { sendEntered = resolve })
-  const hanging: GasSeedSender = {
-    send: () => {
-      // Entering `send` IS the proof the claim landed — dispatch claims the
-      // slot before it calls the sender. Signalling beats polling the table on
-      // a timer: a deadline long enough to be reliable is also long enough to
-      // make this suite slow, and a time-dependent assertion is exactly the
-      // shape #44 was.
-      sendEntered()
-      return new Promise((resolve) => { landA = resolve })
-    },
-  }
-  const dispatchA = dispatchGasSeeds(
-    { store, senders: new Map([[SEEDABLE_CHAIN, hanging]]), log },
-    inFlight.id,
+  assert.strictEqual(
+    await store.claimGrant({ user_id: a.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }),
+    true,
   )
-  await sending
-  assert.ok(await claimed(app, inFlight.id), 'A must be holding an unfinalized placeholder')
-
-  // B arrives while A is still in flight.
-  const resultB = await dispatchGasSeeds(
-    {
-      store,
-      senders: new Map([[SEEDABLE_CHAIN, { send: async () => ({ tx_ref: `0x${'bb'.repeat(32)}` }) }]]),
-      log,
-    },
-    arriving.id,
+  assert.strictEqual(
+    await store.claimGrant({ user_id: b.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT }),
+    true,
+    'B was denied while A held an unbroadcast claim',
   )
-  assert.deepStrictEqual(
-    resultB.granted.map((g) => g.chain_id),
-    [SEEDABLE_CHAIN],
-    `B was denied while A was mid-transfer: ${JSON.stringify(resultB.skipped)}`,
-  )
-
-  landA({ tx_ref: `0x${'aa'.repeat(32)}` })
-  const resultA = await dispatchA
-  assert.strictEqual(resultA.granted.length, 1, 'A completes normally once its transfer lands')
 })
 
-/** Does this user hold a grant row whose tx_ref is still the placeholder? */
-async function claimed(app: ReturnType<typeof getApp>, user_id: string): Promise<boolean> {
-  const rows = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, user_id))
-  return rows.some((r) => r.tx_ref.startsWith('pending:'))
-}
+test('the UNIQUE reference still stops one transaction being stamped onto two grants', { skip }, async () => {
+  // The last line of defence, and it survives the column becoming nullable.
+  const app = getApp()
+  await withSeedableChain(app)
+  const store = drizzleGasSeedStore(app.db)
+  const a = await createUser(app)
+  const b = await createUser(app)
+  const shared = `0x${'99'.repeat(32)}`
+  const at = new Date()
+
+  await store.claimGrant({ user_id: a.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT })
+  await store.claimGrant({ user_id: b.row.id, chain_id: SEEDABLE_CHAIN, amount_raw: SEED_AMOUNT })
+  await store.markSubmitted({ user_id: a.row.id, chain_id: SEEDABLE_CHAIN, tx_ref: shared, submitted_at: at })
+
+  // Matched on the CONSTRAINT NAME, not merely on "something threw". A bare
+  // string second argument is `assert.rejects`'s message parameter, so it
+  // accepts any rejection — including one from the status guard — and the test
+  // would stay green while the uniqueness it exists for was gone.
+  //
+  // The name is on the CAUSE: drizzle wraps the driver error, so its own message
+  // is just "Failed query: update ...". Reading through to the cause is what
+  // makes this assertion about the unique index rather than about any failure.
+  await assert.rejects(
+    () => store.markSubmitted({ user_id: b.row.id, chain_id: SEEDABLE_CHAIN, tx_ref: shared, submitted_at: at }),
+    (err: unknown) => {
+      assert.ok(err instanceof Error, 'expected an Error')
+      assert.match(String(err.cause), /gas_grants_tx_ref_uq/)
+      return true
+    },
+    'two grants must never share one on-chain reference',
+  )
+})

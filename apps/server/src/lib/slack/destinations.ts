@@ -8,6 +8,13 @@
  * name is DERIVED from the registry key and never parsed back, so the key and
  * its variable cannot drift apart.
  *
+ * A destination is an AUDIENCE, not a topic. `disputes` and `ops` are separate
+ * because the people are: a mediator cannot top up a hot wallet and the person
+ * holding its key has no business reading dispute context. Both had shared one
+ * room, and the room was named after only one of them. Add a destination when
+ * a NEW SET OF PEOPLE has to read something, not when a new kind of thing
+ * happens — two rooms with the same membership is a filter, not a channel.
+ *
  * Env: `SLACK_WEBHOOK_<KEY>`, e.g. SLACK_WEBHOOK_DISPUTES.
  *
  * Two-tier configuration check, on purpose:
@@ -24,7 +31,14 @@ import { isAbsoluteUrl, optionalEnv, urlEnvProblems } from '@server/lib/env'
 import type { SlackWebhookConfig } from './transport'
 
 interface SlackDestinationSpec {
-  /** What this destination is for; surfaced in .env.example and boot errors. */
+  /**
+   * Who watches this room, in one line. Documentation, not plumbing: it is the
+   * sentence copied into .env.example above the var, and a unit test asserts
+   * every destination has a non-empty one so a new room cannot arrive nameless.
+   *
+   * It does NOT reach boot errors — `slackConfigProblems` delegates to
+   * `urlEnvProblems`, which names the env KEY and nothing else.
+   */
   description: string
 }
 
@@ -36,6 +50,9 @@ interface SlackDestinationSpec {
 export const SLACK_DESTINATIONS = {
   disputes: {
     description: 'Channel the mediation team watches for newly raised disputes',
+  },
+  ops: {
+    description: 'Channel the operators of the hot wallets and chain rails watch',
   },
 } as const satisfies Record<string, SlackDestinationSpec>
 

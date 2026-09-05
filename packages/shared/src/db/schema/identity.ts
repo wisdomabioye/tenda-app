@@ -113,8 +113,29 @@ export const user_wallets = pgTable(
   (t) => [
     primaryKey({ columns: [t.chain_ns, t.address] }),
     index('user_wallets_user_idx').on(t.user_id),
-    uniqueIndex('user_wallets_one_primary_per_user_idx')
-      .on(t.user_id)
+    /**
+     * ONE MAIN WALLET PER CHAIN FAMILY, not one per account.
+     *
+     * It used to be `.on(t.user_id)` alone, which made "primary" a single
+     * account-wide marker: a user whose main wallet was Solana had NO main
+     * wallet on any EVM chain, and `set-primary-wallet` took the marker AWAY
+     * from Solana to give it to eip155. Every surface that resolves a signing
+     * wallet then fell through to a tiebreak the user could not influence —
+     * escrow building, agent funding, application guards and the gas-seed
+     * claim all picked FOR them, with no way to say otherwise.
+     *
+     * Per (user_id, chain_ns), a user answers "which wallet do I transact with
+     * on this chain" once per chain family, which is the question a multi-chain
+     * app actually has to answer. It does not replace the deterministic
+     * tiebreak in `resolvePrimaryWalletAddress` — that still decides for a
+     * namespace where the user has not chosen — it makes the fallback rarer and
+     * gives the user an override.
+     *
+     * Still PARTIAL (`where is_primary = true`), so the many non-primary rows
+     * cost nothing and only the chosen ones are constrained.
+     */
+    uniqueIndex('user_wallets_one_primary_per_chain_idx')
+      .on(t.user_id, t.chain_ns)
       .where(sql`${t.is_primary} = true`),
     // THERE IS DELIBERATELY NO INDEX ON `address` ALONE (#118, dropped
     // 2026-08-22). S5.7 added one with the text_pattern_ops operator class for
@@ -259,27 +280,3 @@ export const email_otps = pgTable(
   },
   (t) => [index('email_otps_email_idx').on(t.email, t.created_at)],
 )
-
-// First-link native-gas seed grants. PRIMARY KEY (user_id, chain_id) keeps
-// the grant idempotent across wallet rotations on the same chain.
-export const gas_grants = pgTable(
-  'gas_grants',
-  {
-    user_id: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'restrict' }),
-    chain_id: text('chain_id')
-      .notNull()
-      .references(() => chains.id, { onDelete: 'restrict' }),
-    amount_raw: numeric('amount_raw', { precision: 78, scale: 0 }).notNull(),
-    // UNIQUE so a retried insert with the same on-chain ref is rejected at
-    // the DB layer — defence in depth on top of the (user_id, chain_id) PK.
-    tx_ref: text('tx_ref').notNull().unique('gas_grants_tx_ref_uq'),
-    granted_at: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.user_id, t.chain_id] }),
-    index('gas_grants_chain_idx').on(t.chain_id),
-  ],
-)
-

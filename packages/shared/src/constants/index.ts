@@ -14,6 +14,12 @@ export { MESSAGE_MAX_LENGTH } from './chat'
 export { NAME_MAX_LENGTH, AGENT_BADGE_LABEL } from './users'
 export { ErrorCode } from './errors'
 export {
+  SESSION_CLIENT_HEADER,
+  SESSION_CLIENTS,
+  parseSessionClient,
+  type SessionClient,
+} from './session'
+export {
   X402_VERSION,
   X_PAYMENT_HEADER,
   X_PAYMENT_RESPONSE_HEADER,
@@ -26,6 +32,11 @@ export {
 } from './relay'
 export type { ErrorCode as ErrorCodeType } from './errors'
 export { SOLANA_TX_FEE_LAMPORTS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, solanaChainId, solanaPublicRpcUrl, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'
+export {
+  GAS_GRANT_STATUSES,
+  GAS_SEED_UNRESOLVED_AFTER_MS,
+  type GasGrantStatus,
+} from './gas-seed'
 export {
   EXCHANGE_DISPUTE_REASON_MIN_LENGTH,
   EXCHANGE_DISPUTE_REASON_MAX_LENGTH,

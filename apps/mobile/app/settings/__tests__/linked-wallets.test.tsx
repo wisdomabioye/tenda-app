@@ -87,16 +87,16 @@ describe('LinkedWalletsScreen, manage wallets', () => {
     expect(screen.getByText('manage-0xSecondary')).toBeTruthy()
   })
 
-  it('sets a non-primary wallet as primary', async () => {
+  it('sets a wallet as the MAIN one for its chain', async () => {
     authState.wallets = [SECONDARY]
     setPrimaryMock.mockResolvedValue({})
     render(<LinkedWalletsScreen />)
     fireEvent.press(screen.getByText('manage-0xSecondary'))
-    fireEvent.press(screen.getByText('Make primary'))
+    fireEvent.press(screen.getByText('Make main EVM wallet'))
     await waitFor(() =>
       expect(setPrimaryMock).toHaveBeenCalledWith({ chain_ns: 'eip155', address: '0xSecondary' }),
     )
-    expect(mockShowToast).toHaveBeenCalledWith('success', 'Primary wallet updated')
+    expect(mockShowToast).toHaveBeenCalledWith('success', 'Main EVM wallet updated')
   })
 
   it('confirms then unlinks a wallet', async () => {
@@ -146,7 +146,7 @@ describe('LinkedWalletsScreen, manage wallets', () => {
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         'error',
-        'Make another wallet your primary first, then unlink this one',
+        'Make another wallet the main one for this chain first, then unlink this one',
       ),
     )
   })

@@ -7,9 +7,15 @@
  * "no real network in unit / route tests").
  */
 
-import { Connection, PublicKey, type Commitment, type ConnectionConfig } from '@solana/web3.js'
+import { Connection, PublicKey } from '@solana/web3.js'
 import { withTimeout } from '@tenda/shared'
 import type { ChainId } from '@server/chains/types'
+import {
+  DEFAULT_RPC_TIMEOUT_MS,
+  commitmentFor,
+  perEndpointTimeoutMs,
+  solanaConnections,
+} from '@server/chains/rpc'
 
 /** Minimal decoded view of a fetched transaction. */
 export interface SolanaTxResult {
@@ -44,79 +50,21 @@ export interface SolanaRpc {
   ): Promise<Array<{ signature: string; slot: number }>>
 }
 
-/** Default per-call timeout. Override via `createSolanaRpc` args. */
-export const DEFAULT_RPC_TIMEOUT_MS = 15_000
-
 /**
- * Per-endpoint attempt timeout when a fallback RPC is configured. Failover IS
- * the retry (two independent providers beat re-hitting a degraded one), so
- * each endpoint gets one bounded attempt: worst case 2 × 6s = 12s, inside the
- * mobile client's 20s tx-build budget — a rate-limited or dead primary
- * degrades to ~6s + fallback latency instead of an aborted request. Mirrors
- * FALLBACK_EVM_RPC_TIMEOUT_MS (chains/evm/rpc).
+ * RPC POLICY LIVES IN chains/rpc, NOT HERE — timeouts, commitment, connection
+ * config and the fallback rule all moved there when the EVM hot wallet and the
+ * gas-seed funder needed the same decisions and each invented their own.
+ * Re-exported so this module's existing importers and its test file keep their
+ * paths, and so there is still exactly one definition.
  */
-export const FALLBACK_RPC_TIMEOUT_MS = 6_000
-
-/**
- * The fallback URL, or undefined when there is none worth failing over to —
- * a fallback that duplicates the primary is no failover at all. Single source
- * for the predicate the timeout policy, the connection config and the factory
- * branch all share.
- */
-export function distinctFallbackUrl(args: {
-  rpc_url: string
-  rpc_url_fallback?: string
-}): string | undefined {
-  return args.rpc_url_fallback !== undefined && args.rpc_url_fallback !== args.rpc_url
-    ? args.rpc_url_fallback
-    : undefined
-}
-
-/**
- * Per-endpoint budget: an explicit override wins; otherwise tight when a
- * DISTINCT fallback exists (failover is the retry policy), relaxed when the
- * endpoint stands alone.
- */
-export function perEndpointTimeoutMs(args: {
-  timeout_ms?: number
-  rpc_url: string
-  rpc_url_fallback?: string
-}): number {
-  if (args.timeout_ms !== undefined) return args.timeout_ms
-  return distinctFallbackUrl(args) !== undefined
-    ? FALLBACK_RPC_TIMEOUT_MS
-    : DEFAULT_RPC_TIMEOUT_MS
-}
-
-/**
- * Commitment policy (recorded decision): devnet accepts `'confirmed'`,
- * mainnet requires `'finalized'`.
- */
-export function commitmentFor(chain_id: ChainId): Commitment {
-  return chain_id === 'solana:devnet' ? 'confirmed' : 'finalized'
-}
-
-/**
- * Connection config for every endpoint this factory builds. web3.js's default
- * 429 handling retries up to 5 attempts with exponential backoff (0.5/1/2/4s
- * of sleep ≈ 7.5s, plus five round-trips), which starves `failoverSolanaRpc`:
- * the primary burns most or all of its per-call timeout before the fallback is
- * ever tried. With a fallback, a 429 must
- * surface immediately so failover engages in one round-trip — failover is the
- * retry policy. WITHOUT one, the built-in backoff stays on: it is the only
- * recovery a lone endpoint has for a transient burst limit. Same conditional
- * decision the EVM adapter records (`retryCount: 0` only in its fallback
- * branch).
- */
-export function solanaConnectionConfig(args: {
-  chain_id: ChainId
-  has_fallback: boolean
-}): ConnectionConfig {
-  return {
-    commitment: commitmentFor(args.chain_id),
-    disableRetryOnRateLimit: args.has_fallback,
-  }
-}
+export {
+  DEFAULT_RPC_TIMEOUT_MS,
+  FALLBACK_RPC_TIMEOUT_MS,
+  commitmentFor,
+  distinctFallbackUrl,
+  perEndpointTimeoutMs,
+  solanaConnectionConfig,
+} from '@server/chains/rpc'
 
 /**
  * Minimal `Connection` surface the wrapper consumes. Tests inject a fake
@@ -200,13 +148,11 @@ export function createSolanaRpc(args: {
   timeout_ms?: number
 }): SolanaRpc {
   const commitment = commitmentFor(args.chain_id)
-  const fallback_url = distinctFallbackUrl(args)
-  const connection_config = solanaConnectionConfig({
-    chain_id: args.chain_id,
-    has_fallback: fallback_url !== undefined,
-  })
-  const buildPort = (rpcUrl: string): SolanaConnectionPort => {
-    const connection = new Connection(rpcUrl, connection_config)
+  // Clients from the central seam (chains/rpc) — this module no longer decides
+  // how many endpoints there are or how they are configured, only how to map
+  // one into the port the adapter consumes.
+  const connections = solanaConnections(args)
+  const buildPort = (connection: Connection): SolanaConnectionPort => {
     return {
       getLatestBlockhash: () => connection.getLatestBlockhash(commitment),
       getTransaction: (tx_ref) =>
@@ -225,10 +171,11 @@ export function createSolanaRpc(args: {
     }
   }
   const timeout_ms = perEndpointTimeoutMs(args)
-  const primary = solanaRpcFromConnection(buildPort(args.rpc_url), timeout_ms)
-  if (fallback_url === undefined) return primary
-  const secondary = solanaRpcFromConnection(buildPort(fallback_url), timeout_ms)
-  return failoverSolanaRpc(primary, secondary)
+  const [first, ...rest] = connections.map((c) => solanaRpcFromConnection(buildPort(c), timeout_ms))
+  // `failoverSolanaRpc` rather than `withRpcFallback`: this seam fails over per
+  // READ on an already-mapped SolanaRpc, which is a different shape from
+  // wrapping a raw client call. One endpoint returns the port untouched.
+  return rest.reduce((primary, secondary) => failoverSolanaRpc(primary, secondary), first)
 }
 
 /** Fail over each independent read; callers retain the same protocol-specific interface. */

@@ -18,6 +18,7 @@ import {
   SystemProgram,
   Transaction,
   VersionedTransaction,
+  type TransactionError,
   type TransactionInstruction,
 } from '@solana/web3.js'
 import {
@@ -29,6 +30,7 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token'
 import bs58 from 'bs58'
+import type { SolanaGasSeedPort } from '@server/features/gas-seed'
 import { FailedTransactionMetadata, LiteSVM } from 'litesvm'
 import { PROGRAM_ID, platformPda } from '@server/chains/solana/pdas'
 import type { SolanaRelayer } from '@server/chains/solana/relay/relayer'
@@ -207,6 +209,57 @@ export function litesvmRelayer(svm: LiteSVM, keypair: Keypair): SolanaRelayer {
         throw new Error(`${res.err().toString()}\n${res.meta().logs().join('\n')}`)
       }
       return bs58.encode(res.signature())
+    },
+  }
+}
+
+/**
+ * A `SolanaGasSeedPort` backed by LiteSVM — the gas seed against the REAL Solana
+ * runtime, without a cluster.
+ *
+ * Sits beside `litesvmRelayer` and works the same way: adapt the in-process VM
+ * to the seam the production code already takes. It is the difference between
+ * "the transfer is built correctly" and "the lamports arrived", and only the
+ * second is worth funding a hot wallet on.
+ *
+ * SIGN AND SEND ARE SEPARATE HERE TOO, mirroring production (#58), which is what
+ * lets a suite prove the property the split exists for: that the signature — the
+ * reference the grant row records — is known BEFORE anything is submitted.
+ *
+ * `signatureStatus` answers from what the VM actually executed: a signature it
+ * never saw is null, one that failed carries its error, one that succeeded
+ * carries none. That third case is the one the old code could not reach without
+ * a cluster, and the reason a landed-and-failed transfer used to be stamped as
+ * delivered.
+ */
+export function litesvmGasSeedPort(svm: LiteSVM, keypair: Keypair): SolanaGasSeedPort {
+  const outcomes = new Map<string, TransactionError | null>()
+  return {
+    async sign({ to, lamports }) {
+      const tx = new Transaction().add(
+        SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
+      )
+      tx.recentBlockhash = svm.latestBlockhash()
+      tx.feePayer = keypair.publicKey
+      tx.sign(keypair)
+      return { signature: bs58.encode(tx.signature ?? Buffer.alloc(0)), raw: tx.serialize() }
+    },
+    async send(raw) {
+      const tx = Transaction.from(raw)
+      const signature = bs58.encode(tx.signature ?? Buffer.alloc(0))
+      const res = svm.sendTransaction(tx)
+      if (res instanceof FailedTransactionMetadata) {
+        // RECORDED, not thrown. A transaction the runtime accepted and then
+        // failed is exactly the #57 case, and a throw here would make it
+        // indistinguishable from one that never reached the VM at all.
+        outcomes.set(signature, res.err().toString())
+        return
+      }
+      outcomes.set(signature, null)
+    },
+    async signatureStatus(signature) {
+      if (!outcomes.has(signature)) return null
+      return { err: outcomes.get(signature) ?? null }
     },
   }
 }

@@ -8,7 +8,7 @@
  */
 
 import bs58 from 'bs58'
-import { CHAIN_MANIFEST, type ChainManifestEntry } from '@tenda/shared'
+import { CHAIN_MANIFEST, isEvmAddress, type ChainManifestEntry } from '@tenda/shared'
 import { ABSOLUTE_PREFIX, isAbsoluteUrl } from '@server/lib/env'
 
 /** An ed25519 secret key as web3's `Keypair.fromSecretKey` takes it: 64 raw bytes. */
@@ -43,7 +43,20 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     // Optional: enables the admin sign pre-flight check when set.
     { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'base58' },
     { key: 'usdcMint', envSuffix: 'USDC_MINT', required: false, kind: 'base58' },
-    { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'str' },
+    /**
+     * `base58Key`, matching `relayerKey` below — NOT the `str` it was (#53b).
+     *
+     * `str` asked only for a non-empty value, so a malformed key passed boot and
+     * threw far away, inside `Keypair.fromSecretKey`. That used to be contained:
+     * the auto-send trigger built its senders inside a promise chain so a wallet
+     * link could not 500 on it. #53c-2 deleted that path, and the construction
+     * now happens inside a CLAIM request — where the same throw is a 500 on a
+     * user pressing a button, rather than a boot error naming the variable.
+     *
+     * The two Solana secrets are the same shape (a base58 64-byte secret), so
+     * validating one and not the other was never a decision, only an omission.
+     */
+    { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'base58Key' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
     // Relayer hot wallet for agent funding (#18): fee payer of relayed
     // creates. base58 64-byte secret (the shape GAS_SEED_KEY has, checked
@@ -234,7 +247,12 @@ export function isValid(kind: SecretKind, value: string): boolean {
       // the failure to runtime.
       return isAbsoluteUrl(value, CHAIN_ENDPOINT_PROTOCOLS)
     case 'evmAddr':
-      return /^0x[0-9a-fA-F]{40}$/.test(value)
+      // The shared predicate (#104), not a third copy of the literal. Case is
+      // deliberately not checked: operators paste the checksummed spelling a
+      // block explorer shows, and this runs at BOOT, so refusing it would fail
+      // a deploy over an EIP-55 display convention. `evmKey` below stays its
+      // own literal — {64} is a PRIVATE KEY, a different predicate entirely.
+      return isEvmAddress(value)
     case 'evmKey':
       return /^0x[0-9a-fA-F]{64}$/.test(value)
     case 'base58':

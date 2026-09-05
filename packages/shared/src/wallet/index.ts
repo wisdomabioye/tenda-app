@@ -54,6 +54,7 @@ export {
   WC_CANCELLED_MESSAGE,
 } from './request-guard'
 export {
+  displayWalletAddress,
   isLinkedWallet,
   pickWalletAddress,
   orderedSignerAddresses,

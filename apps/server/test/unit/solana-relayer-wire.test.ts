@@ -51,7 +51,15 @@ function signedTx(): VersionedTransaction {
 }
 
 test('reads go out with the chain commitment and come back typed', async () => {
-  const relayer = web3SolanaRelayer({ rpc_url: rpc.url, chain_id: CHAIN_ID, secret_key_base58: bs58.encode(keypair.secretKey) })
+  const relayer = web3SolanaRelayer({
+    rpc_url: rpc.url,
+    // One stub node: this suite asserts what goes ON THE WIRE, and a second
+    // endpoint would only add an idle server. Named rather than omitted —
+    // the parameter is a required key so the choice stays visible.
+    rpc_url_fallback: undefined,
+    chain_id: CHAIN_ID,
+    secret_key_base58: bs58.encode(keypair.secretKey),
+  })
   assert.strictEqual(await relayer.getBalance(keypair.publicKey), 1_500_000n)
   assert.strictEqual(await relayer.minimumBalanceForRentExemption(165), 1_650n)
   assert.strictEqual(await relayer.isBlockhashValid(BLOCKHASH), true)
@@ -63,7 +71,15 @@ test('reads go out with the chain commitment and come back typed', async () => {
 })
 
 test('preflight simulates WITH signature verification, and the broadcast pins the preflight commitment', async () => {
-  const relayer = web3SolanaRelayer({ rpc_url: rpc.url, chain_id: CHAIN_ID, secret_key_base58: bs58.encode(keypair.secretKey) })
+  const relayer = web3SolanaRelayer({
+    rpc_url: rpc.url,
+    // One stub node: this suite asserts what goes ON THE WIRE, and a second
+    // endpoint would only add an idle server. Named rather than omitted —
+    // the parameter is a required key so the choice stays visible.
+    rpc_url_fallback: undefined,
+    chain_id: CHAIN_ID,
+    secret_key_base58: bs58.encode(keypair.secretKey),
+  })
   const tx = signedTx()
   assert.deepStrictEqual(await relayer.simulate(tx), { err: null, logs: ['Program log: ok'] })
   assert.strictEqual(await relayer.send(tx), SIGNATURE)
@@ -76,7 +92,16 @@ test('preflight simulates WITH signature verification, and the broadcast pins th
 })
 
 test('a node that answers late is a timeout, not a hung request', { timeout: 5_000 }, async () => {
-  const relayer = web3SolanaRelayer({ rpc_url: rpc.url, chain_id: CHAIN_ID, secret_key_base58: bs58.encode(keypair.secretKey), timeout_ms: 100 })
+  const relayer = web3SolanaRelayer({
+    rpc_url: rpc.url,
+    // No second endpoint, so `timeout_ms` below is the ONLY budget and the
+    // assertion names it. With a fallback there would be two: a per-attempt one
+    // inside the failover and this one around the whole operation.
+    rpc_url_fallback: undefined,
+    chain_id: CHAIN_ID,
+    secret_key_base58: bs58.encode(keypair.secretKey),
+    timeout_ms: 100,
+  })
   delay_ms = 400
   try {
     await assert.rejects(relayer.getBalance(keypair.publicKey), /solana rpc timeout after 100ms: getBalance/)

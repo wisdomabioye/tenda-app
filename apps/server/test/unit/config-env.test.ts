@@ -9,7 +9,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
-import { slackEnvKey } from '@server/lib/slack'
+import { knownSlackEnvKeys, slackEnvKey } from '@server/lib/slack'
 import { buildOtpSenders, type OtpSenderHost } from '@server/lib/onboarding-deps'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 
@@ -22,10 +22,19 @@ const REQUIRED: Record<string, string> = {
   API_BASE_URL: 'https://api.tenda.test',
 }
 
-/** Vars under test — cleared each time so a real .env can't colour a result. */
+/**
+ * Vars under test — cleared each time so a real .env can't colour a result.
+ *
+ * The Slack entries are DERIVED from the registry, never listed. Hand-written,
+ * this said `slackEnvKey('disputes')`, and the day a second destination existed
+ * it stopped clearing all of them: a developer with a malformed
+ * SLACK_WEBHOOK_OPS exported failed NINE tests here, none of them about Slack,
+ * because `loadConfig` validates every destination while this cleared one.
+ * MEASURED, not feared.
+ */
 const OPTIONAL = [
   'ADMIN_DASHBOARD_URL',
-  slackEnvKey('disputes'),
+  ...knownSlackEnvKeys(),
   'CORS_ORIGIN',
   'GOOGLE_OAUTH_CLIENT_IDS',
   'OPENROUTER_MODERATION_MODEL',
@@ -56,6 +65,21 @@ test('the fixture covers exactly the vars config declares required', () => {
   // Drift guard: without it, adding a REQUIRED_ENV_VAR makes every test in
   // this file fail at once with no hint that the fixture is what went stale.
   assert.deepStrictEqual(Object.keys(REQUIRED).sort(), [...REQUIRED_ENV_VARS].sort())
+})
+
+test('the cleared list covers every Slack destination the config validates', () => {
+  // The sibling of the REQUIRED guard above, and it exists because the missing
+  // version cost nine failing tests: `loadConfig` validates every destination in
+  // the registry, so any one this fixture does not clear leaks in from the
+  // developer's own shell and fails tests that have nothing to do with Slack.
+  //
+  // Asserted rather than trusted to the spread, so re-hardcoding the list fails
+  // HERE, naming the destination, instead of only on a machine that happens to
+  // export it.
+  const cleared = new Set(OPTIONAL)
+  for (const key of knownSlackEnvKeys()) {
+    assert.ok(cleared.has(key), `${key} is validated at boot but never cleared here`)
+  }
 })
 
 test('loads a valid environment', () => {

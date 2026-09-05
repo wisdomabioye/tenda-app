@@ -14,6 +14,7 @@
 
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { AppDatabase } from '../plugins/db'
+import type { SessionClient } from '@tenda/shared'
 // `UserRole` is intentionally NOT imported here. v1's enum and v2's
 // `user_role_v2` enum differ (v2 renames 'dispute_resolver' → 'dispute_admin'
 // + new values). Until #34 cutover removes the v1 schema, JWT.role is typed
@@ -82,10 +83,21 @@ declare module '@fastify/jwt' {
     payload: {
       id: string
       role: string
+      /**
+       * Which client minted this session ('mobile' | 'web'), when it said so.
+       * Optional because web says nothing, older app builds say nothing, and
+       * every token issued before #53c-1 says nothing — a required field here
+       * would invalidate every live session on deploy.
+       *
+       * A generic session fact (see shared constants/session.ts), NOT a
+       * gas-seed hook: it survives the removal of any feature that reads it.
+       */
+      client?: SessionClient
     }
     user: {
       id: string
       role: string
+      client?: SessionClient
     }
   }
 }

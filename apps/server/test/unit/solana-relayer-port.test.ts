@@ -73,7 +73,19 @@ test('sign adds the keypair signature in place and send broadcasts exactly the s
 })
 
 test('web3SolanaRelayer derives the hot wallet from the base58 secret and refuses a malformed one', () => {
-  const relayer = web3SolanaRelayer({ rpc_url: 'http://127.0.0.1:8899', chain_id: 'solana:devnet', secret_key_base58: bs58.encode(keypair.secretKey) })
+  const relayer = web3SolanaRelayer({
+    rpc_url: 'http://127.0.0.1:8899',
+    // Key derivation is this test's subject; failover is covered in
+    // gas-seed-rpc-fallback.test.ts.
+    rpc_url_fallback: undefined,
+    chain_id: 'solana:devnet',
+    secret_key_base58: bs58.encode(keypair.secretKey),
+  })
   assert.ok(relayer.public_key.equals(keypair.publicKey))
-  assert.throws(() => web3SolanaRelayer({ rpc_url: 'http://127.0.0.1:8899', chain_id: 'solana:devnet', secret_key_base58: bs58.encode(keypair.publicKey.toBytes()) }))
+  assert.throws(() => web3SolanaRelayer({
+      rpc_url: 'http://127.0.0.1:8899',
+      rpc_url_fallback: undefined,
+      chain_id: 'solana:devnet',
+      secret_key_base58: bs58.encode(keypair.publicKey.toBytes()),
+    }))
 })

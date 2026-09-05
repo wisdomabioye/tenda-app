@@ -31,6 +31,15 @@ const EVENT_DRIVEN: Partial<Record<JobName, string>> = {
   alerts: 'enqueued by the escrow fan-out when a dispute is raised on-chain',
   'fanout-subscribers':
     'enqueued by the escrow fan-out on escrow.created, one job per new gig',
+  // Demand-driven by definition (#53c-1): a user asks for their gas seed and
+  // the endpoint enqueues the transfer. Scheduling it would be the automatic
+  // send this feature exists to replace.
+  'gas-seed': 'enqueued by POST /v1/wallet/gas-seed when a user claims their seed',
+  // Enqueued by the broadcast job once a transfer exists to ask about (#58).
+  // NOT scheduled, deliberately: a repeatable would have to scan for submitted
+  // grants, and the job that created one already knows which. Its own retries
+  // are what turn "the chain has not answered" into waiting.
+  'gas-seed-confirm': 'enqueued by the gas-seed broadcast job once a transfer is recorded',
 }
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {
@@ -38,6 +47,7 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
     'expire-applications',
     'expire-escrows',
     'expire-fiat-quotes',
+    'gas-seed-balance-check',
     'prune-notifications',
     'reconcile',
     'reconcile-fiat',
@@ -60,6 +70,10 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   // tick that finds work spends real gas.
   assert.strictEqual(byName.get('sweep-escrows')?.every_ms, 15 * 60_000)
   assert.strictEqual(byName.get('prune-notifications')?.every_ms, 24 * 3_600_000)
+  // #53b watches the gas-seed hot wallets. Brisk on purpose and cheap to be so:
+  // a tick is one RPC read per seeded chain, and how often an OPERATOR hears
+  // about a low wallet is set by the alert's chain-keyed dedup, not by this.
+  assert.strictEqual(byName.get('gas-seed-balance-check')?.every_ms, 15 * 60_000)
 })
 
 test('every repeatable has a positive interval and an object payload', () => {

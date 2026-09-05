@@ -1,5 +1,5 @@
 /**
- * Linked-wallets panel: list + primary badge, add (link) success/decline,
+ * Linked-wallets panel: list + per-chain main-wallet badge, add (link) success/decline,
  * set-primary, and the unlink confirm flow with the server-guard copy
  * (WALLET_IS_PRIMARY / WALLET_IN_USE) — the server enforces, we translate.
  */
@@ -64,9 +64,9 @@ describe('why-link explainer', () => {
 })
 
 describe('list', () => {
-  it('renders each wallet with truncated address, namespace and primary badge', () => {
+  it('renders each wallet with truncated address, chain family and its main badge', () => {
     render(<LinkedWalletsPanel />)
-    expect(screen.getByText('Primary')).toBeInTheDocument()
+    expect(screen.getByText('Main Solana')).toBeInTheDocument()
     expect(screen.getByText('Solana')).toBeInTheDocument()
     expect(screen.getByText('EVM')).toBeInTheDocument()
     // truncated, not full addresses
@@ -111,12 +111,12 @@ describe('add wallet', () => {
 })
 
 describe('set primary + unlink', () => {
-  it('promotes a non-primary wallet', async () => {
+  it('promotes a wallet to main for its own chain', async () => {
     mockSetPrimary.mockResolvedValue({ ok: true })
     render(<LinkedWalletsPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Make primary' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Make main EVM' }))
     expect(mockSetPrimary).toHaveBeenCalledWith({ chain_ns: 'eip155', address: '0xSecondary22' })
-    expect(await screen.findByText('Primary wallet updated')).toBeInTheDocument()
+    expect(await screen.findByText('Main EVM wallet updated')).toBeInTheDocument()
   })
 
   it('unlink asks for confirmation first, then calls the API', async () => {
@@ -140,7 +140,7 @@ describe('set primary + unlink', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Unlink' })[0]!)
     await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Unlink' }))
     expect(
-      await screen.findByText('Make another wallet your primary first, then unlink this one'),
+      await screen.findByText('Make another wallet the main one for this chain first, then unlink this one'),
     ).toBeInTheDocument()
   })
 
@@ -161,8 +161,8 @@ describe('set primary + unlink', () => {
   it('a failed set-primary shows the generic copy when the error is not typed', async () => {
     mockSetPrimary.mockRejectedValueOnce(new Error('down'))
     render(<LinkedWalletsPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Make primary' }))
-    expect(await screen.findByText('Could not update the primary wallet')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Make main EVM' }))
+    expect(await screen.findByText('Could not update your main wallet')).toBeInTheDocument()
   })
 
   it('an empty ready list invites the first link', () => {

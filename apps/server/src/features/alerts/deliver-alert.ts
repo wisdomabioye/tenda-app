@@ -60,7 +60,14 @@ export async function deliverAlert(
   //    the webhook may have been removed since. Unconfigured is a NORMAL state
   //    (Slack is optional), so this is info, not a warning — an operator who
   //    never set it up does not want a warning per dispute.
-  if (!channel.configured(deps.env)) {
+  //
+  //    Asked about THIS KIND. A channel can route its kinds to different places
+  //    (Slack sends disputes and gas-seed balances to different rooms), so a
+  //    channel-wide answer would let an alert whose own room is unset fall
+  //    through to step 5, where the contract says a missing destination is a
+  //    caller bug and throws — burning the retries and filing a real alert where
+  //    nobody looks.
+  if (!channel.configured(job.ref.kind, deps.env)) {
     deps.log.info(context, 'alert channel is not configured, skipping')
     return
   }

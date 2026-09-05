@@ -8,6 +8,18 @@
  */
 export const WALLET_COPY = {
   title: 'Wallet',
+  /**
+   * The gas grant, as WEB says it (#53c-2). The claim is app-only — the server
+   * refuses a session stamped `web` — so this names the grant and points at the
+   * app rather than offering a control that would be refused.
+   *
+   * Kept beside the rest of this screen's copy, not inside the notice
+   * component, because it has to stay in step with the app's own wording and
+   * the landing page's: three surfaces describing one grant.
+   */
+  gasClaimTitle: 'Gas on us',
+  gasClaimInApp:
+    'A one-time gas grant is waiting on your account. Claim it in the Tenda app — it is paid to the wallet you sign with.',
   refresh: 'Refresh',
   refreshing: 'Refreshing…',
   /**

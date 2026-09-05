@@ -21,6 +21,7 @@ const tx = (id: string): UserEscrowTransaction =>
 const mockRetryWallets = jest.fn()
 const mockRetryChains = jest.fn()
 let mockSection: WalletSectionState = 'ready'
+const mockGasClaimOptions: unknown[] = []
 /** The hook's own feed type, so the fixture cannot drift from groupByDay's
  *  output (it carries a `tag` a hand-written row would have missed). */
 type FeedRow = ReturnType<typeof import('@/hooks/useWalletScreen').useWalletScreen>['feed'][number]
@@ -64,6 +65,25 @@ jest.mock('@/components/ui', () => {
     Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
   }
 })
+// The gas claim mounts here now (#53c-2) and fetches availability on mount.
+// Stubbed to render nothing: this suite is about which WALLET section shows,
+// and an unstubbed fetch would make the screen's test depend on a network call
+// failing — plus it settles after the test ends, which is what produced
+// "update not wrapped in act" noise across every case in the file.
+jest.mock('@/features/gas-claim', () => ({
+  // Returns a RENDERER, matching the real hook's shape (#100) — a mock that
+  // returned a component would let the screen compile against a contract the
+  // feature no longer has.
+  //
+  // CAPTURES its argument. A mock that ignored it made the screen's `enabled`
+  // wiring unfalsifiable: a mutation replacing `section === 'ready'` with a bare
+  // `true` passed every test in this file, which is exactly the regression
+  // #100's audit had just fixed.
+  useGasClaimChip: (opts: unknown) => {
+    mockGasClaimOptions.push(opts)
+    return () => null
+  },
+}))
 jest.mock('@/components/reputation', () => ({ RestrictionBanner: () => null }))
 jest.mock('@/components/sync/FailedSyncPanel', () => ({ FailedSyncPanel: () => null }))
 jest.mock('@/components/wallet', () => {
@@ -205,4 +225,24 @@ test('an empty feed says so only once it has finished loading', () => {
   mockIsLoadingTransactions = false
   rerender(<WalletScreen />)
   expect(screen.getByText('No transactions yet')).toBeTruthy()
+})
+
+/**
+ * The gas claim is read only when there are rows to offer it on (#100 audit C10).
+ *
+ * `useGasClaimChip` is a hook, so the screen must call it unconditionally — which
+ * means the ONLY thing standing between a no-wallet user and a pointless
+ * availability round trip is the `enabled` argument. That argument had no test:
+ * replacing it with a bare `true` passed this whole file.
+ */
+test.each([
+  ['ready' as const, true],
+  ['no-wallet' as const, false],
+  ['wallets-error' as const, false],
+  ['balances-unavailable' as const, false],
+])('section %s → the gas claim read is enabled=%s', (section, expected) => {
+  mockGasClaimOptions.length = 0
+  mockSection = section
+  render(<WalletScreen />)
+  expect(mockGasClaimOptions[0]).toEqual({ enabled: expected })
 })

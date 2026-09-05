@@ -8,10 +8,18 @@
 // assertQueryShape), and a second local copy could drift from the one the
 // server's types actually satisfy — which is how the `as Record<string,
 // unknown>` casts got in.
-import { apiConfig, ApiClientError, type ApiError, type QueryParams } from '@tenda/shared'
+import {
+  apiConfig,
+  ApiClientError,
+  SESSION_CLIENT_HEADER,
+  type ApiError,
+  type QueryParams,
+} from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
+/** This app's session stamp (#53c-1). Web sends 'web'; older builds send none. */
+const MOBILE_CLIENT = 'mobile'
 
 const REQUEST_TIMEOUT_MESSAGE =
   'The server is taking longer than expected. Please check whether the action completed before retrying.'
@@ -82,6 +90,13 @@ export async function request<TResponse>(
   if (options?.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
+
+  // WHICH client is talking (#53c-1). Sent on every request rather than only at
+  // sign-in: the server reads it where a session is MINTED, and there is more
+  // than one such route (/auth/verify, /agent/register) — a per-route opt-in is
+  // how one of them silently stops stamping. It is a claim, not a proof, and
+  // nothing security-bearing rests on it alone.
+  headers[SESSION_CLIENT_HEADER] = MOBILE_CLIENT
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`

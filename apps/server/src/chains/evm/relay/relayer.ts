@@ -42,6 +42,15 @@ const EIP3009_PROBE_ABI = [
 
 export function viemEvmRelayer(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint, threaded into `evmHotWallet`. REQUIRED as a key.
+   *
+   * It was absent entirely, so this relayer — agent funding (#18) and the #43
+   * abandoned-escrow sweep — ran on ONE endpoint even where the chain had a
+   * fallback configured, while the escrow adapter beside it failed over. The
+   * Solana relayer had the identical gap; both are now compile errors to repeat.
+   */
+  rpc_url_fallback: string | undefined
   /** CAIP-2 id of a manifest EVM chain, e.g. `'eip155:84532'`. */
   chain_id: string
   /** 0x-hex secp256k1 private key of the hot wallet (CHAIN_<ID>_RELAYER_KEY). */

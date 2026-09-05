@@ -14,7 +14,6 @@
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import {
-  type AmountRaw,
   type AssetId,
   type BuildTxArgs,
   type ChainAdapter,
@@ -24,7 +23,8 @@ import {
   type VerifyAuthSigArgs,
   type VerifyTxArgs,
 } from '@server/chains/types'
-import { buildEvmCall } from './builders'
+import { buildEvmCall, approvalHint } from './builders'
+import { tagCalldata } from '@server/features/attribution'
 import { verifyEvmReceipt } from './verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
 import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
@@ -122,7 +122,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     // the transaction is built for one contract and paid to another.
     const target = (build.contract ?? args.escrow_contract) as `0x${string}`
     const ctx = await buildContext(context, build, target)
-    const call = buildEvmCall(build, ctx)
+    // ERC-8021 attribution (#83): the suffix rides the calldata the client
+    // signs, so it has to be appended HERE — before the sponsorship fork, so
+    // the userop path carries it too — and can never be added afterwards.
+    const untagged = buildEvmCall(build, ctx)
+    const call = { ...untagged, data: tagCalldata(args.chain_id, untagged.data) }
     // The signer contract: the account this call must be sent from — the
     // chain-bound party address for transitions, the client-declared wallet
     // for create. Null = unknown (fail-open read) → the field is omitted and
@@ -199,59 +203,6 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     }
   }
 
-  /**
-   * ERC-20 prerequisite the wallet must satisfy before broadcasting a PLAIN
-   * call: allowance(owner → escrow) ≥ the pull amount. Permit-built calls
-   * carry their own allowance; native assets fund via msg.value.
-   */
-  function approvalHint(
-    build: BuildTxArgs,
-    ctx: { asset_address: string | null; permit_encodable: boolean },
-    spender: `0x${string}`,
-  ): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
-    if (ctx.asset_address === null) return {}
-    const token = ctx.asset_address
-
-    // Driven by what the call ACTUALLY encodes, never by what the caller
-    // supplied. A permit that `buildEvmCall` declines to encode (its spender
-    // cannot match a superseded contract) still leaves the pull needing an
-    // allowance, so the hint has to take over — and both branches must agree on
-    // that, or one of them emits neither a permit nor a hint and the
-    // transaction reverts on a zero allowance.
-    //
-    // The spender is the contract that will actually pull the tokens: the
-    // escrow's own, not the chain's current one.
-    if (build.action === 'createEscrow' && !encodesPermit(build, ctx.permit_encodable)) {
-      return { approval: { token, spender, amount_raw: build.payload.amount_raw } }
-    }
-    if (
-      build.action === 'disputeEscrow' &&
-      !encodesPermit(build, ctx.permit_encodable) &&
-      build.payload.bond_raw !== '0'
-    ) {
-      return { approval: { token, spender, amount_raw: build.payload.bond_raw } }
-    }
-    return {}
-  }
-
-  /**
-   * Will this build encode a `*WithPermit` entry point?
-   *
-   * Mirrors `buildEvmCall`'s condition exactly — the two must not be able to
-   * disagree, since one decides whether the allowance rides the transaction and
-   * the other whether the wallet is told to grant it separately.
-   *
-   * `permit_encodable` is decided once, in `buildContext`: a permit's spender is
-   * fixed when the payload is signed, and `/v1/blockchain/permit-payload` mints
-   * it for the chain's CURRENT contract (it takes no escrow and cannot know
-   * about a superseded one), so against any other contract the signature is
-   * unusable by construction.
-   */
-  function encodesPermit(build: BuildTxArgs, permit_encodable: boolean): boolean {
-    if (build.action !== 'createEscrow' && build.action !== 'disputeEscrow') return false
-    return build.payload.permit !== undefined && permit_encodable
-  }
-
   // Current first, so a receipt carrying logs from two generations decodes the
   // live one. Lower-cased before deduping because the two inputs reach here from
   // different places — `escrow_contract` straight from the chain secret, which is
@@ -288,7 +239,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
     // BOTH: a wallet that can pay, and the operator's say-so (#43).
     ...(args.deps.relayer !== undefined && args.deps.sweepEnabled === true
-      ? { sweep: evmEscrowSweep(args.deps.relayer) }
+      ? { sweep: evmEscrowSweep(args.chain_id, args.deps.relayer) }
       : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in

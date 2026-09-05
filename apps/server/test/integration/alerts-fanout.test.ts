@@ -68,7 +68,11 @@ beforeEach(() => {
  * and it is not something one test should guard on behalf of the others.
  */
 function expectedChannels(): AlertChannel[] {
-  const configured = channelsFor('dispute.raised').filter((channel) => channel.configured())
+  const configured = channelsFor('dispute.raised').filter((channel) =>
+    // Asked about the kind this helper is about: a channel can route its kinds
+    // to different rooms, so "configured" has no channel-wide answer.
+    channel.configured('dispute.raised'),
+  )
   assert.ok(configured.length > 0, 'no configured channel — every assertion here would be vacuous')
   return configured
 }

@@ -29,8 +29,8 @@ test('settings/linked-wallets: renders the server wallets with primary badge and
   // Truncated addresses (never the full string), namespace labels, one badge.
   await expect(page.getByText('SoLP…1111')).toBeVisible()
   await expect(page.getByText('0xAb…Ef01')).toBeVisible()
-  await expect(page.getByText('Primary', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Make primary' })).toBeVisible()
+  await expect(page.getByText('Main Solana', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Make main EVM' })).toBeVisible()
 
   // Unlink asks first; cancel closes with nothing sent.
   await page.getByRole('button', { name: 'Unlink' }).first().click()

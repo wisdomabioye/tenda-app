@@ -8,11 +8,16 @@
  * exactly as pre-#33 (queue 501s, reconciliation absent, client-ping +
  * lazy expiry carry the load).
  *
- * Retry posture: verify-tx throws RetryableError while a tx awaits
- * confirmation, BullMQ retries on the queue's exponential backoff; once
- * attempts exhaust, the reconcile repeatable owns the attempt (its 5-min
- * scan re-enqueues anything the chain eventually confirms and times out
- * the rest at 30min, stage-2 § reconciliation).
+ * Retry posture: a handler throws RetryableError while a transaction awaits
+ * confirmation, and BullMQ retries on the queue's exponential backoff. What
+ * happens once attempts exhaust is PER QUEUE, which is why the failure log
+ * below does not name a specific rescuer:
+ *   - `verify-tx` is picked up by the reconcile repeatable (its 5-min scan
+ *     re-enqueues anything the chain eventually confirms and times out the rest
+ *     at 30min, stage-2 § reconciliation);
+ *   - `gas-seed-confirm` has no repeatable and needs none — it resolves itself
+ *     by marking the grant `unresolved` once it is older than the shared
+ *     give-up window, well before its attempts run out.
  */
 
 import fp from 'fastify-plugin'
@@ -59,6 +64,25 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   // so it parallelises. Lower than notifications because the volume is orders
   // of magnitude smaller: one dispute, not one per subscriber.
   alerts: 4,
+  // ONE. Claims cluster — a push, a launch, a tweet — and every send on a chain
+  // is signed by the SAME hot wallet, so two in flight race for one nonce and
+  // the loser's broadcast is refused. Auto-send (#53a) could leave this
+  // unserialised because signups arrive spread out; claims do not.
+  //
+  // One worker for the queue rather than one per chain: BullMQ concurrency is
+  // per queue, and the seed is rare enough that serialising ACROSS chains costs
+  // nothing worth a queue per chain.
+  'gas-seed': 1,
+  // FOUR, and deliberately not one (#58). Confirmation neither signs nor spends:
+  // it is a read against a chain, so it has no nonce to race and nothing to
+  // serialise. It is also the queue that WAITS — a transfer can stay unconfirmed
+  // for hours — and at concurrency 1 a single slow chain would hold the only
+  // slot and delay every other user's confirmation behind it.
+  'gas-seed-confirm': 4,
+  // One, like every repeatable: the handler walks a handful of chains
+  // sequentially and a second tick overlapping the first would read the same
+  // wallets and enqueue the same deduped alert.
+  'gas-seed-balance-check': 1,
 }
 
 interface RepeatableSpec<N extends JobName> {
@@ -90,6 +114,15 @@ export const REPEATABLES = [
   repeatable({ name: 'update-price-stats', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
   // Daily retention sweep: prunes stale personal notifications (unbounded growth).
   repeatable({ name: 'prune-notifications', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
+  // Every 15 minutes: a hot wallet drains in claims, not in seconds, and the
+  // ALERT's own dedup — keyed on the chain alone — is what decides how often an
+  // operator actually hears about it, so a brisk tick costs one RPC read per
+  // seeded chain rather than one notice.
+  repeatable({
+    name: 'gas-seed-balance-check',
+    every_ms: 15 * 60_000,
+    payload: { tick_id: 'cron' },
+  }),
 ] as const
 
 const workersPlugin: FastifyPluginAsync = async (fastify) => {
@@ -115,13 +148,16 @@ const workersPlugin: FastifyPluginAsync = async (fastify) => {
       { connection, concurrency: WORKER_CONCURRENCY[name] },
     )
     worker.on('failed', (job, err) => {
-      // RetryableError exhausting attempts is expected for slow chains,
-      // the reconcile repeatable owns the attempt from here. Anything
-      // else deserves a louder line.
+      // RetryableError exhausting attempts is expected for slow chains, and
+      // each queue has its own answer for what happens next (see the header) —
+      // so this says what was observed and leaves the recovery unnamed. It used
+      // to assert "deferred to reconcile", which was true of verify-tx and
+      // false the moment a second queue started throwing the same signal.
+      // Anything else deserves a louder line.
       if (err.name === 'RetryableError') {
         fastify.log.info(
           { queue: name, job_id: job?.id, attempts: job?.attemptsMade },
-          'worker: job deferred to reconcile (tx not yet confirmed)',
+          'worker: job retried (tx not yet confirmed)',
         )
       } else {
         fastify.log.warn(

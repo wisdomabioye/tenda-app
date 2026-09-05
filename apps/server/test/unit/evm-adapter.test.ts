@@ -2,8 +2,9 @@
  * chains/evm — builders (encode/decode round-trip + native-value rules),
  * verify pipeline (confirmations, revert, event decode, escrow_id check),
  * fetchEscrowState mapping, EOA auth-sig verify, paymaster sponsorship
- * with quota + degradation. Fully offline: fake EvmRpc/PaymasterHttp;
- * viem's pure encode/decode/sign primitives need no network.
+ * with quota + degradation, and ERC-8021 attribution ATTACHMENT (#83).
+ * Fully offline: fake EvmRpc/PaymasterHttp; viem's pure encode/decode/sign
+ * primitives need no network.
  */
 
 import { test } from 'node:test'
@@ -22,6 +23,8 @@ import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS, type EvmReceipt, type EvmRpc } from '@server/chains/evm/rpc'
 import type { PaymasterHttp } from '@server/chains/evm/paymaster'
 import { uuidToBytes } from '@server/chains/ids'
+import { decodeTag } from '@server/features/attribution'
+import { withAttributionCode } from '../helpers/attribution-env'
 import { AppError } from '@server/lib/errors'
 import { extractTxHashes } from '@server/routes/v1/webhooks/alchemy'
 import {
@@ -33,6 +36,8 @@ import {
 import type { EscrowStatus } from '@server/lib/escrow'
 
 const CHAIN_ID = 'eip155:8453'
+const CELO_CHAIN_ID = 'eip155:42220'
+const ATTRIBUTION_CODE = 'celo_558f532905be'
 const CONTRACT = '0x00000000000000000000000000000000000000e5' as const
 const USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const UUID = '0d9cd2a4-3f1e-4b6a-9c3d-2f1e4b6a9c3d'
@@ -64,9 +69,9 @@ function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   }
 }
 
-function makeAdapter(deps: Partial<EvmAdapterDeps> = {}) {
+function makeAdapter(deps: Partial<EvmAdapterDeps> = {}, chain_id = CHAIN_ID) {
   return evmAdapter({
-    chain_id: CHAIN_ID,
+    chain_id,
     rpc_url: 'http://unused.invalid',
     escrow_contract: CONTRACT,
     min_confirmations: 5,
@@ -1136,4 +1141,53 @@ test('verifyTx (wide net): an unassign receipt decodes with no hint', async () =
   const r = await a.verifyTx(TX, {})
   assert.ok(r.confirmed === true && r.failed === false)
   assert.strictEqual(r.event.name, 'AssignmentReleased')
+})
+
+// ---------- attribution (#83) ------------------------------------------------
+
+/**
+ * These assert the ATTACHMENT, not the encoder — that has its own suite in
+ * attribution.test.ts. What can only be checked here is that `buildTx` actually
+ * calls it, because a feature that works perfectly and is never invoked looks
+ * identical to one that is, right up until the leaderboard is empty.
+ *
+ * `process.env` is set and restored per test rather than injected: the adapter
+ * takes no env parameter, and threading one through it for a single feature is
+ * exactly the coupling the feature directory exists to avoid. The set/restore
+ * is `withAttributionCode` (test/helpers/attribution-env), shared with the relay
+ * suite — it was written twice before, and the restore is the half that must not
+ * drift.
+ */
+test('buildTx on a CELO chain appends the attribution suffix to the calldata it returns', async () => {
+  const tagged = await withAttributionCode(ATTRIBUTION_CODE, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.strictEqual(tagged.kind, 'evm-tx')
+  const data = (tagged as { data: `0x${string}` }).data
+  assert.deepStrictEqual(decodeTag(data), {
+    status: 'tagged',
+    codes: [ATTRIBUTION_CODE],
+    schemaId: 0,
+    missing: [],
+  })
+  // The suffix must not disturb the call: viem still decodes the function and
+  // its arguments off calldata that has trailing bytes.
+  assert.strictEqual(
+    decodeFunctionData({ abi: ESCROW_EVM_ABI, data }).functionName,
+    'createEscrow',
+  )
+})
+
+test('the SAME build on a non-Celo chain is byte-identical to the untagged one', async () => {
+  const base = await withAttributionCode(ATTRIBUTION_CODE, async () => makeAdapter().buildTx(CREATE_ARGS))
+  const none = await withAttributionCode(undefined, async () => makeAdapter().buildTx(CREATE_ARGS))
+  assert.deepStrictEqual(base, none)
+  assert.deepStrictEqual(decodeTag((base as { data: `0x${string}` }).data), { status: 'untagged' })
+})
+
+test('a CELO build with NO code configured is untagged — not tagged with an empty code', async () => {
+  const tx = await withAttributionCode(undefined, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.deepStrictEqual(decodeTag((tx as { data: `0x${string}` }).data), { status: 'untagged' })
 })

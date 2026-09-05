@@ -17,8 +17,12 @@
 import type { AlertPartyNames } from '../../identities'
 import { ALERT_KINDS } from '../../types'
 import type { AlertKind, AlertOf } from '../../types'
-import type { SlackMessage } from '@server/lib/slack'
+import type { SlackDestinationKey, SlackMessage } from '@server/lib/slack'
 import { disputeRaisedMessage, disputeRaisedPartyIds } from './kinds/dispute-raised'
+import {
+  gasSeedLowBalanceMessage,
+  gasSeedLowBalancePartyIds,
+} from './kinds/gas-seed-low-balance'
 
 /**
  * Everything the channel needs for one kind: whose names to load, and what to
@@ -30,6 +34,17 @@ import { disputeRaisedMessage, disputeRaisedPartyIds } from './kinds/dispute-rai
  * regardless of how many places the message mentions a person.
  */
 interface SlackAlertCopy<K extends AlertKind> {
+  /**
+   * Which room this kind goes to — an AUDIENCE, chosen per kind rather than per
+   * channel. It sits beside the wording on purpose: the room and the words are
+   * one editorial decision, and splitting them across two maps is how a kind
+   * comes to be readable by a set of people it was never written for.
+   *
+   * Typed as `SlackDestinationKey`, so deleting a destination from
+   * lib/slack/destinations.ts fails the build here rather than resolving to
+   * null at delivery and going quietly mute.
+   */
+  destination: SlackDestinationKey
   /** Ids the message renders. Nulls are allowed — `loadAlertPartyNames` drops them. */
   partyIds(alert: AlertOf<K>): readonly (string | null)[]
   build(alert: AlertOf<K>, names: AlertPartyNames, env: NodeJS.ProcessEnv): SlackMessage
@@ -39,12 +54,27 @@ interface SlackAlertCopy<K extends AlertKind> {
  * Kinds this channel has copy for. `Partial` on purpose: a channel is an
  * explicit OPT-IN per kind (see `AlertChannel.kinds`), so a new alert kind must
  * not start paging Slack with copy nobody wrote — it reaches nobody loudly, and
- * the coverage test in test/unit/alerts-slack-copy.test.ts says which kind.
+ * `testChannelContract` (invoked from test/unit/alerts-slack-channel.test.ts)
+ * says which kind. NOT alerts-slack-copy.test.ts, which task #45 left holding
+ * the WORDING assertions only.
  */
 const SLACK_COPY: { [K in AlertKind]?: SlackAlertCopy<K> } = {
   'dispute.raised': {
+    destination: 'disputes',
     partyIds: disputeRaisedPartyIds,
     build: disputeRaisedMessage,
+  },
+  // Slack ONLY. This is an operations fact — see the kind's own header for why
+  // the admin bell is the wrong place for it.
+  //
+  // And it goes to the OPERATORS' room, not the mediators'. The two alerts had
+  // shared one destination, which meant the only person who can act on a
+  // draining hot wallet had to be sitting in a room full of dispute context to
+  // hear about it, and every mediator read a balance they cannot top up.
+  'gas-seed.low-balance': {
+    destination: 'ops',
+    partyIds: gasSeedLowBalancePartyIds,
+    build: gasSeedLowBalanceMessage,
   },
 }
 
@@ -53,12 +83,12 @@ const SLACK_COPY: { [K in AlertKind]?: SlackAlertCopy<K> } = {
  * it. Filtered out of `ALERT_KINDS` rather than read off `Object.keys`, which
  * widens to `string[]` and would need the cast destinations.ts documents.
  *
- * While `ALERT_KINDS` has ONE member, this is observationally identical to
- * `ALERT_KINDS` itself, so no test can currently tell the derivation from a
- * hand-written list — mutation testing confirms that mutant survives. The
- * derivation is still what makes the second kind safe rather than something to
- * remember, and the "every advertised kind renders a message" test is what
- * fails the day a kind is added without copy.
+ * While Slack has copy for EVERY kind in `ALERT_KINDS`, this is observationally
+ * identical to `ALERT_KINDS` itself, so no test can currently tell the
+ * derivation from a hand-written list — mutation testing confirms that mutant
+ * survives. The derivation is still what makes the NEXT kind safe rather than
+ * something to remember, and the "every advertised kind renders a message" test
+ * is what fails the day a kind is added without copy.
  */
 export const SLACK_ALERT_KINDS: readonly AlertKind[] = ALERT_KINDS.filter(
   (kind) => SLACK_COPY[kind] !== undefined,
@@ -79,6 +109,21 @@ export function slackAlertPartyIds<K extends AlertKind>(
   alert: AlertOf<K>,
 ): readonly (string | null)[] {
   return SLACK_COPY[alert.kind]?.partyIds(alert) ?? []
+}
+
+/**
+ * The room this kind goes to, or null for a kind Slack has no copy for.
+ *
+ * The ONE place the kind→room mapping is read, so `configured` and `deliver`
+ * cannot disagree about where an alert was headed — the failure that would
+ * report the channel ready against one webhook and post to another.
+ *
+ * Null rather than a default room. A kind with no copy has no audience either,
+ * and picking one for it would send a message nobody wrote to people who did
+ * not ask for it.
+ */
+export function slackAlertDestination(kind: AlertKind): SlackDestinationKey | null {
+  return SLACK_COPY[kind]?.destination ?? null
 }
 
 /**

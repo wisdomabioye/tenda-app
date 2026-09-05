@@ -23,9 +23,19 @@ function pickUsdc(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBal
   return balances.find((b) => b.assetId === usdcId) ?? null
 }
 
+/**
+ * THE rule for which asset is a chain's native gas token: the one with no
+ * token address. Exported because the gas-claim surfaces (#53c-2) format a
+ * grant amount in it, and a second `find(a => a.token_address === null)` is how
+ * one of them would start naming a different asset than the balance rows do.
+ */
+export function nativeAssetIdOf(chain: ChainRegistryEntry): string | null {
+  return chain.assets.find((a) => a.token_address === null)?.id ?? null
+}
+
 /** The chain's native gas token (token_address === null) balance, if present. */
 function pickNative(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance | null {
-  const nativeId = chain.assets.find((a) => a.token_address === null)?.id
+  const nativeId = nativeAssetIdOf(chain)
   return balances.find((b) => b.assetId === nativeId) ?? null
 }
 

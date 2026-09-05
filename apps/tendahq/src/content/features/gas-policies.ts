@@ -38,21 +38,21 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
     fact: (c) => `feeCurrency: USDC — no ${c.natives} required`,
   },
   /*
-   * `unbuilt`, DELIBERATELY, even though the rail is fully wired on Solana.
+   * `unbuilt`, DELIBERATELY — and the reason CHANGED, so do not re-read the old
+   * one. It used to be that no EVM sender existed at all (`buildGasSeedDeps`
+   * built a Solana sender or none, and `db/seed/rows.ts` resolved a funder only
+   * for `namespace === 'solana'`). #53a fixed both: the sender is per chain id
+   * and the seeder derives a funder for any namespace.
    *
-   * The card covers every chain whose gasPolicy is 'native-seed', and since 0G
-   * joined that set the card spans both namespaces — but the seed only exists
-   * for one. TWO places hardcode it: `buildGasSeedDeps` builds a Solana sender
-   * or none at all, and `db/seed/rows.ts` resolves a funder wallet only when
-   * `namespace === 'solana'`, so an EVM chain seeds NULL and dispatch skips it
-   * in silence. A card claiming a grant on 0G would therefore be false, and a
-   * first-time user would meet that falsehood on their very first transaction.
+   * What keeps this card unbuilt now is FUNDING, not code. A chain's grant is
+   * dormant until its hot wallet holds a balance, and none does on a live
+   * chain yet — a card promising a grant that cannot be paid meets a first-time
+   * user as a failed transaction, which is exactly the cost this status avoids.
+   * #53b funds and proves it, and flips this to 'built' as its last step.
    *
-   * One card carries one status, so the choice is which way to be wrong.
-   * Understating a shipped Solana rail is visible to us and costs a user
-   * nothing; overstating an absent EVM one costs them a failed transaction.
-   * Decision taken 2026-08-31; flip to 'built' when #53 lands the EVM sender,
-   * and the copy below comes back with it.
+   * The COPY below has already moved to the claim model (#53c-2): the seed is
+   * asked for, not sent. That wording is shared with the app and the web wallet
+   * screen, and #53b inherits it rather than rewriting it.
    */
   'native-seed': {
     id: 'gas-grant',
@@ -60,8 +60,8 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
     rail: 'unbuilt',
     title: (c) => `Start with zero ${c.natives}`,
     body: (c) =>
-      `Linking your first ${c.names} wallet will seed it with enough ${c.natives} for a full escrow lifecycle — post, lock, settle. It runs on Solana today and is not yet available everywhere, so until it is you pay your own gas.`,
-    fact: () => 'one-time gas grant · not available on every chain yet',
+      `Claim a one-time ${c.natives} grant in the app — enough for a full escrow lifecycle on ${c.names}: post, lock, settle. You ask for it, we do not push it at you, and it is paid to the wallet you already sign with. Not yet available everywhere, so until it is you pay your own gas.`,
+    fact: () => 'one-time gas grant, claimed in the app · not on every chain yet',
   },
   paymaster: {
     id: 'sponsored-gas',

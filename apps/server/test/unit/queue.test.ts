@@ -22,7 +22,7 @@ import * as assert from 'node:assert'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import fastify, { type FastifyInstance } from 'fastify'
-import { stripComments } from '../helpers/source-scan'
+import { stripComments, tsFilesUnder } from '../helpers/source-scan'
 import { AppError } from '@server/lib/errors'
 import queuePlugin, {
   DEFAULT_JOB_OPTIONS,
@@ -34,15 +34,6 @@ import queuePlugin, {
   type JobPayload,
   type QueueService,
 } from '@server/plugins/queue'
-
-/** Every .ts under `dir`, recursively — the source-scan guard's input. */
-function tsFilesUnder(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) return tsFilesUnder(full)
-    return entry.name.endsWith('.ts') ? [full] : []
-  })
-}
 
 interface QueueSite {
   line: number

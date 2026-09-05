@@ -20,14 +20,14 @@ describe('LinkedWalletsScreen, failures with no server message', () => {
   // falls back when it does not. The FALLBACK half was the uncovered one, and
   // it is the half a reader sees when the network breaks rather than the API.
 
-  it('setting a primary wallet', async () => {
+  it('setting the main wallet for a chain', async () => {
     authState.wallets = [SECONDARY]
     setPrimaryMock.mockRejectedValue(new Error('socket hang up'))
     render(<LinkedWalletsScreen />)
     fireEvent.press(screen.getByText('manage-0xSecondary'))
-    fireEvent.press(screen.getByText('Make primary'))
+    fireEvent.press(screen.getByText('Make main EVM wallet'))
     await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith('error', 'Could not update the primary wallet'),
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'Could not update your main wallet'),
     )
   })
 

@@ -12,6 +12,8 @@
 
 import type { AppDatabase } from '@server/plugins/db'
 import { resolveDisputeRaised } from './kinds/dispute-raised'
+import { resolveGasSeedLowBalance } from './kinds/gas-seed-low-balance'
+import { seededChainBalance } from './kinds/gas-seed-balance-reader'
 import type { Alert, AlertKind, AlertOf, AlertRef, AlertRefOf, AlertResolver } from './types'
 
 /**
@@ -21,6 +23,13 @@ import type { Alert, AlertKind, AlertOf, AlertRef, AlertRefOf, AlertResolver } f
  */
 const RESOLVERS: { [K in AlertKind]: AlertResolver<K> } = {
   'dispute.raised': resolveDisputeRaised,
+  /**
+   * Built with the LIVE balance reader here, and injectable in its own module,
+   * for the reason every other dependency in this feature is injected: the
+   * resolver's decisions (a chain that stopped carrying a seed, a balance that
+   * cannot be read) must be provable without an RPC.
+   */
+  'gas-seed.low-balance': resolveGasSeedLowBalance(seededChainBalance),
 }
 
 /**

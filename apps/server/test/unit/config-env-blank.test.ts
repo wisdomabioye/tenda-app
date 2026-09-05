@@ -10,7 +10,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
-import { slackEnvKey } from '@server/lib/slack'
+import { knownSlackEnvKeys } from '@server/lib/slack'
 
 const REQUIRED: Record<string, string> = {
   DATABASE_URL: 'postgres://localhost/test',
@@ -21,10 +21,19 @@ const REQUIRED: Record<string, string> = {
   API_BASE_URL: 'https://api.tenda.test',
 }
 
-/** Vars under test — cleared each time so a real .env can't colour a result. */
+/**
+ * Vars under test — cleared each time so a real .env can't colour a result.
+ *
+ * The Slack entries are DERIVED from the registry, never listed. Hand-written,
+ * this said `slackEnvKey('disputes')`, and the day a second destination existed
+ * it stopped clearing all of them: a developer with a malformed
+ * SLACK_WEBHOOK_OPS exported failed NINE tests here, none of them about Slack,
+ * because `loadConfig` validates every destination while this cleared one.
+ * MEASURED, not feared.
+ */
 const OPTIONAL = [
   'ADMIN_DASHBOARD_URL',
-  slackEnvKey('disputes'),
+  ...knownSlackEnvKeys(),
   'CORS_ORIGIN',
   'GOOGLE_OAUTH_CLIENT_IDS',
   'OPENROUTER_MODERATION_MODEL',
@@ -59,15 +68,15 @@ beforeEach(() => {
  * try/finally is load-bearing, not tidiness: this sets ~25 vars, and a failed
  * assertion that skipped the cleanup would leave them set for every test after
  * it in this file — turning one real failure into a cascade that hides its own
- * cause. `beforeEach` only clears the seven vars in the OPTIONAL fixture.
+ * cause. `beforeEach` only clears what the OPTIONAL fixture names.
  */
 function assertBlankReadsAsUnset(value: string, label: string): void {
   const required = new Set<string>(REQUIRED_ENV_VARS)
   const optionalKeys = Object.keys(loadConfig()).filter((k) => !required.has(k))
   // The baseline is taken with the optional vars CLEARED, not with whatever the
   // shell happens to hold. Reading it from the ambient environment made this
-  // oracle depend on the caller: `beforeEach` clears only the seven vars in the
-  // OPTIONAL fixture, so exporting any other optional var — REDIS_URL, which the
+  // oracle depend on the caller: `beforeEach` clears only what the OPTIONAL
+  // fixture names, so exporting any other optional var — REDIS_URL, which the
   // gate now sets so that seven queue/realtime suites stop skipping — captured a
   // CONFIGURED baseline, and the blank read then differed from it for a reason
   // that is the opposite of the defect this test exists to catch.
@@ -103,4 +112,20 @@ test('the empty string is treated the same way — it is what an operator actual
   // '' is FALSY and '   ' is truthy, so the two take different code paths
   // through the readers that test truthiness rather than null.
   assertBlankReadsAsUnset('', 'an empty value')
+})
+
+test('the cleared list covers every Slack destination the config validates', () => {
+  // A drift guard on the fixture itself — the counterpart of config-env.test.ts's
+  // REQUIRED guard, for the optional half. It exists because the missing
+  // version cost nine failing tests: `loadConfig` validates every destination in
+  // the registry, so any one this fixture does not clear leaks in from the
+  // developer's own shell and fails tests that have nothing to do with Slack.
+  //
+  // Asserted rather than trusted to the spread, so re-hardcoding the list fails
+  // HERE, naming the destination, instead of only on a machine that happens to
+  // export it.
+  const cleared = new Set(OPTIONAL)
+  for (const key of knownSlackEnvKeys()) {
+    assert.ok(cleared.has(key), `${key} is validated at boot but never cleared here`)
+  }
 })

@@ -138,6 +138,31 @@ export const ErrorCode = {
   APPLICATION_NOT_OPEN:          'APPLICATION_NOT_OPEN',
   /** Apply refused: this gig does not take applications (not approval mode). */
   APPLICATIONS_NOT_OPEN:         'APPLICATIONS_NOT_OPEN',
+  // Gas-seed claim (#53c-1)
+  /**
+   * The seed is claimed from the app, and this session is not one. Covers both
+   * halves of the mobile gate — a session minted without the app's client stamp,
+   * and an account with no registered device — because the client's response to
+   * either is the same sentence, and telling an attacker WHICH half they failed
+   * only helps them.
+   */
+  GAS_SEED_MOBILE_ONLY:          'GAS_SEED_MOBILE_ONLY',
+  /**
+   * Claims are off for this chain, the chain offers no seed, no hot wallet is
+   * configured, or that wallet cannot cover another grant. Deliberately ONE
+   * code: every case is "not now, and not your fault", and the availability
+   * endpoint is where a client learns which.
+   */
+  GAS_SEED_UNAVAILABLE:          'GAS_SEED_UNAVAILABLE',
+  /** Agents fund their own gas through the x402 relayer; the seed is for humans. */
+  GAS_SEED_NOT_FOR_AGENTS:       'GAS_SEED_NOT_FOR_AGENTS',
+  /**
+   * The anti-sybil gate: a verified phone is what makes one grant per account
+   * cost something. Distinct from CONTACT_REQUIRED, which a verified EMAIL
+   * satisfies — telling a user with a verified email to "verify a contact"
+   * when they already have would be a dead end.
+   */
+  PHONE_VERIFICATION_REQUIRED:   'PHONE_VERIFICATION_REQUIRED',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',

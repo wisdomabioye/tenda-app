@@ -25,6 +25,17 @@ import type { AlertChannelName, AlertKind, AlertRef, AlertRefOf } from './types'
  */
 const REF_KEYS: { [K in AlertKind]: (ref: AlertRefOf<K>) => string } = {
   'dispute.raised': (ref) => ref.tx_ref,
+  /**
+   * The chain, with its separator removed — a CAIP-2 id is `eip155:16602`, and
+   * the ':' is exactly what `alertJobId` forbids here.
+   *
+   * The chain alone, deliberately: two low-balance alerts for one chain ARE the
+   * same alert, so the dedup window collapses a wallet that stays low into one
+   * notice per window instead of one per check. Including the balance would
+   * defeat that — the number changes on every reading, so every check would
+   * look like news.
+   */
+  'gas-seed.low-balance': (ref) => ref.chain_id.replace(/:/g, '-'),
 }
 
 /**

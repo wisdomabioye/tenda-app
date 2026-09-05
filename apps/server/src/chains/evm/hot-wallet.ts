@@ -11,10 +11,10 @@
  * What this file does NOT do is decide policy: which key, which float, and what
  * a caller is allowed to spend it on stay with the caller. This is plumbing.
  */
-import { createPublicClient, createWalletClient, http, type Chain } from 'viem'
+import { createPublicClient, createWalletClient, type Chain } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { chainById, evmChainNumericId, nativeCurrencyOf } from '@tenda/shared'
-import { DEFAULT_EVM_RPC_TIMEOUT_MS } from './rpc'
+import { evmTransport } from '@server/chains/rpc'
 
 /**
  * The viem `Chain` a wallet client needs, from the manifest entry: the numeric
@@ -43,6 +43,24 @@ function viemChainFor(chain_id: string, rpc_url: string): Chain {
  */
 export function evmHotWallet(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint, ideally a different provider. Present and DISTINCT
+   * switches both clients to a failover transport.
+   *
+   * REQUIRED as a key, `undefined` as a value, and that is the point: optional,
+   * it was simply not passed. `viemEvmRelayer` omitted it, so the agent-funding
+   * and sweep paths ran single-endpoint on chains that HAD a fallback
+   * configured — the same silent gap the Solana relayer had, found only by
+   * reading this file's callers one by one. A required key makes the omission a
+   * compile error instead.
+   *
+   * Safe for the wallet client as well as the reader, and that is worth stating
+   * because it is not true of every chain: the transaction is signed ONCE, at a
+   * fixed nonce, so re-broadcasting it to a second endpoint is the same
+   * transaction with the same hash. The chain de-duplicates it. (Solana's seed
+   * sender deliberately has no equivalent — see ../../features/gas-seed/senders/solana.ts.)
+   */
+  rpc_url_fallback: string | undefined
   /** CAIP-2 id of a manifest EVM chain, e.g. `'eip155:84532'`. */
   chain_id: string
   /** 0x-hex secp256k1 private key. */
@@ -52,7 +70,10 @@ export function evmHotWallet(args: {
 }) {
   const account = privateKeyToAccount(args.private_key)
   const chain = viemChainFor(args.chain_id, args.rpc_url)
-  const transport = http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS })
+  // From the central seam (chains/rpc), never built here: the failover policy
+  // is one decision for the whole server, and a hot wallet is exactly the
+  // caller that must not quietly opt out of it.
+  const transport = evmTransport(args)
   return {
     account,
     chain,

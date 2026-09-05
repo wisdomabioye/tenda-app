@@ -27,6 +27,7 @@
 
 import type { ChainNamespace } from '../db/schema/chains'
 import { getAssetMeta } from '../constants/assets'
+import { isEvmAddress } from '../utils/address'
 
 /** How gas is paid on a chain — selects the registry's per-chain dep wiring. */
 export type GasPolicy =
@@ -164,7 +165,7 @@ export interface ChainManifestEntry {
    * One-time native-gas seed, in the chain's native base units (lamports for
    * Solana), granted to a new user's first wallet on this chain. Only meaningful
    * with `gasPolicy: 'native-seed'`; absent = the seed stays dormant (the DB's
-   * gas_seed columns remain NULL and `dispatchGasSeeds` skips the chain). The
+   * gas_seed columns remain NULL and the claim surface offers nothing). The
    * FUNDING wallet is not recorded here — it's derived from the deployment's hot
    * wallet secret (`CHAIN_<id>_GAS_SEED_KEY`) at seed time, so the two can't drift.
    */
@@ -346,7 +347,26 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 1,
     publicRpcUrl: 'https://evmrpc-testnet.0g.ai',
     explorerUrl: 'https://chainscan-galileo.0g.ai',
-    gasPolicy: 'none',
+    /*
+     * 'native-seed' since #53b, and this is the chain the rail is PROVEN on.
+     *
+     * 0G mainnet declares the same policy but cannot be configured until an
+     * escrow is deployed there (#13) — `SECRET_SCHEMA.eip155` requires
+     * ESCROW_ADDR — so Galileo is where a funded hot wallet, a real transfer
+     * and the verify script are exercised end to end. Testnet gas costs us
+     * nothing and the landing card stays `unbuilt` either way, so nothing is
+     * over-claimed by seeding here.
+     */
+    gasPolicy: 'native-seed',
+    /*
+     * MEASURED, not chosen: the worst-side user lifecycle on real TendaEscrow
+     * bytecode × an observed Galileo gas price × a 3-lifecycle multiple. The
+     * price and the multiple live in manifest-queries.ts
+     * (OBSERVED_GAS_PRICE_WEI, GAS_SEED_LIFECYCLE_MULTIPLE) with their
+     * provenance, and evm-gas-budget.anvil.test.ts fails if this number stops
+     * covering the lifecycle.
+     */
+    gasSeedAmountRaw: '10000000000000000',
     assets: [
       // No canonical Circle USDC exists on 0G, so Galileo runs the repo's own
       // MockUSDCPermitV2 (contracts/evm/test/mocks): 6 decimals, EIP-712 domain
@@ -379,13 +399,24 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     explorerUrl: 'https://chainscan.0g.ai',
     gasPolicy: 'native-seed',
     /*
-     * PROVISIONAL, and inert today. `db/seed/rows.ts` resolves a funder wallet
-     * only for `namespace === 'solana'`, so an EVM chain seeds NULL into both
-     * gas columns and `dispatchGasSeeds` skips it — this number reaches nothing
-     * until the EVM GasSeedSender exists (#53). It is a round placeholder, NOT
-     * a measurement: 0G is 18 decimals, so Solana's 7000000 lamports must not
-     * be copied, and the real figure has to come from a measured accept +
-     * submit + approve lifecycle on 0G before the rail ships.
+     * MEASURED for the LIFECYCLE, INHERITED for the price — and the difference
+     * matters, so it is stated rather than implied.
+     *
+     * The gas UNITS behind this number are real: evm-gas-budget.anvil.test.ts
+     * runs the user-signed lifecycle against the same TendaEscrow bytecode this
+     * chain will run and sums the receipts. What cannot be measured yet is 0G
+     * MAINNET's gas price — the chain carries no deployment (#13), so nothing
+     * here can be exercised against it, and `OBSERVED_GAS_PRICE_WEI` therefore
+     * lists Galileo only. This amount is Galileo's, carried across.
+     *
+     * BEFORE MAINNET SHIPS: observe eth_gasPrice on 16661, add it to
+     * OBSERVED_GAS_PRICE_WEI, and let the budget test re-derive this figure. If
+     * mainnet prices above Galileo's 4 gwei, this number is too small — and a
+     * user one transaction short is exactly as stuck as one with nothing.
+     *
+     * Inert until then either way: SECRET_SCHEMA.eip155 requires ESCROW_ADDR,
+     * so the chain cannot be configured, `db:seed` leaves both gas columns NULL,
+     * and every seed path skips it.
      */
     gasSeedAmountRaw: '10000000000000000',
     assets: [
@@ -501,7 +532,7 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     if (entry.feeCurrencyAdapter !== undefined && entry.feeCurrency === undefined) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter set without feeCurrency`)
     }
-    if (entry.feeCurrencyAdapter !== undefined && !/^0x[0-9a-fA-F]{40}$/.test(entry.feeCurrencyAdapter)) {
+    if (entry.feeCurrencyAdapter !== undefined && !isEvmAddress(entry.feeCurrencyAdapter)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter is not a valid EVM address`)
     }
     if (entry.feeCurrency !== undefined && feeCurrencyAddress(entry) === null) {

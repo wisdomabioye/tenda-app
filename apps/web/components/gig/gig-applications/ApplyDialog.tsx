@@ -140,8 +140,10 @@ export function ApplyDialog({
                 }`}
               >
                 <span className="font-numeric">{truncateWallet(wallet.address)}</span>
+                {/* "Main", per chain family (#42). No chain name: every wallet
+                    in this picker is the gig's own chain. */}
                 {wallet.is_primary && (
-                  <span className="text-xs text-content-tertiary">Primary</span>
+                  <span className="text-xs text-content-tertiary">Main</span>
                 )}
               </button>
             ))}

@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { AgentRegisterBody, AgentRegisterResponse } from '@tenda/shared'
 import { requireBody } from '@server/lib/errors'
-import { mintAuthResponse } from '@server/lib/auth/session'
+import { mintAuthResponse, sessionClientFromHeaders } from '@server/lib/auth/session'
 import { registerAgent } from '@server/features/agent/registerAgent'
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -19,7 +19,10 @@ const route: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request) => {
       const { user, isNew } = await registerAgent(fastify, requireBody(request.body))
-      return { ...mintAuthResponse(fastify, user), is_new: isNew }
+      return {
+        ...mintAuthResponse(fastify, user, sessionClientFromHeaders(request.headers)),
+        is_new: isNew,
+      }
     },
   )
 }

@@ -209,6 +209,21 @@ const NON_CONTRACT_PATHS = [
   // so it belongs to no client route map; its own drift suite
   // (agent-api-drift.test.ts) holds it to the path it declares for itself.
   '/v1/openapi.json',
+
+  // The public agent card (#84). A well-known document fetched by ERC-8004
+  // registries and by other people's agents — no client in this repo calls it,
+  // and it never will, so it belongs to no route map. The URL is committed
+  // ON-CHAIN at mint time as the token's `agentURI`, which makes this entry
+  // load-bearing in a way the others are not: moving the route folder changes a
+  // pointer that has already been signed into a transaction and cannot be
+  // rewritten without one. The FIRST case in this file is what would catch that.
+  //
+  // `/.well-known/assetlinks.json` is deliberately NOT here — it is registered
+  // straight onto the root instance in app.ts rather than through the
+  // autoloader, so it never reaches the prefixed-plugin tree `servedPaths`
+  // parses. This route is a real plugin, which is why it shows up and why the
+  // folder alone is its registration.
+  '/.well-known/agents/:file',
 ] as const
 
 test('every path no route MAP declares is served too — webhooks and ops', { skip }, async () => {

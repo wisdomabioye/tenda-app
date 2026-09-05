@@ -15,13 +15,13 @@
  */
 
 import { Program } from '@coral-xyz/anchor'
-import { Connection } from '@solana/web3.js'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { createSolanaBuilders } from '@server/chains/solana/builders'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
-import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
+import { createSolanaRpc, type SolanaRpc } from '@server/chains/solana/rpc'
+import { solanaConnections } from '@server/chains/rpc'
 import { createSolanaVerifier } from '@server/chains/solana/verify'
 import { solanaEscrowRelay } from '@server/chains/solana/relay'
 import type { SolanaRelayer } from '@server/chains/solana/relay/relayer'
@@ -64,9 +64,11 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     })
 
   // The Program instance encodes instructions only; its Connection is never
-  // used for fetches (all reads go through `rpc`), so construction is free.
+  // used for fetches (all reads go through `rpc`), so `[0]` is not a missed
+  // failover — there is nothing to fail. Built through the seam anyway, so the
+  // "no Connection outside chains/rpc" rule has no exceptions to argue about.
   const program = new Program<TendaEscrow>(ESCROW_IDL, {
-    connection: new Connection(args.rpc_url, commitmentFor(args.chain_id)),
+    connection: solanaConnections({ chain_id: args.chain_id, rpc_url: args.rpc_url })[0],
   })
 
   const builderDeps = {

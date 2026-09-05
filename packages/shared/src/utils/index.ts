@@ -41,7 +41,7 @@ export {
   type DisputeSender,
   type DisputeSenderArgs,
 } from './parties'
-export { normalizeChainAddress, sameChainAddress, chainNamespaceOf } from './address'
+export { normalizeChainAddress, sameChainAddress, chainNamespaceOf, isEvmAddress } from './address'
 
 export {
   MAX_GIG_TITLE_LENGTH,
