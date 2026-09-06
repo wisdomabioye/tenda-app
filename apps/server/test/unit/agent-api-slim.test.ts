@@ -1,0 +1,166 @@
+/**
+ * The slim agent document: it must be a faithful SUBSET, and it must stay
+ * small. Those are its only two properties, and each has a failure mode that
+ * ships silently.
+ *
+ * A drifted subset is worse than no subset — an agent integrates against a
+ * contract the server does not honour, and nothing errors. A subset that grows
+ * back to the size of the canonical document is not a subset in any useful
+ * sense: six of the ten reviewers on 2026-09-05 could not read that document to
+ * the end. How far they got is NOT established — their own byte figures
+ * disagree (see the note in slim.ts) — so these pin the direction, not a
+ * target.
+ */
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH } from '@server/agent-api/openapi'
+import {
+  AGENT_SLIM_DOCUMENT,
+  AGENT_SLIM_MAX_BYTES,
+  AGENT_SLIM_PATHS,
+  slimAgentDocument,
+} from '@server/agent-api/slim'
+import { COMPONENT_REF_PREFIX } from '@server/agent-api/schema-types'
+
+const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value))
+
+/** Every `#/components/schemas/X` named anywhere in a serialised value. */
+function referencedNames(value: unknown): string[] {
+  const json = JSON.stringify(value)
+  const pattern = new RegExp(`${COMPONENT_REF_PREFIX.replace(/[/#]/g, '\\$&')}([A-Za-z0-9_]+)`, 'g')
+  return [...new Set([...json.matchAll(pattern)].map((m) => m[1]))]
+}
+
+// ---------- the DRIFT guard -------------------------------------------------
+
+test('every path in the slim document is byte-identical to the canonical one', () => {
+  for (const path of Object.keys(AGENT_SLIM_DOCUMENT.paths)) {
+    assert.deepStrictEqual(
+      AGENT_SLIM_DOCUMENT.paths[path],
+      AGENT_API_DOCUMENT.paths[path],
+      `${path} drifted from ${AGENT_API_DOCUMENT_PATH}`,
+    )
+  }
+})
+
+test('every schema in the slim document is byte-identical to the canonical one', () => {
+  const slim = AGENT_SLIM_DOCUMENT.components.schemas
+  const names = Object.keys(slim)
+  assert.ok(names.length > 0, 'no schemas kept — the comparison below would be vacuous')
+  for (const name of names) {
+    assert.deepStrictEqual(
+      slim[name as keyof typeof slim],
+      AGENT_API_DOCUMENT.components.schemas[name as keyof typeof slim],
+      `schema ${name} drifted from ${AGENT_API_DOCUMENT_PATH}`,
+    )
+  }
+})
+
+test('the slim document carries the task-posting flow and nothing an agent never calls', () => {
+  assert.deepStrictEqual(Object.keys(AGENT_SLIM_DOCUMENT.paths), [...AGENT_SLIM_PATHS])
+  // The browse surface is the weight this exists to shed. Named, so dropping a
+  // path from the flow (or quietly re-adding the feed) is a failing test.
+  for (const path of ['/v1/gigs', '/v1/gigs/facets', '/v1/gigs/featured']) {
+    assert.ok(AGENT_API_DOCUMENT.paths[path] !== undefined, `${path} should exist canonically`)
+    assert.strictEqual(AGENT_SLIM_DOCUMENT.paths[path], undefined, `${path} must not be in the slim document`)
+  }
+})
+
+/**
+ * The one that would otherwise ship the original defect under a smaller
+ * payload: a `$ref` the reader cannot resolve is exactly what truncation looks
+ * like from outside, and dropping a transitively-reached schema produces one.
+ */
+test('no $ref in the slim document dangles — the closure is complete', () => {
+  const declared = new Set(Object.keys(AGENT_SLIM_DOCUMENT.components.schemas))
+  const dangling = referencedNames(AGENT_SLIM_DOCUMENT).filter((name) => !declared.has(name))
+  assert.deepStrictEqual(dangling, [], 'these $refs resolve to nothing in the slim document')
+})
+
+test('the 402 terms schema survives — the one the whole flow turns on', () => {
+  // `AgentTaskPaymentRequired` is the body of the 402, `AgentTaskCreated` the
+  // 201: the two payloads an agent cannot proceed without. MEASURED: both are
+  // referenced DIRECTLY by /v1/agent/tasks (7 schemas are), so this is not a
+  // closure check — the closure test above covers that. What it guards is the
+  // pair surviving a reshape of that path: inlining either body, renaming
+  // either schema, or dropping the 402 response leaves a document that still
+  // passes every structural test here and is useless to an agent.
+  assert.ok('AgentTaskPaymentRequired' in AGENT_SLIM_DOCUMENT.components.schemas)
+  assert.ok('AgentTaskCreated' in AGENT_SLIM_DOCUMENT.components.schemas)
+})
+
+// ---------- the SIZE guard --------------------------------------------------
+
+test('the slim document fits, with the headroom #109 needs for recorded examples', () => {
+  const size = bytes(AGENT_SLIM_DOCUMENT)
+  assert.ok(
+    size < AGENT_SLIM_MAX_BYTES,
+    `slim document is ${size} bytes, ceiling ${AGENT_SLIM_MAX_BYTES}`,
+  )
+  // And under the CANONICAL document, not merely under our own ceiling. That
+  // comparison is measurable; "under the fetchers' cut" is not, because the
+  // report's byte figures contradict each other.
+  assert.ok(
+    size < bytes(AGENT_API_DOCUMENT),
+    `slim document is ${size} bytes, canonical is ${bytes(AGENT_API_DOCUMENT)}`,
+  )
+})
+
+test('the CEILING itself stays below the canonical document — the guard cannot go vacuous', () => {
+  // Without this the size checks are vacuous: raising AGENT_SLIM_MAX_BYTES
+  // makes every assertion measured against it pass again. That mutation
+  // survived the first sweep — 40_000 -> 90_000 broke nothing.
+  //
+  // Pinned to the CANONICAL SIZE rather than to a reviewer's byte figure. The
+  // first version of this test used 41,639 and called it "where a fetcher
+  // stopped"; the report's numbers turned out to disagree with each other, so
+  // that basis was withdrawn. A ceiling at or above the canonical document
+  // would permit a "slim" document that saves nothing, which is a claim the
+  // published path would then be making falsely.
+  assert.ok(
+    AGENT_SLIM_MAX_BYTES < bytes(AGENT_API_DOCUMENT),
+    `the ceiling is ${AGENT_SLIM_MAX_BYTES}, at or above the canonical ${bytes(AGENT_API_DOCUMENT)} — it would permit a subset that saves nothing`,
+  )
+})
+
+test('it is genuinely smaller than the canonical document', () => {
+  // The control: a "slim" document that kept everything would pass the ceiling
+  // the day the canonical one happens to fit, and silently stop being a subset.
+  assert.ok(bytes(AGENT_SLIM_DOCUMENT) < bytes(AGENT_API_DOCUMENT))
+})
+
+// ---------- the projection itself -------------------------------------------
+
+test('slimAgentDocument follows refs to CLOSURE, not just one level', () => {
+  // GigDetail reaches EscrowProof/Dispute/Review/... only through its own
+  // properties, so a one-level implementation keeps GigDetail and drops them.
+  const oneGigPath = slimAgentDocument(AGENT_API_DOCUMENT, ['/v1/gigs/{id}'])
+  const kept = Object.keys(oneGigPath.components.schemas)
+  assert.ok(kept.includes('GigDetail'), 'the directly referenced schema')
+  assert.ok(kept.includes('EscrowProof'), 'reached only VIA GigDetail')
+  assert.ok(kept.includes('UserRef'), 'reached only VIA GigDetail')
+  const declared = new Set(kept)
+  assert.deepStrictEqual(referencedNames(oneGigPath).filter((n) => !declared.has(n)), [])
+})
+
+test('slimAgentDocument refuses a path the canonical document does not have', () => {
+  // A renamed or dropped path must not quietly shrink the agent's document to
+  // one that omits a step of the flow.
+  assert.throws(
+    () => slimAgentDocument(AGENT_API_DOCUMENT, ['/v1/agent/tasks', '/v1/agent/nope']),
+    /has no path\(s\) \/v1\/agent\/nope/,
+  )
+})
+
+test('the metadata and security schemes ride along — a subset is still a usable document', () => {
+  assert.strictEqual(AGENT_SLIM_DOCUMENT.openapi, AGENT_API_DOCUMENT.openapi)
+  assert.strictEqual(AGENT_SLIM_DOCUMENT.info.version, AGENT_API_DOCUMENT.info.version)
+  assert.deepStrictEqual(
+    AGENT_SLIM_DOCUMENT.components.securitySchemes,
+    AGENT_API_DOCUMENT.components.securitySchemes,
+  )
+  // It says what it is and where the whole contract lives, so a reader who
+  // needs the browse surface is not left guessing.
+  assert.match(AGENT_SLIM_DOCUMENT.info.description, /AGENT-ONLY SUBSET/)
+  assert.match(AGENT_SLIM_DOCUMENT.info.description, /\/v1\/openapi\.json/)
+})

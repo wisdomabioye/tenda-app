@@ -210,6 +210,14 @@ const NON_CONTRACT_PATHS = [
   // (agent-api-drift.test.ts) holds it to the path it declares for itself.
   '/v1/openapi.json',
 
+  // The AGENT-ONLY subset of that document (#110), for the same reason and
+  // held by the same suite. It exists because six of ten round-one reviewers
+  // could not read the canonical document to the end; how far each got is not
+  // established, so the only claim made is that this one is smaller (~31KB
+  // against ~41KB). Both are published: complete at the path above, and the
+  // task-posting flow alone here.
+  '/v1/agent/openapi.json',
+
   // The public agent card (#84). A well-known document fetched by ERC-8004
   // registries and by other people's agents — no client in this repo calls it,
   // and it never will, so it belongs to no route map. The URL is committed
