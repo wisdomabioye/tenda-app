@@ -54,7 +54,7 @@
  * how Tenda identifies an agent (wallet-born accounts, #19).
  */
 
-import { APP_INFO, CHAIN_MANIFEST, PROOF_TYPES, evmChainNumericId } from '@tenda/shared'
+import { APP_INFO, PROOF_TYPES, evmChainNumericId, isEvmChainId } from '@tenda/shared'
 import type { ProofType } from '@tenda/shared'
 
 /**
@@ -190,40 +190,54 @@ function shortAddress(address: string): string {
 }
 
 /**
- * One wallet endpoint per EVM chain we settle on, for one address.
+ * One wallet endpoint per EVM chain THIS DEPLOYMENT settles on, for one address.
  *
- * Derived from CHAIN_MANIFEST's own `status: 'live'` — a new chain is a
- * manifest entry and nothing here changes. It says "this address can transact
- * with Tenda on these chains", which is a fact about our deployment; it does
- * NOT claim the agent has ever transacted there, and must not be read that way.
+ * The ids come from the caller — the live chain registry, which is built from
+ * exactly the `CHAIN_<id>_*` secrets the deployment holds — and NOT from
+ * `CHAIN_MANIFEST.status`. That distinction is the whole of #126, and the
+ * previous version of this comment got it backwards: `status: 'live'` says
+ * TendaEscrow is deployed on that chain SOMEWHERE, which is a fact about the
+ * manifest. Whether an agent can transact here is a fact about THIS deployment,
+ * and testnet and mainnet are separate deployments — so the manifest reading
+ * had the testnet card advertising Celo mainnet and 0G mainnet, in a document
+ * whose URI is committed ON-CHAIN at mint. Same mistake as #50, one level down.
+ *
+ * It still says "this address CAN transact on these chains", never that it has.
  *
  * EVM only: the address is an eip155 one, and naming it under `solana:` would
- * be a different key space and simply false.
+ * be a different key space and simply false — so a Solana-only deployment
+ * correctly emits no wallet endpoint at all.
  */
-function liveEvmWallets(address: string): WalletEndpoint[] {
-  return CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.status === 'live').map((c) => ({
+function deploymentEvmWallets(address: string, chain_ids: readonly string[]): WalletEndpoint[] {
+  return chain_ids.filter(isEvmChainId).map((id) => ({
     type: 'wallet',
     address,
-    // `evmChainNumericId` is the shared parser and it THROWS on a malformed id
-    // rather than yielding NaN. No branch is needed here and none is wanted:
-    // `assertManifestValid` refuses an eip155 entry whose id would not parse, so
-    // for a manifest entry this call is total. A local null-check would be an
-    // unreachable branch pretending the guarantee is weaker than it is.
-    chainId: evmChainNumericId(c.id),
+    // `evmChainNumericId` THROWS on a malformed id rather than yielding NaN,
+    // and `isEvmChainId` above is the same predicate `assertManifestValid`
+    // enforces — so the filter, not a null-check, is what makes this total.
+    // Filtering rather than asserting is deliberate: a registry carrying a
+    // Solana chain is normal, not an error.
+    chainId: evmChainNumericId(id),
   }))
 }
 
 /**
- * Build the card. Pure — no I/O, no clock, no env read beyond the base URL the
- * caller passes, so the whole document is a function of its inputs and the
- * manifest.
+ * Build the card. Pure — no I/O, no clock, no env read, no manifest read: the
+ * whole document is a function of its inputs, which is what lets the deployment's
+ * OWN chain set be passed in rather than inferred.
  */
 export function buildAgentCard(args: {
   address: string
   api_base_url: string
   identity: AgentIdentity | null
+  /**
+   * CAIP-2 ids this deployment actually serves — `fastify.chains`, i.e. the
+   * chains whose secrets are configured. Non-EVM ids are filtered out, so the
+   * caller passes the registry as it is rather than pre-selecting.
+   */
+  chain_ids: readonly string[]
 }): AgentCard {
-  const { address, api_base_url: base, identity } = args
+  const { address, api_base_url: base, identity, chain_ids } = args
 
   const services: ServiceEndpoint[] = [
     // The vocabulary entries first, so a reader that scans for recognised
@@ -248,7 +262,7 @@ export function buildAgentCard(args: {
     description: identity?.description || APP_INFO.description,
     image: identity?.image || APP_INFO.external.logo,
     services: services.map((s) => ({ name: s.type, endpoint: s.url })),
-    endpoints: [...services, ...liveEvmWallets(address)],
+    endpoints: [...services, ...deploymentEvmWallets(address, chain_ids)],
     supportedTrust: ['reputation'],
     x402Support: true,
     schema: 'tenda-agent-card/v1',

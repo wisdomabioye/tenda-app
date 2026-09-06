@@ -32,8 +32,15 @@ const IDENTITY: AgentIdentity = {
   image: 'https://cdn.example.test/scout.png',
 }
 
-const card = (identity: AgentIdentity | null = null) =>
-  buildAgentCard({ address: ADDRESS, api_base_url: BASE, identity })
+/**
+ * What a DEPLOYMENT serves — two EVM chains and a Solana one, which is a real
+ * shape (the dev deployment runs exactly that) and lets one fixture prove both
+ * that EVM ids are carried and that a Solana id is filtered rather than parsed.
+ */
+const DEPLOYMENT_CHAINS = ['eip155:84532', 'eip155:16602', 'solana:devnet'] as const
+
+const card = (identity: AgentIdentity | null = null, chain_ids: readonly string[] = DEPLOYMENT_CHAINS) =>
+  buildAgentCard({ address: ADDRESS, api_base_url: BASE, identity, chain_ids })
 
 const wallets = (c: AgentCard): WalletEndpoint[] =>
   c.endpoints.filter((e): e is WalletEndpoint => e.type === 'wallet')
@@ -252,6 +259,7 @@ test('EMPTY stored strings fall back rather than publishing a blank required fie
     address: ADDRESS,
     api_base_url: BASE,
     identity: { user_id: IDENTITY.user_id, name: '', description: '', image: '' },
+    chain_ids: DEPLOYMENT_CHAINS,
   })
   assert.notStrictEqual(c.name, '')
   assert.strictEqual(c.description, APP_INFO.description)
@@ -264,6 +272,7 @@ test('NULL stored columns fall back the same way', () => {
     address: ADDRESS,
     api_base_url: BASE,
     identity: { user_id: IDENTITY.user_id, name: 'Scout', description: null, image: null },
+    chain_ids: DEPLOYMENT_CHAINS,
   })
   assert.strictEqual(c.description, APP_INFO.description)
   assert.strictEqual(c.image, APP_INFO.external.logo)
@@ -282,20 +291,40 @@ test('the card NEVER carries a reputation score, only a URL to one', () => {
 
 // --- everything derived, nothing literal -----------------------------------
 
-test('wallet entries cover the manifest live EVM chains — derived, not listed', () => {
-  const expected = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.status === 'live')
-    .map((c) => Number(c.id.split(':')[1]))
-  assert.deepStrictEqual(wallets(card()).map((w) => w.chainId), expected)
-  assert.ok(expected.length > 0, 'the manifest should have at least one live EVM chain')
+test('wallet entries are THIS DEPLOYMENT\'s EVM chains, not the manifest\'s (#126)', () => {
+  // The defect this replaces: the card filtered CHAIN_MANIFEST on
+  // `status: 'live'`, which says TendaEscrow is deployed on that chain
+  // SOMEWHERE. Testnet and mainnet are separate deployments, so the testnet
+  // card advertised Celo mainnet and 0G mainnet — chains it holds no adapter
+  // for — in a document whose URI is committed ON-CHAIN at mint.
+  assert.deepStrictEqual(wallets(card()).map((w) => w.chainId), [84532, 16602])
+  // And the manifest is NOT the source: it carries live EVM chains this
+  // deployment does not run, and none of them may appear.
+  const manifestOnly = CHAIN_MANIFEST.filter(
+    (c) => c.namespace === 'eip155' && c.status === 'live' && !DEPLOYMENT_CHAINS.includes(c.id as typeof DEPLOYMENT_CHAINS[number]),
+  )
+  assert.ok(manifestOnly.length > 0, 'the fixture must exclude some live manifest chain or this proves nothing')
+  const advertised = new Set(wallets(card()).map((w) => w.chainId))
+  for (const entry of manifestOnly) {
+    assert.ok(!advertised.has(Number(entry.id.split(':')[1])), `${entry.id} is advertised but not deployed here`)
+  }
 })
 
-test('every live EVM manifest id yields a usable numeric chain id', () => {
-  // The builder parses with the shared `evmChainNumericId`, which THROWS rather
-  // than yielding NaN — so a malformed manifest id would fail this loudly here
-  // rather than emit `"chainId": null` into a document readers parse. The
-  // manifest validator refuses such an entry first; this is the second net.
-  const live = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.status === 'live')
-  assert.strictEqual(wallets(card()).length, live.length, 'a live EVM chain is missing from the card')
+test('a Solana id is filtered, not parsed — a Solana-only deployment advertises no wallet', () => {
+  // `evmChainNumericId` THROWS on a non-EVM id rather than yielding NaN, so
+  // passing the registry through unfiltered would crash the card rather than
+  // omit the entry. A registry carrying Solana is normal, not an error.
+  assert.deepStrictEqual(wallets(card(null, ['solana:devnet'])), [])
+  assert.deepStrictEqual(wallets(card(null, [])), [])
+})
+
+test('the wallet list follows the deployment — same address, different chains', () => {
+  // Guards the seam: if the argument were ignored and the manifest read back,
+  // these two would be identical.
+  const base = wallets(card(null, ['eip155:84532'])).map((w) => w.chainId)
+  const celo = wallets(card(null, ['eip155:42220'])).map((w) => w.chainId)
+  assert.deepStrictEqual(base, [84532])
+  assert.deepStrictEqual(celo, [42220])
 })
 
 test('the document never names a Solana chain — a 0x address there is a different key space', () => {
@@ -312,14 +341,24 @@ test('the document never names a Solana chain — a 0x address there is a differ
   assert.ok(!json.includes('solana'), 'no solana namespace may appear in an eip155 document')
 })
 
-test('wallet entries exclude chains that are not live — the card claims settlement, not intent', () => {
-  const planned = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.status !== 'live')
-  assert.ok(planned.length > 0, 'the manifest should have a planned EVM chain for this to mean anything')
-  const advertised = new Set(wallets(card()).map((w) => w.chainId))
-  for (const c of planned) {
-    const chainId = Number(c.id.split(':')[1])
-    assert.ok(!advertised.has(chainId), `${c.id} is '${c.status}' and must not appear as a wallet`)
-  }
+test('a CONFIGURED chain is advertised even where the manifest still calls it planned', () => {
+  // This replaces a test that asserted the opposite, and the reversal is the
+  // point of #126 rather than a loosening.
+  //
+  // The old rule — "a manifest chain that is not `status: 'live'` must never
+  // appear" — stopped meaning anything once the card read the DEPLOYMENT: it
+  // passed because the fixture happened to omit those chains, which is a
+  // fixture measuring itself.
+  //
+  // And the rule was wrong anyway. `SECRET_SCHEMA.eip155` requires ESCROW_ADDR,
+  // so a chain cannot be configured at all unless a contract is deployed there
+  // to point at. A deployment that HAS those secrets is therefore better
+  // evidence than a manifest field somebody has not updated yet — the manifest
+  // is the stale one in that pairing, and the card should not repeat its lag.
+  const planned = CHAIN_MANIFEST.find((c) => c.namespace === 'eip155' && c.status !== 'live')
+  assert.ok(planned !== undefined, 'the manifest needs a non-live EVM chain for this to mean anything')
+  const advertised = wallets(card(null, [planned.id])).map((w) => w.chainId)
+  assert.deepStrictEqual(advertised, [Number(planned.id.split(':')[1])])
 })
 
 test('capabilities come from the shared proof vocabulary', () => {
@@ -327,7 +366,7 @@ test('capabilities come from the shared proof vocabulary', () => {
 })
 
 test('every SERVER-HOSTED url follows the base URL passed in — no hardcoded host', () => {
-  const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY })
+  const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY, chain_ids: DEPLOYMENT_CHAINS })
   const hosted = services(c).filter((s) => SERVER_HOSTED.includes(s.type))
   assert.strictEqual(hosted.length, SERVER_HOSTED.length, 'all three must be present to be checked')
   for (const s of hosted) {
@@ -338,7 +377,7 @@ test('every SERVER-HOSTED url follows the base URL passed in — no hardcoded ho
 test('BRAND urls ignore the base URL — they are product facts, not API paths', () => {
   // The other half of the same guard: `web` following `api_base_url` would mean
   // the card points a stranger at the API host instead of the site.
-  const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY })
+  const c = buildAgentCard({ address: ADDRESS, api_base_url: 'https://other.test', identity: IDENTITY, chain_ids: DEPLOYMENT_CHAINS })
   for (const s of services(c).filter((x) => BRAND.includes(x.type))) {
     assert.ok(!s.url.startsWith('https://other.test'), `${s.type} must not be built from the base URL`)
   }
@@ -348,7 +387,7 @@ test('the address is echoed verbatim — the builder normalises nothing', () => 
   // Normalisation belongs to the route, once, before the lookup. A second
   // lowercase here would hide a caller that forgot to do it.
   const mixed = '0x00000000000000000000000000000000000000A1'
-  const c = buildAgentCard({ address: mixed, api_base_url: BASE, identity: null })
+  const c = buildAgentCard({ address: mixed, api_base_url: BASE, identity: null, chain_ids: DEPLOYMENT_CHAINS })
   assert.strictEqual(c.address, mixed)
   for (const w of wallets(c)) assert.strictEqual(w.address, mixed)
 })

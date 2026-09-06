@@ -84,6 +84,44 @@ test('a registered agent gets a card carrying its name and ITS OWN reputation UR
   assert.strictEqual(reputation, `${API_BASE}/v1/users/${user_id}/standing`)
 })
 
+test('the SERVED card advertises this deployment\'s chains, not the manifest\'s (#126)', { skip }, async () => {
+  // The end-to-end half of #126: the builder takes the chain set, but only this
+  // proves the ROUTE hands it the live registry. Before the fix the card read
+  // CHAIN_MANIFEST and every deployment advertised every chain with
+  // `status: 'live'` — so the testnet deployment claimed Celo mainnet and 0G
+  // mainnet, in a document whose URI is committed on-chain at mint.
+  const app = getApp()
+  const address = testEvmAddress()
+  const response = await app.inject({ method: 'GET', url: `/.well-known/agents/${address}.json` })
+  assert.strictEqual(response.statusCode, 200, response.body)
+  const card = response.json<{ endpoints: Array<{ type: string; chainId?: number }> }>()
+  const advertised = card.endpoints.filter((e) => e.type === 'wallet').map((e) => e.chainId)
+
+  // Exactly the EVM chains the harness registry holds — which is what the real
+  // registry is built from too (the configured CHAIN_<id>_* secrets).
+  const registered = app.chains
+    .list()
+    .filter((adapter) => adapter.namespace === 'eip155')
+    .map((adapter) => Number(adapter.chain_id.split(':')[1]))
+  assert.deepStrictEqual(advertised, registered)
+  assert.ok(registered.length > 0, 'the harness must register an EVM chain or this proves nothing')
+
+  // And the manifest carries live EVM chains this deployment does NOT run, none
+  // of which may appear — the assertion above would pass a card built from the
+  // manifest if the two sets happened to coincide.
+  const { CHAIN_MANIFEST } = await import('@tenda/shared')
+  const notHere = CHAIN_MANIFEST.filter(
+    (c) => c.namespace === 'eip155' && c.status === 'live' && !app.chains.has(c.id),
+  )
+  assert.ok(notHere.length > 0, 'the manifest must have a live chain this deployment lacks')
+  for (const entry of notHere) {
+    assert.ok(
+      !advertised.includes(Number(entry.id.split(':')[1])),
+      `${entry.id} is advertised but this deployment cannot transact there`,
+    )
+  }
+})
+
 test('an unknown address gets a MINIMAL card, never a 404', { skip }, async () => {
   // The decisive property: the URI is committed on-chain at mint time, before
   // any Tenda-side registration exists. A 404 in that window is a pointer that
@@ -224,6 +262,10 @@ test('every URL the card advertises is a path this server actually serves', { sk
     address: testEvmAddress(),
     api_base_url: API_BASE,
     identity: { user_id: USER_ID, name: 'Scout', description: null, image: null },
+    // This case is about SERVICE urls against the route table, so the chain set
+    // only has to be a real deployment's — the harness registry's, since that is
+    // what the live route now passes (#126).
+    chain_ids: getApp().chains.list().map((adapter) => adapter.chain_id),
   })
   // SERVER-HOSTED services only. A `wallet` entry carries an address and a
   // chain id rather than a URL; `web` and `email` are shared brand facts that

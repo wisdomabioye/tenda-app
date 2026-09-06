@@ -67,6 +67,11 @@ const route: FastifyPluginAsync = async (fastify) => {
       address,
       api_base_url: getConfig().API_BASE_URL,
       identity: await store.findAgentByAddress(address),
+      // THIS deployment's chains, not the manifest's (#126). The registry is
+      // built from the `CHAIN_<id>_*` secrets that are actually set, so the
+      // card stops advertising chains this deployment has no adapter for —
+      // in a document whose URI is committed on-chain.
+      chain_ids: fastify.chains.list().map((adapter) => adapter.chain_id),
     })
 
     return reply
