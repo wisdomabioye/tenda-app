@@ -9,14 +9,16 @@
  *
  * WHERE THE CUT FALLS IS NOT KNOWABLE FROM THAT REPORT, and saying otherwise
  * cost this file two wrong docblocks. The three figures it offers disagree with
- * each other, checked against the document itself (unchanged since 2026-08-30,
- * so the offsets are the ones the reviewers saw): one reviewer says "truncated
- * at 41639 bytes" but quotes, as the text where their copy stopped, a string
- * that sits at byte 5,882; another says the capture "ends partway through
- * ProofParams", which is byte 15,831. A 41,639-byte cut of a 41,679-byte
- * document removes forty bytes of the bearer description and NOTHING ELSE —
- * every schema, `AgentTaskPaymentRequired` included, is already present by then.
- * These are LLM-written reports, not instruments.
+ * each other, checked against the document AS THE REVIEWERS FETCHED IT — it had
+ * not changed since 2026-08-30 and measured 41,679 bytes, so those offsets are
+ * the ones they saw; it has grown slightly since, which is why every number in
+ * this paragraph is past tense. One reviewer says "truncated at 41639 bytes"
+ * but quotes, as the text where their copy stopped, a string that sat at byte
+ * 5,882; another says the capture "ends partway through ProofParams", which was
+ * byte 15,831. A 41,639-byte cut of that document removed forty bytes of the
+ * bearer description and NOTHING ELSE — every schema, `AgentTaskPaymentRequired`
+ * included, was already present by then. These are LLM-written reports, not
+ * instruments.
  *
  * So the honest claim is the weak one: the document was too long to arrive
  * whole for at least some readers, smaller is better, and no target size can be
@@ -38,6 +40,12 @@
  * The browse surface (`/v1/gigs`, `/facets`, `/featured`) is what an agent
  * posting work never calls, and it is most of the weight.
  *
+ * AND THE RECORDED EXCHANGE (#109) — a real 402, the X-PAYMENT envelope that
+ * answered it, and the 201 that came back, attached inline to the task
+ * operation by ./examples. That is the complaint all ten reviewers actually
+ * made, as against the six who mentioned length; this document is the container
+ * that made those payloads affordable.
+ *
  * DERIVED, NEVER HAND-MAINTAINED. `slimAgentDocument` picks paths out of the
  * canonical document and follows `$ref`s to closure; it authors nothing. A
  * second hand-written spec is a copy waiting to rot, and the whole complaint
@@ -54,7 +62,9 @@
  * That mutation survived the first sweep, which is why the pin is named here
  * rather than left as a number someone could quietly move.
  */
+import { apiRoutes } from '@tenda/shared'
 import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, type OpenApiDocument } from './openapi'
+import { withRecordedExamples } from './examples'
 import { COMPONENT_REF_PREFIX, type ComponentName, type SchemaObject } from './schema-types'
 import type { PathItem } from './paths'
 
@@ -63,15 +73,20 @@ export const AGENT_SLIM_DOCUMENT_PATH = '/v1/agent/openapi.json'
 
 /**
  * The paths an agent needs to post one task and watch it land, in the order
- * the flow runs. Named here rather than pattern-matched on `/v1/agent/`
- * because `/v1/gigs/{id}` belongs to the flow and does not match, and a
- * prefix rule would silently drop it — the polling step every reviewer
- * described.
+ * the flow runs. NAMED rather than pattern-matched on `/v1/agent/`, because
+ * `/v1/gigs/{id}` belongs to the flow and does not match, and a prefix rule
+ * would silently drop it — the polling step every reviewer described.
  */
 export const AGENT_SLIM_PATHS = [
-  '/v1/agent/register',
-  '/v1/agent/tasks',
-  '/v1/gigs/{id}',
+  apiRoutes.agent.register,
+  apiRoutes.agent.tasks,
+  // The document spells a path parameter the OpenAPI way and the route map the
+  // Fastify way — the same transform ./paths applies to build the key it is
+  // looked up by. Spelled from the shared map like every sibling in this
+  // directory, and not as a literal: a renamed route would otherwise leave
+  // three strings here matching nothing, and since AGENT_SLIM_DOCUMENT is built
+  // at module load the first symptom would be a server that does not boot.
+  apiRoutes.gigs.get.replace(':id', '{id}'),
 ] as const
 
 /**
@@ -81,8 +96,14 @@ export const AGENT_SLIM_PATHS = [
  * It cannot be derived: see the note above on why the reviewers' byte figures
  * contradict each other. What it can do is stop the document drifting back
  * toward the size that caused the complaint. 40,000 sits below the canonical
- * document (41,679) with room for `#109`'s recorded 402/201 examples to land in
- * the ~8.7KB between here and today's 31,239.
+ * document, and the projection — #109's recorded examples included — has some
+ * kilobytes of room under it (about five as this is written, 2026-09-06).
+ *
+ * The current sizes are DELIBERATELY not spelled out here. Both live figures
+ * this comment used to carry went stale within two days of being written, once
+ * when the examples landed and once when a field gained a description; they are
+ * measured by agent-api-slim.test.ts, which is where a number that must stay
+ * true belongs.
  *
  * The guard that matters is not this number but the test that the number stays
  * below the canonical document's size. Without it the size checks are vacuous —
@@ -179,5 +200,14 @@ export function slimAgentDocument(
   }
 }
 
-/** The served document. */
-export const AGENT_SLIM_DOCUMENT: OpenApiDocument = slimAgentDocument(AGENT_API_DOCUMENT)
+/**
+ * The served document: the projection above, plus the RECORDED 402/201
+ * exchange attached inline (#109).
+ *
+ * The examples are the answer to the complaint all ten reviewers actually
+ * made — that they never saw a payload — and this is the only document that
+ * carries them, for the reason in ./examples. Everything else here is
+ * untouched, so the drift guard still holds every path and schema against the
+ * canonical one.
+ */
+export const AGENT_SLIM_DOCUMENT: OpenApiDocument = withRecordedExamples(slimAgentDocument(AGENT_API_DOCUMENT))

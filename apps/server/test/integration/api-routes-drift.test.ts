@@ -213,9 +213,11 @@ const NON_CONTRACT_PATHS = [
   // The AGENT-ONLY subset of that document (#110), for the same reason and
   // held by the same suite. It exists because six of ten round-one reviewers
   // could not read the canonical document to the end; how far each got is not
-  // established, so the only claim made is that this one is smaller (~31KB
-  // against ~41KB). Both are published: complete at the path above, and the
-  // task-posting flow alone here.
+  // established, so the only claim made is that this one is SMALLER — and that
+  // claim is MEASURED by test/unit/agent-api-slim.test.ts rather than written
+  // here as a byte figure, which is how the figure this line used to carry went
+  // stale the day #109's recorded examples landed. Both are published: complete
+  // at the path above, and the task-posting flow alone here.
   '/v1/agent/openapi.json',
 
   // The public agent card (#84). A well-known document fetched by ERC-8004

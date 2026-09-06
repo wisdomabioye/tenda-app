@@ -13,6 +13,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { apiRoutes } from '@tenda/shared'
 import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH } from '@server/agent-api/openapi'
 import {
   AGENT_SLIM_DOCUMENT,
@@ -24,6 +25,25 @@ import { COMPONENT_REF_PREFIX } from '@server/agent-api/schema-types'
 
 const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value))
 
+/**
+ * The same value with every inline `example` removed.
+ *
+ * #109 attaches recorded examples to the slim document's task operation, which
+ * is the ONE licensed difference from the canonical one. Stripping them here
+ * keeps the drift guard as strict as it was: everything else — descriptions,
+ * `$ref`s, statuses, security — must still match byte for byte, and a change
+ * smuggled in beside an example fails exactly as it did before.
+ */
+function withoutExamples(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutExamples)
+  if (typeof value !== 'object' || value === null) return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== 'example')
+      .map(([key, child]) => [key, withoutExamples(child)]),
+  )
+}
+
 /** Every `#/components/schemas/X` named anywhere in a serialised value. */
 function referencedNames(value: unknown): string[] {
   const json = JSON.stringify(value)
@@ -33,14 +53,27 @@ function referencedNames(value: unknown): string[] {
 
 // ---------- the DRIFT guard -------------------------------------------------
 
-test('every path in the slim document is byte-identical to the canonical one', () => {
+test('every path in the slim document is byte-identical to the canonical one, examples aside', () => {
   for (const path of Object.keys(AGENT_SLIM_DOCUMENT.paths)) {
     assert.deepStrictEqual(
-      AGENT_SLIM_DOCUMENT.paths[path],
+      withoutExamples(AGENT_SLIM_DOCUMENT.paths[path]),
       AGENT_API_DOCUMENT.paths[path],
       `${path} drifted from ${AGENT_API_DOCUMENT_PATH}`,
     )
   }
+})
+
+test('examples are the ONLY difference — the canonical document gains nothing', () => {
+  // Both halves matter. The first says the slim document adds only examples;
+  // the second says they were added HERE and not to /v1/openapi.json, which is
+  // the constraint #109 was given (the canonical document is for humans and
+  // codegen, and every example there costs the audience that complained).
+  assert.notDeepStrictEqual(
+    AGENT_SLIM_DOCUMENT.paths[apiRoutes.agent.tasks],
+    AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks],
+    'the slim task path carries no example at all — #109 did not take effect',
+  )
+  assert.deepStrictEqual(withoutExamples(AGENT_API_DOCUMENT), AGENT_API_DOCUMENT, 'the canonical document grew an example')
 })
 
 test('every schema in the slim document is byte-identical to the canonical one', () => {

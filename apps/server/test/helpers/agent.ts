@@ -10,7 +10,8 @@
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
-import { TENDA_RELAY_SCHEME, X402_VERSION, apiRoutes, type AgentRegisterResponse, type AgentTaskBody, type PermitSignatureBody } from '@tenda/shared'
+import type { Hex, PrivateKeyAccount } from 'viem'
+import { TENDA_RELAY_SCHEME, X402_VERSION, apiRoutes, type AgentRegisterResponse, type AgentTaskBody, type PermitSignatureBody, type ReceiveAuthorizationTypedData, type RelayPaymentPayload, type RelayTerms } from '@tenda/shared'
 import { buildAuthMessage, issueNonce } from './auth-message'
 import { TEST_ASSET_ALT, TEST_CHAIN_ID_ALT } from './test-app'
 
@@ -110,4 +111,46 @@ export function agentPaymentHeader(from: string): string {
       },
     }),
   ).toString('base64')
+}
+
+/**
+ * What an agent actually does with 402 terms: sign the typed data VERBATIM and
+ * put it back in the envelope the resend carries.
+ *
+ * Verbatim is the point — nothing here is re-derived from the request, so a
+ * server that hands out terms it will not accept fails the test instead of
+ * being quietly corrected by it. viem needs its own value types (bigints, Hex),
+ * which is the only reason the message is rebuilt at all; the envelope's
+ * `authorization` is the server's own string form, untouched.
+ *
+ * Shared by the relay suite and by #109's recorder: they must sign the same
+ * way, or the published example would document a signature no other caller
+ * produces.
+ */
+export async function signRelayTerms(account: PrivateKeyAccount, terms: RelayTerms): Promise<RelayPaymentPayload> {
+  if (terms.payment.kind !== 'eip155-authorization') throw new Error('unexpected terms')
+  const typed: ReceiveAuthorizationTypedData = terms.payment.typed_data
+  const m = typed.message
+  const signature = await account.signTypedData({
+    domain: { ...typed.domain, verifyingContract: typed.domain.verifyingContract as Hex },
+    types: { ReceiveWithAuthorization: typed.types.ReceiveWithAuthorization },
+    primaryType: 'ReceiveWithAuthorization',
+    message: {
+      from: m.from as Hex,
+      to: m.to as Hex,
+      value: BigInt(m.value),
+      validAfter: BigInt(m.validAfter),
+      validBefore: BigInt(m.validBefore),
+      nonce: m.nonce as Hex,
+    },
+  })
+  return {
+    x402Version: X402_VERSION,
+    scheme: TENDA_RELAY_SCHEME,
+    network: terms.network,
+    payload: {
+      signature,
+      authorization: { from: m.from, to: m.to, value: m.value, validAfter: m.validAfter, validBefore: m.validBefore, nonce: m.nonce },
+    },
+  }
 }

@@ -25,11 +25,27 @@ export interface ParameterObject {
   required?: boolean
   description?: string
   schema: SchemaObject
+  /** A recorded value for this parameter; the slim document's X-PAYMENT header carries one (#109). */
+  example?: ExampleValue
 }
 
 /** The one media type this API speaks. */
 export const JSON_MEDIA_TYPE = 'application/json'
-export type JsonContent = Readonly<Record<typeof JSON_MEDIA_TYPE, { schema: SchemaObject }>>
+export type JsonContent = Readonly<Record<typeof JSON_MEDIA_TYPE, { schema: SchemaObject; example?: ExampleValue }>>
+
+/**
+ * An inline OpenAPI `example`: arbitrary JSON, spelled out structurally rather
+ * than as `unknown` so nothing can be attached that would not survive
+ * serialisation. Only the SLIM document carries examples (#109) — see
+ * ./examples — but the shape belongs here with the rest of the media type.
+ */
+export type ExampleValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly ExampleValue[]
+  | { readonly [key: string]: ExampleValue }
 
 /** An HTTP status this API documents — a 2xx, 4xx or 5xx code, as the string key OpenAPI uses. */
 export type HttpStatus = `${'2' | '4' | '5'}${number}`

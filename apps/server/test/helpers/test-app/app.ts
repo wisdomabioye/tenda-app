@@ -36,6 +36,7 @@ import queuePlugin from '@server/plugins/queue'
 import websocketPlugin from '@server/plugins/websocket'
 import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
 import { buildContractRegistry } from '@server/chains/contracts'
+import type { ChainRegistry } from '@server/chains/types'
 import { TEST_DB_CONFIGURED } from './env'
 import { leaseSlot, lockBaseDatabase, type SuiteLease } from './slot'
 import {
@@ -49,7 +50,21 @@ import {
   TEST_NATIVE_ASSET,
 } from './fake-chain'
 
-export async function buildTestApp(): Promise<FastifyInstance> {
+/**
+ * The ONE thing a suite may substitute in the harness: the chain registry.
+ *
+ * Added for #109's recorder, which needs the REAL eip155 adapter against a
+ * real anvil node so the captured x402 terms carry genuine EIP-712 types, a
+ * genuine nonce and the token's real domain separator — the fake relay returns
+ * empty `types` and a zero nonce, which is fine for asserting route behaviour
+ * and useless as a published example. Optional and defaulted, so every
+ * existing suite is untouched.
+ */
+export interface TestAppOptions {
+  chains?: ChainRegistry
+}
+
+export async function buildTestApp(options: TestAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
   registerErrorHandlers(app)
 
@@ -57,7 +72,7 @@ export async function buildTestApp(): Promise<FastifyInstance> {
   await app.register(authPlugin)
   await app.register(queuePlugin)
   await app.register(websocketPlugin)
-  const chainRegistry = fakeRegistry()
+  const chainRegistry = options.chains ?? fakeRegistry()
   app.decorate('chains', chainRegistry)
   // Built from the SAME adapters, through the production builder, so the
   // contract each escrow resolves to cannot disagree with the one the fake
@@ -112,13 +127,13 @@ export function useSuiteLock(): void {
  * between tests, releases on exit. Returns a getter (the instance doesn't exist
  * until the before hook runs). Pair with `{ skip: !TEST_DB_CONFIGURED }`.
  */
-export function useTestApp(): () => FastifyInstance {
+export function useTestApp(options: TestAppOptions = {}): () => FastifyInstance {
   let app: FastifyInstance
   let slot: SuiteLease | null = null
   before(async () => {
     if (!TEST_DB_CONFIGURED) return
     slot = await leaseSuiteLease()
-    app = await buildTestApp()
+    app = await buildTestApp(options)
   })
   after(async () => {
     if (!TEST_DB_CONFIGURED) return

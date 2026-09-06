@@ -36,6 +36,7 @@ export interface SchemaObject {
   required?: readonly string[]
   additionalProperties?: boolean | SchemaObject
   items?: SchemaObject
+  minItems?: number
   maxItems?: number
   oneOf?: readonly SchemaObject[]
 }

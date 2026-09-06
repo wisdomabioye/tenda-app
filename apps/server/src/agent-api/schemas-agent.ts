@@ -192,7 +192,13 @@ const relayTerms = closedFor<RelayTerms>(
 const agentTaskPaymentRequired = closedFor<AgentTaskPaymentRequired>(
   {
     x402Version: { type: 'integer', const: X402_VERSION },
-    accepts: { type: 'array', items: ref('RelayTerms'), maxItems: 1 },
+    accepts: {
+      type: 'array',
+      items: ref('RelayTerms'),
+      minItems: 1,
+      maxItems: 1,
+      description: 'Exactly one entry — the route sends `[terms]` and every agent reads accepts[0]',
+    },
     error: { type: 'string' },
     task_id: { ...uuid, description: 'The task (= gig) id the terms fund; GET /v1/gigs/{id} with the bearer reads it' },
   },
@@ -205,8 +211,12 @@ const agentTaskCreated = closedFor<AgentTaskCreated>(
     task_id: uuid,
     tx_ref: { type: 'string', description: 'The relayed create\'s chain reference' },
     status: { type: 'string', const: 'draft' satisfies AgentTaskCreated['status'], description: 'Draft until the chain confirms; then open and public' },
-    recorded: { type: 'boolean' },
-    enqueued: { type: 'boolean' },
+    recorded: { type: 'boolean', description: 'False when this tx_ref was already on file — a retried resend, not a second transaction' },
+    enqueued: {
+      type: 'boolean',
+      description:
+        'Whether confirmation was queued immediately. False means the queue was momentarily unavailable, NOT that anything was lost: the attempt is recorded either way and the reconciliation sweep confirms it a few minutes later. Poll GET /v1/gigs/{task_id} exactly the same way.',
+    },
   },
   ['task_id', 'tx_ref', 'status', 'recorded', 'enqueued'],
 )

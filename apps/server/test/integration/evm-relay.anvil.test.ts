@@ -15,8 +15,9 @@ import { authorizationNonce, buildCreateParams } from '@server/chains/evm/create
 import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
 import { AppError } from '@server/lib/errors'
 import type { CreateEscrowPayload, RelayedCreateArgs } from '@server/chains/types'
-import { TENDA_RELAY_SCHEME, X402_VERSION, type ReceiveAuthorizationTypedData, type RelayPaymentPayload, type RelayTerms } from '@tenda/shared'
+import { type RelayPaymentPayload, type RelayTerms } from '@tenda/shared'
 import { ANVIL_CHAIN_ID, ANVIL_KEYS, ERC20_ABI, anvilSkip, startAnvilFixture, type AnvilFixture } from '../helpers/anvil'
+import { signRelayTerms } from '../helpers/agent'
 
 const skip = anvilSkip
 const PORT = 8572
@@ -76,22 +77,8 @@ function payload(escrow_id: string, overrides: Partial<CreateEscrowPayload> = {}
 }
 const args = (p: CreateEscrowPayload): RelayedCreateArgs => ({ user_id: 'agent', creator_address: agent.address, payload: p })
 
-/** What the agent does with the terms: sign the typed data verbatim. */
-async function signTerms(terms: RelayTerms): Promise<RelayPaymentPayload> {
-  if (terms.payment.kind !== 'eip155-authorization') throw new Error('unexpected terms')
-  const typed: ReceiveAuthorizationTypedData = terms.payment.typed_data
-  const signature = await agent.signTypedData({
-    domain: { ...typed.domain, verifyingContract: typed.domain.verifyingContract as Hex },
-    types: { ReceiveWithAuthorization: typed.types.ReceiveWithAuthorization },
-    primaryType: 'ReceiveWithAuthorization',
-    message: {
-      from: typed.message.from as Hex, to: typed.message.to as Hex, value: BigInt(typed.message.value),
-      validAfter: BigInt(typed.message.validAfter), validBefore: BigInt(typed.message.validBefore), nonce: typed.message.nonce as Hex,
-    },
-  })
-  const m = typed.message
-  return { x402Version: X402_VERSION, scheme: TENDA_RELAY_SCHEME, network: terms.network, payload: { signature, authorization: { from: m.from, to: m.to, value: m.value, validAfter: m.validAfter, validBefore: m.validBefore, nonce: m.nonce } } }
-}
+/** What the agent does with the terms — the shared helper, so #109's recorder signs identically. */
+const signTerms = (terms: RelayTerms): Promise<RelayPaymentPayload> => signRelayTerms(agent, terms)
 
 const usdcOf = (owner: `0x${string}`) => fx.pub.readContract({ address: fx.tokenAddr, abi: ERC20_ABI, functionName: 'balanceOf', args: [owner] })
 

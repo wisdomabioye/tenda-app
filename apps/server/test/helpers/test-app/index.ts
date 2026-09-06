@@ -44,6 +44,7 @@ export {
   TEST_CHAIN_ID_ALT,
   TEST_NATIVE_ASSET,
   UNREGISTERED_CHAIN_ID,
+  realEvmRegistry,
 } from './fake-chain'
 
 export {
@@ -53,6 +54,7 @@ export {
   setPlatformConfig,
   useSuiteLock,
   useTestApp,
+  type TestAppOptions,
 } from './app'
 
 export {

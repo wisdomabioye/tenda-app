@@ -174,11 +174,11 @@ function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'
 }
 
 /**
- * Exported for `./app` only — it was module-private before the split (#44) and
- * is deliberately NOT re-exported from the barrel: no suite builds its own
- * registry, they get one already decorated on the app.
+ * Exported for `./app` and for `realEvmRegistry` below — it was module-private
+ * before the split (#44) and is deliberately NOT re-exported from the barrel:
+ * no suite builds its own registry, they get one already decorated on the app.
  */
-export function fakeRegistry(): ChainRegistry {
+export function fakeRegistry(substitute?: { chain_id: string; adapter: ChainAdapter }): ChainRegistry {
   // Solana FIRST: `reconcile-escrows` falls back to `list()[0]` and the
   // helius webhook / listeners plugin pick the first solana adapter, so
   // insertion order is load-bearing — the alt chain must never displace it.
@@ -186,6 +186,9 @@ export function fakeRegistry(): ChainRegistry {
     [TEST_CHAIN_ID, fakeAdapter(TEST_CHAIN_ID)],
     [TEST_CHAIN_ID_ALT, fakeAdapter(TEST_CHAIN_ID_ALT, 'eip155')],
   ])
+  // `set` on an existing key REPLACES the value and KEEPS the position, so a
+  // substitution cannot reorder the map and break the rule just above.
+  if (substitute !== undefined) adapters.set(substitute.chain_id, substitute.adapter)
   return {
     get(chain_id) {
       const a = adapters.get(chain_id)
@@ -199,4 +202,23 @@ export function fakeRegistry(): ChainRegistry {
     // (the wallet-auth 401 path). Works for unprovisioned chains too.
     verifyAuthSig: async (_chain_id, { signature }) => signature !== FAKE_BAD_SIGNATURE,
   }
+}
+
+/**
+ * The harness registry with the eip155 chain's adapter replaced by a REAL one
+ * (#109's recorder, the only caller).
+ *
+ * Everything else stays fake — including `verifyAuthSig`, so wallet auth is
+ * still the offline stand-in every other suite uses. What becomes real is the
+ * one thing the recording depends on: `relay.quote`, whose terms must carry
+ * the token's actual EIP-712 domain, populated `types` and a nonce the
+ * contract agrees with. The fake relay answers with empty types and a zero
+ * nonce, which is correct for asserting route behaviour and would be a lie as
+ * a published example.
+ *
+ * A function rather than an exported `fakeRegistry` because the insertion-order
+ * rule above is load-bearing and belongs to this file, not to its callers.
+ */
+export function realEvmRegistry(adapter: ChainAdapter): ChainRegistry {
+  return fakeRegistry({ chain_id: TEST_CHAIN_ID_ALT, adapter })
 }
