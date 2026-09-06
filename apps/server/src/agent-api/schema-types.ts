@@ -43,9 +43,11 @@ export interface SchemaObject {
 
 /**
  * The names the document registers under `components.schemas` — the only
- * legal `$ref` targets. The two maps (./schemas, ./schemas-agent) are typed
- * `Record<…ComponentName, SchemaObject>` against these, so a schema missing
- * from its map, or a `ref()` to a name nothing registers, is a compile error.
+ * legal `$ref` targets. One list per SURFACE, and the three maps that fill
+ * them (./schemas, ./schemas-agent, ./platform) are each typed
+ * `Record<…ComponentName, SchemaObject>` against their own, so a schema
+ * missing from its map, or a `ref()` to a name nothing registers, is a
+ * compile error.
  */
 export const V0_COMPONENT_NAMES = [
   'UserRef', 'ProofParams', 'EscrowProof', 'Dispute', 'Review', 'GigApplication', 'Viewer',
@@ -56,9 +58,12 @@ export const V1_COMPONENT_NAMES = [
   'ReceiveAuthorizationTypedData', 'EvmAuthorizationTerms', 'SolanaTransactionTerms', 'RelayTerms',
   'AgentTaskPaymentRequired', 'AgentTaskCreated',
 ] as const
+/** The deployment-truth surface (#126): what `GET /v1/platform/chains` answers. */
+export const PLATFORM_COMPONENT_NAMES = ['ChainRegistryAsset', 'ChainRegistryEntry', 'ChainRegistry'] as const
 export type V0ComponentName = (typeof V0_COMPONENT_NAMES)[number]
 export type V1ComponentName = (typeof V1_COMPONENT_NAMES)[number]
-export type ComponentName = V0ComponentName | V1ComponentName
+export type PlatformComponentName = (typeof PLATFORM_COMPONENT_NAMES)[number]
+export type ComponentName = V0ComponentName | V1ComponentName | PlatformComponentName
 
 /** Where `$ref` targets live — spelled once, here, and read back by the drift tests. */
 export const COMPONENT_REF_PREFIX = '#/components/schemas/'

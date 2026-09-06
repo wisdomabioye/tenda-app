@@ -90,13 +90,53 @@ test('every schema in the slim document is byte-identical to the canonical one',
 })
 
 test('the slim document carries the task-posting flow and nothing an agent never calls', () => {
+  // The projection matches its declared list, in order. This CANNOT catch a
+  // path removed from that list — both sides come from the same constant — and
+  // the comment here used to claim it could. What catches a removal is the
+  // named exclusion below (for a path that must stay out) and the pointer case
+  // that follows (for one that must stay in).
   assert.deepStrictEqual(Object.keys(AGENT_SLIM_DOCUMENT.paths), [...AGENT_SLIM_PATHS])
-  // The browse surface is the weight this exists to shed. Named, so dropping a
-  // path from the flow (or quietly re-adding the feed) is a failing test.
+  // The browse surface is the weight this exists to shed. Named, so quietly
+  // re-adding the feed is a failing test.
   for (const path of ['/v1/gigs', '/v1/gigs/facets', '/v1/gigs/featured']) {
     assert.ok(AGENT_API_DOCUMENT.paths[path] !== undefined, `${path} should exist canonically`)
     assert.strictEqual(AGENT_SLIM_DOCUMENT.paths[path], undefined, `${path} must not be in the slim document`)
   }
+})
+
+test('every path the slim document POINTS AT is a path it carries', () => {
+  // #126 made `chain_id` shape-checked rather than enumerated and sent the
+  // reader to the deployment's own list instead. If that list is not in the
+  // projection, the pointer is a dead end one indirection further out — the
+  // exact failure documenting the endpoint was meant to remove.
+  //
+  // MEASURED before this case existed: deleting `apiRoutes.platform.chains`
+  // from AGENT_SLIM_PATHS left all 24 slim/drift cases green, because the
+  // membership assertion above compares the document to the constant that
+  // built it. The pointer is READ OUT of the description rather than restated,
+  // so redirecting the text to another path checks THAT path is carried.
+  // Top-level fields of each schema, which is where every pointer sits today;
+  // a pointer buried in a nested object would not be seen here.
+  const described = Object.values(AGENT_SLIM_DOCUMENT.components.schemas)
+    .flatMap((schema) => Object.values(schema.properties ?? {}))
+    .flatMap((field) => field.description?.match(/\/v1\/[\w/{}-]+/g) ?? [])
+  const pointers = [...new Set(described)]
+  assert.ok(pointers.length > 0, 'no schema field points at a path — #126 put a pointer on chain_id')
+  // Only mentions that are actual path KEYS count. A description may name a
+  // route this document does not define (`/v1/auth/verify`) or spell a
+  // parameter for a human (`/v1/gigs/{task_id}` against the `{id}` template) —
+  // that is prose, not a pointer into this document, and #128 tracks the one
+  // case of it. What must hold is that a path this document DOES define, and
+  // sends a reader to, travels with the subset.
+  const canonical = new Set(Object.keys(AGENT_API_DOCUMENT.paths))
+  for (const pointer of pointers.filter((path) => canonical.has(path))) {
+    assert.ok(
+      AGENT_SLIM_DOCUMENT.paths[pointer] !== undefined,
+      `${pointer} is pointed at by a documented field but is not carried in this document`,
+    )
+  }
+  // And the one #126 added is among them, by name.
+  assert.ok(pointers.includes(apiRoutes.platform.chains), `${apiRoutes.platform.chains} is no longer pointed at`)
 })
 
 /**

@@ -12,7 +12,6 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import {
   AMOUNT_RAW_PATTERN,
-  CHAIN_MANIFEST,
   GIG_CATEGORIES,
   LOCATIONS,
   MAX_ACCEPT_WINDOW_SECONDS,
@@ -34,7 +33,18 @@ const { components } = AGENT_API_DOCUMENT
 test('v1 request bodies derive their bounds from the shared constants the routes enforce', () => {
   const task = components.schemas.AgentTaskBody.properties ?? {}
   assert.deepStrictEqual(task.category.enum, GIG_CATEGORIES)
-  assert.deepStrictEqual(task.chain_id.enum, CHAIN_MANIFEST.map((entry) => entry.id))
+  // The REQUEST side of #126, and the side that mattered most: this enum used to
+  // list every manifest entry, so it told an agent it could post `eip155:8453`
+  // and `solana:mainnet` — both `status: 'planned'`, refused by every
+  // deployment there is. Which chains a deployment settles on comes from its
+  // `CHAIN_<id>_*` secrets and is answered by GET /v1/platform/chains; a
+  // module-load constant cannot know it, so it now checks shape and says where
+  // the real list lives.
+  assert.strictEqual(task.chain_id.enum, undefined, 'the request must not enumerate chains this deployment may not serve')
+  const chainShape = task.chain_id.pattern
+  assert.ok(chainShape !== undefined, 'the request must still SHAPE-check the chain id')
+  assert.ok(new RegExp(chainShape).test('eip155:84532'), 'a real chain id must pass')
+  assert.ok(!new RegExp(chainShape).test('84532'), 'a bare numeric id must not')
   assert.deepStrictEqual(task.proof_requirements.items?.enum, PROOF_TYPES)
   assert.strictEqual(task.completion_duration_seconds.minimum, MIN_COMPLETION_DURATION_SECONDS)
   assert.strictEqual(task.completion_duration_seconds.maximum, MAX_COMPLETION_DURATION_SECONDS)

@@ -13,6 +13,7 @@
  */
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
+import { AGENT_API_PLATFORM_PATHS, AGENT_API_PLATFORM_SCHEMAS } from './platform'
 import { AGENT_API_SCHEMAS } from './schemas'
 import { AGENT_API_V1_SCHEMAS } from './schemas-agent'
 import type { ComponentName, SchemaObject } from './schema-types'
@@ -64,12 +65,13 @@ export const AGENT_API_CACHE_SECONDS = 300
 
 export const AGENT_API_STABILITY = [
   'The read surface (every GET) is anonymous. The write surface (POST /v1/agent/*) is bearer-scoped: register once by wallet proof, then send the token; /v1/auth/verify with method "wallet" signs the same agent back in.',
-  'The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged.',
+  'The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged. New paths may be ADDED.',
   'Posting a task is ONE call: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
   'Every account created through /v1/agent/register carries is_agent = true on every surface that shows it; humans always see when the other side is software.',
   'Documented response fields are never removed, renamed or retyped. Fields may be ADDED; clients must ignore fields they do not know.',
   'REQUEST fields carry no such freeze, and the major version is how you learn one changed: 2.0.0 replaced accept_deadline_unix with accept_window_seconds on POST /v1/agent/tasks. Check info.version before assuming a body still validates.',
-  'Enumerations (proof types, categories, statuses, countries, chain ids, sort keys, error codes) are append-only.',
+  'Enumerations (proof types, categories, statuses, countries, sort keys, error codes) are append-only.',
+  'Chain ids are NOT enumerated: this document is identical on every deployment, and which chains one settles on comes from its configuration. GET /v1/platform/chains answers for the deployment you are talking to; a chain_id it does not list is refused — 422 when posting a task, 400 on the feed filter.',
   'Every non-2xx answer is the ApiError envelope: statusCode, error, message, code, and an optional machine-readable details object.',
   'Amounts are base-unit integers carried as decimal strings; timestamps are ISO-8601 UTC; ids are UUIDs; chain ids are CAIP-2.',
   'Fields marked bearer-scoped (viewer, my_signer_address, counterparty, proofs, dispute) are documented for completeness but sit outside the v0 guarantee.',
@@ -106,10 +108,11 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = {
   tags: [
     { name: 'gigs', description: 'Public, read-only gig listings' },
     { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
+    { name: 'platform', description: 'What THIS deployment is configured for — the chains and assets it can settle on' },
   ],
-  paths: { ...AGENT_API_PATHS, ...AGENT_API_V1_PATHS },
+  paths: { ...AGENT_API_PATHS, ...AGENT_API_V1_PATHS, ...AGENT_API_PLATFORM_PATHS },
   components: {
-    schemas: { ...AGENT_API_SCHEMAS, ...AGENT_API_V1_SCHEMAS },
+    schemas: { ...AGENT_API_SCHEMAS, ...AGENT_API_V1_SCHEMAS, ...AGENT_API_PLATFORM_SCHEMAS },
     securitySchemes: SECURITY_SCHEMES,
   },
 }

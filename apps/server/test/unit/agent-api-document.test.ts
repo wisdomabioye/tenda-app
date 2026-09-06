@@ -15,7 +15,6 @@ import { Column, is } from 'drizzle-orm'
 import {
   AMOUNT_RAW_PATTERN,
   APPLICATION_STATUSES,
-  CHAIN_MANIFEST,
   ErrorCode,
   GIG_CATEGORIES,
   GIG_LIST_SORTS,
@@ -25,7 +24,7 @@ import {
   PROOF_TYPES,
   apiRoutes,
 } from '@tenda/shared'
-import { escrowStatusEnum } from '@tenda/shared/db/schema'
+import { chainNamespaceEnum, escrowStatusEnum } from '@tenda/shared/db/schema'
 import {
   AGENT_API_DOCUMENT,
   AGENT_API_DOCUMENT_PATH,
@@ -69,8 +68,16 @@ test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.strictEqual(AGENT_API_VERSION, '2.0.0')
 })
 
-test('the public gig reads are GET-only and every agent write POST-only, all spelled from the route map', () => {
-  const READS = [apiRoutes.gigs.list, apiRoutes.gigs.facets, apiRoutes.gigs.featured, apiRoutes.gigs.get.replace(':id', '{id}')]
+test('the public reads are GET-only and every agent write POST-only, all spelled from the route map', () => {
+  // Anonymous GETs: the four gig reads, plus the deployment's own chain list.
+  // That last one is documented because #126 stopped enumerating chain ids —
+  // the document cannot know which chains a deployment settles on, so it points
+  // at the endpoint that does, and a pointer to a path this document does not
+  // describe would be the same dead end one indirection further out.
+  const READS = [
+    apiRoutes.gigs.list, apiRoutes.gigs.facets, apiRoutes.gigs.featured, apiRoutes.gigs.get.replace(':id', '{id}'),
+    apiRoutes.platform.chains,
+  ]
   // Writes that take a body. The demo session is a POST too, but it takes NONE
   // — that is its whole shape (#108) — so it is asserted separately below
   // rather than weakened into this list.
@@ -108,20 +115,26 @@ test('the public gig reads are GET-only and every agent write POST-only, all spe
   assert.ok(tasks?.parameters?.some((p) => p.in === 'header' && p.name === 'x-payment'))
   // Registration is anonymous by necessity — it is how a bearer is obtained.
   assert.strictEqual(paths[apiRoutes.agent.register].post?.security, undefined)
+  // Every operation in the document, walked once — three separate nested walks
+  // stood here before #126 added a third.
+  const operations = Object.values(paths).flatMap(operationsOf)
   // OpenAPI: a requirement may only name a scheme components.securitySchemes declares.
   const declared = new Set(Object.keys(components.securitySchemes))
-  for (const item of Object.values(paths)) {
-    for (const op of operationsOf(item)) {
-      for (const requirement of op.security ?? []) {
-        for (const name of Object.keys(requirement)) assert.ok(declared.has(name), `security scheme ${name} is not declared`)
-      }
+  for (const op of operations) {
+    for (const requirement of op.security ?? []) {
+      for (const name of Object.keys(requirement)) assert.ok(declared.has(name), `security scheme ${name} is not declared`)
     }
+  }
+  // OpenAPI: an operation may only carry tags the document declares. Unchecked
+  // until #126 added the first new tag since the document was written, and a
+  // typo here is invalid OpenAPI that renders as an unlabelled operation.
+  const declaredTags = new Set(AGENT_API_DOCUMENT.tags.map((tag) => tag.name))
+  for (const op of operations) {
+    for (const tag of op.tags) assert.ok(declaredTags.has(tag), `tag ${tag} on ${op.operationId} is not declared`)
   }
   assert.deepStrictEqual(components.securitySchemes.bearer.type, 'http')
   assert.deepStrictEqual(components.securitySchemes.bearer.scheme, 'bearer')
-  for (const item of Object.values(paths)) {
-    for (const op of operationsOf(item)) assert.ok(op.operationId.length > 0)
-  }
+  for (const op of operations) assert.ok(op.operationId.length > 0)
 })
 
 test('every $ref resolves to a component schema, and every component is referenced or is a response', () => {
@@ -172,8 +185,26 @@ test('enumerations are the shared vocabularies, not restated copies', () => {
     APPLICATION_STATUSES,
   )
   assert.deepStrictEqual(components.schemas.ApiError.properties?.code.enum, Object.values(ErrorCode))
-  // Chain ids are the manifest's, not a hand-written CAIP-2 regex.
-  assert.deepStrictEqual(summary.chain_id.enum, CHAIN_MANIFEST.map((entry) => entry.id))
+  // Chain ids are SHAPE-checked and deliberately NOT enumerated (#126): which
+  // chains exist is a manifest fact, which chains a deployment settles on is a
+  // configuration fact, and this document is deployment-independent. It used to
+  // list every manifest entry, which promised `solana:mainnet` and
+  // `eip155:8453` — both `planned`, refused everywhere.
+  assert.strictEqual(summary.chain_id.enum, undefined, 'chain_id must not enumerate the manifest')
+  assert.ok(summary.chain_id.pattern !== undefined, 'chain_id must still be shape-checked')
+  const shape = new RegExp(summary.chain_id.pattern)
+  assert.ok(shape.test('eip155:84532') && shape.test('solana:devnet'), 'a real chain id must pass')
+  assert.ok(!shape.test('bogus:1') && !shape.test('eip155:'), 'a malformed id must not')
+  // Every namespace the shared enum declares is accepted. This cannot see
+  // WHERE the pattern's alternation came from — a hardcoded one matching today's
+  // two namespaces passes — but it is the assertion that goes red the moment a
+  // third namespace is added to the enum and a literal fails to follow it.
+  for (const ns of chainNamespaceEnum) assert.ok(summary.chain_id.pattern.includes(ns), `${ns} is missing from the pattern`)
+  // CAIP-2's reference half is `[-_a-zA-Z0-9]{1,32}`: no dot, and not empty.
+  assert.ok(!shape.test('eip155:1.5'), 'a dot is not a CAIP-2 reference character')
+  assert.ok(!shape.test(`eip155:${'x'.repeat(33)}`), 'a reference over 32 characters is not CAIP-2')
+  // And the reader is told where the deployment's own list lives.
+  assert.match(summary.chain_id.description ?? '', /\/v1\/platform\/chains/)
   // The rail is a carousel with a fixed cap, and the document says so.
   assert.strictEqual(components.schemas.FeaturedGigs.properties?.data.maxItems, FEATURED_RAIL_LIMIT)
   // Facets carry one count per category and per market — the whole vocabulary.
@@ -259,7 +290,9 @@ test('every query parameter compiles strictly and states the bound the server re
   assert.strictEqual(param('max_amount_raw').pattern, AMOUNT_RAW_PATTERN.source)
   // Vocabularies the server enforces, spelled from the shared constants.
   assert.deepStrictEqual(param('sort').enum, GIG_LIST_SORTS)
-  assert.deepStrictEqual(param('chain_id').enum, CHAIN_MANIFEST.map((entry) => entry.id))
+  // Same as the response field: shape, not a manifest listing (#126).
+  assert.strictEqual(param('chain_id').enum, undefined)
+  assert.ok(param('chain_id').pattern !== undefined)
   // A city is matched as sent; nothing checks it against the country.
   assert.doesNotMatch(byName.get('city')?.description ?? '', /belong/)
 })

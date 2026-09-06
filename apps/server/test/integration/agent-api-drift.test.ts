@@ -16,12 +16,13 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import type { ValidateFunction } from 'ajv'
 import type { FastifyInstance } from 'fastify'
-import { MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, type AgentTaskPaymentRequired, type GigsContract } from '@tenda/shared'
-import { escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
+import { CHAIN_MANIFEST, MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, type AgentTaskPaymentRequired, type GigsContract, type PlatformContract } from '@tenda/shared'
+import { chains, escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
 import {
   AGENT_API_CACHE_SECONDS,
   AGENT_API_DOCUMENT,
   AGENT_API_DOCUMENT_PATH,
+  AGENT_API_STABILITY,
 } from '@server/agent-api/openapi'
 import {
   AGENT_SLIM_DOCUMENT,
@@ -116,7 +117,14 @@ test('every public GET under /v1/gigs is documented — the document is the whol
   const live = [...servedPaths(getApp())]
     .filter((path) => path.startsWith(GIGS.list) && !BEARER_ONLY.has(path))
     .sort()
-  const documentedReads = Object.entries(AGENT_API_DOCUMENT.paths).filter(([, item]) => item.get !== undefined).map(([path]) => served(path))
+  // Both sides are narrowed to the gig surface this case is about. The document
+  // also carries GET /v1/platform/chains (#126), which is not a gig read; that
+  // it is SERVED is proved by the every-documented-path case above, so widening
+  // this comparison would only make it a second, weaker copy of that one.
+  const documentedReads = Object.entries(AGENT_API_DOCUMENT.paths)
+    .filter(([, item]) => item.get !== undefined)
+    .map(([path]) => served(path))
+    .filter((path) => path.startsWith(GIGS.list))
   assert.deepStrictEqual(live, documentedReads.sort())
 })
 
@@ -209,6 +217,88 @@ test('the live feed, facets, featured rail and detail all validate against their
   assert.strictEqual(body.counterparty, null)
   assert.deepStrictEqual(body.proofs, [])
   assert.strictEqual(body.viewer, null)
+})
+
+test('the documented chain list is the DEPLOYMENT\'s, not the manifest\'s', { skip }, async () => {
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+
+  const response = await app.inject({ method: 'GET', url: apiRoutes.platform.chains })
+  assert.strictEqual(response.statusCode, 200)
+  const body = response.json<PlatformContract['chains']['response']>()
+  assertValid(responseValidator(apiRoutes.platform.chains), body, `GET ${apiRoutes.platform.chains}`)
+
+  // The point of #126, asserted rather than described. Every id served is one
+  // this app's adapter REGISTRY holds — the deployment fact — and the manifest
+  // has entries the response does not, which is what makes the two provably
+  // different sources at all. A route that served the manifest instead would
+  // fail the FIRST of these: it would offer `solana:mainnet`, which no adapter
+  // backs. The second is the precondition, not a second catch — if the two
+  // sources ever agreed exactly, neither assertion could tell them apart, and
+  // the enacted case below would have nothing to insert.
+  const served = body.data.map((entry) => entry.id)
+  assert.ok(served.length > 0, 'the harness enables at least one chain')
+  for (const id of served) assert.ok(app.chains.has(id), `${id} is served but this deployment has no adapter for it`)
+  const unserved = CHAIN_MANIFEST.filter((entry) => !served.includes(entry.id))
+  assert.ok(
+    unserved[0] !== undefined,
+    'the manifest and this deployment agree exactly, so this guard cannot tell them apart — enable fewer chains in the harness',
+  )
+
+  // The regression this case exists for, ENACTED rather than assumed. Removing
+  // the route's registry filter changed nothing on its own — the harness
+  // enables exactly the chains it has adapters for, so the two sources were
+  // indistinguishable and the assertion above could not fail. Insert a manifest
+  // chain the deployment has no adapter for, ENABLED in the database, and the
+  // difference becomes observable: a server that answered from the database
+  // alone would now advertise a chain it cannot build a transaction on.
+  await app.db.insert(chains).values({
+    id: unserved[0].id,
+    namespace: unserved[0].namespace,
+    display_name: unserved[0].displayName,
+    min_confirmations: 1,
+    treasury_address: '',
+    escrow_program: '',
+  })
+  const after = await app.inject({ method: 'GET', url: apiRoutes.platform.chains })
+  assert.strictEqual(after.statusCode, 200)
+  const servedAfter = after.json<PlatformContract['chains']['response']>().data.map((entry) => entry.id)
+  assert.ok(!app.chains.has(unserved[0].id), 'the fixture chain must genuinely have no adapter')
+  assert.deepStrictEqual(
+    servedAfter,
+    served,
+    `${unserved[0].id} is enabled in the database with no adapter — it must not be advertised`,
+  )
+  // And the document does not promise those chains anywhere: the chain id
+  // scalar is shape-checked, and points at this endpoint instead.
+  const chainIdSchema = AGENT_API_DOCUMENT.components.schemas.AgentTaskBody.properties?.chain_id
+  assert.strictEqual(chainIdSchema?.enum, undefined)
+  assert.match(chainIdSchema?.description ?? '', /\/v1\/platform\/chains/)
+
+  // The loop closed: the chain this list omits is refused by the write path,
+  // with the status the stability note promises. MEASURED, because the first
+  // version of that note said 400 for both paths — 400 is what the FEED filter
+  // answers; the task post answers 422, and an agent coded against the note
+  // would have watched for a status it never receives.
+  const registered = await registerAgent(app)
+  const refused = await app.inject({
+    method: 'POST',
+    url: apiRoutes.agent.tasks,
+    headers: authHeader(registered.token),
+    payload: { ...agentTaskBody(), chain_id: unserved[0].id },
+  })
+  // Asserted on the MESSAGE too, so a 422 earned by some other invalid field
+  // cannot stand in for the refusal this case is about.
+  assert.match(refused.body, new RegExp(`unsupported chain_id.*${unserved[0].id}`), refused.body)
+  const status = String(refused.statusCode) as HttpStatus
+  const note = AGENT_API_STABILITY.find((line) => line.includes(apiRoutes.platform.chains))
+  assert.ok(note !== undefined, 'no stability note points readers at the chain list')
+  assert.ok(note.includes(status), `the stability note does not name ${status}, which is what the server answers`)
+  assert.ok(
+    AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks].post?.responses[status] !== undefined,
+    `${status} is what the server answers and the path item does not document it`,
+  )
 })
 
 test('the bearer-scoped half validates too: proofs and the count for a PARTY, the application for an applicant', { skip }, async () => {

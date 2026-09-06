@@ -75,15 +75,24 @@ export const AGENT_SLIM_DOCUMENT_PATH = '/v1/agent/openapi.json'
 
 /**
  * The paths an agent needs to post one task and watch it land, in the order
- * the flow runs. NAMED rather than pattern-matched on `/v1/agent/`, because
- * `/v1/gigs/{id}` belongs to the flow and does not match, and a prefix rule
- * would silently drop it — the polling step every reviewer described.
+ * the flow runs. NAMED rather than pattern-matched on `/v1/agent/`, because TWO
+ * of them sit outside that prefix — `/v1/platform/chains`, which says what this
+ * deployment settles on, and `/v1/gigs/{id}`, the polling step every reviewer
+ * described — and a prefix rule would silently drop both.
  */
 export const AGENT_SLIM_PATHS = [
-  // FIRST, because it is the step a reader with no wallet needs before any of
-  // the others will answer them anything but 401 (#108).
+  // The two DOORS first, and they are alternatives, not steps: the demo bearer
+  // for a reader with no wallet (#108), or registration for one who has a key.
+  // The task POST answers 401 until one of them has been used; the two reads
+  // below it need no bearer at all, which is why they can come after.
   apiRoutes.agent.demoSession,
   apiRoutes.agent.register,
+  // Then the CHOICE, before the post that depends on it: `chain_id` on the task
+  // body is shape-checked and NOT enumerated (#126) and `asset` is a bare
+  // string, so a document that cannot know which chains a deployment settles on
+  // has to carry the endpoint that does — or the reader it was written for is
+  // left guessing the two fields the whole post turns on.
+  apiRoutes.platform.chains,
   apiRoutes.agent.tasks,
   // The document spells a path parameter the OpenAPI way and the route map the
   // Fastify way — the same transform ./paths applies to build the key it is
@@ -101,8 +110,11 @@ export const AGENT_SLIM_PATHS = [
  * It cannot be derived: see the note above on why the reviewers' byte figures
  * contradict each other. What it can do is stop the document drifting back
  * toward the size that caused the complaint. 40,000 sits below the canonical
- * document, and the projection — #109's recorded examples included — has some
- * kilobytes of room under it (about five as this is written, 2026-09-06).
+ * document — and the projection is now very close to it, because #126 spent
+ * most of the slack adding GET /v1/platform/chains. Treat the next size failure
+ * as a prompt to remove weight, not to raise this: the room that is left is in
+ * `x-tenda-stability`, ~2.4 KB of integration policy carried identically in
+ * both documents that a bot making its first call does not need (#127).
  *
  * The current sizes are DELIBERATELY not spelled out here. Both live figures
  * this comment used to carry went stale within two days of being written, once
