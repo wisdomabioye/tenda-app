@@ -20,6 +20,9 @@ import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
 import { recordedPaymentHeader, withRecordedExamples } from '@server/agent-api/examples'
 import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
 import { JSON_MEDIA_TYPE } from '@server/agent-api/paths'
+
+/** The gig detail's key in the document — OpenAPI's spelling, not Fastify's. */
+const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
 import { agentApiAjv } from '../helpers/agent-api-validator'
 
 const ajv = agentApiAjv()
@@ -167,7 +170,7 @@ test('nothing is published by $ref — a truncated reader meets the payload wher
   const serialised = JSON.stringify(AGENT_SLIM_DOCUMENT)
   assert.strictEqual(serialised.includes('"examples"'), false, 'OpenAPI `examples` (the $ref-able form) crept in')
   const inlineCount = [...serialised.matchAll(/"example":/g)].length
-  assert.strictEqual(inlineCount, 4, 'expected exactly the request, 402, 201 and X-PAYMENT examples')
+  assert.strictEqual(inlineCount, 5, 'expected the request, 402, 201, X-PAYMENT and the POLLED gig')
 })
 
 /*
@@ -178,8 +181,8 @@ test('nothing is published by $ref — a truncated reader meets the payload wher
  * asserts it returns something serviceable instead.
  */
 
-test('a document without the task path is returned untouched, not thrown at', () => {
-  const { [apiRoutes.agent.tasks]: _dropped, ...rest } = AGENT_API_DOCUMENT.paths
+test('a document with NEITHER attachment point is returned untouched, not thrown at', () => {
+  const { [apiRoutes.agent.tasks]: _task, [GIG_DETAIL_PATH]: _gig, ...rest } = AGENT_API_DOCUMENT.paths
   const without = { ...AGENT_API_DOCUMENT, paths: rest }
   assert.strictEqual(withRecordedExamples(without), without, 'it should hand back the very same object')
 })

@@ -38,7 +38,7 @@
  * says. Everything else — every shape, and every value the server derived
  * rather than the harness chose — is what production sends.
  */
-import type { AgentTaskBody, AgentTaskCreated, AgentTaskPaymentRequired, RelayPaymentPayload, RelaySettlementResponse } from '@tenda/shared'
+import type { AgentTaskBody, AgentTaskCreated, AgentTaskPaymentRequired, GigDetail, RelayPaymentPayload, RelaySettlementResponse } from '@tenda/shared'
 import { X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
 import { JSON_MEDIA_TYPE, type ExampleValue, type HttpStatus, type JsonContent, type OperationObject, type ResponseObject } from './paths'
 import { RECORDED_EXCHANGE } from './recorded-exchange'
@@ -61,6 +61,13 @@ export interface RecordedExchange {
   created: AgentTaskCreated
   /** The decoded x-payment-response header of that resend. */
   settlement: RelaySettlementResponse
+  /**
+   * What the POLL answers — the third payload every round-one reviewer asked
+   * for by name ("the response from polling GET /v1/gigs/{task_id}"), and the
+   * step the flow they recited ends on. Captured as the CREATOR sees it, with
+   * a bearer, because that is the only reader a draft answers at all.
+   */
+  polled: GigDetail
 }
 
 /**
@@ -72,13 +79,27 @@ export interface RecordedExchange {
  * than reaching a reader. The single cast is the JSON boundary, where the
  * checker has nothing left to go on.
  */
-function asExample(value: object): ExampleValue {
+function asExample(value: object | undefined, field: keyof RecordedExchange): ExampleValue {
+  // `| undefined` is not defensive typing: ./recorded-exchange is GENERATED, and
+  // a stale or hand-edited one can be missing a field the type says is there —
+  // a state the compiler cannot see, and the only one this branch is for.
+  // Without the check it fails HERE, at module load, as `JSON.parse`
+  // complaining that "undefined" is not valid JSON: a stack with no mention of
+  // the recording, on a server that simply does not boot.
+  if (value === undefined) {
+    throw new Error(`recorded-exchange has no \`${field}\` — re-record with \`pnpm record:x402\``)
+  }
   return JSON.parse(JSON.stringify(value)) as ExampleValue
 }
 
 /** The base64 an agent actually puts in the header, from the envelope beside it. */
+function paymentHeader(recorded: RecordedExchange): string {
+  return Buffer.from(JSON.stringify(recorded.payment_envelope)).toString('base64')
+}
+
+/** The published header value, for the suites that assert on it. */
 export function recordedPaymentHeader(): string {
-  return Buffer.from(JSON.stringify(RECORDED_EXCHANGE.payment_envelope)).toString('base64')
+  return paymentHeader(RECORDED_EXCHANGE)
 }
 
 /**
@@ -86,55 +107,83 @@ export function recordedPaymentHeader(): string {
  * `schema` is carried through untouched, so the drift guard still compares it
  * against the canonical document.
  */
-function withExample(content: JsonContent, value: object): JsonContent {
-  return { [JSON_MEDIA_TYPE]: { ...content[JSON_MEDIA_TYPE], example: asExample(value) } }
+function withExample(content: JsonContent, value: object | undefined, field: keyof RecordedExchange): JsonContent {
+  return { [JSON_MEDIA_TYPE]: { ...content[JSON_MEDIA_TYPE], example: asExample(value, field) } }
 }
 
 /** One documented response with its recorded body, or nothing if it has no JSON content. */
 function recordedResponse(
   responses: OperationObject['responses'],
   status: HttpStatus,
-  value: object,
+  value: object | undefined,
+  field: keyof RecordedExchange,
 ): Readonly<Record<string, ResponseObject>> {
   const response = responses[status]
   if (response?.content === undefined) return {}
-  return { [status]: { ...response, content: withExample(response.content, value) } }
+  return { [status]: { ...response, content: withExample(response.content, value, field) } }
 }
 
 /** The POST /v1/agent/tasks operation with its request, 402 and 201 recorded. */
-function taskOperation(post: OperationObject): OperationObject {
+function taskOperation(post: OperationObject, recorded: RecordedExchange): OperationObject {
   return {
     ...post,
     ...(post.parameters !== undefined
       ? {
           parameters: post.parameters.map((parameter) =>
             parameter.name === X_PAYMENT_HEADER
-              ? { ...parameter, example: recordedPaymentHeader() }
+              ? { ...parameter, example: paymentHeader(recorded) }
               : parameter,
           ),
         }
       : {}),
     ...(post.requestBody !== undefined
-      ? { requestBody: { ...post.requestBody, content: withExample(post.requestBody.content, RECORDED_EXCHANGE.request) } }
+      ? { requestBody: { ...post.requestBody, content: withExample(post.requestBody.content, recorded.request, 'request') } }
       : {}),
     responses: {
       ...post.responses,
-      ...recordedResponse(post.responses, '402', RECORDED_EXCHANGE.payment_required),
-      ...recordedResponse(post.responses, '201', RECORDED_EXCHANGE.created),
+      ...recordedResponse(post.responses, '402', recorded.payment_required, 'payment_required'),
+      ...recordedResponse(post.responses, '201', recorded.created, 'created'),
     },
   }
 }
+
+/** The GET /v1/gigs/{id} operation with the polled task recorded on its 200. */
+function gigOperation(get: OperationObject, recorded: RecordedExchange): OperationObject {
+  return { ...get, responses: { ...get.responses, ...recordedResponse(get.responses, '200', recorded.polled, 'polled') } }
+}
+
+/** The document key the gig detail is filed under — OpenAPI's spelling, not Fastify's. */
+const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
 
 /**
  * The slim document with the recorded exchange attached. Everything else is
  * carried through by reference, so the drift guard still compares the rest of
  * each path against the canonical document byte for byte.
+ *
+ * TWO paths carry examples, because the flow the reviewers recited has two
+ * halves: the task post (request, 402, 201, X-PAYMENT) and the POLL it ends on.
+ * Publishing only the first left a reader at exactly the step ten of ten said
+ * they could not see.
+ *
+ * The recording is a PARAMETER, defaulted, for the same reason `slimAgentDocument`
+ * takes its document: so the guards can run this over a fixture — including the
+ * stale one that proves the missing-field refusal actually refuses.
  */
-export function withRecordedExamples(doc: OpenApiDocument): OpenApiDocument {
+export function withRecordedExamples(
+  doc: OpenApiDocument,
+  recorded: RecordedExchange = RECORDED_EXCHANGE,
+): OpenApiDocument {
   const tasks = doc.paths[apiRoutes.agent.tasks]
-  if (tasks?.post === undefined) return doc
+  const gig = doc.paths[GIG_DETAIL_PATH]
+  // Nothing to attach: hand back the very object, rather than an equal copy.
+  // Cheap, and it keeps "this function did nothing" checkable by identity.
+  if (tasks?.post === undefined && gig?.get === undefined) return doc
   return {
     ...doc,
-    paths: { ...doc.paths, [apiRoutes.agent.tasks]: { ...tasks, post: taskOperation(tasks.post) } },
+    paths: {
+      ...doc.paths,
+      ...(tasks?.post !== undefined ? { [apiRoutes.agent.tasks]: { ...tasks, post: taskOperation(tasks.post, recorded) } } : {}),
+      ...(gig?.get !== undefined ? { [GIG_DETAIL_PATH]: { ...gig, get: gigOperation(gig.get, recorded) } } : {}),
+    },
   }
 }

@@ -34,6 +34,7 @@ import {
   apiRoutes,
   type AgentTaskCreated,
   type AgentTaskPaymentRequired,
+  type GigDetail,
 } from '@tenda/shared'
 import { ANVIL_CHAIN_ID, ANVIL_KEYS, ERC20_ABI, anvilSkip, startAnvilFixture, type AnvilFixture } from '../helpers/anvil'
 import {
@@ -156,6 +157,7 @@ async function captureExchange(): Promise<RecordedExchange> {
   assert.strictEqual(polled.statusCode, 200, polled.body)
 
   return {
+    polled: polled.json<GigDetail>(),
     request: body,
     payment_required: terms,
     payment_envelope: envelope,

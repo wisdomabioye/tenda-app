@@ -45,6 +45,17 @@ export const VOLATILE: readonly string[] = [
   'payment_envelope.payload.signature',
   'created.tx_ref',
   'settlement.transaction',
+  // The POLL (#97). These four are the ones the guard itself named on a second
+  // run — not a guess: the escrow id and the agent's user row are fresh per
+  // capture, and both timestamps are derived from `now` at create time. Every
+  // OTHER field of the polled gig is pinned, which is the point: `status`,
+  // `creator.is_agent`, the proof requirements and the null party-scoped half
+  // are exactly what a reader is being shown, and a change in any of them
+  // should fail here.
+  'polled.escrow_id',
+  'polled.created_at',
+  'polled.accept_deadline',
+  'polled.creator.id',
 ]
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
