@@ -22,8 +22,16 @@ export type RateMap = ExchangeRates['rates']
  * two kinds of asset can be priced from it:
  *
  *   SOL      — the rate is already what we want;
- *   a STABLE — worth ~1 USD, so the USD leg divides out
- *              (NGN-per-USDC = rates.NGN / rates.USD).
+ *   a STABLE — worth ~1 unit of the currency it is PEGGED to, so that peg's
+ *              leg divides out (NGN-per-USDC = rates.NGN / rates.USD;
+ *              NGN-per-cNGN = rates.NGN / rates.NGN = 1).
+ *
+ * THE PEG LEG IS READ, NOT ASSUMED. This used to divide by a hardcoded
+ * `rates.USD` for every stable, which is the dollar assumption `AssetMeta.peg`
+ * exists to remove: a naira stable priced through the dollar leg renders
+ * ~1,372x too high (MEASURED 2026-09-06 — cNGN 0.963 NGN, USDC 1321.71 NGN),
+ * and it renders it on every money surface at once, because this is the one
+ * rule they all convert through.
  *
  * Everything else answers null, and that third arm is load-bearing rather than
  * defensive. Mobile's copy of this rule returned the SOL rate for ANY
@@ -46,9 +54,12 @@ export function fiatRatePerUnit(
 ): number | null {
   const solRate = rates?.[currency] ?? null
   const meta = getAssetMeta(asset)
-  if (meta?.is_stable === true) {
-    const usdRate = rates?.USD ?? null
-    return solRate !== null && usdRate !== null && usdRate > 0 ? solRate / usdRate : null
+  // Branches on `peg`, not on `is_stable`, so the two can never disagree here:
+  // ASSET_META's load-time `assertStablePegs` already refuses a stable with no
+  // peg, which makes this the same set of assets the `is_stable` test selected.
+  if (meta?.peg !== undefined) {
+    const pegRate = rates?.[meta.peg] ?? null
+    return solRate !== null && pegRate !== null && pegRate > 0 ? solRate / pegRate : null
   }
   return meta?.symbol === 'SOL' ? solRate : null
 }
@@ -70,8 +81,10 @@ export interface AssetPaymentDisplay {
  * Asset-aware payment display for v2 escrows.
  *
  * Takes the rate CACHE and the currency, not a single rate: pricing a stable
- * needs the USD leg as well as the target currency, so a caller holding one
- * number cannot supply enough (#76). Every caller already held the cache.
+ * needs ITS PEG's leg as well as the target currency's, so a caller holding one
+ * number cannot supply enough (#76). Every caller already held the cache. This
+ * said "the USD leg" until cNGN, when the peg stopped being the dollar for
+ * every stable — see `fiatRatePerUnit`, which owns the rule.
  */
 export function toAssetPaymentDisplay(
   amount_raw: string,

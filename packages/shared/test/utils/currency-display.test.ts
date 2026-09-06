@@ -20,10 +20,60 @@ test('fiatRatePerUnit: SOL takes the cache rate straight', () => {
   assert.equal(fiatRatePerUnit(RATES, 'NGN', 'SOL_DEVNET'), 150_000)
 })
 
-test('fiatRatePerUnit: a stable divides the USD leg out', () => {
+test('fiatRatePerUnit: a stable divides its OWN peg leg out', () => {
   // NGN 150,000 per SOL / USD 150 per SOL = NGN 1,000 per USDC.
   assert.equal(fiatRatePerUnit(RATES, 'NGN', 'USDC_SOL'), 1_000)
   assert.equal(fiatRatePerUnit(RATES, 'NGN', 'cUSD'), 1_000)
+})
+
+test('fiatRatePerUnit: a NAIRA stable is priced through the naira leg, not the dollar', () => {
+  // The whole of the peg field. Dividing cNGN by the USD leg would answer
+  // 1,000 here — a thousand naira for one cNGN, against the ~1 it is worth.
+  // On the real rates measured 2026-09-06 (cNGN 0.963 NGN, USDC 1321.71 NGN)
+  // that is the ~1,372x error, and it lands on every money surface at once
+  // because this is the one rule they all convert through.
+  assert.equal(fiatRatePerUnit(RATES, 'NGN', 'cNGN'), 1)
+  assert.notEqual(fiatRatePerUnit(RATES, 'NGN', 'cNGN'), fiatRatePerUnit(RATES, 'NGN', 'USDC_SOL'))
+})
+
+test('fiatRatePerUnit: a naira stable in DOLLARS crosses through the naira leg', () => {
+  // The other direction, which the peg-is-the-currency case above cannot
+  // catch: currency === peg divides a number by itself and would answer 1 even
+  // if the rule read the wrong leg entirely. USD 150 per SOL / NGN 150,000 per
+  // SOL = USD 0.001 per cNGN.
+  assert.equal(fiatRatePerUnit(RATES, 'USD', 'cNGN'), 0.001)
+})
+
+test('fiatRatePerUnit: a currency the cache does not carry answers null, even with the peg leg present', () => {
+  // The OTHER missing leg, and the one the suite had no case for: the peg is
+  // present and the TARGET currency is absent. MEASURED 2026-09-06 against the
+  // live producer — CoinGecko prices SOL in ngn/zar/php/aed/usd/gbp/eur but
+  // returns NO ghs and NO kes — so this is not a hypothetical map, it is what a
+  // Ghanaian or Kenyan reader's cache actually looks like today.
+  //
+  // Proven load-bearing rather than assumed: dropping `solRate !== null` from
+  // the peg arm left every other case in this file green, and the mutant
+  // answered `0` here instead of null. Zero is not a missing rate — it is a
+  // rate, and it is the one number a money surface must never be handed.
+  assert.equal(fiatRatePerUnit({ NGN: 150_000 }, 'GHS', 'cNGN'), null)
+  assert.equal(fiatRatePerUnit({ NGN: 150_000, USD: 150 }, 'KES', 'USDC_SOL'), null)
+  // The control: the same cache prices the same assets in a currency it DOES
+  // carry, so this is about the missing leg and not about the assets.
+  assert.equal(fiatRatePerUnit({ NGN: 150_000 }, 'NGN', 'cNGN'), 1)
+})
+
+test('fiatRatePerUnit: a stable needs ITS peg leg, not any leg', () => {
+  // A cache carrying other currencies but NOT the naira prices USDC fine and
+  // cannot price cNGN at all — the honest answer, and it proves the two assets
+  // read different entries rather than sharing one.
+  //
+  // ZAR rather than GHS as the third currency: the case above uses GHS to mean
+  // "a currency the live producer does not carry", and one file must not use
+  // the same code to mean both that and "present in the cache". ZAR was
+  // measured PRESENT in CoinGecko's SOL response 2026-09-06.
+  const noNaira = { USD: 150, ZAR: 1_650 }
+  assert.equal(fiatRatePerUnit(noNaira, 'USD', 'USDC_SOL'), 1)
+  assert.equal(fiatRatePerUnit(noNaira, 'USD', 'cNGN'), null)
 })
 
 test('fiatRatePerUnit: a native token that is NOT SOL has no rate in this cache', () => {
@@ -39,9 +89,14 @@ test('fiatRatePerUnit: unknown assets and missing rates answer null', () => {
   assert.equal(fiatRatePerUnit(RATES, 'NGN', 'MYSTERY'), null)
   assert.equal(fiatRatePerUnit(null, 'NGN', 'SOL'), null)
   assert.equal(fiatRatePerUnit({ USD: 150 }, 'NGN', 'SOL'), null)
-  // A stable needs BOTH legs, and a zero USD leg would divide to Infinity.
+  // A stable needs BOTH legs, and a zero peg leg would divide to Infinity.
   assert.equal(fiatRatePerUnit({ NGN: 150_000 }, 'NGN', 'USDC_SOL'), null)
   assert.equal(fiatRatePerUnit({ NGN: 150_000, USD: 0 }, 'NGN', 'USDC_SOL'), null)
+  // Same two refusals on the naira peg, where the zero leg is the one the
+  // target currency also reads — `0 / 0` is NaN, which is not null and would
+  // travel a long way before anything noticed.
+  assert.equal(fiatRatePerUnit({ USD: 150 }, 'USD', 'cNGN'), null)
+  assert.equal(fiatRatePerUnit({ NGN: 0 }, 'NGN', 'cNGN'), null)
 })
 
 test('toAssetPaymentDisplay: converts raw base units through ASSET_META decimals', () => {
@@ -58,14 +113,32 @@ test('toAssetPaymentDisplay: SOL gets a fiat equivalent from a positive rate', (
   assert.equal(sol.fiat, 150_000)
 })
 
-test('toAssetPaymentDisplay: a STABLE now gets one too, through the USD leg', () => {
+test('toAssetPaymentDisplay: a STABLE now gets one too, through its PEG leg', () => {
   // The whole of #76. This returned null before, so a USDC gig rendered its
   // amount with the "≈ ₦…" line beside it empty — while the composer showed a
-  // naira figure for the same money.
+  // naira figure for the same money. The leg is the asset's own peg; for USDC
+  // that is the dollar, which is why this case reads the same as it always did.
   const usdc = toAssetPaymentDisplay('5000000', 'USDC_SOL', RATES, 'NGN')
   assert.equal(usdc.amount, 5)
   assert.equal(usdc.symbol, 'USDC')
   assert.equal(usdc.fiat, 5_000)
+})
+
+test('toAssetPaymentDisplay: a naira amount converts through DECIMALS and the naira peg', () => {
+  // The composition, which `fiatRatePerUnit` alone cannot prove: this is the
+  // function every money surface actually calls, and it multiplies a
+  // decimals-scaled amount by the per-unit rate. Both halves are asset-specific
+  // and both are new — 6 decimals read off the live token, NGN read off the
+  // peg — so a wrong decimals count and a wrong peg produce different wrong
+  // numbers here and neither is visible in the rate alone.
+  //
+  // 5,000,000 base units / 10^6 = 5 cNGN, at NGN 1 per cNGN = ₦5.
+  const cngn = toAssetPaymentDisplay('5000000', 'cNGN', RATES, 'NGN')
+  assert.deepEqual(cngn, { amount: 5, symbol: 'cNGN', fiat: 5 })
+
+  // The same 5,000,000 base units of USDC is ₦5,000 — a thousandfold apart on
+  // identical raw input, which is the error the peg exists to prevent showing.
+  assert.equal(toAssetPaymentDisplay('5000000', 'USDC_SOL', RATES, 'NGN').fiat, 5_000)
 })
 
 test('toAssetPaymentDisplay: no fiat without a usable rate', () => {

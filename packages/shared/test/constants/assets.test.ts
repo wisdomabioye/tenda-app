@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   ASSET_META,
+  assertStablePegs,
   getAssetMeta,
   GIG_NATIVE_MAX_DISPLAY,
   GIG_NATIVE_MIN_DISPLAY,
@@ -11,6 +12,7 @@ import { formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   formatAssetAmount,
   splitAssetAmount,
 } from '../../src/constants/assets'
+import type { SupportedCurrency } from '../../src/constants/currencies'
 import { INHERITED_OBJECT_KEYS } from '../helpers/inherited-keys'
 import { parseUnits, formatUnits } from '../../src/utils/units'
 
@@ -29,6 +31,96 @@ test('ASSET_META: stablecoins are flagged, native coins are not', () => {
   assert.equal(ASSET_META.cUSD.is_stable, true)
   assert.equal(ASSET_META.SOL.is_stable, false)
   assert.equal(ASSET_META.ETH_BASE.is_stable, false)
+})
+
+/**
+ * The peg is the fact `is_stable` never carried. Every consumer of the flag
+ * read it as "worth ~1 USD" because, until cNGN, it was — and a naira stable
+ * priced through the dollar leg is not slightly wrong, it is ~1,372x wrong
+ * (MEASURED 2026-09-06: cNGN 0.963 NGN, USDC 1321.71 NGN).
+ */
+test('ASSET_META: every stable names the currency it is pegged to, and nothing else does', () => {
+  for (const [id, meta] of Object.entries(ASSET_META)) {
+    assert.equal(meta.is_stable, meta.peg !== undefined, `${id} peg must be set iff is_stable`)
+  }
+  assert.equal(ASSET_META.USDC_SOL.peg, 'USD')
+  assert.equal(ASSET_META.cUSD.peg, 'USD')
+  assert.equal(ASSET_META.cNGN.peg, 'NGN')
+  assert.equal(ASSET_META.SOL.peg, undefined)
+})
+
+test('ASSET_META: cNGN is a 6-decimal naira stable priced by its own CoinGecko id', () => {
+  // Every field here was read from a source, not a listing: decimals() from the
+  // live Celo token (0xF6829D…1a4f) 2026-09-06, and the coin id from
+  // CoinGecko's own record — it is `compliant-naira`, and `cngn` is a
+  // different coin. A wrong id does not fail loudly; it prices naira as
+  // something else.
+  assert.deepEqual(ASSET_META.cNGN, {
+    symbol: 'cNGN',
+    decimals: 6,
+    is_stable: true,
+    peg: 'NGN',
+    coingeckoId: 'compliant-naira',
+  })
+})
+
+test('assertStablePegs: accepts a registry whose pegs are NOT all the dollar', () => {
+  // Deliberately a FIXTURE, not ASSET_META. `assets.ts` calls this guard at
+  // module load, so a test that only ran it over the shipped registry could
+  // never fail on its own — the import at the top of this file would have
+  // thrown first and taken every case in it down together. Measured: mutating
+  // cNGN's peg away reported "tests 1 / fail 1" for the whole FILE, and the
+  // named case never executed, which is the definition of a decorative test.
+  //
+  // What the fixture proves that the module load cannot: the rule is about the
+  // PRESENCE of a peg, not about its value. A guard hard-coded to the dollar
+  // would still accept the shipped registry the day it was written, and would
+  // refuse the naira asset this whole change exists to add.
+  assert.doesNotThrow(() =>
+    assertStablePegs({
+      DOLLAR: { symbol: 'D', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'x' },
+      NAIRA: { symbol: 'N', decimals: 6, is_stable: true, peg: 'NGN', coingeckoId: 'y' },
+      CEDI: { symbol: 'C', decimals: 2, is_stable: true, peg: 'GHS', coingeckoId: 'z' },
+      VOLATILE: { symbol: 'V', decimals: 18, is_stable: false, coingeckoId: 'w' },
+    }),
+  )
+})
+
+test('assertStablePegs: refuses a stable with no peg', () => {
+  // The bug the field exists to remove. Without the peg this asset falls
+  // through fiatRatePerUnit's stable arm to the SOL branch and answers null,
+  // so the "≈ ₦…" line beside it silently empties on every surface.
+  assert.throws(
+    () => assertStablePegs({ cXXX: { symbol: 'cXXX', decimals: 6, is_stable: true, coingeckoId: 'x' } }),
+    /stable 'cXXX' must declare the currency it is pegged to/,
+  )
+})
+
+test('assertStablePegs: refuses a peg on a NON-stable', () => {
+  // Worse than the blank: the rule would honour it and print a firm figure for
+  // a volatile token derived from a peg it does not have.
+  assert.throws(
+    () => assertStablePegs({
+      WILD: { symbol: 'WILD', decimals: 18, is_stable: false, peg: 'USD', coingeckoId: 'x' },
+    }),
+    /'WILD' is not a stable, so it must not declare a peg/,
+  )
+})
+
+test('assertStablePegs: refuses a peg outside the currency vocabulary', () => {
+  // Re-checked at runtime despite the compile-time union: the landing reads
+  // this module through a Vite source alias and the other packages through the
+  // CJS dist, so a hand-edited 'NGA' reaches them with no type error and
+  // degrades to a missing figure rather than to anything anyone would notice.
+  // ONE narrowing cast, string -> the union — the manifest suite's own words
+  // for the same job, and deliberately not `unknown`. `'NGA' as 'NGN'` would
+  // assert in the source that the naira is a currency it is not.
+  assert.throws(
+    () => assertStablePegs({
+      cNGA: { symbol: 'cNGA', decimals: 6, is_stable: true, peg: 'NGA' as SupportedCurrency, coingeckoId: 'x' },
+    }),
+    /peg 'NGA' is not a supported currency/,
+  )
 })
 
 test('ASSET_META: native gas tokens carry a long-form name for AppKit nativeCurrency', () => {

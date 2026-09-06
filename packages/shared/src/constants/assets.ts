@@ -5,10 +5,32 @@
  * asset: extend this map, then re-seed.
  */
 
+import { isSupportedCurrency, type SupportedCurrency } from './currencies'
+
 export interface AssetMeta {
   symbol: string
   decimals: number
   is_stable: boolean
+  /**
+   * WHICH fiat currency a stable is pegged to. Required for every
+   * `is_stable` asset and forbidden on every other, enforced at module load
+   * by `assertStablePegs`.
+   *
+   * `is_stable` alone was read as "worth ~1 USD" — the dollar was never
+   * written down, it was assumed by the one rule that consumes the flag
+   * (`fiatRatePerUnit` divided out a hardcoded USD leg). That assumption held
+   * for as long as every stable here was a dollar, and cNGN is the entry that
+   * ends it: MEASURED 2026-09-06, CoinGecko prices cNGN at 0.963 NGN and USDC
+   * at 1321.71 NGN, so pricing a naira stable through the dollar leg renders
+   * every cNGN amount ~1,372x too high on every money surface in the app.
+   *
+   * DISPLAY ONLY, and an approximation by construction: it asserts the peg
+   * holds, which is what a "≈ ₦5,000" line beside an amount is for. It is not
+   * a quote — the P2P rate path reads the asset's real CoinGecko price
+   * (`coingeckoId` below) and never assumes a peg, which is why cNGN's ~3.7%
+   * discount reaches a seller's quote instead of being rounded away.
+   */
+  peg?: SupportedCurrency
   /** CoinGecko coin id used to price this asset in fiat (rate source). */
   coingeckoId: string
   /**
@@ -22,11 +44,17 @@ export interface AssetMeta {
 export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   SOL: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana', name: 'Solana' },
   SOL_DEVNET: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana', name: 'Solana' },
-  USDC_SOL: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
-  USDC_BASE: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  USDC_SOL: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
+  USDC_BASE: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
   ETH_BASE: { symbol: 'ETH', decimals: 18, is_stable: false, coingeckoId: 'ethereum', name: 'Ether' },
-  cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true, coingeckoId: 'celo-dollar' },
-  USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true, peg: 'USD', coingeckoId: 'celo-dollar' },
+  USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
+  // cNGN — the regulated Nigerian-naira stablecoin, the settlement unit that
+  // lets a Nigerian seller quote and be paid in the currency they actually
+  // think in. Six decimals and the peg were READ FROM THE LIVE TOKEN on Celo
+  // mainnet 2026-09-06 (0xF6829D…1a4f, decimals() == 6), not taken from a
+  // listing. CoinGecko's id is `compliant-naira`, NOT `cngn`.
+  cNGN: { symbol: 'cNGN', decimals: 6, is_stable: true, peg: 'NGN', coingeckoId: 'compliant-naira' },
   CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo', name: 'Celo' },
   OG: { symbol: '0G', decimals: 18, is_stable: false, coingeckoId: 'zero-gravity', name: '0G' },
   // One id, two tokens (Base pattern): Galileo runs the repo's own
@@ -34,8 +62,48 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   // Bridged USDC Standard — on-chain symbol "USDC.e"). Displayed as USDC on
   // purpose: the symbol also keys USDC_ASSET_IDS membership and the
   // USDC_DECIMALS guard below, and both tokens are 6-decimal dollar pegs.
-  USDC_0G: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  USDC_0G: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
 }
+
+/**
+ * Every stable declares its peg, and nothing else does.
+ *
+ * Takes the map as a parameter so the rule can be exercised with a malformed
+ * one — the same shape as `assertManifestValid`, and for the same reason: a
+ * guard that can only ever run over the good value is a guard nobody can show
+ * works.
+ *
+ * BOTH directions are violations, not just the missing half:
+ *   - a stable with no peg is the bug this field exists to remove. It would
+ *     fall through `fiatRatePerUnit`'s stable arm to the SOL branch and answer
+ *     null, so every "≈ ₦…" line beside that asset silently empties;
+ *   - a peg on a NON-stable is a claim that a volatile token holds a fiat
+ *     value. That one is worse than a blank, because the rule would honour it
+ *     and print a firm figure for CELO or ETH derived from a peg it does not
+ *     have.
+ *
+ * The currency is re-checked at runtime despite being a compile-time union,
+ * for the reason `assertManifestValid` re-checks `status`: this module is read
+ * by the landing through a Vite source alias and by the other packages through
+ * the CJS dist, so a hand-edited entry carrying 'NGA' arrives at those readers
+ * with no type error, indexes the rate map to `undefined`, and degrades to a
+ * missing figure rather than to anything anyone would notice.
+ */
+export function assertStablePegs(meta: Readonly<Record<string, AssetMeta>>): void {
+  for (const [id, asset] of Object.entries(meta)) {
+    if (asset.is_stable && asset.peg === undefined) {
+      throw new Error(`ASSET_META: stable '${id}' must declare the currency it is pegged to`)
+    }
+    if (!asset.is_stable && asset.peg !== undefined) {
+      throw new Error(`ASSET_META: '${id}' is not a stable, so it must not declare a peg`)
+    }
+    if (asset.peg !== undefined && !isSupportedCurrency(asset.peg)) {
+      throw new Error(`ASSET_META: '${id}' peg '${asset.peg}' is not a supported currency`)
+    }
+  }
+}
+
+assertStablePegs(ASSET_META)
 
 /**
  * Display metadata for an asset id, or `null` when this build has none.

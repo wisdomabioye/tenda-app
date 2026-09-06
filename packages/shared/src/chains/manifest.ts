@@ -308,6 +308,42 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         permit: { version: '2' },
         eip3009: true,
       },
+      // cNGN, the regulated naira stablecoin — EXCHANGE ONLY, deliberately.
+      // `gigAssetByChain` returns the FIRST asset carrying the 'gig' role, so a
+      // gig role here would be decided by ARRAY POSITION and nothing else:
+      // below USDC_CELO it is dead config that reads as a shipped capability,
+      // above it every Celo gig is silently denominated in naira. Neither is a
+      // choice anyone made. Gig eligibility needs the composer and the wire to
+      // carry a CHOSEN asset first (see the tracker); exchange has no such
+      // constraint, because `exchangeAssetsByChain` returns the whole set.
+      //
+      // NOT A VANILLA ERC-20, and that is a fact about escrowed money rather
+      // than a footnote. READ FROM THE LIVE TOKEN 2026-09-06: no
+      // `DOMAIN_SEPARATOR`, no `nonces`, no `PERMIT_TYPEHASH` (so no EIP-2612 —
+      // every post takes the plain approve path, which is TWO transactions),
+      // and no EIP-3009 typehashes (so an agent cannot fund by signature and
+      // the relayer cannot pay its gas). Declared with neither `permit` nor
+      // `eip3009` so the builders take the approve path; the manifest's own
+      // guard refuses `eip3009` without `permit`, so a wrong entry cannot load.
+      //
+      // The ISSUER RETAINS POWERS OVER ESCROWED BALANCES that USDC's issuer
+      // does not, read from the verified implementation `Cngn3` behind its
+      // EIP-1967 proxy: `pause` stops every transfer including a payout;
+      // `destroyBlackFunds` burns a blacklisted address's balance; and
+      // `transfer`/`transferFrom` revert outright if EITHER party is
+      // blacklisted — the escrow contract is a party to both legs, so a
+      // blacklisting there strands funds already locked. Sharpest of the four:
+      // both entry points carry a REDEMPTION branch that runs `_burn(to)`
+      // straight after the transfer when the recipient is a whitelisted
+      // internal user and the sender a whitelisted external one, so a token
+      // "received" can be destroyed on arrival while the escrow records the
+      // full amount (`_collect` trusts `params.amount`; it does not measure
+      // the balance delta). That branch needs BOTH parties whitelisted by the
+      // issuer, i.e. a redemption arrangement Tenda has never entered into —
+      // which is the honest limit of what is known, because the token does NOT
+      // expose its adminOperationsContract (no public getter; not in the first
+      // 13 proxy slots), so the whitelist itself cannot be read from outside.
+      { id: 'cNGN', roles: ['exchange'], token: '0xF6829D7393dAe24509eb1E52eE8e572e2E271a4f' },
       { id: 'cUSD', roles: ['exchange'], token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
       { id: 'CELO', roles: ['exchange'], token: null },
     ],
@@ -338,6 +374,13 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         permit: { version: '2' },
         eip3009: true,
       },
+      // cNGN's own Celo TESTNET deployment — the same token family as mainnet,
+      // shape re-read here 2026-09-06 rather than inferred from it (chainId
+      // 0xaa044c, symbol 'cNGN', decimals 6, `paused()` present,
+      // `DOMAIN_SEPARATOR`/`nonces` absent). Its existence is why cNGN's first
+      // transaction does not have to be on real money: the tracker recorded
+      // "no Celo Sepolia deployment", and that was wrong.
+      { id: 'cNGN', roles: ['exchange'], token: '0xa188439ccCEe9A6aa0E842f9c17C1b00C7B4dd4D' },
       { id: 'CELO', roles: ['exchange'], token: null },
     ],
   },

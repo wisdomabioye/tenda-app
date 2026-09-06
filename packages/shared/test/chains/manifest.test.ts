@@ -60,10 +60,18 @@ test('fromSecret assets are not counted native and have null manifest token', ()
   }
 })
 
-test('at most one gig asset per chain', () => {
+test('at most one gig asset per chain, and it IS the one gigAssetByChain answers with', () => {
+  // The second half is what makes the first half matter. `gigAssetByChain`
+  // returns the FIRST asset carrying the role and calls it "the" gig asset, so
+  // a second one does not fail anywhere — it is silently ignored, or it wins
+  // and changes the currency every gig on that chain is denominated in,
+  // depending only on where someone typed it in the array. That is the
+  // constraint holding cNGN to `roles: ['exchange']` until the composer and
+  // the wire can carry a CHOSEN gig asset instead of a derived one.
   for (const entry of CHAIN_MANIFEST) {
     const gigs = entry.assets.filter((a) => a.roles.includes('gig'))
     assert.ok(gigs.length <= 1, `${entry.id} has ${gigs.length} gig assets`)
+    assert.equal(gigAssetByChain(entry.id), gigs[0]?.id ?? null, `${entry.id} gig asset`)
   }
 })
 
@@ -126,6 +134,43 @@ test('gigAssetByChain resolves a USDC stablecoin wherever a chain carries gigs, 
     assert.equal(meta.symbol, 'USDC', `${entry.id} gig asset must be USDC`)
   }
   assert.equal(gigAssetByChain('unknown:chain'), null)
+})
+
+/**
+ * cNGN — the naira rail. Addresses READ FROM THE PUBLISHED SOURCE and then
+ * confirmed against the live chains 2026-09-06: mainnet `symbol() == 'cNGN'`,
+ * `decimals() == 6`, `paused() == false`, EIP-1967 implementation `Cngn3`;
+ * testnet the same shape on chainId 0xaa044c. A wrong token address here is
+ * not a broken build, it is money sent to the wrong contract, so it is pinned.
+ */
+test('cNGN is exchange-only on both Celo chains, at the addresses read from the live tokens', () => {
+  const celo = CHAIN_MANIFEST.filter((c) => c.family === 'celo')
+  assert.equal(celo.length, 2, 'expected exactly the two Celo chains')
+
+  const byChain = new Map(celo.map((c) => [c.id, c.assets.find((a) => a.id === 'cNGN')]))
+  for (const [id, asset] of byChain) {
+    assert.ok(asset !== undefined, `${id} carries no cNGN`)
+    assert.deepEqual(asset.roles, ['exchange'], `${id} cNGN roles`)
+  }
+  // That it declares NEITHER permit nor eip3009 — verified on-chain: no
+  // DOMAIN_SEPARATOR, no nonces, no PERMIT_TYPEHASH, no EIP-3009 typehashes —
+  // is already forced by the two general rules below ('permit config' allows a
+  // permit only on an EVM GIG asset, and eip3009 requires a permit domain), so
+  // it is not re-asserted here.
+
+  assert.equal(byChain.get('eip155:42220')?.token, '0xF6829D7393dAe24509eb1E52eE8e572e2E271a4f')
+  assert.equal(byChain.get('eip155:11142220')?.token, '0xa188439ccCEe9A6aa0E842f9c17C1b00C7B4dd4D')
+  // Mainnet and testnet are DIFFERENT contracts holding different money; one
+  // id serving both is the Base/0G pattern, safe under one-active-chain-per-family.
+  assert.notEqual(byChain.get('eip155:42220')?.token, byChain.get('eip155:11142220')?.token)
+})
+
+test('cNGN is a naira stable, so it is not priced through the dollar leg', () => {
+  // The manifest half of the peg: an asset whose entry says NGN, reaching the
+  // same registry every money surface converts through.
+  assert.equal(ASSET_META.cNGN.peg, 'NGN')
+  assert.equal(ASSET_META.cNGN.is_stable, true)
+  assert.equal(ASSET_META.USDC_CELO.peg, 'USD')
 })
 
 test('gig coverage is pinned per chain — gig-less chains are named, never accidental', () => {
