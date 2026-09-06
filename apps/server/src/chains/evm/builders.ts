@@ -22,9 +22,10 @@
  */
 
 import { encodeFunctionData } from 'viem'
-import { DISPUTE_WINNER_CODE, type PermitSignatureBody } from '@tenda/shared'
+import { DISPUTE_WINNER_CODE, encodeApprove, type PermitSignatureBody } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { tagCalldata } from '@server/features/attribution'
 import { ESCROW_EVM_ABI } from './rpc'
 import { parsePermitSignature } from './permit'
 import { buildCreateParams, escrowIdHex } from './create-params'
@@ -197,14 +198,54 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
  * ERC-20 prerequisite the wallet must satisfy before broadcasting a PLAIN
  * call: allowance(owner → escrow) ≥ the pull amount. Permit-built calls
  * carry their own allowance; native assets fund via msg.value.
+ *
+ * IT SHIPS THE CALLDATA, not just the terms (#103). The hint used to be
+ * `{ token, spender, amount_raw }` and each client encoded the `approve` from
+ * it — which meant the server had nothing to attach the ERC-8021 attribution
+ * suffix to, so every approve went out unattributed. On a token WITHOUT
+ * EIP-2612 that is not an edge case, it is one uncredited transaction per post
+ * forever: cNGN has no permit (verified on-chain — no DOMAIN_SEPARATOR, no
+ * nonces, no PERMIT_TYPEHASH), so the naira rail takes this path every time.
+ * The tag rides signed calldata and there is no backfill, so a transaction sent
+ * before this is permanently uncounted.
+ *
+ * `amount_raw` / `token` / `spender` STAY on the wire beside `data`, and the
+ * reason was CHECKED rather than assumed — by narrowing the wire type to `data`
+ * alone and reading the compiler's list of what broke. Exactly two files use
+ * them, both `wallet/dispatch.ts`, and no UI renders them: `token` is the `to`
+ * address, `spender` plus the owner are the `allowance()` read's arguments, and
+ * `amount_raw` is the sufficiency comparison that decides whether an approve is
+ * sent at all. `data` is only what gets broadcast IF one is; it answers none of
+ * those three questions. (An earlier draft of this note said the confirm sheets
+ * render them. They do not — the compiler says so.)
+ *
+ * Appending past a static two-argument call is safe by the ABI (trailing bytes
+ * are not decoded) but was VERIFIED rather than argued: on Celo mainnet
+ * 2026-09-06 an `eth_call` of this exact tagged calldata against cNGN — which
+ * is a pausable, blacklist-capable proxy, not a vanilla ERC-20 — returned
+ * `true`, as did the USDC_CELO control. Measured cost of the suffix: +845 gas
+ * (56,409 -> 57,254 on cNGN).
  */
 export function approvalHint(
   build: BuildTxArgs,
   ctx: { asset_address: string | null; permit_encodable: boolean },
   spender: `0x${string}`,
-): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
+  chain_id: string,
+): { approval?: { token: string; spender: string; amount_raw: AmountRaw; data: string } } {
   if (ctx.asset_address === null) return {}
   const token = ctx.asset_address
+
+  // ONE encoder for `approve`, and it is the shared one the CLIENTS use — so
+  // the calldata the server builds and the calldata a client would have built
+  // cannot drift, and the selector lives in a single place.
+  const approval = (amount_raw: AmountRaw) => ({
+    approval: {
+      token,
+      spender,
+      amount_raw,
+      data: tagCalldata(chain_id, encodeApprove(spender, amount_raw)),
+    },
+  })
 
   // Driven by what the call ACTUALLY encodes, never by what the caller
   // supplied. A permit that `buildEvmCall` declines to encode (its spender
@@ -216,14 +257,14 @@ export function approvalHint(
   // The spender is the contract that will actually pull the tokens: the
   // escrow's own, not the chain's current one.
   if (build.action === 'createEscrow' && !encodesPermit(build, ctx.permit_encodable)) {
-    return { approval: { token, spender, amount_raw: build.payload.amount_raw } }
+    return approval(build.payload.amount_raw)
   }
   if (
     build.action === 'disputeEscrow' &&
     !encodesPermit(build, ctx.permit_encodable) &&
     build.payload.bond_raw !== '0'
   ) {
-    return { approval: { token, spender, amount_raw: build.payload.bond_raw } }
+    return approval(build.payload.bond_raw)
   }
   return {}
 }

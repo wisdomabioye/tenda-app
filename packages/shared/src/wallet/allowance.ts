@@ -39,8 +39,17 @@ export type SendEvmTx = (input: {
   chainId?: string
 }) => Promise<string>
 
-/** Pure calldata encoder for `approve(spender, amountRaw)`. */
-export function encodeApprove(spender: string, amountRaw: string): string {
+/**
+ * Pure calldata encoder for `approve(spender, amountRaw)`.
+ *
+ * Returns the 0x-prefixed hex TYPE rather than a bare string, so a caller
+ * passing it on to something that requires hex needs no cast. The server is
+ * that caller: `approvalHint` builds this exact calldata in order to append the
+ * ERC-8021 attribution suffix (#103). This stays the ONE place the `approve`
+ * selector and its word packing live — the server reuses it rather than
+ * carrying a second copy of the encoding.
+ */
+export function encodeApprove(spender: string, amountRaw: string): `0x${string}` {
   return `${APPROVE_SELECTOR}${addressWord(spender)}${amountWord(amountRaw)}`
 }
 
@@ -94,7 +103,32 @@ export async function readAllowance(args: {
   throw new WalletError('network', `Could not read the current allowance on ${args.chainId}, please try again`)
 }
 
-/** Send `approve(spender, amountRaw)` through the injected wallet transport. */
+/**
+ * Send `approve(spender, amountRaw)` through the injected wallet transport.
+ *
+ * `data` is the SERVER-BUILT calldata when the caller has it — the escrow flow
+ * does, because the server now encodes this approve so it can append the
+ * ERC-8021 attribution suffix that only server-built calldata can carry (#103).
+ * A tag is a SUFFIX on exactly this encoding, so anything the server sends must
+ * begin with what we would have built; when it does, it is broadcast untouched,
+ * because re-encoding would drop the suffix and that is the whole point of
+ * passing it.
+ *
+ * ANYTHING ELSE IS TREATED AS ABSENT rather than forwarded, and that is not
+ * defensive tidying. MEASURED against the live cNGN token 2026-09-06: an
+ * `eth_call` carrying `0x` reverts, and so does one carrying arbitrary bytes.
+ * Forwarding a `data` that is not this approve therefore does not merely lose
+ * the tag — it broadcasts a transaction that burns gas and fails, and the
+ * caller reports "the approval transaction reverted" for an escrow the user
+ * could have funded. `??` alone would have done exactly that for the empty
+ * string, which is a legal value of the wire type and never a meaningful one.
+ * The fallback costs one encode and always works.
+ *
+ * With no `data` at all this encodes the call itself: the path for a client
+ * talking to a server older than #103, and the only path the Token-approvals
+ * settings screen has — that screen sets a standing allowance with no escrow
+ * and no server round-trip, so there is nothing to hand it.
+ */
 export async function sendApprove(args: {
   chainId: string
   token: string
@@ -102,11 +136,13 @@ export async function sendApprove(args: {
   amountRaw: string
   from: string
   sendTx: SendEvmTx
+  data?: string
 }): Promise<string> {
+  const encoded = encodeApprove(args.spender, args.amountRaw)
   return args.sendTx({
     from: args.from,
     to: args.token,
-    data: encodeApprove(args.spender, args.amountRaw),
+    data: args.data?.startsWith(encoded) === true ? args.data : encoded,
     value: '0',
     chainId: args.chainId,
   })
@@ -150,6 +186,12 @@ export async function ensureAllowance(args: {
   amountRaw: string
   owner: string
   sendTx: SendEvmTx
+  /**
+   * Server-built approve calldata carrying the attribution suffix, when the
+   * caller has it (the escrow flow's `approval.data`). Passed straight to
+   * `sendApprove`; see there for why it is not re-encoded.
+   */
+  data?: string
   /** Receipt-poll overrides (tests / callers with tighter budgets). */
   timeoutMs?: number
   intervalMs?: number
@@ -169,6 +211,7 @@ export async function ensureAllowance(args: {
     amountRaw: args.amountRaw,
     from: args.owner,
     sendTx: args.sendTx,
+    ...(args.data !== undefined ? { data: args.data } : {}),
   })
   const outcome = await waitForReceipt({
     chainId: args.chainId,

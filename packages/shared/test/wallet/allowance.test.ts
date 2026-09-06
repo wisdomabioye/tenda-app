@@ -13,6 +13,7 @@ import {
   encodeApprove,
   ensureAllowance,
   readAllowance,
+  sendApprove,
   waitForReceipt,
   type SendEvmTx,
 } from '../../src/wallet/allowance'
@@ -258,4 +259,93 @@ test('waitForReceipt polls until mined; reports revert and timeout distinctly', 
     await waitForReceipt({ chainId: CHAIN, txHash: '0xC', intervalMs: 1, timeoutMs: 5 }),
     'timeout',
   )
+})
+
+// ---------- the server-built calldata seam (#103) ----------
+
+/**
+ * The escrow flow's approve is now encoded BY THE SERVER so it can carry the
+ * ERC-8021 attribution suffix — a tag that rides signed calldata and cannot be
+ * added afterwards. The only thing that makes that work is this module sending
+ * the bytes it was handed instead of re-deriving them, so that is what these
+ * pin. Re-encoding would look completely correct and silently drop the suffix.
+ */
+test('sendApprove broadcasts SERVER-BUILT calldata verbatim, suffix and all', async () => {
+  const { sendTx, calls } = makeSendTx()
+  const tagged = `${encodeApprove(SPENDER, '5')}deadbeef`
+  await sendApprove({ chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', from: OWNER, sendTx, data: tagged })
+  assert.strictEqual(calls.length, 1)
+  assert.strictEqual(calls[0].data, tagged)
+  // Not merely "starts with" — the trailing bytes are the whole point, and an
+  // implementation that re-encoded would still satisfy a prefix check.
+  assert.notStrictEqual(calls[0].data, encodeApprove(SPENDER, '5'))
+})
+
+test('sendApprove encodes it itself when given none — the settings screen and old servers', async () => {
+  const { sendTx, calls } = makeSendTx()
+  await sendApprove({ chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', from: OWNER, sendTx })
+  assert.strictEqual(calls[0].data, encodeApprove(SPENDER, '5'))
+})
+
+test('ensureAllowance forwards the server calldata to the approve it sends', async () => {
+  // allowance() reads 1, the ask is 5 → an approve must go out, carrying `data`.
+  fetchQueue = [{ result: `0x${(1).toString(16).padStart(64, '0')}` }]
+  fetchDefault = { result: { status: '0x1' } }
+  const { sendTx, calls } = makeSendTx()
+  const tagged = `${encodeApprove(SPENDER, '5')}c0ffee`
+  const outcome = await ensureAllowance({
+    chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', owner: OWNER, sendTx, data: tagged,
+  })
+  assert.strictEqual(outcome, 'approved')
+  assert.strictEqual(calls[0].data, tagged)
+})
+
+test('ensureAllowance sends NOTHING when the standing allowance already covers it', async () => {
+  // The negative that matters for attribution accounting: a sufficient
+  // allowance means no approve, so there is no second transaction to credit —
+  // tagged or otherwise. A test that only ever saw the short path would let a
+  // regression here read as "the tag stopped working".
+  fetchQueue = [{ result: `0x${(9).toString(16).padStart(64, '0')}` }]
+  const { sendTx, calls } = makeSendTx()
+  const outcome = await ensureAllowance({
+    chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', owner: OWNER, sendTx, data: '0xshouldNotBeUsed',
+  })
+  assert.strictEqual(outcome, 'sufficient')
+  assert.strictEqual(calls.length, 0)
+})
+
+
+/**
+ * The server calldata is USED only when it is actually our approve, and that
+ * check is the one place the "degrade to correct-but-untagged" promise is kept.
+ *
+ * MEASURED, not argued: `eth_call` with `0x` and with `0xdeadbeef` against the
+ * live cNGN token on Celo mainnet 2026-09-06 both REVERT. So forwarding a
+ * `data` that is not an approve does not merely lose the tag — it broadcasts a
+ * transaction that burns gas and fails, and `ensureAllowance` then reports "The
+ * approval transaction reverted" for an escrow the user could have funded.
+ * Falling back costs one encode and always works.
+ */
+test('sendApprove IGNORES calldata that is not this approve, and encodes instead', async () => {
+  const expected = encodeApprove(SPENDER, '5')
+  for (const [label, data] of [
+    ['empty string', ''],
+    ['0x only', '0x'],
+    ['a different call entirely', `0xa9059cbb${'0'.repeat(128)}`],
+    ['the right call, WRONG amount', encodeApprove(SPENDER, '6')],
+    ['the right call, WRONG spender', encodeApprove(OWNER, '5')],
+  ] as const) {
+    const { sendTx, calls } = makeSendTx()
+    await sendApprove({ chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', from: OWNER, sendTx, data })
+    assert.strictEqual(calls[0].data, expected, label)
+  }
+})
+
+test('...while a genuine TAG on that approve is still passed through untouched', async () => {
+  // The control. A guard that rejected everything would satisfy the case above
+  // and silently un-tag every transaction, which is the bug #103 exists to fix.
+  const { sendTx, calls } = makeSendTx()
+  const tagged = `${encodeApprove(SPENDER, '5')}c0ffee`
+  await sendApprove({ chainId: CHAIN, token: TOKEN, spender: SPENDER, amountRaw: '5', from: OWNER, sendTx, data: tagged })
+  assert.strictEqual(calls[0].data, tagged)
 })

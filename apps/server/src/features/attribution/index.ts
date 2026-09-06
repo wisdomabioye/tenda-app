@@ -33,19 +33,29 @@
  *      forget, and was: the first cut of #83 attached to the two above and this
  *      docblock said "both places". A sweep is a real transaction on a real
  *      chain, so an untagged one is volume that scores nothing.
+ *   4. `chains/evm/builders.ts` `approvalHint` — the ERC-20 `approve` a client
+ *      sends before a plain (non-permit) create or dispute bond (#103). The
+ *      server BUILDS that calldata now; see below for what changed and why.
  *
  * THE TEST FOR "HAVE I FOUND THEM ALL" is not this list — lists rot. It is that
  * a call site either returns calldata to a client or hands it to `EvmRelayer`;
  * anything reaching `relayer.simulate`/`relayer.send` must be tagged first.
  *
- * WHAT IS NOT TAGGED, said plainly rather than discovered later: the ERC-20
- * `approve()` that a client sends before a plain (non-permit) escrow create.
- * The server does not build that transaction — it emits an `approval` HINT of
- * `{ token, spender, amount_raw }` and each client encodes the call itself — so
- * there is no calldata here to append to. On a token without EIP-2612 that is
- * one untagged transaction per post. Closing it means widening the approval
- * hint into built calldata across the wire contract and both clients, which is
- * its own task.
+ * THAT APPROVE IS NOW TAGGED (#103), and the shape of the fix is worth keeping:
+ * the hint used to be `{ token, spender, amount_raw }` with each client
+ * encoding the call, so there was no server-side calldata to append to. It now
+ * also carries `data` — the calldata the server built and tagged — and the
+ * clients broadcast that verbatim through `ensureAllowance`. The encoder is
+ * shared's `encodeApprove`, the same one the clients fall back to, so the two
+ * cannot drift. `data` is OPTIONAL on the wire on purpose: an installed client
+ * older than this ignores it, a new client against an older server finds it
+ * missing, and both degrade to correct-but-untagged rather than broken.
+ *
+ * WHAT IS STILL NOT TAGGED, said plainly rather than discovered later: the
+ * standing approval set from the Token-approvals SETTINGS screen. That one has
+ * no escrow and no server round-trip — the client calls `sendApprove` directly
+ * — so there is nothing to hand it. Low volume, and tagging it would mean a
+ * server endpoint whose only job is to encode an approve.
  *
  * IMPORT THIS BARREL FROM `src/`, not the files behind it — reaching past it is
  * what turns a removable feature back into a clustered one, and it is `src/`
@@ -59,9 +69,11 @@
  *   0. delete test/unit/attribution-module-boundary.test.ts, which asserts this
  *      recipe and would otherwise fail on the way out;
  *   1. delete this directory;
- *   2. delete the `tagCalldata(...)` wrap at all three call sites above,
- *      leaving the inner expression, and drop `chain_id` from
- *      `evmEscrowSweep`'s signature — it exists only to feed this;
+ *   2. delete the `tagCalldata(...)` wrap at all four call sites above, leaving
+ *      the inner expression, and drop the `chain_id` parameter from
+ *      `evmEscrowSweep` and from `approvalHint` — both carry it only to feed
+ *      this. `approvalHint` keeps building `data` either way: the clients read
+ *      it, and untagged calldata is still correct calldata;
  *   3. delete the `assertAttributionCodes(...)` call in `plugins/chains.ts`;
  *   4. `pnpm --filter tenda-server remove @celo/attribution-tags`;
  *   5. drop `CELO_ATTRIBUTION_CODE` from `.env.example` and any deployment env.

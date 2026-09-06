@@ -34,6 +34,7 @@ import {
   type EscrowPatch,
 } from '@server/lib/escrow-events'
 import type { EscrowStatus } from '@server/lib/escrow'
+import { encodeApprove } from '@tenda/shared'
 
 const CHAIN_ID = 'eip155:8453'
 const CELO_CHAIN_ID = 'eip155:42220'
@@ -786,7 +787,15 @@ test('buildTx: plain ERC-20 create carries the approval hint; permit and native 
   const plain = await adapter.buildTx(CREATE_ARGS)
   assert.strictEqual(plain.kind, 'evm-tx')
   if (plain.kind === 'evm-tx') {
-    assert.deepStrictEqual(plain.approval, { token: USDC, spender: CONTRACT, amount_raw: '1000000' })
+    // `data` is the approve the CLIENT will broadcast, built server-side so it
+    // can be tagged (#103). Derived from the shared encoder rather than pasted
+    // hex, so this pins the delegation and not a transcription.
+    assert.deepStrictEqual(plain.approval, {
+      token: USDC,
+      spender: CONTRACT,
+      amount_raw: '1000000',
+      data: encodeApprove(CONTRACT, '1000000'),
+    })
   }
 
   const withPermit = await adapter.buildTx({
@@ -833,7 +842,12 @@ test('buildTx: ERC-20 dispute bond carries the approval hint; zero bond does not
     payload: { escrow_id: UUID, bond_raw: '777' },
   })
   if (withBond.kind === 'evm-tx') {
-    assert.deepStrictEqual(withBond.approval, { token: USDC, spender: CONTRACT, amount_raw: '777' })
+    assert.deepStrictEqual(withBond.approval, {
+      token: USDC,
+      spender: CONTRACT,
+      amount_raw: '777',
+      data: encodeApprove(CONTRACT, '777'),
+    })
   }
 
   const zeroBond = await adapter.buildTx({
@@ -1183,6 +1197,44 @@ test('the SAME build on a non-Celo chain is byte-identical to the untagged one',
   const none = await withAttributionCode(undefined, async () => makeAdapter().buildTx(CREATE_ARGS))
   assert.deepStrictEqual(base, none)
   assert.deepStrictEqual(decodeTag((base as { data: `0x${string}` }).data), { status: 'untagged' })
+})
+
+/**
+ * The approve is the OTHER transaction in a plain create, and until #103 it was
+ * the one nobody could tag: the server sent terms and each client encoded the
+ * call. On a token without EIP-2612 — cNGN has no permit, verified on-chain —
+ * that is one uncredited transaction per post, forever, because the tag rides
+ * signed calldata and there is no backfill.
+ */
+test('the APPROVE hint carries tagged calldata on CELO — the second tx of a plain create', async () => {
+  const tagged = await withAttributionCode(ATTRIBUTION_CODE, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.strictEqual(tagged.kind, 'evm-tx')
+  if (tagged.kind !== 'evm-tx' || tagged.approval === undefined) throw new Error('no approval hint')
+  assert.deepStrictEqual(decodeTag(tagged.approval.data as `0x${string}`), {
+    status: 'tagged',
+    codes: [ATTRIBUTION_CODE],
+    schemaId: 0,
+    missing: [],
+  })
+  // Tagged calldata is still a valid approve: the suffix sits past both static
+  // arguments, so the prefix is byte-for-byte what the client would have built.
+  assert.ok(tagged.approval.data?.startsWith(encodeApprove(CONTRACT, '1000000')))
+})
+
+test('the approve hint is UNtagged off Celo and with no code, exactly like the escrow call', async () => {
+  const base = await withAttributionCode(ATTRIBUTION_CODE, async () => makeAdapter().buildTx(CREATE_ARGS))
+  const celoNoCode = await withAttributionCode(undefined, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  for (const [label, tx] of [['base', base], ['celo/no-code', celoNoCode]] as const) {
+    if (tx.kind !== 'evm-tx' || tx.approval === undefined) throw new Error(`${label}: no hint`)
+    assert.deepStrictEqual(decodeTag(tx.approval.data as `0x${string}`), { status: 'untagged' }, label)
+    // Untagged is not merely "no suffix" — it is EXACTLY the client's encoding,
+    // so an old client and a new one broadcast identical bytes off Celo.
+    assert.strictEqual(tx.approval.data, encodeApprove(CONTRACT, '1000000'), label)
+  }
 })
 
 test('a CELO build with NO code configured is untagged — not tagged with an empty code', async () => {

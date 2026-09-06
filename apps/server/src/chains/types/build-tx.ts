@@ -225,8 +225,15 @@ export type UnsignedTx =
        * approve() if short. Absent for native assets and permit-built calls
        * (there the allowance rides the tx itself). Mirrors the shared wire
        * contract (escrows.contract.ts UnsignedTx).
+       *
+       * `data` is the SERVER-BUILT approve calldata carrying the ERC-8021
+       * attribution suffix (#103) — broadcast it verbatim rather than
+       * re-encoding, or the suffix is lost and the transaction is uncounted.
+       * OPTIONAL so both skew directions degrade to correct-but-untagged: an
+       * installed client older than #103 ignores it and encodes its own, and a
+       * new client against an older server finds it absent and falls back.
        */
-      approval?: { token: string; spender: string; amount_raw: AmountRaw }
+      approval?: { token: string; spender: string; amount_raw: AmountRaw; data?: string }
     }
   | {
       kind: 'evm-userop'

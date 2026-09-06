@@ -21,6 +21,7 @@ import { after, before, test } from 'node:test'
 import * as assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import type { Hex } from 'viem'
+import { encodeApprove } from '@tenda/shared'
 import { evmAdapter } from '@server/chains/evm'
 import {
   ANVIL_CHAIN_ID,
@@ -91,7 +92,15 @@ test('the gap that started this: plain ERC-20 create with no allowance REVERTS o
   if (unsigned.kind !== 'evm-tx') return
   // The hint tells the wallet what it must do first — this test ignores it,
   // exactly like the pre-fix mobile flow did, and must fail.
-  assert.deepStrictEqual(unsigned.approval, { token: fx.tokenAddr, spender: fx.escrowAddr, amount_raw: AMOUNT })
+  assert.deepStrictEqual(unsigned.approval, {
+    token: fx.tokenAddr,
+    spender: fx.escrowAddr,
+    amount_raw: AMOUNT,
+    // #103: the server builds the approve so it can be tagged. Anvil is not a
+    // Celo chain, so the calldata here is the untagged encoding — identical to
+    // what the client used to build for itself.
+    data: encodeApprove(fx.escrowAddr, AMOUNT),
+  })
   await assert.rejects(
     fx.creatorWallet.sendTransaction({
       to: unsigned.to as `0x${string}`,
@@ -111,15 +120,71 @@ test('approve fallback: consuming the hint exactly as mobile will makes the same
   if (unsigned.kind !== 'evm-tx' || unsigned.approval === undefined) {
     assert.fail('expected a plain evm-tx with an approval hint')
   }
-  const approveHash = await fx.creatorWallet.writeContract({
-    address: unsigned.approval.token as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: 'approve',
-    args: [unsigned.approval.spender as `0x${string}`, BigInt(unsigned.approval.amount_raw)],
+  // Broadcast the SERVER'S calldata, which is what the clients do since #103 —
+  // `ensureAllowance` sends `approval.data` rather than re-encoding from the
+  // terms. This test used to call writeContract('approve', [spender, amount]),
+  // which is the pre-#103 client and no longer "exactly as mobile will": it
+  // left the one path that carries the attribution suffix unexercised against a
+  // real node.
+  const approveHash = await fx.creatorWallet.sendTransaction({
+    to: unsigned.approval.token as `0x${string}`,
+    data: unsigned.approval.data as Hex,
+    value: 0n,
   })
   await fx.pub.waitForTransactionReceipt({ hash: approveHash })
   const txHash = await sendUnsigned(fx.creatorWallet, unsigned)
 
+  const verified = await adapter.verifyTx(txHash, { expected_event: 'EscrowCreated', escrow_id })
+  assert.strictEqual(verified.confirmed, true)
+  assert.strictEqual(verified.failed, false)
+})
+
+/**
+ * The property the whole of #103 rests on, against a REAL node and a REAL
+ * ERC-20 rather than by appeal to the ABI spec: trailing bytes past a static
+ * two-argument call are ignored, so a tagged `approve` still grants the
+ * allowance.
+ *
+ * It was checked by hand once — `eth_call` of tagged calldata against live cNGN
+ * and USDC_CELO on Celo mainnet, both returning true — and a hand check does not
+ * run again. Anvil is not a Celo chain, so `approval.data` arrives untagged
+ * here; the suffix is appended in the test to exercise the shape the Celo
+ * builder produces. If a token ever rejects trailing calldata, the escrow
+ * create that follows reverts and this fails.
+ */
+test('a TAGGED approve still grants the allowance on a real node', { skip }, async () => {
+  const escrow_id = randomUUID()
+  const unsigned = await adapter.buildTx({
+    action: 'createEscrow',
+    user_id: 'creator',
+    payload: createPayload(escrow_id),
+  })
+  if (unsigned.kind !== 'evm-tx' || unsigned.approval === undefined) {
+    assert.fail('expected a plain evm-tx with an approval hint')
+  }
+  // The ERC-8021 shape: an 0x00-led envelope after the ABI arguments. The exact
+  // bytes do not matter to the token — that trailing bytes exist does.
+  const suffixed = `${unsigned.approval.data}00deadbeef` as Hex
+  const approveHash = await fx.creatorWallet.sendTransaction({
+    to: unsigned.approval.token as `0x${string}`,
+    data: suffixed,
+    value: 0n,
+  })
+  const approveReceipt = await fx.pub.waitForTransactionReceipt({ hash: approveHash })
+  assert.strictEqual(approveReceipt.status, 'success', 'the tagged approve itself must not revert')
+
+  // The allowance the token actually recorded — the approve did its job, the
+  // trailing bytes changed neither the spender nor the amount.
+  const allowance = await fx.pub.readContract({
+    address: unsigned.approval.token as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: [fx.creator.address as `0x${string}`, unsigned.approval.spender as `0x${string}`],
+  })
+  assert.strictEqual(allowance, BigInt(AMOUNT))
+
+  // ...and the create it exists to enable lands.
+  const txHash = await sendUnsigned(fx.creatorWallet, unsigned)
   const verified = await adapter.verifyTx(txHash, { expected_event: 'EscrowCreated', escrow_id })
   assert.strictEqual(verified.confirmed, true)
   assert.strictEqual(verified.failed, false)

@@ -171,6 +171,9 @@ export async function signAndSendUnsignedTx(
           amountRaw: unsigned.approval.amount_raw,
           owner: from,
           sendTx: sendEvmTransaction,
+          // The server's own approve calldata, carrying the attribution suffix
+          // (#103). Absent against an older server → ensureAllowance encodes it.
+          ...(unsigned.approval.data !== undefined ? { data: unsigned.approval.data } : {}),
         })
       }
       return sendEvmTransaction({

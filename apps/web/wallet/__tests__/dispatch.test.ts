@@ -216,6 +216,35 @@ describe('evm-tx', () => {
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
   })
 
+  it('passes the server-built approve calldata through — the tag survives to the wallet', async () => {
+    // #103. The server encodes this approve so it can carry the ERC-8021
+    // suffix; dispatch's only job is not to drop it on the way to
+    // ensureAllowance, which is the one place it could silently be lost.
+    const TAGGED: UnsignedTx = {
+      ...EVM_TX,
+      approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000', data: '0xapproveWithTag' },
+    }
+    ensureAllowanceMock.mockResolvedValue('approved')
+    await signAndSendUnsignedTx(TAGGED, 'eip155:42220')
+    expect(ensureAllowanceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: '0xapproveWithTag' }),
+    )
+  })
+
+  it('omits data entirely against a server that sends none, so the client encodes its own', async () => {
+    // The skew case the optional field exists for: an app newer than the
+    // server. Passing `data: undefined` would be just as wrong as passing a
+    // value — ensureAllowance branches on the key being absent.
+    const HINTED: UnsignedTx = {
+      ...EVM_TX,
+      approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000' },
+    }
+    ensureAllowanceMock.mockResolvedValue('approved')
+    await signAndSendUnsignedTx(HINTED, 'eip155:42220')
+    expect(ensureAllowanceMock).toHaveBeenCalledTimes(1)
+    expect('data' in ensureAllowanceMock.mock.calls[0][0]).toBe(false)
+  })
+
   it('a failed approval aborts the flow, the escrow tx is never broadcast', async () => {
     const HINTED: UnsignedTx = {
       ...EVM_TX,

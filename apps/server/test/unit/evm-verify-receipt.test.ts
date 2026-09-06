@@ -14,6 +14,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { encodeAbiParameters, encodeEventTopics } from 'viem'
+import { encodeApprove } from '@tenda/shared'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
 import { decodeEscrowLogs } from '@server/chains/evm/verify'
 import { verifyEvmReceipt } from '@server/chains/evm/verify-receipt'
@@ -266,6 +267,11 @@ test('create with a permit against a PREVIOUS contract: hint takes over, never n
     token: TOKEN,
     spender: PREVIOUS,
     amount_raw: '25000000',
+    // The approve the client will send, built server-side so it can be tagged
+    // (#103). It must name the SUPERSEDED contract too — the whole point of
+    // this branch is that the allowance has to reach the escrow that will
+    // actually pull, and calldata naming the current one would revert.
+    data: encodeApprove(PREVIOUS, '25000000'),
   })
 })
 

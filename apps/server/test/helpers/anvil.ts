@@ -73,6 +73,10 @@ export const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
   'function approve(address spender, uint256 value) returns (bool)',
   'function balanceOf(address owner) view returns (uint256)',
+  // Read back what an approve actually recorded — the lifecycle suite asserts
+  // that a TAGGED approve (#103) grants the same allowance as a bare one, which
+  // needs the token's own answer rather than the absence of a revert.
+  'function allowance(address owner, address spender) view returns (uint256)',
 ])
 
 function chainFor(rpc_url: string) {

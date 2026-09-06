@@ -199,7 +199,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       value: call.value_raw,
       ...(signer !== null ? { signer_address: signer } : {}),
       ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
-      ...approvalHint(build, ctx, target),
+      ...approvalHint(build, ctx, target, args.chain_id),
     }
   }
 

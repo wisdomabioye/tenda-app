@@ -68,6 +68,12 @@ test('the tag is applied from exactly the places the removal recipe names', () =
   const expected = [
     // 2a. the escrow transactions a CLIENT signs and broadcasts
     'chains/evm/index.ts',
+    // 2a-ii. the ERC-20 `approve` the client sends BEFORE a plain (non-permit)
+    //        create — the server builds that calldata now precisely so it can
+    //        be tagged (#103). It was the one transaction in the flow the
+    //        server did not build, and therefore the one that went out
+    //        unattributed on every post of a token without EIP-2612.
+    'chains/evm/builders.ts',
     // 2b. createEscrowFor, signed by the relayer (#18 agent funding)
     'chains/evm/relay/index.ts',
     // 2c. refundExpired / reclaimAbandoned, also relayer-signed (#43). THIS is

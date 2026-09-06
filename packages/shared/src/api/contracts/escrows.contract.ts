@@ -62,8 +62,13 @@ export type UnsignedTx =
       /** ERC-20 prerequisite the wallet must satisfy BEFORE broadcasting:
        *  allowance(owner → spender) ≥ amount_raw, topped up via approve()
        *  if short. Absent for native assets and for permit-built calls
-       *  (there the allowance rides the tx itself). */
-      approval?: { token: string; spender: string; amount_raw: string }
+       *  (there the allowance rides the tx itself).
+       *
+       *  `data` is the server-built approve calldata carrying the ERC-8021
+       *  attribution suffix (#103); broadcast it as-is. Optional so an older
+       *  client (which encodes its own) and an older server (which sends none)
+       *  both still work, untagged. */
+      approval?: { token: string; spender: string; amount_raw: string; data?: string }
       /**
        * The account this call must be sent FROM (`msg.sender`): the
        * chain-bound party address for transitions on an existing escrow, the
