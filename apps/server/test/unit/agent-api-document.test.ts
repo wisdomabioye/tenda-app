@@ -14,6 +14,7 @@ import assert from 'node:assert'
 import { Column, is } from 'drizzle-orm'
 import {
   AMOUNT_RAW_PATTERN,
+  CHAIN_MANIFEST,
   APPLICATION_STATUSES,
   ErrorCode,
   GIG_CATEGORIES,
@@ -113,6 +114,11 @@ test('the public reads are GET-only and every agent write POST-only, all spelled
   assert.deepStrictEqual(tasks?.security, [{ bearer: [] }])
   assert.ok(tasks?.responses['402'] !== undefined && tasks.responses['201'] !== undefined)
   assert.ok(tasks?.parameters?.some((p) => p.in === 'header' && p.name === 'x-payment'))
+  // #126 instance 3: the recorded example carries the chain and asset it was
+  // CAPTURED on, which is what makes it a recording. The operation has to say
+  // so, or a reader takes those values for defaults and posts a chain this
+  // deployment does not settle on.
+  assert.match(tasks?.description ?? '', /\/v1\/platform\/chains/)
   // Registration is anonymous by necessity — it is how a bearer is obtained.
   assert.strictEqual(paths[apiRoutes.agent.register].post?.security, undefined)
   // Every operation in the document, walked once — three separate nested walks
@@ -223,6 +229,50 @@ test('enumerations are the shared vocabularies, not restated copies', () => {
  * which are required, and a nullable schema accepts a non-null value happily,
  * so a document that over-promises null drifts silently in both directions.
  */
+/**
+ * #126 instance 3. The recorded example legitimately carries the chain and
+ * asset it was captured on — that is what makes it a recording rather than a
+ * hand-written sample. A DESCRIPTION naming one is a different thing: it reads
+ * as an instruction, and on a deployment that settles elsewhere it is a wrong
+ * one. The document had two ("The chain\'s gig asset id (USDC), e.g.
+ * USDC_BASE", and the chain_id enum before instance 2), which is how a
+ * reviewer on a Celo deployment would have been told to post USDC_BASE on
+ * Base Sepolia.
+ *
+ * Derived from the manifest, so a chain or asset added later is covered
+ * without touching this. Values are left alone; only prose is scanned.
+ */
+test('no description hand-writes a chain or asset id — those are per-deployment', () => {
+  const forbidden = [
+    ...CHAIN_MANIFEST.map((entry) => entry.id),
+    ...CHAIN_MANIFEST.flatMap((entry) => entry.assets.map((asset) => asset.id)),
+  ]
+  assert.ok(forbidden.length > 0, 'the manifest is empty — this would pass vacuously')
+  const prose: { where: string; text: string }[] = []
+  for (const [name, schema] of Object.entries(components.schemas)) {
+    walk(schema, (node) => {
+      if (node.description !== undefined) prose.push({ where: `schema ${name}`, text: node.description })
+    })
+  }
+  for (const [path, item] of Object.entries(paths)) {
+    for (const op of operationsOf(item)) {
+      prose.push({ where: `${path} description`, text: op.description })
+      prose.push({ where: `${path} summary`, text: op.summary })
+      for (const parameter of op.parameters ?? []) {
+        if (parameter.description !== undefined) prose.push({ where: `${path} ?${parameter.name}`, text: parameter.description })
+      }
+      for (const [status, response] of Object.entries(op.responses)) {
+        prose.push({ where: `${path} ${status}`, text: response.description })
+      }
+    }
+  }
+  assert.ok(prose.length > 0, 'no prose collected — the scan below would be vacuous')
+  const offences = prose.flatMap(({ where, text }) =>
+    forbidden.filter((id) => new RegExp(`\\b${id}\\b`).test(text)).map((id) => `${where} names ${id}`),
+  )
+  assert.deepStrictEqual(offences, [], 'a per-deployment value is written into prose, where it reads as an instruction')
+})
+
 test('the document allows null exactly where the DATABASE does', () => {
   const summary = components.schemas.GigSummary.properties ?? {}
   const allowsNull = (schema: SchemaObject): boolean => {

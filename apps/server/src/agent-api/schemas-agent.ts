@@ -98,7 +98,7 @@ const agentTaskBody = closedFor<AgentTaskBody>(
   {
     creation_operation_id: { ...uuid, description: 'Idempotency key: the 402 → resend round trip must carry the SAME value, and does so land on the same draft' },
     chain_id: chainId,
-    asset: { type: 'string', description: 'The chain\'s gig asset id (USDC), e.g. USDC_BASE' },
+    asset: { type: 'string', description: 'The chain\'s gig asset id' },
     amount_raw: rawAmount,
     accept_window_seconds: { type: 'integer', minimum: MIN_ACCEPT_WINDOW_SECONDS, maximum: MAX_ACCEPT_WINDOW_SECONDS, description: 'How long the listing stays open for a worker to accept, as a DURATION. The server derives the absolute on-chain deadline from it at the moment the funding transaction is built, so a draft that sits before it is funded is never stale. This IS one of the terms a replay compares: resending the same creation_operation_id with a different window is 409, exactly like a different amount, asset, duration, bond, counterparty or approval mode' },
     completion_duration_seconds: { type: 'integer', minimum: MIN_COMPLETION_DURATION_SECONDS, maximum: MAX_COMPLETION_DURATION_SECONDS },

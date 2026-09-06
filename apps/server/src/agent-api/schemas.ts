@@ -110,7 +110,9 @@ const GIG_SUMMARY_PROPERTIES: Readonly<Record<keyof GigSummary, SchemaObject>> =
   escrow_id: uuid,
   public_feed_revision: { type: 'string', pattern: AMOUNT_RAW_PATTERN.source, description: 'Realtime revision, decimal string' },
   chain_id: chainId,
-  asset: { type: 'string', description: 'Asset id, e.g. USDC_SOL' },
+  // No example: asset ids are per-deployment, and one named here reads as a
+  // promise the reader's deployment may not keep (#126). The field name says it.
+  asset: { type: 'string' },
   amount_raw: rawAmount,
   status: { type: 'string', enum: escrowStatusEnum.enumValues },
   accept_deadline: nullable(isoInstant),
