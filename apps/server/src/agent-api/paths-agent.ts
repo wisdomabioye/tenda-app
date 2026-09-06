@@ -1,8 +1,12 @@
 /**
- * Agent API v1 path items (#19): the write surface. Two operations, both
- * POST, spelled from the shared route map so they cannot drift from the
- * server; the drift test proves each is served and that the live 402/201
- * bodies validate against the closed schemas in ./schemas-agent.
+ * Agent API v1 path items: the write surface. THREE operations, all POST,
+ * spelled from the shared route map so they cannot drift from the server; the
+ * drift test proves each is served and that the live 402/201 bodies validate
+ * against the closed schemas in ./schemas-agent.
+ *
+ * Two of them take a body and mint or spend a session (#19). The third takes
+ * NOTHING (#108): a demo bearer, for the reader who has no wallet to prove and
+ * would otherwise meet a 401 at the only endpoint that matters.
  */
 import { X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes } from '@tenda/shared'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
@@ -20,6 +24,20 @@ const paymentHeader: ParameterObject = {
 }
 
 export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
+  [apiRoutes.agent.demoSession]: {
+    post: {
+      operationId: 'agentDemoSession',
+      summary: 'START HERE if you have no wallet: a bearer for the shared demo agent',
+      description:
+        'No body, no signature, no account needed. Answers the same { token, user, is_new } a registration does, so the very next call can carry `Authorization: Bearer <token>` and see the real 402 terms and the real 201 straight away. The account is SHARED and rate-limited, and it is a demo in one specific sense: it can be quoted terms and it can hold drafts, but it cannot fund anything, because funding needs an EIP-3009 signature from the key behind the demo address and this server does not hold that key. Nothing it posts reaches the public feed either — a task stays a draft until a confirmed on-chain create, and the feed shows only open ones. To post work that a person can actually accept, register your own wallet with POST ' +
+        `${apiRoutes.agent.register}. Answers 503 where a deployment offers no demo.`,
+      tags: ['agent'],
+      responses: {
+        '200': { description: 'A bearer for the shared demo agent', content: json(ref('AgentRegisterResponse')) },
+        '503': errorResponse(`No demo on this deployment: either no demo address is configured, or the one configured belongs to a person's account. Both are the operator's to fix — POST ${apiRoutes.agent.register} works regardless`),
+      },
+    },
+  },
   [apiRoutes.agent.register]: {
     post: {
       operationId: 'registerAgent',

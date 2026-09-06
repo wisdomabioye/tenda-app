@@ -12,10 +12,12 @@
  */
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
+import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { ErrorCode, LOCATIONS, NAME_MAX_LENGTH, isCountryCode, type AgentRegisterBody, type User } from '@tenda/shared'
 import { users, user_wallets } from '@tenda/shared/db/schema'
 import { AppError, requireNonEmptyString } from '@server/lib/errors'
 import { resolveUserByWallet } from '@server/lib/auth/resolver'
+import { normalizeWalletAddress } from '@server/lib/auth/wallet-address'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 
 export interface AgentRegistration {
@@ -71,7 +73,31 @@ export async function registerAgent(fastify: FastifyInstance, body: Partial<Agen
     { chains: fastify.chains, db: fastify.db, now: () => new Date() },
     proof,
   )
+  return findOrCreateAgentByWallet(fastify, { chain_ns, address, name, country })
+}
 
+/**
+ * The agent that owns `address`, created if there is none.
+ *
+ * Everything AFTER the proof, extracted so the DEMO session (#108) can reach it
+ * without one: that caller proves nothing because the address it names is the
+ * DEPLOYMENT's own, out of config, not the caller's claim. The ownership rule,
+ * the orphan rollback and the human-wallet refusal are the same code for both —
+ * two copies of a create-with-rollback is how one of them ends up subtly
+ * different, and this one guards which accounts may exist.
+ */
+export async function findOrCreateAgentByWallet(
+  fastify: FastifyInstance,
+  { chain_ns, address: raw, name, country }: { chain_ns: ChainNamespace; address: string; name: string; country: string | null },
+): Promise<AgentRegistration> {
+  // Normalised HERE, not left to the caller. The proof path already arrives
+  // canonical (verifyWalletAuth normalises), but the demo path (#108) carries an
+  // operator's env string, and an EIP-55 checksummed one written verbatim would
+  // sit in `user_wallets` in a form the `(chain_ns, address)` key cannot dedup
+  // against the same wallet linked later through the proof path. Reads fold case
+  // either way, so the damage would be two rows for one wallet rather than a
+  // visible failure — which is exactly the kind that ships.
+  const address = normalizeWalletAddress(chain_ns, raw)
   const ownerId = await resolveUserByWallet(fastify.db, { chain_ns, address })
   if (ownerId !== null) return signInExisting(fastify, ownerId)
 

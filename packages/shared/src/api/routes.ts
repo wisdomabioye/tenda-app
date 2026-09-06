@@ -65,6 +65,13 @@ export const apiRoutes: {
    */
   agent: {
     register: '/v1/agent/register',
+    /**
+     * A bearer for the shared DEMO agent, minted without a wallet proof (#108).
+     * It exists because a reviewer with no key otherwise meets a 401 and never
+     * sees the x402 loop the document describes — which is exactly what the ten
+     * round-one reviewers reported.
+     */
+    demoSession: '/v1/agent/demo-session',
     tasks: '/v1/agent/tasks',
   },
   users: {

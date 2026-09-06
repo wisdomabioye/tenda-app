@@ -36,7 +36,9 @@
  * themselves described back to us, unprompted and near-identically: "register
  * → POST without x-payment → receive 402 terms and task_id → sign → resend the
  * same body with x-payment → receive 201 → poll GET /v1/gigs/{task_id} until
- * status open". Those three paths, and the schemas they transitively reach.
+ * status open" — plus the demo door that flow needs first (#108), since a
+ * reader with no wallet meets a 401 at every one of them otherwise. Those
+ * paths, and the schemas they transitively reach.
  * The browse surface (`/v1/gigs`, `/facets`, `/featured`) is what an agent
  * posting work never calls, and it is most of the weight.
  *
@@ -78,14 +80,17 @@ export const AGENT_SLIM_DOCUMENT_PATH = '/v1/agent/openapi.json'
  * would silently drop it — the polling step every reviewer described.
  */
 export const AGENT_SLIM_PATHS = [
+  // FIRST, because it is the step a reader with no wallet needs before any of
+  // the others will answer them anything but 401 (#108).
+  apiRoutes.agent.demoSession,
   apiRoutes.agent.register,
   apiRoutes.agent.tasks,
   // The document spells a path parameter the OpenAPI way and the route map the
   // Fastify way — the same transform ./paths applies to build the key it is
   // looked up by. Spelled from the shared map like every sibling in this
-  // directory, and not as a literal: a renamed route would otherwise leave
-  // three strings here matching nothing, and since AGENT_SLIM_DOCUMENT is built
-  // at module load the first symptom would be a server that does not boot.
+  // directory, and not as a literal: a renamed route would otherwise leave the
+  // strings here matching nothing, and since AGENT_SLIM_DOCUMENT is built at
+  // module load the first symptom would be a server that does not boot.
   apiRoutes.gigs.get.replace(':id', '{id}'),
 ] as const
 

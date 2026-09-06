@@ -69,10 +69,14 @@ test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.strictEqual(AGENT_API_VERSION, '2.0.0')
 })
 
-test('the four public gig reads are GET-only and the two agent writes POST-only, all spelled from the route map', () => {
+test('the public gig reads are GET-only and every agent write POST-only, all spelled from the route map', () => {
   const READS = [apiRoutes.gigs.list, apiRoutes.gigs.facets, apiRoutes.gigs.featured, apiRoutes.gigs.get.replace(':id', '{id}')]
+  // Writes that take a body. The demo session is a POST too, but it takes NONE
+  // — that is its whole shape (#108) — so it is asserted separately below
+  // rather than weakened into this list.
   const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks]
-  assert.deepStrictEqual(Object.keys(paths).sort(), [...READS, ...WRITES].sort())
+  const BODYLESS = [apiRoutes.agent.demoSession]
+  assert.deepStrictEqual(Object.keys(paths).sort(), [...READS, ...WRITES, ...BODYLESS].sort())
   for (const path of READS) {
     const item = paths[path]
     assert.deepStrictEqual(Object.keys(item), ['get'], `${path} must be read-only`)
@@ -83,6 +87,19 @@ test('the four public gig reads are GET-only and the two agent writes POST-only,
     const item = paths[path]
     assert.deepStrictEqual(Object.keys(item), ['post'], `${path} must be write-only`)
     assert.ok(item.post?.requestBody?.required === true, `${path} documents its body`)
+  }
+  // The demo session (#108): a POST that takes nothing, needs nothing, and
+  // hands back a bearer. Anonymous BY NECESSITY, exactly like registration — it
+  // is the door for a caller who cannot sign a wallet proof — and it must keep
+  // documenting the 503 a deployment without a demo address answers, or the
+  // only honest outcome becomes an undocumented one.
+  for (const path of BODYLESS) {
+    const item = paths[path]
+    assert.deepStrictEqual(Object.keys(item), ['post'], `${path} must be write-only`)
+    assert.strictEqual(item.post?.requestBody, undefined, `${path} must take no body`)
+    assert.strictEqual(item.post?.security, undefined, `${path} is anonymous — it is how a bearer is obtained`)
+    assert.ok(item.post?.responses['200'] !== undefined, `${path} documents its 200`)
+    assert.ok(item.post?.responses['503'] !== undefined, `${path} documents the unconfigured deployment`)
   }
   // The one-shot is bearer-scoped and documents BOTH halves of the x402 round trip.
   const tasks = paths[apiRoutes.agent.tasks].post

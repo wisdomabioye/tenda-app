@@ -80,6 +80,13 @@ export interface AgentTaskCreated {
 
 export interface AgentContract {
   register: Endpoint<'POST', undefined, AgentRegisterBody, undefined, AgentRegisterResponse>
+  /**
+   * A bearer for the shared DEMO agent, minted with NO wallet proof and no body
+   * (#108) — the same `{ token, user, is_new }` a registration answers, so a
+   * caller's next request is an ordinary bearer call and nothing about the flow
+   * below is special-cased for it.
+   */
+  demoSession: Endpoint<'POST', undefined, undefined, undefined, AgentRegisterResponse>
   /** 402 AgentTaskPaymentRequired without X-PAYMENT; 201 AgentTaskCreated with it. */
   tasks: Endpoint<'POST', undefined, AgentTaskBody, undefined, AgentTaskCreated>
 }

@@ -110,6 +110,8 @@ export interface Config {
    */
   GOOGLE_OAUTH_CLIENT_IDS: string[] | null
   APPLE_OAUTH_CLIENT_IDS: string[] | null
+  /** Demo agent's EVM address (#108); null = no demo, the route 503s. An ADDRESS, never a key — features/agent/demoSession.ts has the argument. */
+  AGENT_DEMO_ADDRESS: string | null
 }
 
 /** Parse a comma-separated env var into a trimmed non-empty list, or null. */
@@ -244,6 +246,7 @@ export function loadConfig(): Config {
     API_BASE_URL:          baseUrlEnv('API_BASE_URL')!,
     PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? 250),
     JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
+    AGENT_DEMO_ADDRESS:    optionalEnv('AGENT_DEMO_ADDRESS'),
     TERMII_API_KEY:        optionalEnv('TERMII_API_KEY'),
     TERMII_SENDER_ID:      optionalEnv('TERMII_SENDER_ID'),
     TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],
