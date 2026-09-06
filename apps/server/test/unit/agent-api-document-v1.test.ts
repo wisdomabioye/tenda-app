@@ -24,6 +24,8 @@ import {
   RELAY_PAYMENT_KINDS,
   TENDA_RELAY_SCHEME,
   X402_VERSION,
+  X_PAYMENT_RESPONSE_HEADER,
+  apiRoutes,
 } from '@tenda/shared'
 import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
 import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
@@ -70,6 +72,17 @@ test('v1 request bodies derive their bounds from the shared constants the routes
     [components.schemas.EvmAuthorizationTerms, components.schemas.SolanaTransactionTerms].map((s) => s.properties?.kind.const),
     [...RELAY_PAYMENT_KINDS],
   )
+})
+
+test('the 201 DECLARES the settlement receipt header, not only prose (#111)', () => {
+  // Two round-one reviewers could not confirm the receipt comes back, because
+  // the header was described in the operation text and declared nowhere — so
+  // nothing generated from this document knew to look for it.
+  const created = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks].post?.responses['201']
+  const header = created?.headers?.[X_PAYMENT_RESPONSE_HEADER]
+  assert.ok(header !== undefined, `the 201 does not declare ${X_PAYMENT_RESPONSE_HEADER}`)
+  assert.strictEqual(header.schema.type, 'string', 'the header travels base64, so a string')
+  assert.ok(header.description.length > 0, 'a declared header with no description says nothing')
 })
 
 test('the v1 schemas compile strictly and the closure bites on the task body and the terms', () => {

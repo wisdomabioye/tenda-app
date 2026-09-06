@@ -206,6 +206,17 @@ export function slimAgentDocument(
     ...doc,
     info: {
       ...doc.info,
+      // #127. The guarantees are COMPATIBILITY policy — what may change and how
+      // you learn it — and they cost ~2.4 KB in the one document whose defining
+      // problem is size. Everything in them that a first call acts on is already
+      // structural here: who may call what is the security scheme, the one-shot
+      // is the operation description, the refusal shapes are the responses, and
+      // the chain rule is the chain_id description plus the 422. So this carries
+      // a pointer and the canonical document keeps the text, which is the split
+      // the two documents exist for.
+      'x-tenda-stability': [
+        `Compatibility guarantees are not repeated in this subset — read x-tenda-stability at ${AGENT_API_DOCUMENT_PATH} before depending on this contract.`,
+      ],
       description:
         `${doc.info.description} THIS IS THE AGENT-ONLY SUBSET: the task-posting flow ` +
         `(${AGENT_SLIM_PATHS.join(', ')}) and every schema those reach, published separately ` +

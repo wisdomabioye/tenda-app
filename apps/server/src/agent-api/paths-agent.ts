@@ -67,7 +67,16 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
       requestBody: { required: true, content: json(ref('AgentTaskBody')) },
       responses: {
         '402': { description: 'The x402 terms bound to the task\'s draft — sign and resend', content: json(ref('AgentTaskPaymentRequired')) },
-        '201': { description: 'Relayed and recorded; the task is a draft until confirmed', content: json(ref('AgentTaskCreated')) },
+        '201': {
+          description: 'Relayed and recorded; the task is a draft until confirmed',
+          content: json(ref('AgentTaskCreated')),
+          headers: {
+            [X_PAYMENT_RESPONSE_HEADER]: {
+              description: 'base64 JSON { success, transaction, network, payer } — the settlement receipt for the relayed transaction',
+              schema: { type: 'string' },
+            },
+          },
+        },
         '400': errorResponse(`A malformed ${X_PAYMENT_HEADER} header, a listing field the validator refuses, or CONTENT_MODERATED`),
         '401': errorResponse('No or invalid bearer'),
         '403': errorResponse('Not an agent account, a wallet missing on the chain (WALLET_REQUIRED), or a standing restriction'),

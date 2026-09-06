@@ -54,9 +54,25 @@ export type HttpStatus = `${'2' | '4' | '5'}${number}`
 export type SecuritySchemeName = 'bearer'
 export type SecurityRequirement = Readonly<Record<SecuritySchemeName, readonly string[]>>
 
+/**
+ * OpenAPI's Header Object — a parameter without `name`/`in`, which the spec
+ * takes from the map key instead. Only the keywords this document uses.
+ */
+export interface HeaderObject {
+  description: string
+  schema: SchemaObject
+}
+
 export interface ResponseObject {
   description: string
   content?: JsonContent
+  /**
+   * Response headers this status carries. Absent on every response that adds
+   * none — declaring an empty map would claim the answer was checked when it
+   * was not (#111: the 201's settlement receipt was described in prose and
+   * declared nowhere, so two reviewers could not confirm it comes back).
+   */
+  headers?: Readonly<Record<string, HeaderObject>>
 }
 
 export interface OperationObject {

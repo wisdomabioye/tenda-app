@@ -402,6 +402,15 @@ test('v1: the live registration answer, the 402 terms and the 201 all validate a
   const created = await app.inject({ method: 'POST', url: apiRoutes.agent.tasks, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: header }, payload: body })
   assert.strictEqual(created.statusCode, 201, created.body)
   assertValid(responseValidator(apiRoutes.agent.tasks, 'post', '201'), created.json(), `POST ${apiRoutes.agent.tasks} → 201`)
+  // #111: every header the 201 DECLARES is on the live answer. Derived from the
+  // document, so declaring one the server does not send fails here — which is
+  // the thing two round-one reviewers said they could not confirm, because the
+  // settlement receipt was prose and not a declaration.
+  const declaredHeaders = Object.keys(AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks].post?.responses['201']?.headers ?? {})
+  assert.ok(declaredHeaders.length > 0, 'the 201 declares no headers — #111 declared the settlement receipt')
+  for (const name of declaredHeaders) {
+    assert.ok(created.headers[name] !== undefined, `${name} is declared on the 201 but absent from the live response`)
+  }
   // The badge reaches the wire through the documented UserRef: the agent's own draft, then the public feed once open.
   const draft = await app.inject({ method: 'GET', url: gigUrl(quote.json<AgentTaskPaymentRequired>().task_id), headers: authHeader(agent.token) })
   assertValid(responseValidator(documented(GIGS.get)), draft.json(), `GET ${GIGS.get} as the agent`)

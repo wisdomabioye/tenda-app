@@ -162,6 +162,22 @@ test('the 402 terms schema survives — the one the whole flow turns on', () => 
   assert.ok('AgentTaskCreated' in AGENT_SLIM_DOCUMENT.components.schemas)
 })
 
+test('the subset POINTS AT the guarantees instead of repeating them', () => {
+  // #127. x-tenda-stability is compatibility policy — what may change and how
+  // you learn it — and at ~2.4 KB it was the largest single block in the one
+  // document whose defining problem is size. It cost more than the whole
+  // /v1/platform/chains surface #126 added. Everything in it a first call acts
+  // on is structural here already, so the subset carries a pointer.
+  const slim = AGENT_SLIM_DOCUMENT.info['x-tenda-stability']
+  const canonical = AGENT_API_DOCUMENT.info['x-tenda-stability']
+  assert.deepStrictEqual(slim.length, 1, 'the subset carries one pointer, not the policy')
+  assert.ok(slim[0].includes(AGENT_API_DOCUMENT_PATH), 'the pointer must name the document that has them')
+  // And the trim is the SUBSET's, not a deletion: the canonical document keeps
+  // every line, which is the half of this that a reader depends on.
+  assert.ok(canonical.length > 1, 'the canonical document lost its guarantees')
+  for (const line of canonical) assert.ok(!slim.includes(line), `a guarantee leaked into the subset: ${line}`)
+})
+
 // ---------- the SIZE guard --------------------------------------------------
 
 test('the slim document fits, with the headroom #109 needs for recorded examples', () => {
