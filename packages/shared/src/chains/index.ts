@@ -9,6 +9,8 @@ export {
   type AssetRole,
   type GasPolicy,
   type ChainStatus,
+  CHAIN_KINDS,
+  type ChainKind,
 } from './manifest'
 export {
   chainById,

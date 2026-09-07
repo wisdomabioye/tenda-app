@@ -11,10 +11,12 @@
  * is ONE edit in this module, and the compiler then names every fixture that
  * still needs something only it can supply.
  *
- * HONEST BY CONSTRUCTION. A known chain id gets the manifest's real public
- * facts through the same `chainPublicFacts` the route serves; a fabricated id
- * gets nulls, which is what the route would also answer for a chain the
- * manifest does not know. `relayed_funding_available` is the one
+ * HONEST BY CONSTRUCTION. A known chain id gets the manifest's real `kind`
+ * and public facts through the same lookups the route serves (`findChain`,
+ * `chainPublicFacts`); a fabricated id gets `testnet` and nulls. The route
+ * never lists such a chain at all — every adapter is built from a manifest
+ * entry — so the helper is answering for a chain that cannot be served, not
+ * imitating one the route would. `relayed_funding_available` is the one
  * per-deployment fact, defaulted to false — a fixture that needs a relaying
  * chain says so by overriding it after the spread.
  *
@@ -22,12 +24,12 @@
  * under its own subpath so the main barrel stays runtime-only.
  */
 import type { ChainRegistryEntry } from '../api/contracts/platform.contract'
-import { chainPublicFacts } from '../chains/manifest-queries'
+import { chainPublicFacts, findChain } from '../chains/manifest-queries'
 
 /** The registry-entry fields a fixture should not have to spell: deployment + public facts. */
 export type RegistryEntryDefaults = Pick<
   ChainRegistryEntry,
-  'relayed_funding_available' | 'rpc_url' | 'explorer_url' | 'faucet_url'
+  'network_kind' | 'relayed_funding_available' | 'rpc_url' | 'explorer_url' | 'faucet_url'
 >
 
 /**
@@ -36,5 +38,6 @@ export type RegistryEntryDefaults = Pick<
  *   { id, namespace, display_name, escrow_address, ...registryEntryDefaults(id), assets }
  */
 export function registryEntryDefaults(id: string): RegistryEntryDefaults {
-  return { relayed_funding_available: false, ...chainPublicFacts(id) }
+  // A fabricated id is a TEST chain by definition — the fixture invented it.
+  return { network_kind: findChain(id)?.kind ?? 'testnet', relayed_funding_available: false, ...chainPublicFacts(id) }
 }

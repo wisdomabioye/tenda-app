@@ -4,6 +4,7 @@ import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
 import { getExchangeRates } from '@server/lib/exchange-rates'
 import {
+  chainById,
   chainPublicFacts,
   exchangeAssetsByChain,
   findChain,
@@ -110,6 +111,8 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
       return [
         {
           ...c,
+          // Total by construction: every adapter is built from a manifest entry.
+          network_kind: chainById(c.id).kind,
           escrow_address: adapter.escrowAddress,
           relayed_funding_available: adapter.relay !== undefined,
           ...chainPublicFacts(c.id),

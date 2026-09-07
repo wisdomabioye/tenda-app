@@ -123,13 +123,23 @@ export interface ChainAsset {
  */
 export type ChainStatus = 'live' | 'launching' | 'planned'
 
+/**
+ * Whether a chain is a real network or a test one — a fact about the CHAIN
+ * (see `status` above for the fact about Tenda). Published on the registry
+ * entry (#139) because a reader on a mainnet deployment could not otherwise
+ * tell a null `faucet_url` that means "real money" from one that means "the
+ * token's mint() is open".
+ */
+export const CHAIN_KINDS = ['mainnet', 'testnet'] as const
+export type ChainKind = (typeof CHAIN_KINDS)[number]
+
 export interface ChainManifestEntry {
   /** CAIP-2 id, e.g. `'eip155:8453'`, `'solana:devnet'`. */
   id: string
   namespace: ChainNamespace
   /** Network group; one active chain per family per deployment. */
   family: string
-  kind: 'mainnet' | 'testnet'
+  kind: ChainKind
   /** Whether Tenda's escrow is deployed here — see ChainStatus. */
   status: ChainStatus
   displayName: string

@@ -44,6 +44,7 @@ export {
   TEST_CHAIN_ID_ALT,
   TEST_NATIVE_ASSET,
   UNREGISTERED_CHAIN_ID,
+  fakeRegistryPlus,
   realEvmRegistry,
 } from './fake-chain'
 

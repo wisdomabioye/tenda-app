@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  CHAIN_KINDS,
   CHAIN_MANIFEST,
   feeCurrencyAddress,
   isNativeAsset,
@@ -101,10 +102,11 @@ test('EVM token addresses are 0x-prefixed 40-hex; native tokens are null', () =>
   }
 })
 
-test('namespace and gasPolicy are from the supported sets', () => {
+test('namespace, kind and gasPolicy are from the supported sets', () => {
   const policies = new Set(['native-seed', 'paymaster', 'feeCurrency', 'none'])
   for (const entry of CHAIN_MANIFEST) {
     assert.ok(entry.namespace === 'solana' || entry.namespace === 'eip155', `bad namespace on ${entry.id}`)
+    assert.ok((CHAIN_KINDS as readonly string[]).includes(entry.kind), `bad kind on ${entry.id}`)
     assert.ok(policies.has(entry.gasPolicy), `bad gasPolicy on ${entry.id}`)
     assert.ok(entry.family.length > 0, `empty family on ${entry.id}`)
   }

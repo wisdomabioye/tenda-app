@@ -1,6 +1,6 @@
 import type { Endpoint } from '../endpoint'
 import type { SupportedCurrency } from '../../constants'
-import type { AssetRole } from '../../chains/manifest'
+import type { AssetRole, ChainKind } from '../../chains/manifest'
 
 export interface PlatformConfig {
   fee_bps: number
@@ -30,6 +30,15 @@ export interface ChainRegistryEntry {
   id: string
   namespace: 'solana' | 'eip155'
   display_name: string
+  /**
+   * `mainnet` or `testnet` — a fact about the chain, from the manifest (#139).
+   * Without it a reader cannot tell a null `faucet_url` that means "real money,
+   * no free source" from one that means "a testnet mock with an open mint()".
+   * Named `network_kind`, not `kind`: the 402 already carries `kind` twice with
+   * other meanings (the escrow type in create_params, the payment mechanism),
+   * and `network` is the 402's word for the CAIP-2 chain id.
+   */
+  network_kind: ChainKind
   /** Deployed escrow contract (EVM) / program id (Solana) — the approve /
    *  permit SPENDER for client-side ERC-20 flows (allowance screen, permit). */
   escrow_address: string

@@ -10,23 +10,26 @@ import type { ChainRegistryEntry } from '@tenda/shared'
 // new type with undefined fields. v2 = escrow_address + supports_permit.
 // v3 (#132/#137) = relayed_funding_available + rpc_url + explorer_url +
 // faucet_url — and `roles` (#129), which shipped without a bump of its own.
+// v4 (#139) = network_kind.
 //
 // Persisted in AsyncStorage, NOT SecureStore: the registry is public chain
 // facts (nothing secret to protect), and Android's expo-secure-store rejects
 // values over 2048 bytes — the snapshot was 1747 bytes with four chains, so
 // roughly one more chain would have made every persist fail silently and
 // frozen the fast first paint at the last pre-cap registry.
-const STORAGE_KEY = 'chain_registry_v3'
+const STORAGE_KEY = 'chain_registry_v4'
 /**
- * The superseded snapshot, in BOTH places it ever lived — the SecureStore era
- * (pre-AsyncStorage) and the v2 AsyncStorage key. Reclaimed on read and never
- * hydrated: the SecureStore→AsyncStorage migration used to write the legacy
- * copy through, which was right while the shape stayed the same, and would now
- * carry an older shape into the v3 key — exactly the rehydrate-as-the-new-type
- * the version bump exists to prevent. One launch after an upgrade pays a cold
- * fetch for its first paint; that is the cost of a shape change, paid once.
+ * Superseded snapshots, everywhere one ever lived — the SecureStore era held
+ * v2; AsyncStorage held v2 and then v3. Reclaimed on read and never hydrated:
+ * the SecureStore→AsyncStorage migration used to write the legacy copy
+ * through, which was right while the shape stayed the same, and would now
+ * carry an older shape into the current key — exactly the
+ * rehydrate-as-the-new-type the version bump exists to prevent. One launch
+ * after an upgrade pays a cold fetch for its first paint; that is the cost of
+ * a shape change, paid once. A bump appends the retired key here.
  */
-const SUPERSEDED_KEY = 'chain_registry_v2'
+const SUPERSEDED_SECURE_STORE_KEY = 'chain_registry_v2'
+const SUPERSEDED_ASYNC_STORAGE_KEYS = ['chain_registry_v2', 'chain_registry_v3'] as const
 
 /**
  * Lifecycle of the registry load, mirroring `walletsStatus` in the auth store
@@ -78,9 +81,10 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
   loadPersisted: async () => {
     try {
       // Fire-and-forget: reclaiming the superseded slots must not gate (or
-      // fail) the bootstrap, and neither copy is read — see SUPERSEDED_KEY.
-      void SecureStore.deleteItemAsync(SUPERSEDED_KEY).catch(() => {})
-      void AsyncStorage.removeItem(SUPERSEDED_KEY).catch(() => {})
+      // fail) the bootstrap, and no superseded copy is read — see the two
+      // SUPERSEDED_* constants above.
+      void SecureStore.deleteItemAsync(SUPERSEDED_SECURE_STORE_KEY).catch(() => {})
+      void AsyncStorage.multiRemove([...SUPERSEDED_ASYNC_STORAGE_KEYS]).catch(() => {})
       const raw = await AsyncStorage.getItem(STORAGE_KEY)
       if (!raw) return
       // Don't clobber a fresher network result that already landed.

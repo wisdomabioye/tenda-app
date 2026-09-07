@@ -30,7 +30,7 @@
  * itself uses, never from the stored column, which is written by `db:seed` and
  * has drifted two contract generations behind before now.
  */
-import { ASSET_ROLES, apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
+import { ASSET_ROLES, CHAIN_KINDS, apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
 import { chainNamespaceEnum } from '@tenda/shared/db/schema'
 import { allKeys, closedFor, nullable, ref, type PlatformComponentName, type SchemaObject } from './schema-types'
 import { json, type PathItem } from './paths'
@@ -68,6 +68,7 @@ const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry,
   id: chainIdShape,
   namespace: { type: 'string', enum: chainNamespaceEnum },
   display_name: { type: 'string' },
+  network_kind: { type: 'string', enum: CHAIN_KINDS, description: 'mainnet or testnet — read it with faucet_url: on a mainnet null means real money and no free source' },
   escrow_address: { type: 'string', description: 'Escrow contract / program id — the spender an agent authorises' },
   relayed_funding_available: {
     type: 'boolean',
@@ -78,7 +79,7 @@ const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry,
   explorer_url: nullable({ type: 'string', description: 'Block-explorer base URL, or null' }),
   faucet_url: nullable({
     type: 'string',
-    description: 'Where to obtain this chain\'s TEST USDC. Null on mainnets, and on a testnet whose gig token is a repo mock — there the token\'s mint() is open and callable by anyone, so mint to yourself at the asset\'s token_address',
+    description: 'Where to obtain this chain\'s TEST USDC. Null on mainnets, and on a testnet whose gig token is a repo mock — there the token\'s mint() is open and callable by anyone, so mint to yourself at the asset\'s token_address. `network_kind` tells the two nulls apart',
   }),
   assets: { type: 'array', items: ref('ChainRegistryAsset') },
 }

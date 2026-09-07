@@ -18,10 +18,32 @@ import {
   FAKE_SOLANA_PROGRAM,
   FAKE_EVM_ESCROW,
   TEST_CHAIN_ID_ALT,
+  fakeRegistryPlus,
 } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
-const getApp = useTestApp()
+/**
+ * A MAINNET adapter alongside the two testnet fakes (#139). Both defaults are
+ * testnets, so a route that hardcoded `network_kind: 'testnet'` passed every
+ * assertion here — measured, mutation survived. The registry serves a chain
+ * only when a DB row enables it, so registering the adapter changes nothing
+ * for the suites above; the one test that inserts the row is the last.
+ */
+const MAINNET_CHAIN_ID = 'eip155:42220'
+const getApp = useTestApp({ chains: fakeRegistryPlus(MAINNET_CHAIN_ID, 'eip155') })
+
+/** An enabled EVM chain row — the three suites below differ only in these four fields. */
+function enabledEvmChainRow(id: string, display_name: string, min_confirmations: number, escrow_program = FAKE_EVM_ESCROW) {
+  return {
+    id,
+    namespace: 'eip155' as const,
+    display_name,
+    min_confirmations,
+    treasury_address: `0x${'aa'.repeat(20)}`,
+    escrow_program,
+    is_enabled: true,
+  }
+}
 
 test('platform/chains: enabled chains with their enabled assets', { skip }, async () => {
   const app = getApp()
@@ -67,16 +89,8 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
   // route omits any chain it cannot transact on, so an arbitrary EVM id here
   // would drop out of the response entirely.
   const EVM_CHAIN = TEST_CHAIN_ID_ALT
-  await app.db.insert(chains).values({
-    id: EVM_CHAIN,
-    namespace: 'eip155',
-    display_name: 'Base Sepolia',
-    min_confirmations: 5,
-    treasury_address: `0x${'aa'.repeat(20)}`,
-    // Deliberately NOT the adapter's address: the column is not the source.
-    escrow_program: `0x${'ab'.repeat(20)}`,
-    is_enabled: true,
-  })
+  // Deliberately NOT the adapter's address: the column is not the source.
+  await app.db.insert(chains).values(enabledEvmChainRow(EVM_CHAIN, 'Base Sepolia', 5, `0x${'ab'.repeat(20)}`))
   await app.db.insert(assets).values({
     id: 'USDC_BASE',
     chain_id: EVM_CHAIN,
@@ -182,15 +196,7 @@ test('platform/chains: a chain with no adapter is omitted, not advertised', { sk
  */
 test('platform/chains: relayed_funding_available is the adapter\'s relay, per chain', { skip }, async () => {
   const app = getApp()
-  await app.db.insert(chains).values({
-    id: TEST_CHAIN_ID_ALT,
-    namespace: 'eip155',
-    display_name: 'Base Sepolia',
-    min_confirmations: 1,
-    treasury_address: `0x${'aa'.repeat(20)}`,
-    escrow_program: FAKE_EVM_ESCROW,
-    is_enabled: true,
-  })
+  await app.db.insert(chains).values(enabledEvmChainRow(TEST_CHAIN_ID_ALT, 'Base Sepolia', 1))
   try {
     const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
     assert.strictEqual(res.statusCode, 200)
@@ -212,5 +218,34 @@ test('platform/chains: relayed_funding_available is the adapter\'s relay, per ch
     assert.strictEqual(byId.get(TEST_CHAIN_ID)?.faucet_url, 'https://faucet.circle.com')
   } finally {
     await app.db.delete(chains).where(eq(chains.id, TEST_CHAIN_ID_ALT))
+  }
+})
+
+test('platform/chains: network_kind is the manifest\'s — a mainnet and a testnet answer differently', { skip }, async () => {
+  // #139: the fact that lets a reader tell a null faucet_url on a mainnet from
+  // one on a testnet whose mock has an open mint. Read from the manifest entry
+  // the adapter was built from, so it cannot disagree with faucet_url — and
+  // proven on BOTH kinds, because a hardcoded 'testnet' agrees with every
+  // default harness chain.
+  const app = getApp()
+  // The extra adapter is APPENDED: the Solana fake must stay first, because
+  // reconcile-escrows and the listeners plugin pick `list()[0]`.
+  assert.strictEqual(app.chains.list()[0]?.chain_id, TEST_CHAIN_ID)
+  await app.db.insert(chains).values(enabledEvmChainRow(MAINNET_CHAIN_ID, 'CELO', 3))
+  try {
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    const { data } = res.json<{ data: ChainRegistryEntry[] }>()
+    const byId = new Map(data.map((c) => [c.id, c]))
+    const mainnet = byId.get(MAINNET_CHAIN_ID)
+    const testnet = byId.get(TEST_CHAIN_ID)
+    assert.ok(mainnet !== undefined && testnet !== undefined, 'both chains are served')
+    assert.strictEqual(mainnet.network_kind, 'mainnet')
+    assert.strictEqual(testnet.network_kind, 'testnet')
+    // The two nulls the field exists to separate: real money on the mainnet…
+    assert.strictEqual(mainnet.faucet_url, null)
+    // …and a testnet that names where its USDC comes from.
+    assert.notStrictEqual(testnet.faucet_url, null)
+  } finally {
+    await app.db.delete(chains).where(eq(chains.id, MAINNET_CHAIN_ID))
   }
 })

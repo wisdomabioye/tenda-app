@@ -6,16 +6,19 @@ import { registryEntryDefaults } from '../../src/testing'
 
 test('a known chain id gets the manifest\'s real public facts and no relay', () => {
   assert.deepEqual(registryEntryDefaults('eip155:84532'), {
+    network_kind: 'testnet',
     relayed_funding_available: false,
     rpc_url: 'https://sepolia.base.org',
     explorer_url: 'https://sepolia.basescan.org',
     faucet_url: 'https://faucet.circle.com',
   })
-  assert.deepEqual(registryEntryDefaults('eip155:84532'), { relayed_funding_available: false, ...chainPublicFacts('eip155:84532') })
+  assert.deepEqual(registryEntryDefaults('eip155:84532'), { network_kind: 'testnet', relayed_funding_available: false, ...chainPublicFacts('eip155:84532') })
+  assert.equal(registryEntryDefaults('eip155:42220').network_kind, 'mainnet')
 })
 
-test('a fabricated chain id gets nulls — the same answer the route gives an unknown chain', () => {
+test('a fabricated chain id is a testnet with nulls — a chain the route could never serve', () => {
   assert.deepEqual(registryEntryDefaults('eip155:999999'), {
+    network_kind: 'testnet',
     relayed_funding_available: false,
     rpc_url: null,
     explorer_url: null,

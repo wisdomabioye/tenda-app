@@ -205,6 +205,16 @@ export function fakeRegistry(substitute?: { chain_id: string; adapter: ChainAdap
 }
 
 /**
+ * The harness registry plus ONE more fake adapter under any chain id — how a
+ * suite gets a chain the two defaults are not (a MAINNET, for the registry's
+ * `network_kind`) without building a registry of its own: the insertion-order
+ * rule above stays here, and a new key is appended, never moved ahead.
+ */
+export function fakeRegistryPlus(chain_id: string, namespace: 'solana' | 'eip155'): ChainRegistry {
+  return fakeRegistry({ chain_id, adapter: fakeAdapter(chain_id, namespace) })
+}
+
+/**
  * The harness registry with the eip155 chain's adapter replaced by a REAL one
  * (#109's recorder, the only caller).
  *

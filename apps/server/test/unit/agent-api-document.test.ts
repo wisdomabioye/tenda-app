@@ -14,6 +14,7 @@ import assert from 'node:assert'
 import { Column, is } from 'drizzle-orm'
 import {
   AMOUNT_RAW_PATTERN,
+  CHAIN_KINDS,
   CHAIN_MANIFEST,
   APPLICATION_STATUSES,
   ErrorCode,
@@ -685,6 +686,14 @@ test('#138: the gig read names the creator exception, the signer readback says w
  */
 test('#139: a null faucet on a testnet is explained as an open mint at the asset token', () => {
   const faucet = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry.properties?.faucet_url
+  // `network_kind` is what makes the two nulls distinguishable, so it is
+  // required and spelled from the shared vocabulary rather than restated. Not
+  // `kind`: the 402 carries that name twice already with other meanings.
+  const entry = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry
+  assert.ok(entry.required?.includes('network_kind'))
+  assert.ok(!('kind' in (entry.properties ?? {})), 'a third `kind` in the document')
+  assert.deepStrictEqual(entry.properties?.network_kind?.enum, CHAIN_KINDS)
+  assert.match(faucet?.description ?? '', /`network_kind` tells the two nulls apart/)
   assert.match(faucet?.description ?? '', /mint\(\) is open/)
   assert.match(faucet?.description ?? '', /token_address/)
 })
