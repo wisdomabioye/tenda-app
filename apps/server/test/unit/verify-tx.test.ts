@@ -93,6 +93,7 @@ function makeDeps(opts: {
     namespace: 'solana',
     chain_id: 'solana:devnet',
     escrowAddress: 'FakeProgram1111111111111111111111111111111',
+    approvalWindowSeconds: async () => 86_400,
     async buildTx() {
       throw new Error('not used')
     },

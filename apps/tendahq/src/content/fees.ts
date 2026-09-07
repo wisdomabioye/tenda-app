@@ -1,7 +1,9 @@
 /**
- * Fee and deadline facts — DERIVED from the shared platform-config defaults,
- * the same constants the `platform_config` columns default to and the server
- * falls back to when the row is unseeded.
+ * Fee facts — DERIVED from the shared platform-config defaults, the same
+ * constants the `platform_config` columns default to and the server falls
+ * back to when the row is unseeded. (The review WINDOW used to be derived
+ * here too; it is a contract value that differs per network, so since #148
+ * the landing phrases it and never counts it.)
  *
  * WHY THIS FILE EXISTS. "2.5%" was written out as a literal in six places
  * across the landing — the fee FAQ twice, the minimum-amount answer, §04's
@@ -12,9 +14,9 @@
  *
  * Two rules follow from that:
  *
- *   1. Nothing on the landing types a fee or window figure. It comes from here,
- *      or — where the surface can run a hook — live from the platform config
- *      via `<FeePct />`.
+ *   1. Nothing on the landing types a fee figure. It comes from here, or —
+ *      where the surface can run a hook — live from the platform config via
+ *      `<FeePct />`.
  *   2. These values are the DEFAULTS, not the truth. The live config wins
  *      wherever it can be read; this is what to print while it loads, and the
  *      floor under any copy that cannot run a hook (a plain string in a data
@@ -36,11 +38,6 @@ export const FEE_PCT = pct(PLATFORM_CONFIG_DEFAULTS.fee_bps)
 
 /** Reduced Solana Mobile (Seeker) rate as a display percentage ('1'). */
 export const SEEKER_FEE_PCT = pct(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps)
-
-/** The review window a poster has to approve or dispute, in whole hours (48). */
-export const APPROVAL_WINDOW_HOURS = Math.round(
-  PLATFORM_CONFIG_DEFAULTS.approval_window_seconds / 3_600,
-)
 
 /**
  * §04's worked example, computed rather than typed.

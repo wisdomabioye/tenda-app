@@ -110,4 +110,6 @@ export interface EvmRpc {
   readEscrow(escrow_contract: `0x${string}`, escrow_id: `0x${string}`): Promise<EvmEscrowTuple | null>
   /** name() + nonces(owner) + DOMAIN_SEPARATOR() off an EIP-2612 token. */
   readPermitFacts(token: `0x${string}`, owner: `0x${string}`): Promise<EvmPermitFacts>
+  /** The contract's `approvalWindowSeconds()` — the poster's review window, a uint64 (#148). */
+  readApprovalWindow(escrow_contract: `0x${string}`): Promise<bigint>
 }

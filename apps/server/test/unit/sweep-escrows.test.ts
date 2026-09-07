@@ -74,6 +74,7 @@ function run(rows: SweepableEscrow[], sweepImpl?: (a: SweepArgs) => Promise<{ tx
     namespace: 'eip155',
     chain_id: CHAIN,
     escrowAddress: CONTRACT,
+    approvalWindowSeconds: async () => 86_400,
     async buildTx() {
       throw new Error('the sweeper builds nothing itself')
     },

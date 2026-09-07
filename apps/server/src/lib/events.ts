@@ -99,7 +99,6 @@ export interface AppEvents {
       fee_bps?: number
       seeker_fee_bps?: number
       grace_period_seconds?: number
-      approval_window_seconds?: number
       default_sponsored_tx_count?: number
     }
   }

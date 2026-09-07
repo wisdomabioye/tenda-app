@@ -1,5 +1,3 @@
-import { PLATFORM_CONFIG_DEFAULTS } from './platform'
-
 /**
  * Brand facts — the ONLY source of product identity strings and outbound
  * links, shared by mobile, web and the landing page (which composes these
@@ -25,11 +23,13 @@ import { PLATFORM_CONFIG_DEFAULTS } from './platform'
 /**
  * The stalled-payment promise, in words, for a given approval window.
  *
- * A FUNCTION because the window is `platform_config.approval_window_seconds`,
- * not a constant: any surface holding the live config should pass the real
- * number rather than repeat a literal that can silently fall out of date.
- * `APP_INFO.guarantee` is the static fallback for surfaces that have no config
- * to hand, on the same terms as `fees.platformFeePct` below.
+ * A FUNCTION because the window is a CONTRACT value that differs per chain
+ * (Celo mainnet 24h, the testnets 48h) and is served live as
+ * `approval_window_seconds` on each `ChainRegistryEntry` (#148). A surface
+ * holding the registry passes the real numbers through `guaranteeForWindows`;
+ * `APP_INFO.guarantee` is the static fallback for surfaces with no registry
+ * to hand, and it names NO number — a static count was how the feed hero
+ * promised 48 hours on a deployment whose contract enforces 24.
  *
  * The claim is exact. `TendaEscrow.claimStalledPayment` lets the COUNTERPARTY
  * settle once `block.timestamp >= approvalDeadline`, with no poster, admin or
@@ -41,7 +41,21 @@ export function guaranteeAfter(hours: number): string {
   return `Locked before you start. If they go quiet, claim it yourself after ${hours} hours.`
 }
 
-const APPROVAL_WINDOW_HOURS = Math.round(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds / 3600)
+/** The same right with no count: for surfaces that hold no window, or hold several. */
+export const GUARANTEE_WITHOUT_HOURS =
+  'Locked before you start. If they go quiet, claim it yourself once the review window closes.'
+
+/**
+ * The promise for a DEPLOYMENT: the served chains' windows, in seconds. Names
+ * the hours only when every chain agrees — a deployment serving a 24h and a
+ * 48h chain has no one number to promise, and picking either would be wrong
+ * for half its gigs. Empty (registry not loaded) falls back the same way.
+ */
+export function guaranteeForWindows(windowsSeconds: readonly number[]): string {
+  const [first, ...rest] = windowsSeconds
+  if (first === undefined || rest.some((w) => w !== first)) return GUARANTEE_WITHOUT_HOURS
+  return guaranteeAfter(Math.round(first / 3600))
+}
 
 export const APP_INFO = {
   name: 'Tenda',
@@ -60,8 +74,8 @@ export const APP_INFO = {
   /** CALL TO ACTION — buttons, sticky bars, the one-line sell. */
   shortPitch: 'Get paid, or claim it yourself.',
 
-  /** Static form of guaranteeAfter(), for surfaces with no live config. */
-  guarantee: guaranteeAfter(APPROVAL_WINDOW_HOURS),
+  /** Static form of the right, for surfaces with no registry: no hours named. */
+  guarantee: GUARANTEE_WITHOUT_HOURS,
 
   fees: {
     /**

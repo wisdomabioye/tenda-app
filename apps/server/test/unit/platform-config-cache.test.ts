@@ -60,10 +60,6 @@ test('unseeded fallback matches the shared defaults for every tunable', async ()
   assert.strictEqual(cfg.grace_period_seconds, PLATFORM_CONFIG_DEFAULTS.grace_period_seconds)
   assert.strictEqual(cfg.max_pending_gigs, PLATFORM_CONFIG_DEFAULTS.max_pending_gigs)
   assert.strictEqual(cfg.seeker_fee_bps, PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps)
-  assert.strictEqual(
-    cfg.approval_window_seconds,
-    PLATFORM_CONFIG_DEFAULTS.approval_window_seconds,
-  )
   assert.strictEqual(typeof cfg.fee_bps, 'number')
 })
 

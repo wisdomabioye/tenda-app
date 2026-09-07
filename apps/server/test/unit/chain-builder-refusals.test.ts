@@ -51,6 +51,7 @@ function unreachableEvmRpc(): EvmRpc {
     getLogRefs: never('getLogRefs'),
     readEscrow: never('readEscrow'),
     readPermitFacts: never('readPermitFacts'),
+    readApprovalWindow: never('readApprovalWindow'),
   }
 }
 

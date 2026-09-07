@@ -89,7 +89,8 @@ export const TRUST_CATEGORY: FaqCategory = {
         <>
           <p>
             Two safeguards, both live. <strong>Claim it yourself:</strong> once proof is
-            submitted, the poster has a 48-hour review window. If they neither approve nor
+            submitted, the poster has a fixed review window, set by the escrow contract on each
+            network. If they neither approve nor
             dispute in that time, the worker claims the payment directly from the contract, split
             exactly as an approval would have been. Worth being precise: this is a claim you
             make, not a release that happens on its own — nothing sweeps the chain on your

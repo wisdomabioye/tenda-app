@@ -288,6 +288,13 @@
       "when": 1788419524317,
       "tag": "0040_right_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788805096409,
+      "tag": "0041_special_puff_adder",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,6 @@
  * set them either side of the arrow rather than parsing a sentence for one.
  */
 
-import { APPROVAL_WINDOW_HOURS } from '@/content'
 import { numberWord } from '@/lib/number-words'
 
 export interface ExitRoute {
@@ -62,7 +61,10 @@ export const EXIT_ROUTES: readonly ExitRoute[] = [
     trigger: 'Proof is in, and the poster neither approves nor disputes',
     outcome: 'the worker claims the payment, split exactly as an approval would have been — a claim you make, not a release that happens to you',
     actor: 'Worker',
-    time: `${APPROVAL_WINDOW_HOURS}h`,
+    // Phrased, not counted (#148): the window is a CONTRACT value that differs
+    // per network (Celo mainnet 24h, the testnets 48h), and this page is served
+    // to every deployment. A typed count was true on one of them.
+    time: 'review window',
   },
   {
     name: 'Reclaim',

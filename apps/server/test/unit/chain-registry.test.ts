@@ -191,6 +191,7 @@ function depsReturning(address: `0x${string}`): AdapterDepsFactory {
       resolveWalletAddress: async () => 'wallet',
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
         async getTransactionReceipt() {
           return { block_number: 1n, status: 'success' as const, logs: [createdLogFrom(address)] }
         },

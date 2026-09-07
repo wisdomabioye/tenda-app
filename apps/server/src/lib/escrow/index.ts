@@ -21,12 +21,10 @@ export type { FeeArgs } from './fees'
 export {
   computeAcceptDeadline,
   computeCompletionDeadline,
-  computeApprovalDeadline,
 } from './deadlines'
 export type {
   AcceptDeadlineArgs,
   CompletionDeadlineArgs,
-  ApprovalDeadlineArgs,
 } from './deadlines'
 
 export { assertGigAsset, assertExchangeAsset } from './validation'

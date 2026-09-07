@@ -174,6 +174,7 @@ const WORKER = '0x2222222222222222222222222222222222222222'
 
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
+    async readApprovalWindow() { return 172_800n },
     async getTransactionReceipt() { return null },
     async getBlockNumber() { return 100n },
     async getLogRefs() { return [] },

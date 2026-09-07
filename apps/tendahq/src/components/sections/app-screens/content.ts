@@ -11,7 +11,6 @@
  */
 
 import {
-  APPROVAL_WINDOW_HOURS,
   CURRENCIES,
   EXAMPLE_ESCROW,
   EXAMPLE_TASKS,
@@ -76,7 +75,8 @@ export const GIGS_SCREEN = {
 const STAGE_STANDING = [
   { when: '09:12', state: 'done' },
   { when: 'now', state: 'now' },
-  { when: `${APPROVAL_WINDOW_HOURS}h`, state: 'todo' },
+  // Phrased, not counted: the window differs per network (#148).
+  { when: 'review window', state: 'todo' },
   { when: '—', state: 'todo' },
 ] as const
 

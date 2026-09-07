@@ -53,6 +53,7 @@ function makeDeps(opts: {
     namespace: 'solana',
     chain_id: 'solana:devnet',
     escrowAddress: 'FakeProgram1111111111111111111111111111111',
+    approvalWindowSeconds: async () => 86_400,
     async buildTx() {
       throw new Error('not used')
     },
@@ -222,6 +223,7 @@ function evmReconcile(known: readonly string[]) {
       resolveWalletAddress: async () => '0x0000000000000000000000000000000000000001',
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
         async getTransactionReceipt() {
           return { block_number: 10n, status: 'success' as const, logs: [acceptedReceiptLog(OLD_CONTRACT)] }
         },

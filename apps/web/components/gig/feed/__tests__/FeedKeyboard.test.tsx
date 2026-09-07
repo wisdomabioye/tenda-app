@@ -143,7 +143,7 @@ describe('FeedKeyboard', () => {
 
 describe('FeedHero', () => {
   it('leads with the shared brand line and supports it with the product one', () => {
-    render(<FeedHero />)
+    render(<FeedHero approvalWindows={[]} />)
     // The h1 is the TAGLINE (the brand-line role); the description moved to
     // the lede beneath it, where app-info.ts says the product summary belongs.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(APP_INFO.tagline)
@@ -153,7 +153,7 @@ describe('FeedHero', () => {
   it('writes no pitch string of its own — all three come from APP_INFO', () => {
     // The drift guard, locally. A hand-written headline here is exactly what
     // pitch-strings.test.ts exists to stop, and this fails first and faster.
-    const { container } = render(<FeedHero />)
+    const { container } = render(<FeedHero approvalWindows={[]} />)
     const text = container.textContent ?? ''
     for (const owned of [APP_INFO.tagline, APP_INFO.description, APP_INFO.guarantee]) {
       expect(text).toContain(owned)

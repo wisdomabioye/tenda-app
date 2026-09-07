@@ -207,6 +207,7 @@ function adapterFor(current: `0x${string}`) {
       resolveWalletAddress: async () => CREATOR,
       resolveAsset: async () => ({ token_address: TOKEN }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
         async getTransactionReceipt() {
           return null
         },
@@ -300,6 +301,7 @@ test('the known set dedupes across casings, not just across duplicates', async (
       resolveWalletAddress: async () => CREATOR,
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
         async getTransactionReceipt() {
           return { block_number: 1n, status: 'success' as const, logs: [createdLog(CURRENT)] }
         },

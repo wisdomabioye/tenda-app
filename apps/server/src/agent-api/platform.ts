@@ -30,7 +30,7 @@
  * itself uses, never from the stored column, which is written by `db:seed` and
  * has drifted two contract generations behind before now.
  */
-import { ASSET_ROLES, CHAIN_KINDS, apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
+import { ASSET_ROLES, CHAIN_KINDS, ESCROW_LIMITS, apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
 import { chainNamespaceEnum } from '@tenda/shared/db/schema'
 import { allKeys, closedFor, nullable, ref, type PlatformComponentName, type SchemaObject } from './schema-types'
 import { json, type PathItem } from './paths'
@@ -75,6 +75,14 @@ const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry,
     description:
       'True iff this deployment holds a relayer for the chain, so the one-shot can fund a task here. False: POST /v1/agent/tasks answers 503 RELAY_UNAVAILABLE on it (still listed — a caller paying its own gas can settle here). Choose a chain with this true',
   },
+  approval_window_seconds: {
+    type: 'integer',
+    // The contracts' own range (ESCROW_LIMITS mirrors both, parity-guarded):
+    // the document states what the chain can actually hold.
+    minimum: ESCROW_LIMITS.minApprovalWindowSeconds,
+    maximum: ESCROW_LIMITS.maxApprovalWindowSeconds,
+    description: 'The poster\'s review window here, in seconds, read from the escrow contract: after proof lands the worker may claim this long later (a gig\'s approval_deadline is the exact instant). Differs per chain',
+  },
   rpc_url: nullable({ type: 'string', description: 'Public read-only JSON-RPC endpoint; null where the client derives it (Solana clusters)' }),
   explorer_url: nullable({ type: 'string', description: 'Block-explorer base URL, or null' }),
   faucet_url: nullable({
@@ -112,7 +120,7 @@ export const AGENT_API_PLATFORM_PATHS: Readonly<Record<string, PathItem>> = {
       operationId: 'listChains',
       summary: 'The chains THIS deployment settles on, and which of them can relay',
       description:
-        'Anonymous, and per-deployment: a chain appears only when this server holds its configuration and can build and verify transactions on it, so testnet and mainnet deployments answer differently. Listed is NOT the same as fundable by the one-shot: `relayed_funding_available` says whether POST /v1/agent/tasks can fund a task there; false answers 503 RELAY_UNAVAILABLE. Read it before choosing `chain_id` or `asset` — those are shape-checked, not enumerated, because THIS is the list — and pick a chain with it true. On testnets `faucet_url` is where the test USDC comes from.',
+        'Anonymous, and per-deployment: a chain appears only when this server holds its configuration, can build and verify transactions on it and can read its contract\'s review window, so testnet and mainnet deployments answer differently. Listed is NOT the same as fundable by the one-shot: `relayed_funding_available` says whether POST /v1/agent/tasks can fund a task there; false answers 503 RELAY_UNAVAILABLE. Read it before choosing `chain_id` or `asset` — those are shape-checked, not enumerated, because THIS is the list — and pick a chain with it true. On testnets `faucet_url` is where the test USDC comes from.',
       tags: ['platform'],
       responses: { '200': { description: 'The enabled chains and their enabled assets', content: json(ref('ChainRegistry')) } },
     },

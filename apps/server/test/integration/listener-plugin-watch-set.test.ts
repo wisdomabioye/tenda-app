@@ -83,6 +83,7 @@ function adapterFor(chain_id: string): ChainAdapter {
     namespace: 'eip155',
     chain_id,
     escrowAddress: CURRENT,
+    approvalWindowSeconds: async () => 86_400,
     buildTx: unused,
     verifyTx: unused,
     verifyAuthSig: async () => true,

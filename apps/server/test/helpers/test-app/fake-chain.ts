@@ -10,6 +10,7 @@
  */
 import './env'
 import { TENDA_RELAY_SCHEME, type RelayTerms } from '@tenda/shared'
+import { FIXTURE_APPROVAL_WINDOW_SECONDS } from '@tenda/shared/testing'
 import type {
   BuildTxArgs,
   ChainAdapter,
@@ -70,6 +71,12 @@ export const FAKE_DISPUTE_AUTHORITY = '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dV
 /** What the fake adapters report as their escrow program/contract. */
 export const FAKE_SOLANA_PROGRAM = process.env.SOLANA_PROGRAM_ID ?? ''
 export const FAKE_EVM_ESCROW = `0x${'f1'.repeat(20)}`
+/**
+ * The review window every fake adapter reports (#148): the shared seam's
+ * value, so the harness and every client fixture built from
+ * `registryEntryDefaults` agree on one number rather than two copies of it.
+ */
+export const FAKE_APPROVAL_WINDOW_SECONDS = FIXTURE_APPROVAL_WINDOW_SECONDS
 
 /** What the fake relay reports as the relayer hot wallet. */
 export const FAKE_RELAYER_ADDRESS = `0x${'ee'.repeat(20)}`
@@ -159,6 +166,7 @@ function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'
     // because that is the contract the server actually transacts with — the
     // seeded `chains.escrow_program` column is no longer the source.
     escrowAddress: namespace === 'solana' ? FAKE_SOLANA_PROGRAM : FAKE_EVM_ESCROW,
+    approvalWindowSeconds: async () => FAKE_APPROVAL_WINDOW_SECONDS,
     buildTx: async (args) => {
       capturedBuilds.push(args)
       return FAKE_UNSIGNED
@@ -210,8 +218,12 @@ export function fakeRegistry(substitute?: { chain_id: string; adapter: ChainAdap
  * `network_kind`) without building a registry of its own: the insertion-order
  * rule above stays here, and a new key is appended, never moved ahead.
  */
-export function fakeRegistryPlus(chain_id: string, namespace: 'solana' | 'eip155'): ChainRegistry {
-  return fakeRegistry({ chain_id, adapter: fakeAdapter(chain_id, namespace) })
+export function fakeRegistryPlus(
+  chain_id: string,
+  namespace: 'solana' | 'eip155',
+  overrides: Partial<ChainAdapter> = {},
+): ChainRegistry {
+  return fakeRegistry({ chain_id, adapter: { ...fakeAdapter(chain_id, namespace), ...overrides } })
 }
 
 /**

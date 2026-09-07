@@ -75,7 +75,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   // offering it to a client is offering a dead end.
   fastify.get<{
     Reply: ChainsRoute['response']
-  }>('/chains', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {
+  }>('/chains', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request) => {
     const [chainRows, assetRows] = await Promise.all([
       fastify.db
         .select({
@@ -100,21 +100,34 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
         .orderBy(asc(assets.id)),
     ])
 
-    const data: ChainRegistryEntry[] = chainRows.flatMap((c) => {
-      if (!fastify.chains.has(c.id)) return []
-      const adapter = fastify.chains.get(c.id)
-      // The public facts of the chain come from the manifest, through the ONE
-      // shared mapping (#137); the one fact about THIS deployment — whether it
-      // holds a relayer — comes from the adapter, the same object
-      // `relayDraftFunding` refuses on when it is absent (#132). Read from the
-      // same place so this cannot advertise a relay the 503 takes away.
-      return [
-        {
+    const served = chainRows.filter((c) => fastify.chains.has(c.id))
+    const entries = await Promise.all(
+      served.map(async (c): Promise<ChainRegistryEntry[]> => {
+        const adapter = fastify.chains.get(c.id)
+        // The contract's review window (#148): read on demand through the
+        // adapter's cache. A chain whose contract has never answered is omitted
+        // like a chain with no adapter — advertising it would promise a claim
+        // right this deployment cannot state — and the log names it.
+        let approval_window_seconds: number
+        try {
+          approval_window_seconds = await adapter.approvalWindowSeconds()
+        } catch (err) {
+          request.log.error({ chain_id: c.id, err }, 'chain omitted from the registry: its review window cannot be read')
+          return []
+        }
+        // The public facts of the chain come from the manifest, through the ONE
+        // shared mapping (#137); the facts about THIS deployment — whether it
+        // holds a relayer, and the contract's review window — come from the
+        // adapter, the same object `relayDraftFunding` refuses on when the relay
+        // is absent (#132). Read from the same place so this cannot advertise
+        // what the chain denies.
+        return [{
           ...c,
           // Total by construction: every adapter is built from a manifest entry.
           network_kind: chainById(c.id).kind,
           escrow_address: adapter.escrowAddress,
           relayed_funding_available: adapter.relay !== undefined,
+          approval_window_seconds,
           ...chainPublicFacts(c.id),
           assets: assetRows
             .filter((a) => a.chain_id === c.id)
@@ -123,9 +136,10 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
               supports_permit: supportsPermit(c.id, asset.id),
               roles: rolesOf(c.id, asset.id),
             })),
-        },
-      ]
-    })
+        }]
+      }),
+    )
+    const data: ChainRegistryEntry[] = entries.flat()
     return { data }
   })
 }

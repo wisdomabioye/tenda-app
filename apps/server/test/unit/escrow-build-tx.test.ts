@@ -56,6 +56,7 @@ function harness(opts: { chainConfigured?: boolean; unsigned?: UnsignedTx } = {}
     namespace: 'solana',
     chain_id: CHAIN,
     escrowAddress: CURRENT,
+    approvalWindowSeconds: async () => 86_400,
     async buildTx(args) {
       seen.push(args.contract)
       return opts.unsigned ?? UNSIGNED

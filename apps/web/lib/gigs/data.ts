@@ -140,6 +140,8 @@ export function readPlatformConfigOnce(): Promise<PlatformConfig | null> {
 export interface GigChainOption {
   id: string
   label: string
+  /** The contract's review window on this chain (#148) — what the hero may promise. */
+  approval_window_seconds: number
 }
 
 /**
@@ -153,7 +155,7 @@ export interface GigChainOption {
 export const listEnabledChains = cache(async (): Promise<GigChainOption[]> => {
   try {
     const { data } = await api.platform.chains()
-    return data.map((chain) => ({ id: chain.id, label: chain.display_name }))
+    return data.map((chain) => ({ id: chain.id, label: chain.display_name, approval_window_seconds: chain.approval_window_seconds }))
   } catch {
     return []
   }

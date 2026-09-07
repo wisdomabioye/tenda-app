@@ -3,7 +3,6 @@ import { ASSET_META } from '@tenda/shared/constants/assets'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
 import { GIG_ASSET_IDS } from '../chains'
 import {
-  APPROVAL_WINDOW_HOURS,
   FEE_EXAMPLE,
   FEE_EXAMPLE_RAW,
   FEE_PCT,
@@ -20,10 +19,6 @@ describe('fee facts', () => {
   it('derives the display percentages from the shared platform defaults', () => {
     expect(FEE_PCT).toBe(String(PLATFORM_CONFIG_DEFAULTS.fee_bps / 100))
     expect(SEEKER_FEE_PCT).toBe(String(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps / 100))
-  })
-
-  it('derives the review window in whole hours from the shared default', () => {
-    expect(APPROVAL_WINDOW_HOURS).toBe(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds / 3600)
   })
 
   /** The Seeker rate is a DISCOUNT; the contracts reject seekerFee > fee. */

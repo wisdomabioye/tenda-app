@@ -19,6 +19,8 @@ import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { createSolanaBuilders } from '@server/chains/solana/builders'
+import { fetchPlatformState } from '@server/chains/solana/builder-internals'
+import { cachedApprovalWindow } from '@server/chains/approval-window'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import { createSolanaRpc, type SolanaRpc } from '@server/chains/solana/rpc'
 import { solanaConnections } from '@server/chains/rpc'
@@ -87,6 +89,8 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     // The program this adapter talks to. Same source the PDAs derive from, so
     // the address served to clients cannot disagree with the one we transact on.
     escrowAddress: PROGRAM_ID.toBase58(),
+    // platform_state.approval_window_seconds — the program's, read live (#148).
+    approvalWindowSeconds: cachedApprovalWindow(async () => (await fetchPlatformState(builderDeps)).approvalWindowSeconds.toNumber()),
     buildTx: builders.buildTx,
     ...(args.deps.relayer !== undefined
       ? { relay: solanaEscrowRelay(builderDeps, args.deps.relayer, args.chain_id) }

@@ -60,6 +60,7 @@ function args(overrides: Partial<RelayedCreateArgs> = {}): RelayedCreateArgs {
 
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
+    async readApprovalWindow() { return 172_800n },
     async getTransactionReceipt() { return null },
     async getBlockNumber() { return 100n },
     async getLogRefs() { return [] },

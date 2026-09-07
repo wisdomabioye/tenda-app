@@ -8,11 +8,12 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { CATEGORY_LABELS, GIG_CATEGORIES, LOCATIONS, type GigFacets } from '@tenda/shared'
+import { FIXTURE_APPROVAL_WINDOW_SECONDS } from '@tenda/shared/testing'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
 import { FEED_COPY } from '@/components/gig/feed/copy'
 import { parseGigFeedFilters, type RawSearchParams } from '@/lib/gigs/search-params'
 
-const CHAINS = [{ id: 'solana:devnet', label: 'Solana Devnet' }]
+const CHAINS = [{ id: 'solana:devnet', label: 'Solana Devnet', approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS }]
 const ENABLED = new Set(CHAINS.map((c) => c.id))
 
 /**

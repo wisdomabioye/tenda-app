@@ -70,11 +70,22 @@ function receiptFrom(emitter: string): unknown {
   }
 }
 
-const nodeAnswering = (): Promise<StubRpc> =>
+/** What the stub contract answers `approvalWindowSeconds()` with — 48h, the testnets' deploy value. */
+const BOOT_APPROVAL_WINDOW_S = 172_800n
+
+/**
+ * @param approvalWindow what `eth_call` answers: the encoded uint64, or `null`
+ *   for a node whose contract returns no data — the shape of an escrow address
+ *   with no code behind it, which the on-demand read (#148) must reject.
+ */
+const nodeAnswering = (approvalWindow: bigint | null = BOOT_APPROVAL_WINDOW_S): Promise<StubRpc> =>
   startStubRpc((method) => {
     if (method === 'eth_blockNumber') return '0x64'
     if (method === 'eth_chainId') return '0x14a34'
     if (method === 'eth_getTransactionReceipt') return receiptFrom(PREVIOUS)
+    // The only `eth_call` any suite here provokes is the review window read
+    // (#148) — made on demand by a test, never by the plugin at boot.
+    if (method === 'eth_call') return approvalWindow === null ? '0x' : encodeAbiParameters([{ type: 'uint64' }], [approvalWindow])
     return null
   })
 
@@ -87,8 +98,9 @@ const nodeAnswering = (): Promise<StubRpc> =>
 async function withBootEnv(
   body: (rpc: StubRpc) => Promise<void>,
   extraEnv: Record<string, string> = {},
+  approvalWindow: bigint | null = BOOT_APPROVAL_WINDOW_S,
 ): Promise<void> {
-  const rpc = await nodeAnswering()
+  const rpc = await nodeAnswering(approvalWindow)
   try {
     // `chainEnvPrefix` rather than a literal: the prefix rule lives in the
     // secrets schema, and a hand-written copy here would keep passing while the
@@ -265,5 +277,38 @@ test('boot: the flag plus the key is what reaches the adapter', { skip }, async 
       })
     },
     { [chainEnv('RELAYER_KEY')]: RELAYER_KEY, [chainEnv('SWEEP_ENABLED')]: 'true' },
+  )
+})
+
+/**
+ * #148 — the review window is read from the CONTRACT, on demand and once per
+ * TTL, never at boot: boot must not depend on a node answering.
+ */
+test('boot: makes NO contract read; the adapter reads the review window on first use and then caches it', { skip }, async () => {
+  await withBootEnv(async (rpc) => {
+    await seedCurrentChain(getApp())
+    await withBootedChainsApp(async (app) => {
+      await app.ready()
+      assert.strictEqual(rpc.callsTo('eth_call').length, 0, 'boot asked the node for nothing')
+      const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+      assert.strictEqual(await adapter.approvalWindowSeconds(), Number(BOOT_APPROVAL_WINDOW_S))
+      assert.strictEqual(rpc.callsTo('eth_call').length, 1)
+      assert.strictEqual(await adapter.approvalWindowSeconds(), Number(BOOT_APPROVAL_WINDOW_S))
+      assert.strictEqual(rpc.callsTo('eth_call').length, 1, 'served from the cache, not re-read')
+    })
+  })
+})
+
+test('boot: a contract that answers no review window still boots; the read itself is what fails', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        await assert.rejects(app.chains.get(TEST_CHAIN_ID_ALT).approvalWindowSeconds(), /approvalWindowSeconds/)
+      })
+    },
+    {},
+    null,
   )
 })

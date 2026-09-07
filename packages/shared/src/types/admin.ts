@@ -177,8 +177,9 @@ export interface UpdateFeaturedSlotBody {
  * The editable subset of `platform_config` — the single source shared by the
  * PATCH route, the admin client and the config form.
  *
- * It previously advertised `approval_window_seconds` and
- * `default_sponsored_tx_count`, which the route has never accepted; both are
+ * It previously advertised `approval_window_seconds` (a column deleted in
+ * #148: the review window is a contract value, read live per chain) and
+ * `default_sponsored_tx_count`, which the route has never accepted and is
  * read-only in the dashboard. Anything listed here must be handled by
  * `routes/v1/admin/platform-config.ts`.
  */

@@ -48,7 +48,6 @@ export {
 export {
   FEE_PCT,
   SEEKER_FEE_PCT,
-  APPROVAL_WINDOW_HOURS,
   FEE_EXAMPLE,
   GIG_ASSET_SYMBOL,
 } from './fees'

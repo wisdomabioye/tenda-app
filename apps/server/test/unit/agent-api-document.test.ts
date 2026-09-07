@@ -16,6 +16,7 @@ import {
   AMOUNT_RAW_PATTERN,
   CHAIN_KINDS,
   CHAIN_MANIFEST,
+  ESCROW_LIMITS,
   APPLICATION_STATUSES,
   ErrorCode,
   GIG_CATEGORIES,
@@ -694,4 +695,22 @@ test('#139: a null faucet on a testnet is explained as an open mint at the asset
   assert.ok(!('kind' in (entry.properties ?? {})), 'a third `kind` in the document')
   assert.deepStrictEqual(entry.properties?.network_kind?.enum, CHAIN_KINDS)
   assert.match(faucet?.description ?? '', /`network_kind` tells the two nulls apart/)
+})
+
+/**
+ * #148 — the review window on the entry is the CONTRACT's, and the document
+ * states the contract's own range for it rather than a literal: the bounds
+ * come from ESCROW_LIMITS, the shared mirror of both contracts' constants
+ * (parity-guarded), so the document cannot promise a window a chain would
+ * refuse — and a reader sees that 3,600 is the floor, not 1.
+ */
+test('#148: approval_window_seconds is required and bounded by the contracts\' own range', () => {
+  const entry = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry
+  const window = entry.properties?.approval_window_seconds
+  assert.ok(entry.required?.includes('approval_window_seconds'))
+  assert.strictEqual(window?.type, 'integer')
+  assert.strictEqual(window?.minimum, ESCROW_LIMITS.minApprovalWindowSeconds)
+  assert.strictEqual(window?.maximum, ESCROW_LIMITS.maxApprovalWindowSeconds)
+  assert.match(window?.description ?? '', /contract/)
+  assert.match(window?.description ?? '', /approval_deadline/)
 })

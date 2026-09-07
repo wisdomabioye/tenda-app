@@ -2,17 +2,25 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ChainRegistryEntry } from '../../src/api/contracts/platform.contract'
 import { chainPublicFacts } from '../../src/chains/manifest-queries'
-import { registryEntryDefaults } from '../../src/testing'
+import { FIXTURE_APPROVAL_WINDOW_SECONDS, registryEntryDefaults } from '../../src/testing'
 
 test('a known chain id gets the manifest\'s real public facts and no relay', () => {
   assert.deepEqual(registryEntryDefaults('eip155:84532'), {
     network_kind: 'testnet',
     relayed_funding_available: false,
+    approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS,
     rpc_url: 'https://sepolia.base.org',
     explorer_url: 'https://sepolia.basescan.org',
     faucet_url: 'https://faucet.circle.com',
   })
-  assert.deepEqual(registryEntryDefaults('eip155:84532'), { network_kind: 'testnet', relayed_funding_available: false, ...chainPublicFacts('eip155:84532') })
+  assert.deepEqual(registryEntryDefaults('eip155:84532'), {
+    network_kind: 'testnet',
+    relayed_funding_available: false,
+    approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS,
+    ...chainPublicFacts('eip155:84532'),
+  })
+  // A fixture's window is a number a real chain can carry, in whole seconds.
+  assert.equal(FIXTURE_APPROVAL_WINDOW_SECONDS, 86_400)
   assert.equal(registryEntryDefaults('eip155:42220').network_kind, 'mainnet')
 })
 
@@ -20,6 +28,7 @@ test('a fabricated chain id is a testnet with nulls — a chain the route could 
   assert.deepEqual(registryEntryDefaults('eip155:999999'), {
     network_kind: 'testnet',
     relayed_funding_available: false,
+    approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS,
     rpc_url: null,
     explorer_url: null,
     faucet_url: null,

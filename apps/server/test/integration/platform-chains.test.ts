@@ -15,8 +15,11 @@ import {
   TEST_ASSET,
   TEST_NATIVE_ASSET,
   useTestApp,
+  buildTestApp,
+  resetDb,
   FAKE_SOLANA_PROGRAM,
   FAKE_EVM_ESCROW,
+  FAKE_APPROVAL_WINDOW_SECONDS,
   TEST_CHAIN_ID_ALT,
   fakeRegistryPlus,
 } from '../helpers/test-app'
@@ -32,7 +35,7 @@ const skip = !TEST_DB_CONFIGURED
 const MAINNET_CHAIN_ID = 'eip155:42220'
 const getApp = useTestApp({ chains: fakeRegistryPlus(MAINNET_CHAIN_ID, 'eip155') })
 
-/** An enabled EVM chain row — the three suites below differ only in these four fields. */
+/** An enabled EVM chain row — the tests below that insert one differ only in these four fields. */
 function enabledEvmChainRow(id: string, display_name: string, min_confirmations: number, escrow_program = FAKE_EVM_ESCROW) {
   return {
     id,
@@ -245,7 +248,31 @@ test('platform/chains: network_kind is the manifest\'s — a mainnet and a testn
     assert.strictEqual(mainnet.faucet_url, null)
     // …and a testnet that names where its USDC comes from.
     assert.notStrictEqual(testnet.faucet_url, null)
+    // #148: the contract's review window rides on every entry, from the adapter
+    // (the fake reports one value; the real ones read their contract).
+    for (const chain of data) assert.strictEqual(chain.approval_window_seconds, FAKE_APPROVAL_WINDOW_SECONDS, chain.id)
   } finally {
     await app.db.delete(chains).where(eq(chains.id, MAINNET_CHAIN_ID))
+  }
+})
+
+test('platform/chains: a chain whose contract never answers its review window is OMITTED, the others served', { skip }, async () => {
+  // #148: never a 500 for the whole registry, never an entry that promises a
+  // claim right this deployment cannot state. Its own app, because the omission
+  // is an adapter property and the shared app's fakes all answer.
+  const UNREADABLE = 'eip155:16602'
+  const app = await buildTestApp({
+    chains: fakeRegistryPlus(UNREADABLE, 'eip155', { approvalWindowSeconds: async () => { throw new Error('platform state not initialized') } }),
+  })
+  try {
+    await resetDb(app)
+    await app.db.insert(chains).values(enabledEvmChainRow(UNREADABLE, '0G Galileo', 1))
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    assert.strictEqual(res.statusCode, 200)
+    const ids = res.json<{ data: ChainRegistryEntry[] }>().data.map((c) => c.id)
+    assert.ok(ids.includes(TEST_CHAIN_ID), 'the readable chain is still served')
+    assert.ok(!ids.includes(UNREADABLE), `the unreadable chain must not be advertised, got ${ids.join(',')}`)
+  } finally {
+    await app.close()
   }
 })

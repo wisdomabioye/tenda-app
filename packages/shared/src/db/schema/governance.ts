@@ -259,9 +259,6 @@ export const platform_config = pgTable(
     grace_period_seconds: integer('grace_period_seconds')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.grace_period_seconds),
-    approval_window_seconds: integer('approval_window_seconds')
-      .notNull()
-      .default(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds),
     default_sponsored_tx_count: integer('default_sponsored_tx_count')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.default_sponsored_tx_count),

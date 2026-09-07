@@ -28,6 +28,7 @@ import { tagCalldata } from '@server/features/attribution'
 import { verifyEvmReceipt } from './verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
 import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
+import { cachedApprovalWindow } from '@server/chains/approval-window'
 import { resolveEvmSigner } from './signer'
 import { buildPermitPayload } from './permit-payload'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
@@ -234,6 +235,8 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     disputeAuthority: args.dispute_authority,
     // The contract every tx in this adapter targets — see ChainAdapter.
     escrowAddress: args.escrow_contract,
+    // The CURRENT contract's window: it is the one new escrows are stamped with.
+    approvalWindowSeconds: cachedApprovalWindow(async () => Number(await rpc.readApprovalWindow(args.escrow_contract))),
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
     ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),

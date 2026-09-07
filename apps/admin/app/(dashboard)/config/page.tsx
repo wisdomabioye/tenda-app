@@ -158,7 +158,6 @@ export default function ConfigPage() {
             <div className="max-w-2xl rounded-md border p-4 text-sm">
               <p className="mb-2 font-medium">Read-only</p>
               <dl className="space-y-1">
-                <div className="flex justify-between"><dt className="text-muted-foreground">Approval window (s)</dt><dd>{config.approval_window_seconds}</dd></div>
                 <div className="flex justify-between"><dt className="text-muted-foreground">Default sponsored txs</dt><dd>{config.default_sponsored_tx_count}</dd></div>
                 <div className="flex justify-between"><dt className="text-muted-foreground">Moderation rules version</dt><dd>{config.moderation_rules_version}</dd></div>
               </dl>

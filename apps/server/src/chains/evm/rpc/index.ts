@@ -157,6 +157,15 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       }
     },
 
+    async readApprovalWindow(escrow_contract) {
+      return (await client.readContract({
+        address: escrow_contract,
+        abi: ESCROW_EVM_ABI,
+        functionName: 'approvalWindowSeconds',
+        args: [],
+      })) as bigint
+    },
+
     async readEscrow(escrow_contract, escrow_id) {
       // `getEscrow` returns the NAMED struct. The auto-generated `escrows`
       // mapping getter flattens it into a positional tuple, which this used to

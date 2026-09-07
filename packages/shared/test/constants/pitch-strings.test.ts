@@ -2,8 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { APP_INFO, guaranteeAfter } from '../../src/constants/app-info'
-import { PLATFORM_CONFIG_DEFAULTS } from '../../src/constants/platform'
+import { APP_INFO, GUARANTEE_WITHOUT_HOURS, guaranteeAfter, guaranteeForWindows } from '../../src/constants/app-info'
 
 /**
  * The guard whose absence let the product accumulate NINE competing pitches.
@@ -112,16 +111,30 @@ test('the product line covers both products and both kinds of poster', () => {
   assert.match(lower, /agent/, 'the description must say agents can hire too')
 })
 
-test('the guarantee derives its window and never hardcodes the hours', () => {
-  const hours = Math.round(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds / 3600)
-  assert.equal(APP_INFO.guarantee, guaranteeAfter(hours))
-  assert.match(APP_INFO.guarantee, new RegExp(`${hours} hours`))
+test('the static guarantee names the right and NO number of hours (#148)', () => {
+  // The window is a contract value that differs per chain (Celo mainnet 24h,
+  // the testnets 48h). A static count promised 48 hours on the deployment
+  // that enforces 24; the static form may state the right, never the hours.
+  assert.equal(APP_INFO.guarantee, GUARANTEE_WITHOUT_HOURS)
+  assert.doesNotMatch(APP_INFO.guarantee, /\d/)
+  assert.match(APP_INFO.guarantee, /claim it yourself/)
+})
+
+test('guaranteeForWindows names the hours only when every served chain agrees', () => {
+  assert.equal(guaranteeForWindows([86_400]), guaranteeAfter(24))
+  assert.equal(guaranteeForWindows([172_800, 172_800]), guaranteeAfter(48))
+  // A 24h chain beside a 48h chain: no one number is true for the deployment.
+  assert.equal(guaranteeForWindows([86_400, 172_800]), GUARANTEE_WITHOUT_HOURS)
+  // Registry not loaded yet, or a deployment serving nothing: same fallback.
+  assert.equal(guaranteeForWindows([]), GUARANTEE_WITHOUT_HOURS)
+  // Seconds → whole hours, the unit the sentence speaks.
+  assert.match(guaranteeForWindows([90_000]), /25 hours/)
 })
 
 test('a different window produces different copy — the number is not decorative', () => {
   // The failure this catches is a literal "48" creeping into the template,
-  // which would keep passing the test above while lying on any deployment
-  // whose platform_config says otherwise.
+  // which would keep passing the tests above while lying on any deployment
+  // whose contract says otherwise.
   assert.notEqual(guaranteeAfter(24), guaranteeAfter(48))
   assert.match(guaranteeAfter(24), /24 hours/)
   assert.doesNotMatch(guaranteeAfter(24), /48/)

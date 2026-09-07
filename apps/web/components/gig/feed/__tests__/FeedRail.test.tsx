@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CATEGORY_LABELS, GIG_CATEGORIES, LOCATIONS } from '@tenda/shared'
+import { FIXTURE_APPROVAL_WINDOW_SECONDS } from '@tenda/shared/testing'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
 import { FEED_COPY } from '@/components/gig/feed/copy'
 import { CATEGORY_TONE } from '@/components/gig/category-icons'
@@ -14,8 +15,8 @@ const mockPush = vi.hoisted(() => vi.fn())
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
 
 const CHAINS = [
-  { id: 'solana:devnet', label: 'Solana Devnet' },
-  { id: 'eip155:84532', label: 'Base Sepolia' },
+  { id: 'solana:devnet', label: 'Solana Devnet', approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS },
+  { id: 'eip155:84532', label: 'Base Sepolia', approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS },
 ]
 const ENABLED = new Set(CHAINS.map((c) => c.id))
 const filtersFrom = (params: RawSearchParams = {}) => parseGigFeedFilters(params, ENABLED)

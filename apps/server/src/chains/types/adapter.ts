@@ -39,6 +39,25 @@ export interface ChainAdapter {
    */
   readonly escrowAddress: string
 
+  /**
+   * The poster's review window on this chain, in seconds — the CONTRACT's
+   * value (`approvalWindowSeconds()` on EVM, `platform_state` on Solana), not
+   * a config row (#148). Read ON DEMAND and cached briefly (`chains/approval-
+   * window.ts`): the number changes only through the multisig
+   * `setApprovalWindow`, so a short TTL follows it without a redeploy, and a
+   * read that fails after a first success answers the last value rather than
+   * failing the registry. NOT read at boot: a boot-time RPC read made server
+   * start depend on every chain's node being up (measured — the whole-app
+   * test timed the plugin out), so the first registry request pays the read
+   * and a chain whose contract never answers is OMITTED from the registry
+   * with an error log, the same treatment as a chain with no adapter.
+   *
+   * Served as `approval_window_seconds` on `/v1/platform/chains`. The escrow's
+   * own `approval_deadline` (stamped by the contract when proof lands) is what
+   * decides a claim; this is what a surface with no escrow in hand may state.
+   */
+  approvalWindowSeconds(): Promise<number>
+
   /** Build an unsigned transaction the client will sign. */
   buildTx(args: BuildTxArgs): Promise<UnsignedTx>
 

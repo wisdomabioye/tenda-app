@@ -160,8 +160,15 @@ export const AGENT_SLIM_PATHS = [
  * which a mutation sweep proved by moving it to 90,000 and breaking nothing.
  * If the document is ever shown to need to be smaller, lower this; it is meant
  * to be moved deliberately and never quietly.
+ *
+ * RAISED AGAIN, 2026-09-07, from 47,000 (#148). The registry entry gained
+ * `approval_window_seconds` — the poster's review window read from each
+ * chain's contract — with the one sentence a reader needs to use it. #139 had
+ * left 22 bytes of headroom, and a property with no description is the
+ * "field the reader must guess" the reviewers keep filing. Same trade as the
+ * two raises above, on the same terms.
  */
-export const AGENT_SLIM_MAX_BYTES = 47_000
+export const AGENT_SLIM_MAX_BYTES = 48_000
 
 /** Every `$ref` target named anywhere inside a value, at any depth. */
 function refsIn(value: unknown, found: Set<ComponentName>): void {

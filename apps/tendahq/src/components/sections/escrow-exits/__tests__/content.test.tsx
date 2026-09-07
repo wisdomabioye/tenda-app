@@ -6,7 +6,6 @@
  */
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { APPROVAL_WINDOW_HOURS } from '@/content'
 import { numberWord } from '@/lib/number-words'
 import { EscrowExits } from '../EscrowExits'
 import {
@@ -49,9 +48,12 @@ describe('escrow exit routes', () => {
     expect(EXIT_GROUPS.mediated.count).toBe(`${MEDIATED_ROUTES.length} exit`)
   })
 
-  it('states the review window from platform config, not a literal', () => {
+  it('phrases the review window and never counts it — the window differs per network (#148)', () => {
     const claim = EXIT_ROUTES.find((r) => r.name === 'Claim unpaid')
-    expect(claim?.time).toBe(`${APPROVAL_WINDOW_HOURS}h`)
+    expect(claim?.time).toBe('review window')
+    // The whole column is phrased: a count on any row is a claim about one
+    // deployment served to all of them.
+    for (const route of EXIT_ROUTES) expect(route.time).not.toMatch(/\d/)
   })
 
   it('reads both numbers of the aside off the routes, as words', () => {

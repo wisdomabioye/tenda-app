@@ -14,7 +14,7 @@ import {
   listGigsOnce,
   readPlatformConfigOnce,
 } from '@/lib/gigs/data'
-import { registryEntryDefaults } from '@tenda/shared/testing'
+import { FIXTURE_APPROVAL_WINDOW_SECONDS, registryEntryDefaults } from '@tenda/shared/testing'
 
 describe('readPlatformConfigOnce — the fee on the feed heading', () => {
   it('returns the live config on success', async () => {
@@ -132,7 +132,8 @@ describe('listEnabledChains', () => {
         },
       ],
     })
-    expect(await listEnabledChains()).toEqual([{ id: 'solana:devnet', label: 'Solana Devnet' }])
+    // The window rides along (#148): it is what the feed hero may promise.
+    expect(await listEnabledChains()).toEqual([{ id: 'solana:devnet', label: 'Solana Devnet', approval_window_seconds: FIXTURE_APPROVAL_WINDOW_SECONDS }])
   })
 
   it('degrades to no options when the registry read fails — never a 400-able filter', async () => {

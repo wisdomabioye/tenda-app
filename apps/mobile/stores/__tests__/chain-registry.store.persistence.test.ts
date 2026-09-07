@@ -8,10 +8,10 @@
  * frozen the paint at the last pre-cap registry.
  *
  * The snapshot key is VERSIONED against the wire shape. v3 (#132/#137) added
- * four required fields and v4 (#139) a fifth, so an older snapshot — in either
- * store — must never hydrate: it would rehydrate as the new type with
- * undefined fields, which is the exact failure the version exists to prevent.
- * It is reclaimed instead.
+ * four required fields, v4 (#139) a fifth and v5 (#148) a sixth, so an older
+ * snapshot — in either store — must never hydrate: it would rehydrate as the
+ * new type with undefined fields, which is the exact failure the version
+ * exists to prevent. It is reclaimed instead.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
@@ -24,10 +24,10 @@ jest.mock('@/api/client', () => ({
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { SOLANA } from '../__fixtures__/chain-registry'
 
-const STORAGE_KEY = 'chain_registry_v4'
-/** The SecureStore era only ever held v2; AsyncStorage held v2 and then v3. */
+const STORAGE_KEY = 'chain_registry_v5'
+/** The SecureStore era only ever held v2; AsyncStorage held v2, v3 and v4. */
 const SUPERSEDED_KEY = 'chain_registry_v2'
-const SUPERSEDED_ASYNC_KEYS = ['chain_registry_v2', 'chain_registry_v3'] as const
+const SUPERSEDED_ASYNC_KEYS = ['chain_registry_v2', 'chain_registry_v3', 'chain_registry_v4'] as const
 
 const state = () => useChainRegistryStore.getState()
 
@@ -102,17 +102,20 @@ describe('loadPersisted', () => {
 // ─── a superseded (v2) snapshot ───────────────────────────────────────────
 
 describe('a superseded v2 snapshot', () => {
-  // A v2 entry as a v2 launch wrote it — the four v3 fields and the v4 field
-  // absent. Built by stripping the current fixture rather than typed as
-  // ChainRegistryEntry, because the whole point is that it is NOT one.
+  // A v2 entry as a v2 launch wrote it — the four v3 fields, the v4 field and
+  // the v5 field absent. Built by stripping the current fixture rather than
+  // typed as ChainRegistryEntry, because the whole point is that it is NOT one.
   const {
-    relayed_funding_available: _r, rpc_url: _u, explorer_url: _e, faucet_url: _f, network_kind: _k,
+    relayed_funding_available: _r, rpc_url: _u, explorer_url: _e, faucet_url: _f, network_kind: _k, approval_window_seconds: _w,
     ...v2Entry
   } = SOLANA
   const v2 = JSON.stringify([v2Entry])
-  // A v3 entry: the four fields present, `network_kind` absent.
-  const { network_kind: _kind, ...v3Entry } = SOLANA
+  // A v3 entry: the four fields present, `network_kind` and the window absent.
+  const { network_kind: _kind, approval_window_seconds: _win3, ...v3Entry } = SOLANA
   const v3 = JSON.stringify([v3Entry])
+  // A v4 entry: everything but `approval_window_seconds` (#148).
+  const { approval_window_seconds: _win4, ...v4Entry } = SOLANA
+  const v4 = JSON.stringify([v4Entry])
 
   // Never READ, not merely never seated. The reclaim runs before the read, so
   // a fallback read of a superseded copy finds nothing and passes every
@@ -140,9 +143,10 @@ describe('a superseded v2 snapshot', () => {
     expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 
-  it('in AsyncStorage — v2 or v3 — is NOT hydrated and is removed, never read', async () => {
+  it('in AsyncStorage — v2, v3 or v4 — is NOT hydrated and is removed, never read', async () => {
     await AsyncStorage.setItem(SUPERSEDED_ASYNC_KEYS[0], v2)
     await AsyncStorage.setItem(SUPERSEDED_ASYNC_KEYS[1], v3)
+    await AsyncStorage.setItem(SUPERSEDED_ASYNC_KEYS[2], v4)
     asyncRead.mockClear()
 
     await state().loadPersisted()

@@ -10,17 +10,17 @@ import type { ChainRegistryEntry } from '@tenda/shared'
 // new type with undefined fields. v2 = escrow_address + supports_permit.
 // v3 (#132/#137) = relayed_funding_available + rpc_url + explorer_url +
 // faucet_url — and `roles` (#129), which shipped without a bump of its own.
-// v4 (#139) = network_kind.
+// v4 (#139) = network_kind. v5 (#148) = approval_window_seconds.
 //
 // Persisted in AsyncStorage, NOT SecureStore: the registry is public chain
 // facts (nothing secret to protect), and Android's expo-secure-store rejects
 // values over 2048 bytes — the snapshot was 1747 bytes with four chains, so
 // roughly one more chain would have made every persist fail silently and
 // frozen the fast first paint at the last pre-cap registry.
-const STORAGE_KEY = 'chain_registry_v4'
+const STORAGE_KEY = 'chain_registry_v5'
 /**
  * Superseded snapshots, everywhere one ever lived — the SecureStore era held
- * v2; AsyncStorage held v2 and then v3. Reclaimed on read and never hydrated:
+ * v2; AsyncStorage held v2, v3 and v4. Reclaimed on read and never hydrated:
  * the SecureStore→AsyncStorage migration used to write the legacy copy
  * through, which was right while the shape stayed the same, and would now
  * carry an older shape into the current key — exactly the
@@ -29,7 +29,7 @@ const STORAGE_KEY = 'chain_registry_v4'
  * a shape change, paid once. A bump appends the retired key here.
  */
 const SUPERSEDED_SECURE_STORE_KEY = 'chain_registry_v2'
-const SUPERSEDED_ASYNC_STORAGE_KEYS = ['chain_registry_v2', 'chain_registry_v3'] as const
+const SUPERSEDED_ASYNC_STORAGE_KEYS = ['chain_registry_v2', 'chain_registry_v3', 'chain_registry_v4'] as const
 
 /**
  * Lifecycle of the registry load, mirroring `walletsStatus` in the auth store

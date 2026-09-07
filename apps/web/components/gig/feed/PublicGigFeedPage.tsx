@@ -97,7 +97,7 @@ export default async function PublicGigFeedPage({ searchParams }: { searchParams
 
   return (
     <>
-      <FeedHero />
+      <FeedHero approvalWindows={chains.map((chain) => chain.approval_window_seconds)} />
       <div className="mx-auto w-full max-w-content px-6 pb-20">
         <div className="grid grid-cols-1 items-start gap-10 border-t border-border-default pt-[22px] lg:grid-cols-[240px_minmax(0,1fr)]">
           <FeedRail filters={filters} chains={chains} facets={facets} />

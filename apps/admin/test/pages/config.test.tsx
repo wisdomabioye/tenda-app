@@ -28,7 +28,6 @@ const err = vi.mocked(toast.error)
 const CONFIG: AdminPlatformConfig = {
   id: 1,
   ...PLATFORM_CONFIG_DEFAULTS,
-  approval_window_seconds: 172_800,
   default_sponsored_tx_count: 5,
   moderation_rules_version: 2,
 }
@@ -40,7 +39,6 @@ test('loads config into the editable fields + read-only section', async () => {
   renderPage(<ConfigPage />)
   expect(await screen.findByLabelText('Platform fee (bps)')).toHaveValue(250)
   expect(screen.getByLabelText('Seeker fee (bps)')).toHaveValue(100)
-  expect(screen.getByText('172800')).toBeInTheDocument() // read-only approval window
 })
 
 test('a cleared field blocks the save instead of zeroing the fee', async () => {

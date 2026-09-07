@@ -10,12 +10,13 @@ export interface PlatformConfig {
    * seconds — the submit / reclaim / release windows are all
    * `completion_deadline + grace` (see GigCTABar). Defaults to 1 hour.
    *
-   * NOT the poster's review window, which this doc used to call it. That is
-   * `approval_window_seconds` (48h) and is deliberately absent from this
-   * response — it is snapshotted onto each escrow as `approval_deadline` when
-   * proof lands, so a client should read the escrow, not the config. The
-   * mislabel is worth naming because the two differ by 47 hours and the wrong
-   * one is the one on the wire.
+   * NOT the poster's review window, which this doc used to call it. That
+   * window is a CONTRACT value, different per chain (Celo mainnet 24h, the
+   * testnets 48h), published as `approval_window_seconds` on each
+   * `ChainRegistryEntry` and stamped onto each escrow as `approval_deadline`
+   * when proof lands — a client deciding "can I claim" reads the escrow. The
+   * mislabel is worth naming because the two differ by a day or more and the
+   * wrong one is the one on the wire.
    */
   grace_period_seconds: number
 }
@@ -51,6 +52,17 @@ export interface ChainRegistryEntry {
    * must read this before choosing `chain_id`, never discover it from the 503.
    */
   relayed_funding_available: boolean
+  /**
+   * The poster's review window on THIS chain, in seconds, read live from the
+   * contract (`TendaEscrow.approvalWindowSeconds`, Solana `platform_state`)
+   * and cached briefly by the server (#148). Once proof lands the worker may
+   * claim the payment this long afterwards with no poster involved — the
+   * escrow's own `approval_deadline` is the instant for a given gig; this is
+   * the number a surface with no escrow in hand may state. Differs per chain
+   * (Celo mainnet 24h, the testnets 48h) and changes only through the
+   * multisig `setApprovalWindow`, never through anything in this repo.
+   */
+  approval_window_seconds: number
   /**
    * Public, read-only JSON-RPC endpoint for the chain — the manifest's
    * `publicRpcUrl`, never the server's keyed endpoint. Null where a client

@@ -211,7 +211,7 @@ export {
   BOUND_WALLET_REFUSAL,
   unlinkedWalletMessage,
 } from './signing-wallet-copy'
-export { APP_INFO, type AppInfo } from './app-info'
+export { APP_INFO, GUARANTEE_WITHOUT_HOURS, guaranteeAfter, guaranteeForWindows, type AppInfo } from './app-info'
 export {
   TX_PROGRESS_LABEL,
   WALLET_OPEN_NOTE,

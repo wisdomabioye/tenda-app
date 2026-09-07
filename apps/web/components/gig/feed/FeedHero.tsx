@@ -12,19 +12,29 @@
  * the product summary (VERBATIM — it is derived, never reworded), the
  * guarantee as the specific right a worker gets. Nothing is retyped —
  * `packages/shared/test/constants/pitch-strings.test.ts` fails if an app
- * hardcodes a value shared already owns. `APP_INFO.guarantee` is the STATIC
- * form of the window, sanctioned for surfaces with no config.
+ * hardcodes a value shared already owns.
+ *
+ * The guarantee names the hours ONLY from the running registry (#148): the
+ * review window is a contract value that differs per chain (Celo mainnet 24h,
+ * the testnets 48h), so the page passes every served chain's window and
+ * `guaranteeForWindows` speaks a number when they agree and the bare right
+ * when they do not, or when the registry did not load.
  */
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { APP_INFO } from '@tenda/shared'
+import { APP_INFO, guaranteeForWindows } from '@tenda/shared'
 import { BrandPeriod } from '@/components/public/BrandPeriod'
 import { buttonVariants } from '@/components/ui/Button'
 import { FEED_COPY } from './copy'
 
 export const FEED_HERO_HREF = { post: '/create', how: '/support/escrow' } as const
 
-export function FeedHero() {
+export function FeedHero({
+  approvalWindows,
+}: {
+  /** Every served chain's review window, in seconds; empty when the registry read failed. */
+  approvalWindows: readonly number[]
+}) {
   return (
     <section
       data-feed-hero
@@ -38,7 +48,7 @@ export function FeedHero() {
           {APP_INFO.description}
         </p>
         <p className="mt-1.5 max-w-[56ch] type-body-small text-content-tertiary">
-          {APP_INFO.guarantee}
+          {guaranteeForWindows(approvalWindows)}
         </p>
       </div>
       <div className="flex flex-wrap gap-2.5 lg:justify-end">
