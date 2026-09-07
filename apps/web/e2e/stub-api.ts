@@ -10,7 +10,7 @@
  * polling fallback the way a socket-less stub does.
  */
 import { createServer, type IncomingMessage } from 'node:http'
-import { WS_PATH } from '@tenda/shared'
+import { SESSION_CLIENT_HEADER, WS_PATH } from '@tenda/shared'
 import { GIG_CATEGORIES, LOCATIONS, isCountryCode } from '@tenda/shared'
 import type { GigFacets, GigSummary, PaginatedResponse } from '@tenda/shared'
 import {
@@ -187,7 +187,11 @@ function readBody(request: IncomingMessage): Promise<string> {
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, HEAD, POST, PUT, PATCH, DELETE',
-  'access-control-allow-headers': 'content-type, authorization',
+  // The client stamp (#53c-1) rides on EVERY browser call since 2026-09-02;
+  // a preflight that does not allow it fails each authed call with
+  // net::ERR_FAILED before it leaves the browser. Named from the shared
+  // constant so the stub cannot drift from the header the client sends.
+  'access-control-allow-headers': `content-type, authorization, ${SESSION_CLIENT_HEADER}`,
 } as const
 
 /**
