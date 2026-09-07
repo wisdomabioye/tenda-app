@@ -33,10 +33,7 @@ const CHAIN: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
     { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
   ],
@@ -51,6 +48,7 @@ jest.mock('@/stores/chain-registry.store', () => ({
 }))
 
 import { useSpendableBalance } from '@/hooks/useSpendableBalance'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const USDC = { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '48500000', decimals: 6, isStable: true }
 

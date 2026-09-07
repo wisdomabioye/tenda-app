@@ -31,10 +31,7 @@ const CHAIN: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'P',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [],
 }
 const WALLET: LinkedWallet = { chain_ns: 'solana', address: 'SoL1', is_primary: true, verified_at: 'now' }
@@ -63,6 +60,7 @@ vi.mock('@/stores/chain-registry.store', () => ({
 }))
 
 import { useWalletScreen } from '@/hooks/wallet/useWalletScreen'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 function balance(chainId: string, usdcRaw: string): WalletChainBalance {
   return {

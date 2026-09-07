@@ -13,16 +13,14 @@ import type { ChainRegistryEntry, LinkedWallet } from '@tenda/shared'
 import { useExchangeAssetOptions } from '@/hooks/exchange/useExchangeAssetOptions'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const SOLANA: ChainRegistryEntry = {
   id: 'solana:devnet',
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'Prog1',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [
     { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1', supports_permit: false, roles: ['gig', 'exchange'] },
   ],

@@ -15,16 +15,14 @@ vi.mock('@/api/client', () => ({
 
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 import { deferred } from '../../test/deferred'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const CHAIN: ChainRegistryEntry = {
   id: 'solana:devnet',
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'PROGRAM',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [],
 }
 

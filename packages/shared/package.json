@@ -45,6 +45,11 @@
       "types": "./dist/chains/index.d.ts",
       "require": "./dist/chains/index.js",
       "default": "./dist/chains/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "require": "./dist/testing/index.js",
+      "default": "./dist/testing/index.js"
     }
   },
   "scripts": {

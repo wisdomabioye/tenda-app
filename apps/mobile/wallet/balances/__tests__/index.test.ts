@@ -20,6 +20,7 @@ jest.mock('@tenda/shared', () => ({
 import { ensureSufficientBalanceOn, type ChainRegistryEntry } from '@tenda/shared'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { ensureSufficientBalance } from '../index'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const delegate = ensureSufficientBalanceOn as jest.Mock
 
@@ -28,10 +29,7 @@ const BASE: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEsc',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
     {
       id: 'USDC_BASE',

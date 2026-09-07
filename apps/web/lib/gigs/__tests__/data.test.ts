@@ -14,6 +14,7 @@ import {
   listGigsOnce,
   readPlatformConfigOnce,
 } from '@/lib/gigs/data'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 describe('readPlatformConfigOnce — the fee on the feed heading', () => {
   it('returns the live config on success', async () => {
@@ -126,10 +127,7 @@ describe('listEnabledChains', () => {
           namespace: 'solana',
           display_name: 'Solana Devnet',
           escrow_address: 'Escrw1',
-          relayed_funding_available: false,
-          rpc_url: null,
-          explorer_url: null,
-          faucet_url: null,
+          ...registryEntryDefaults('solana:devnet'),
           assets: [],
         },
       ],

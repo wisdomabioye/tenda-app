@@ -1,4 +1,5 @@
 import type { ChainRegistryEntry } from '@tenda/shared'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 /**
  * Registry entries for the chain-registry store tests — single-sourced so the
@@ -10,10 +11,7 @@ export const SOLANA: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana',
   escrow_address: 'Esc111',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [
     {
       id: 'USDC_SOL',
@@ -33,10 +31,7 @@ export const GALILEO: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: '0G Galileo',
   escrow_address: '0xEsc',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('eip155:16602'),
   assets: [
     {
       id: 'USDC_0G',

@@ -12,6 +12,7 @@ import type { ChainRegistryEntry } from '../../src/api/contracts/platform.contra
 import type { WalletsStatus } from '../../src/wallet/section-state'
 import { CHAIN_MANIFEST } from '../../src/chains/manifest'
 import { gigAssetByChain } from '../../src/chains/manifest-queries'
+import { registryEntryDefaults } from '../../src/testing'
 
 /**
  * #59 — can this composer be finished at all?
@@ -39,10 +40,7 @@ function registryEntry(id: string): ChainRegistryEntry {
     namespace: manifest.namespace,
     display_name: manifest.displayName,
     escrow_address: 'unused-by-these-tests',
-    relayed_funding_available: false,
-    rpc_url: null,
-    explorer_url: null,
-    faucet_url: null,
+    ...registryEntryDefaults(id),
     assets: [
       { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false, roles: ['exchange'] },
     ],

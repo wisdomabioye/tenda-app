@@ -11,16 +11,14 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import type { ChainRegistryEntry } from '@tenda/shared'
 import { ChainFilterChips } from '@/components/shared/ChainFilterChips'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const chainOf = (id: string, display_name: string): ChainRegistryEntry => ({
   id,
   namespace: id.startsWith('solana') ? 'solana' : 'eip155',
   display_name,
   escrow_address: 'x',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults(id),
   assets: [],
 })
 

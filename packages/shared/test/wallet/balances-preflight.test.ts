@@ -17,16 +17,14 @@ import {
   SUFFICIENCY_TIMEOUT_MS,
 } from '../../src/wallet/balances/sufficiency'
 import { BALANCE_RPC_TIMEOUT_MS } from '../../src/wallet/balances/constants'
+import { registryEntryDefaults } from '../../src/testing'
 
 const EVM_CHAIN: ChainRegistryEntry = {
   id: 'eip155:84532',
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
     { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
   ],
@@ -36,10 +34,7 @@ const SOL_CHAIN: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'PROGRAM',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [
     { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false, roles: ['gig', 'exchange'] },
   ],

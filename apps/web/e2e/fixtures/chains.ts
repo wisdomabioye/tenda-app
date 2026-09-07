@@ -6,7 +6,8 @@
  * `lib/chain-filter.ts` does. A stub that offered one set and accepted another
  * would let a client forward an id the real server would reject.
  */
-import { chainPublicFacts, type ChainRegistryEntry } from '@tenda/shared'
+import type { ChainRegistryEntry } from '@tenda/shared'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 // The public facts (`rpc_url` / `explorer_url` / `faucet_url`) come through
 // the SAME shared mapping the real route uses, so this stub cannot claim a
@@ -20,8 +21,7 @@ export const ENABLED_CHAINS: ChainRegistryEntry[] = [
     namespace: 'solana',
     display_name: 'Solana Devnet',
     escrow_address: 'Escrw111111111111111111111111111111111111111',
-    relayed_funding_available: false,
-    ...chainPublicFacts('solana:devnet'),
+    ...registryEntryDefaults('solana:devnet'),
     assets: [
       { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1111', supports_permit: false, roles: ['gig', 'exchange'] },
     ],
@@ -31,8 +31,7 @@ export const ENABLED_CHAINS: ChainRegistryEntry[] = [
     namespace: 'eip155',
     display_name: 'Base Sepolia',
     escrow_address: '0x000000000000000000000000000000000000e5c1',
-    relayed_funding_available: false,
-    ...chainPublicFacts('eip155:84532'),
+    ...registryEntryDefaults('eip155:84532'),
     assets: [
       { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xusdc', supports_permit: true, roles: ['gig', 'exchange'] },
     ],

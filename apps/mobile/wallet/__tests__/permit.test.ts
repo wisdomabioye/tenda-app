@@ -33,6 +33,7 @@ import { resolveEvmFrom } from '@/wallet/dispatch'
 import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { buildPermitFor } from '@/wallet/permit'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const payloadMock = api.blockchain.permitPayload as jest.Mock
 const signMock = signEvmTypedData as jest.Mock
@@ -51,10 +52,7 @@ function registry(supports_permit: boolean) {
         namespace: 'eip155',
         display_name: 'Base Sepolia',
         escrow_address: '0xEscrow',
-        relayed_funding_available: false,
-        rpc_url: null,
-        explorer_url: null,
-        faucet_url: null,
+        ...registryEntryDefaults(CHAIN),
         assets: [
           {
             id: 'USDC_BASE',

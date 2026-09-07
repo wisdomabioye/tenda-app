@@ -105,6 +105,7 @@ import { resolveEvmFrom } from '@/wallet/dispatch'
 import { readAllowance, sendApprove, waitForReceipt } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import type { ChainRegistryEntry } from '@tenda/shared'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const resolveEvmFromMock = resolveEvmFrom as jest.Mock
 const readAllowanceMock = readAllowance as jest.Mock
@@ -119,10 +120,7 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
     {
       id: 'USDC_BASE_SEPOLIA',
@@ -150,10 +148,7 @@ const SOLANA_DEVNET: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'TendaProgram1111',
-  relayed_funding_available: false,
-  rpc_url: null,
-  explorer_url: null,
-  faucet_url: null,
+  ...registryEntryDefaults('solana:devnet'),
   assets: [],
 }
 
