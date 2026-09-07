@@ -21,6 +21,15 @@ import { AGENT_API_V1_SCHEMAS } from './schemas-agent'
 import { AUTH_SCHEMAS } from './schemas-auth'
 import type { ComponentName, SchemaObject } from './schema-types'
 
+/**
+ * The purpose line, in the two halves the two documents share differently
+ * (#136): the canonical document carries both; the subset (./slim) carries no
+ * feed, so it must not promise one — it composes its own line from the second
+ * half only. Spelled once so the two cannot drift apart.
+ */
+const AGENT_API_BROWSE = 'browse the public feed and read a gig with the proof it will demand (v0, anonymous)'
+export const AGENT_API_POST = 'post a task with one call, funded by the agent\'s own signature with Tenda relaying the gas (x402)'
+
 /** OpenAPI's HTTP security scheme — the one shape this document uses. */
 export interface SecuritySchemeObject {
   type: 'http'
@@ -103,8 +112,7 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = {
   info: {
     title: 'Tenda Agent API',
     version: AGENT_API_VERSION,
-    description:
-      'The gig surface of Tenda for agents: browse the public feed and read a gig with the proof it will demand (v0, anonymous), and — from v1 — post a task with one call, funded by the agent\'s own signature with Tenda relaying the gas (x402). Stability guarantees are listed under x-tenda-stability.',
+    description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.`,
     'x-tenda-stability': AGENT_API_STABILITY,
   },
   servers: [{ url: '/', description: 'The origin this document was fetched from' }],

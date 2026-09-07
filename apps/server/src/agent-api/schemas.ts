@@ -146,7 +146,7 @@ const GIG_DETAIL_ONLY: Readonly<Record<keyof GigDetailOnly, SchemaObject>> = {
   my_signer_address: nullable({ type: 'string', description: 'Bearer-scoped; null for anonymous readers' }),
   assigned_counterparty_id: nullable(uuid),
   is_assigned: { type: 'boolean' },
-  unassign_window_seconds: { type: 'integer', minimum: 0 },
+  unassign_window_seconds: { type: 'integer', minimum: 0, description: 'Seconds after an approval-mode assignment during which the poster may unassign; fixed at create from the deployment\'s platform config' },
   assignment_released_at: nullable(isoInstant),
   counterparty: nullable(ref('UserRef')),
   proofs: { type: 'array', items: ref('EscrowProof') },

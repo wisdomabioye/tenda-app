@@ -452,9 +452,13 @@ const PROSE_PATH = /\/v1\/[A-Za-z0-9_\-{}/]*[A-Za-z0-9_}](?:\.[A-Za-z0-9]+)?/g
  * that grows silently is how the defect this test exists for came back.
  */
 const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
-  [AGENT_API_DOCUMENT_PATH]: 'the OTHER document — a pointer to it is the one outward reference the subset is allowed',
-  '/v1/escrows': 'named once, to say which fields AgentTaskBody is composed of — an explanation, not a call to make',
-  '/v1/gigs': 'same sentence, same reason',
+  [AGENT_API_DOCUMENT_PATH]: 'the OTHER document — a pointer to it is the one outward reference the subset is allowed (whether even that should stay is #135)',
+  // `/v1/escrows` and `/v1/gigs` were exempt here from the day this guard was
+  // written: AgentTaskBody described itself as "POST /v1/escrows minus kind
+  // and permit plus POST /v1/gigs minus escrow_id" — an explanation to someone
+  // who already knew the human API, and two dead ends to the agent reader the
+  // subset is for. The external reviewer listed both. The sentence now says
+  // what the fields ARE (#136), and the exemption is gone with it.
 }
 
 for (const [label, doc] of [
@@ -549,3 +553,56 @@ test('#134: the demo session promises the 402 and the draft, and says the 201 ne
   assert.match(description, /cannot fund/)
   assert.ok(description.includes(`POST ${apiRoutes.agent.register}`), 'the reader is sent to registration for a real post')
 })
+
+/**
+ * #136 — the task body tells the reader what OMISSION means, and what it
+ * cannot set at all.
+ *
+ * The reviewer posted a task with the policy fields left out and learned the
+ * defaults from the 402: `requiresApproval: false`, `disputeBond: "0"`,
+ * `unassignWindowSeconds: "21600"`. The first two are body fields with no
+ * stated default; the third is not a body field at all — it is stamped from
+ * platform config — and nothing said so. Each is asserted where the reader
+ * meets it, and the one that is NOT a field is asserted to STAY not a field,
+ * because the sentence that explains it would become a lie the day it is added.
+ */
+test('#136: omitted policy fields state their default, and the deployment-set term says where it comes from', () => {
+  const body = AGENT_API_DOCUMENT.components.schemas.AgentTaskBody
+  const props = body.properties ?? {}
+  assert.strictEqual(props.requires_approval?.default, false)
+  assert.match(props.requires_approval?.description ?? '', /[Oo]mitted = false/)
+  assert.match(props.requires_approval?.description ?? '', /assigned_counterparty_id/, 'the exclusion the validator enforces is stated')
+  assert.strictEqual(props.dispute_bond_raw?.default, '0')
+  assert.match(props.dispute_bond_raw?.description ?? '', /[Oo]mitted = "0"/)
+
+  // Deployment-set: named in the body's own description as NOT the caller's,
+  // sourced to platform config, and absent from the properties — all three,
+  // because any one of them alone lets the other two rot.
+  assert.match(body.description ?? '', /unassign_window_seconds/)
+  assert.match(body.description ?? '', /platform config/)
+  assert.ok(!('unassign_window_seconds' in props), 'unassign_window_seconds became a body field — rewrite the sentence that says it is not')
+  const signed = AGENT_API_DOCUMENT.components.schemas.EvmCreateParamsWire.properties ?? {}
+  assert.match(signed.unassignWindowSeconds?.description ?? '', /platform config/, 'the signed term says where its value came from')
+})
+
+/**
+ * #136 — a document that promises the public feed must carry it.
+ *
+ * The subset used to prepend the canonical purpose line verbatim, which opens
+ * with "browse the public feed", to a document with no `/v1/gigs`. Checked as
+ * an implication rather than a fixed sentence: either document may promise the
+ * feed, and whichever does must define the path a reader would browse it at.
+ */
+for (const [label, doc] of [
+  ['canonical', AGENT_API_DOCUMENT],
+  ['slim', AGENT_SLIM_DOCUMENT],
+] as const) {
+  test(`#136: the ${label} document promises the feed only if it carries it`, () => {
+    const promisesFeed = /public feed/.test(doc.info.description)
+    const carriesFeed = doc.paths[apiRoutes.gigs.list] !== undefined
+    assert.ok(!promisesFeed || carriesFeed, `the ${label} document promises the public feed and defines no ${apiRoutes.gigs.list}`)
+    // And the canonical one really does both — so the implication is not
+    // vacuously true because nobody promises anything any more.
+    if (label === 'canonical') assert.ok(promisesFeed && carriesFeed)
+  })
+}

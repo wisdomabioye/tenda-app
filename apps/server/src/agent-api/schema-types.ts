@@ -26,6 +26,8 @@ export interface SchemaObject {
   pattern?: string
   enum?: readonly JsonPrimitive[]
   const?: JsonPrimitive
+  /** What an OMITTED field means (#136) — stated on the wire, not left for the 402 to reveal. */
+  default?: JsonPrimitive
   minimum?: number
   /** Numeric, per draft 2020-12 (the boolean form is draft-4 and strict ajv refuses it). */
   exclusiveMinimum?: number

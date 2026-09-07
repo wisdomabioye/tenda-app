@@ -65,7 +65,7 @@
  * rather than left as a number someone could quietly move.
  */
 import { apiRoutes } from '@tenda/shared'
-import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, type OpenApiDocument } from './openapi'
+import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, AGENT_API_POST, type OpenApiDocument } from './openapi'
 import { withRecordedExamples } from './examples'
 import { COMPONENT_REF_PREFIX, type ComponentName, type SchemaObject } from './schema-types'
 import type { PathItem } from './paths'
@@ -238,8 +238,14 @@ export function slimAgentDocument(
       'x-tenda-stability': [
         `Compatibility guarantees are not repeated in this subset — read x-tenda-stability at ${AGENT_API_DOCUMENT_PATH} before depending on this contract.`,
       ],
+      // NOT `doc.info.description` (#136): that line promises the public feed,
+      // and this document carries no feed. The subset says what IT does — the
+      // post, and the read-back of the task it posted — from the same half the
+      // canonical line is built from, so the two cannot describe the post
+      // differently.
       description:
-        `${doc.info.description} THIS IS THE AGENT-ONLY SUBSET: the task-posting flow ` +
+        `The gig surface of Tenda for agents: ${AGENT_API_POST}, and read the task back with the proof it will demand. ` +
+        `THIS IS THE AGENT-ONLY SUBSET: the task-posting flow ` +
         `(${AGENT_SLIM_PATHS.join(', ')}) and every schema those reach, published separately ` +
         `so a reader that cannot take the whole contract at once can still take this. ` +
         `The complete contract is at ${AGENT_API_DOCUMENT_PATH}.`,

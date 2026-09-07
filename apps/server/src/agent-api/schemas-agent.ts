@@ -108,8 +108,8 @@ const agentTaskBody = closedFor<AgentTaskBody>(
     amount_raw: rawAmount,
     accept_window_seconds: { type: 'integer', minimum: MIN_ACCEPT_WINDOW_SECONDS, maximum: MAX_ACCEPT_WINDOW_SECONDS, description: 'How long the listing stays open for a worker to accept, as a DURATION. The server derives the absolute on-chain deadline from it at the moment the funding transaction is built, so a draft that sits before it is funded is never stale. This IS one of the terms a replay compares: resending the same creation_operation_id with a different window is 409, exactly like a different amount, asset, duration, bond, counterparty or approval mode' },
     completion_duration_seconds: { type: 'integer', minimum: MIN_COMPLETION_DURATION_SECONDS, maximum: MAX_COMPLETION_DURATION_SECONDS },
-    dispute_bond_raw: rawAmount,
-    requires_approval: { type: 'boolean', description: 'Approval mode: workers apply, the agent assigns' },
+    dispute_bond_raw: { ...rawAmount, default: '0', description: 'Base units, decimal string. Omitted = "0": no bond' },
+    requires_approval: { type: 'boolean', default: false, description: 'Approval mode: workers apply, the agent assigns. Omitted = false: the first worker to accept is assigned. Cannot be combined with assigned_counterparty_id' },
     assigned_counterparty_id: { ...uuid, description: 'Direct invite: the one worker who may accept' },
     signer_address: { ...hexAddress, description: 'The agent\'s signing wallet when more than one is linked; absent = primary' },
     title: { type: 'string', minLength: 1, maxLength: MAX_GIG_TITLE_LENGTH },
@@ -124,7 +124,7 @@ const agentTaskBody = closedFor<AgentTaskBody>(
     proof_params: nullable(proofParams),
   },
   ['creation_operation_id', 'chain_id', 'asset', 'amount_raw', 'accept_window_seconds', 'completion_duration_seconds', 'title', 'category'],
-  'The escrow terms (POST /v1/escrows minus kind and permit) plus the listing (POST /v1/gigs minus escrow_id), in one body.',
+  'The escrow terms and the listing in one body. One term is NOT yours to set: unassign_window_seconds comes from this deployment\'s platform config and is echoed in the terms you sign.',
 )
 
 type TypedData = ReceiveAuthorizationTypedData
@@ -136,7 +136,8 @@ const evmCreateParamsWire = closedFor<EvmCreateParamsWire>(
   {
     escrowId: { type: 'string' }, kind: { type: 'integer' }, asset: hexAddress, amount: uintText,
     assignedCounterparty: hexAddress, acceptDeadline: uintText, completionDuration: uintText, disputeBond: uintText,
-    isSeeker: { type: 'boolean' }, requiresApproval: { type: 'boolean' }, unassignWindowSeconds: uintText,
+    isSeeker: { type: 'boolean' }, requiresApproval: { type: 'boolean' },
+    unassignWindowSeconds: { ...uintText, description: 'Seconds the poster may still unassign after an approval-mode assignment. Set by this deployment\'s platform config, not by the body — sign what is here' },
   },
   ['escrowId', 'kind', 'asset', 'amount', 'assignedCounterparty', 'acceptDeadline', 'completionDuration', 'disputeBond', 'isSeeker', 'requiresApproval', 'unassignWindowSeconds'],
   'The contract\'s CreateParams the authorization nonce hashes — recompute keccak256(abi.encode(struct)) from exactly this.',
