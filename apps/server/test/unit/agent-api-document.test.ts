@@ -516,3 +516,36 @@ test('the bootstrap a wallet-owning agent needs is in BOTH documents', () => {
     }
   }
 })
+
+/**
+ * #134 — the demo session promises only what a keyless bearer can reach.
+ *
+ * The description used to say the demo bearer could "see the real 402 terms
+ * and the real 201 straight away", then two sentences later that "it cannot
+ * fund anything" because the server does not hold the demo key. Both halves
+ * were true of the SERVER and contradictory as a promise to the reader: a
+ * bearer with no key reaches the 402 and can never reach the 201. An external
+ * reviewer read the first half, tried, and filed the second as a defect.
+ *
+ * The rule, checked as prose because the promise IS prose: every sentence of
+ * the demo-session description that mentions the 201 must also say it needs
+ * the key. Restoring the old clause puts "201" in a sentence with no "key" and
+ * fails here; deleting every mention of the 201 fails too, because the reader
+ * must be told where the demo stops, not left to find out.
+ */
+test('#134: the demo session promises the 402 and the draft, and says the 201 needs a key', () => {
+  const demo = AGENT_API_DOCUMENT.paths[apiRoutes.agent.demoSession]?.post
+  assert.ok(demo !== undefined, 'the demo session is documented')
+  const description = demo.description ?? ''
+  const sentences = description.split(/(?<=\.)\s+/)
+  const about201 = sentences.filter((sentence) => /\b201\b/.test(sentence))
+  assert.ok(about201.length > 0, 'the description must say where the demo stops — the 201 — rather than stay silent about it')
+  for (const sentence of about201) {
+    assert.match(sentence, /\bkey\b/, `a sentence names the 201 without saying it needs the key: "${sentence}"`)
+  }
+  // The positive half: what the demo DOES reach is still promised, and the
+  // way past the wall is still named.
+  assert.match(description, /402 terms/)
+  assert.match(description, /cannot fund/)
+  assert.ok(description.includes(`POST ${apiRoutes.agent.register}`), 'the reader is sent to registration for a real post')
+})
