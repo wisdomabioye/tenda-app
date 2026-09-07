@@ -18,7 +18,10 @@
  * a real node holding the real escrow contract and a real EIP-3009 token, so
  * the terms carry the token's own domain separator, populated types, and a
  * nonce the contract agrees with. The chain id anvil presents is
- * `eip155:84532`, the same one the harness seeds, so nothing else changes.
+ * `eip155:84532`, the same one the harness seeds — but the TOKEN and ESCROW
+ * addresses are anvil's deterministic deployments, not Base Sepolia's, and the
+ * published operation says so (#133): a reader who signed the example's
+ * verifyingContract would be signing for a contract that does not exist.
  *
  * TO RE-RECORD after a deliberate wire change: `pnpm record:x402`.
  */
