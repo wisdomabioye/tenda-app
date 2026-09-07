@@ -9,7 +9,6 @@
  * a device when it meant to register one.
  */
 import { test } from 'node:test'
-import assert from 'node:assert/strict'
 import { apiRoutes } from '../../../src/api/routes'
 import { createConversationsApi, createNotificationsApi, createSubscriptionsApi } from '../../../src/api/client/messaging'
 import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'

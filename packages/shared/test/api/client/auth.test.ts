@@ -9,7 +9,6 @@
  * create a second account instead of attaching to the current one.
  */
 import { test } from 'node:test'
-import assert from 'node:assert/strict'
 import { apiRoutes } from '../../../src/api/routes'
 import { createAuthApi } from '../../../src/api/client/auth'
 import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'

@@ -1,5 +1,5 @@
 import type { Endpoint } from '../endpoint'
-import type { SupportedCurrency } from '../../constants'
+import type { SupportedCurrency } from '../../constants/currencies'
 import type { AssetRole, ChainKind } from '../../chains/manifest'
 
 export interface PlatformConfig {

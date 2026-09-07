@@ -7,7 +7,6 @@
  * message still sends a body rather than `undefined`.
  */
 import { test } from 'node:test'
-import assert from 'node:assert/strict'
 import { apiRoutes } from '../../../src/api/routes'
 import { createGigsApi, createApplicationsApi } from '../../../src/api/client/gigs'
 import { MODERATION_TIMEOUT_MS } from '../../../src/api/client/timeouts'

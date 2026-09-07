@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { apiRoutes } from '../../../src/api/routes'
 import { createFiatApi } from '../../../src/api/client/fiat'
-import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
+import { expectClientCall, recordingRequest, type ClientCase } from './harness'
 
 
 const { request, calls } = recordingRequest()

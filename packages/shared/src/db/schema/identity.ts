@@ -14,7 +14,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
-import { chainNamespacePgEnum, chains } from './chains'
+import { chainNamespacePgEnum } from './chains'
 
 export const userRoleEnum = pgEnum('user_role', [
   'user',

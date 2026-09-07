@@ -4,10 +4,9 @@
  */
 
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { escrows } from './escrows'
 import { users } from '../identity'
-import { chains } from '../chains'
 import { escrowTxTypeEnum } from './enums'
 
 export const escrow_transactions = pgTable(

@@ -1,6 +1,6 @@
 /** Exchange satellite: the P2P fiat leg of a `kind='exchange'` escrow. */
 
-import { integer, numeric, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { integer, numeric, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core'
 import { escrows } from './escrows'
 import { bank_accounts } from '../fiat'
 
