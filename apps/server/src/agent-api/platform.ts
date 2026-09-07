@@ -30,42 +30,61 @@
  * itself uses, never from the stored column, which is written by `db:seed` and
  * has drifted two contract generations behind before now.
  */
-import { apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
+import { ASSET_ROLES, apiRoutes, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
 import { chainNamespaceEnum } from '@tenda/shared/db/schema'
-import { closedFor, nullable, ref, type PlatformComponentName, type SchemaObject } from './schema-types'
+import { allKeys, closedFor, nullable, ref, type PlatformComponentName, type SchemaObject } from './schema-types'
 import { json, type PathItem } from './paths'
 import { chainIdShape } from './scalars'
 
-/** One enabled asset on one enabled chain — what a client may price a task in. */
-const chainRegistryAsset: SchemaObject = closedFor<ChainRegistryEntry['assets'][number]>(
-  {
-    id: { type: 'string', description: 'As sent in `asset`' },
-    symbol: { type: 'string' },
-    decimals: { type: 'integer', minimum: 0 },
-    is_stable: { type: 'boolean' },
-    token_address: nullable({ type: 'string', description: 'ERC-20 contract / SPL mint; null for the native gas token' }),
-    supports_permit: { type: 'boolean', description: 'EIP-2612: approvable by signature' },
+/**
+ * One enabled asset on one enabled chain — what a client may price a task in.
+ *
+ * `required` is DERIVED from these properties, not restated beside them: the
+ * wire type has no optional key, and a hand-written list silently fell behind
+ * when `roles` was added — the schema declared the field and did not require
+ * it, so a response omitting it would still have validated.
+ */
+type ChainRegistryAssetWire = ChainRegistryEntry['assets'][number]
+const CHAIN_REGISTRY_ASSET_PROPERTIES: Readonly<Record<keyof ChainRegistryAssetWire, SchemaObject>> = {
+  id: { type: 'string', description: 'As sent in `asset`' },
+  symbol: { type: 'string' },
+  decimals: { type: 'integer', minimum: 0 },
+  is_stable: { type: 'boolean' },
+  token_address: nullable({ type: 'string', description: 'ERC-20 contract / SPL mint; null for the native gas token' }),
+  supports_permit: { type: 'boolean', description: 'EIP-2612: approvable by signature' },
+  roles: {
+    type: 'array',
+    items: { type: 'string', enum: ASSET_ROLES },
+    description: 'What this asset may be used for HERE. A gig REQUIRES the one asset whose roles include `gig`; any other is refused 422.',
   },
-  ['id', 'symbol', 'decimals', 'is_stable', 'token_address', 'supports_permit'],
+}
+const chainRegistryAsset: SchemaObject = closedFor<ChainRegistryAssetWire>(
+  CHAIN_REGISTRY_ASSET_PROPERTIES,
+  allKeys<ChainRegistryAssetWire>(CHAIN_REGISTRY_ASSET_PROPERTIES),
 )
 
+/** Same rule as the asset above: no optional key, so `required` is derived. */
+const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry, SchemaObject>> = {
+  id: chainIdShape,
+  namespace: { type: 'string', enum: chainNamespaceEnum },
+  display_name: { type: 'string' },
+  escrow_address: { type: 'string', description: 'Escrow contract / program id — the spender an agent authorises' },
+  assets: { type: 'array', items: ref('ChainRegistryAsset') },
+}
 const chainRegistryEntry: SchemaObject = closedFor<ChainRegistryEntry>(
-  {
-    id: chainIdShape,
-    namespace: { type: 'string', enum: chainNamespaceEnum },
-    display_name: { type: 'string' },
-    escrow_address: { type: 'string', description: 'Escrow contract / program id — the spender an agent authorises' },
-    assets: { type: 'array', items: ref('ChainRegistryAsset') },
-  },
-  ['id', 'namespace', 'display_name', 'escrow_address', 'assets'],
+  CHAIN_REGISTRY_ENTRY_PROPERTIES,
+  allKeys<ChainRegistryEntry>(CHAIN_REGISTRY_ENTRY_PROPERTIES),
   'A chain THIS deployment settles on.',
 )
 
 type ChainsResponse = PlatformContract['chains']['response']
 
+const CHAIN_REGISTRY_PROPERTIES: Readonly<Record<keyof ChainsResponse, SchemaObject>> = {
+  data: { type: 'array', items: ref('ChainRegistryEntry') },
+}
 const chainRegistry: SchemaObject = closedFor<ChainsResponse>(
-  { data: { type: 'array', items: ref('ChainRegistryEntry') } },
-  ['data'],
+  CHAIN_REGISTRY_PROPERTIES,
+  allKeys<ChainsResponse>(CHAIN_REGISTRY_PROPERTIES),
   'What this deployment settles on — never what the codebase knows.',
 )
 

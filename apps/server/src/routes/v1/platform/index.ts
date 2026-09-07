@@ -3,12 +3,36 @@ import { asc, eq } from 'drizzle-orm'
 import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
 import { getExchangeRates } from '@server/lib/exchange-rates'
-import { findChain, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
+import {
+  exchangeAssetsByChain,
+  findChain,
+  gigAssetByChain,
+  type AssetRole,
+  type ChainRegistryEntry,
+  type PlatformContract,
+} from '@tenda/shared'
 
 /** EIP-2612 capability comes from the manifest (config), not the DB row. */
 function supportsPermit(chain_id: string, asset_id: string): boolean {
   const asset = findChain(chain_id)?.assets.find((a) => a.id === asset_id)
   return asset?.permit !== undefined
+}
+
+/**
+ * What an asset may be used for on this chain, read from the SAME functions
+ * the escrow validators refuse with — not from the manifest's `roles` array.
+ *
+ * The distinction is the point. `gigAssetByChain` returns ONE asset per chain
+ * (the first carrying the gig role); a manifest that ever listed two would make
+ * the second a role this endpoint advertises and `assertGigAsset` rejects. By
+ * asking the enforcer instead, the published answer is by construction the one
+ * a caller will get, so this cannot promise what the 422 takes away.
+ */
+function rolesOf(chain_id: string, asset_id: string): AssetRole[] {
+  return [
+    ...(gigAssetByChain(chain_id) === asset_id ? (['gig'] as const) : []),
+    ...(exchangeAssetsByChain(chain_id).includes(asset_id) ? (['exchange'] as const) : []),
+  ]
 }
 
 type ConfigRoute        = PlatformContract['config']
@@ -85,6 +109,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
             .map(({ chain_id: _chain_id, ...asset }) => ({
               ...asset,
               supports_permit: supportsPermit(c.id, asset.id),
+              roles: rolesOf(c.id, asset.id),
             })),
         },
       ]

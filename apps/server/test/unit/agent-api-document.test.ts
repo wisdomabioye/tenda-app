@@ -24,6 +24,7 @@ import {
   MAX_PROXIMITY_RADIUS_KM,
   PROOF_TYPES,
   apiRoutes,
+  type ChainRegistryEntry,
 } from '@tenda/shared'
 import { chainNamespaceEnum, escrowStatusEnum } from '@tenda/shared/db/schema'
 import {
@@ -33,7 +34,7 @@ import {
   AGENT_API_VERSION,
 } from '@server/agent-api/openapi'
 import { operationsOf } from '@server/agent-api/paths'
-import type { SchemaObject } from '@server/agent-api/schema-types'
+import { PLATFORM_COMPONENT_NAMES, type SchemaObject } from '@server/agent-api/schema-types'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
 import { GIG_SUMMARY_COLS } from '@server/lib/gig-read'
 import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
@@ -345,6 +346,44 @@ test('every query parameter compiles strictly and states the bound the server re
   assert.ok(param('chain_id').pattern !== undefined)
   // A city is matched as sent; nothing checks it against the country.
   assert.doesNotMatch(byName.get('city')?.description ?? '', /belong/)
+})
+
+test('a schema requires every property it declares — a listed-but-optional field is a lie', () => {
+  // #129 shipped `roles` into ChainRegistryAsset's properties while the
+  // hand-written `required` list silently stayed behind (a string replace that
+  // did not match), so the document DECLARED the field and did not require it:
+  // a response omitting it still validated, and codegen would type it optional
+  // against a wire type that always sends it. `required` is now derived with
+  // allKeys; this proves the result bites.
+  const validate = agentApiAjv().getSchema(`${COMPONENT_REF_PREFIX}ChainRegistryAsset`)
+  assert.ok(validate !== undefined)
+  const asset: ChainRegistryEntry['assets'][number] = {
+    id: 'USDC_CELO', symbol: 'USDC', decimals: 6, is_stable: true,
+    token_address: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C', supports_permit: true,
+    roles: ['gig', 'exchange'],
+  }
+  assert.strictEqual(validate(asset), true, 'a real asset must validate')
+  // Drop each documented property in turn: every one must be required. Rebuilt
+  // by filtering entries rather than `delete` on a widened copy, so nothing
+  // here needs an `unknown`.
+  for (const key of Object.keys(asset)) {
+    const without = Object.fromEntries(Object.entries(asset).filter(([name]) => name !== key))
+    assert.strictEqual(validate(without), false, `${key} is declared but not required`)
+  }
+  assert.strictEqual(validate({ ...asset, roles: ['nonsense'] }), false, 'roles is a closed vocabulary')
+
+  // The same rule across the WHOLE platform surface, derived from the name list
+  // so a schema added later is covered without touching this: none of these
+  // wire types has an optional key, so declaring a property and not requiring
+  // it is always the bug above, never a choice.
+  for (const name of PLATFORM_COMPONENT_NAMES) {
+    const schema = components.schemas[name]
+    assert.deepStrictEqual(
+      [...(schema.required ?? [])].sort(),
+      Object.keys(schema.properties ?? {}).sort(),
+      `${name} declares a property it does not require`,
+    )
+  }
 })
 
 test('the schemas compile under a STRICT validator and the closure bites', () => {

@@ -14,10 +14,11 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { randomUUID } from 'node:crypto'
 import type { ValidateFunction } from 'ajv'
 import type { FastifyInstance } from 'fastify'
 import { CHAIN_MANIFEST, MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, type AgentTaskPaymentRequired, type GigsContract, type PlatformContract } from '@tenda/shared'
-import { chains, escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
+import { assets, chains, escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
 import {
   AGENT_API_CACHE_SECONDS,
   AGENT_API_DOCUMENT,
@@ -219,25 +220,32 @@ test('the live feed, facets, featured rail and detail all validate against their
   assert.strictEqual(body.viewer, null)
 })
 
-test('the documented chain list is the DEPLOYMENT\'s, not the manifest\'s', { skip }, async () => {
-  const app = getApp()
+/**
+ * resetDb + the alt chain + the served list, which all three deployment-truth
+ * cases start from. One helper instead of three copies, and it asserts the
+ * response validates so every caller below can trust the shape it walks.
+ */
+async function servedChains(app: FastifyInstance): Promise<PlatformContract['chains']['response']['data']> {
   await resetDb(app)
   await seedAltChain(app)
-
   const response = await app.inject({ method: 'GET', url: apiRoutes.platform.chains })
   assert.strictEqual(response.statusCode, 200)
   const body = response.json<PlatformContract['chains']['response']>()
   assertValid(responseValidator(apiRoutes.platform.chains), body, `GET ${apiRoutes.platform.chains}`)
+  return body.data
+}
 
-  // The point of #126, asserted rather than described. Every id served is one
-  // this app's adapter REGISTRY holds — the deployment fact — and the manifest
-  // has entries the response does not, which is what makes the two provably
-  // different sources at all. A route that served the manifest instead would
-  // fail the FIRST of these: it would offer `solana:mainnet`, which no adapter
-  // backs. The second is the precondition, not a second catch — if the two
-  // sources ever agreed exactly, neither assertion could tell them apart, and
-  // the enacted case below would have nothing to insert.
-  const served = body.data.map((entry) => entry.id)
+test('the chain list is the DEPLOYMENT\'s, not the manifest\'s', { skip }, async () => {
+  const app = getApp()
+  const data = await servedChains(app)
+
+  // #126, asserted rather than described. Every id served is one this app's
+  // adapter REGISTRY holds — the deployment fact — and the manifest has entries
+  // the response does not, which is what makes the two provably different
+  // sources at all. A route that served the manifest instead would fail the
+  // FIRST of these: it would offer `solana:mainnet`, which no adapter backs.
+  // The second is the precondition, not a second catch.
+  const served = data.map((entry) => entry.id)
   assert.ok(served.length > 0, 'the harness enables at least one chain')
   for (const id of served) assert.ok(app.chains.has(id), `${id} is served but this deployment has no adapter for it`)
   const unserved = CHAIN_MANIFEST.filter((entry) => !served.includes(entry.id))
@@ -246,13 +254,11 @@ test('the documented chain list is the DEPLOYMENT\'s, not the manifest\'s', { sk
     'the manifest and this deployment agree exactly, so this guard cannot tell them apart — enable fewer chains in the harness',
   )
 
-  // The regression this case exists for, ENACTED rather than assumed. Removing
-  // the route's registry filter changed nothing on its own — the harness
-  // enables exactly the chains it has adapters for, so the two sources were
-  // indistinguishable and the assertion above could not fail. Insert a manifest
-  // chain the deployment has no adapter for, ENABLED in the database, and the
-  // difference becomes observable: a server that answered from the database
-  // alone would now advertise a chain it cannot build a transaction on.
+  // ENACTED rather than assumed. Removing the route's registry filter changed
+  // nothing on its own — the harness enables exactly the chains it has adapters
+  // for, so the two sources were indistinguishable. Insert a manifest chain the
+  // deployment has no adapter for, ENABLED in the database, and a server that
+  // answered from the database alone would now advertise it.
   await app.db.insert(chains).values({
     id: unserved[0].id,
     namespace: unserved[0].namespace,
@@ -270,17 +276,63 @@ test('the documented chain list is the DEPLOYMENT\'s, not the manifest\'s', { sk
     served,
     `${unserved[0].id} is enabled in the database with no adapter — it must not be advertised`,
   )
-  // And the document does not promise those chains anywhere: the chain id
-  // scalar is shape-checked, and points at this endpoint instead.
+})
+
+test('each asset says what it may be USED for, and the validator agrees', { skip }, async () => {
+  const app = getApp()
+  // #129. The wall a reviewer hit on production: the chain list showed cUSD,
+  // the task post refused it, and nothing in the response said which of the
+  // listed assets a gig actually takes.
+  await servedChains(app)
+  await app.db.insert(assets).values([
+    // Exchange-only on this chain, so a gig must refuse it.
+    { id: 'ETH_BASE', chain_id: TEST_CHAIN_ID_ALT, symbol: 'ETH', decimals: 18, token_address: null, is_stable: false },
+    // An asset the MANIFEST does not know: the empty case of the new field.
+    { id: 'GHOST_ASSET', chain_id: TEST_CHAIN_ID_ALT, symbol: 'GHOST', decimals: 9, token_address: '0xghost', is_stable: false },
+  ])
+  const listed = (await app.inject({ method: 'GET', url: apiRoutes.platform.chains }))
+    .json<PlatformContract['chains']['response']>().data.find((entry) => entry.id === TEST_CHAIN_ID_ALT)
+  assert.ok(listed !== undefined, `${TEST_CHAIN_ID_ALT} is served`)
+
+  const gigAssets = listed.assets.filter((asset) => asset.roles.includes('gig'))
+  assert.strictEqual(gigAssets.length, 1, 'a chain publishes exactly ONE gig asset — the validator accepts exactly one')
+  // "Listed, usable for nothing here" — kept in the list rather than dropped,
+  // because the wallet screen still has to show a balance the user holds; the
+  // field is what separates listed from usable.
+  const ghost = listed.assets.find((asset) => asset.id === 'GHOST_ASSET')
+  assert.ok(ghost !== undefined, 'an enabled asset the manifest does not know must still be LISTED')
+  assert.deepStrictEqual(ghost.roles, [], 'it is usable for nothing here, and must say so rather than omit the field')
+
+  // And the roles are the ones the WRITE path honours, proven by using them.
+  const notGig = listed.assets.find((asset) => !asset.roles.includes('gig'))
+  assert.ok(notGig !== undefined, 'the fixture must offer a listed non-gig asset, or the refusal below proves nothing')
+  const registered = await registerAgent(app)
+  const wrongAsset = await app.inject({
+    method: 'POST',
+    url: apiRoutes.agent.tasks,
+    headers: authHeader(registered.token),
+    payload: { ...agentTaskBody(), asset: notGig.id, creation_operation_id: randomUUID() },
+  })
+  assert.strictEqual(wrongAsset.statusCode, 422, wrongAsset.body)
+  assert.match(wrongAsset.body, new RegExp(`must use '${gigAssets[0].id}'`), wrongAsset.body)
+})
+
+test('a chain the list omits is refused with the status the stability note promises', { skip }, async () => {
+  const app = getApp()
+  const data = await servedChains(app)
+  const served = data.map((entry) => entry.id)
+  const unserved = CHAIN_MANIFEST.filter((entry) => !served.includes(entry.id))
+  assert.ok(unserved[0] !== undefined, 'the manifest must hold a chain this deployment does not serve')
+
+  // The document does not promise those chains anywhere: the chain id scalar is
+  // shape-checked, and points at the endpoint instead.
   const chainIdSchema = AGENT_API_DOCUMENT.components.schemas.AgentTaskBody.properties?.chain_id
   assert.strictEqual(chainIdSchema?.enum, undefined)
   assert.match(chainIdSchema?.description ?? '', /\/v1\/platform\/chains/)
 
-  // The loop closed: the chain this list omits is refused by the write path,
-  // with the status the stability note promises. MEASURED, because the first
-  // version of that note said 400 for both paths — 400 is what the FEED filter
-  // answers; the task post answers 422, and an agent coded against the note
-  // would have watched for a status it never receives.
+  // MEASURED, because the first version of that note said 400 for both paths —
+  // 400 is what the FEED filter answers; the task post answers 422, and an
+  // agent coded against the note would watch for a status it never receives.
   const registered = await registerAgent(app)
   const refused = await app.inject({
     method: 'POST',
@@ -288,8 +340,8 @@ test('the documented chain list is the DEPLOYMENT\'s, not the manifest\'s', { sk
     headers: authHeader(registered.token),
     payload: { ...agentTaskBody(), chain_id: unserved[0].id },
   })
-  // Asserted on the MESSAGE too, so a 422 earned by some other invalid field
-  // cannot stand in for the refusal this case is about.
+  // On the MESSAGE too, so a 422 earned by some other invalid field cannot
+  // stand in for the refusal this case is about.
   assert.match(refused.body, new RegExp(`unsupported chain_id.*${unserved[0].id}`), refused.body)
   const status = String(refused.statusCode) as HttpStatus
   const note = AGENT_API_STABILITY.find((line) => line.includes(apiRoutes.platform.chains))

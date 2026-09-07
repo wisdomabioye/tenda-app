@@ -18,6 +18,7 @@ export const SOLANA: ChainRegistryEntry = {
       is_stable: true,
       token_address: 'Usdc111',
       supports_permit: false,
+      roles: ['gig', 'exchange'],
     },
   ],
 }
@@ -36,6 +37,7 @@ export const GALILEO: ChainRegistryEntry = {
       is_stable: true,
       token_address: '0xUsdc',
       supports_permit: true,
+      roles: ['gig', 'exchange'],
     },
   ],
 }

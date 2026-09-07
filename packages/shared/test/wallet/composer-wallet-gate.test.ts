@@ -40,7 +40,7 @@ function registryEntry(id: string): ChainRegistryEntry {
     display_name: manifest.displayName,
     escrow_address: 'unused-by-these-tests',
     assets: [
-      { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false },
+      { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false, roles: ['exchange'] },
     ],
   }
 }

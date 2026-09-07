@@ -47,11 +47,17 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
     // Solana has no EIP-2612 — capability must read false despite USDC.
     supports_permit: false,
+    // What the escrow validators will ACCEPT this asset for. USDC is the
+    // chain's one gig asset and is exchange-tradable too.
+    roles: ['gig', 'exchange'],
   })
   // Native gas asset carries a null token_address (not a contract).
   const native = data[0].assets.find((a: { id: string }) => a.id === TEST_NATIVE_ASSET)
   assert.strictEqual(native.token_address, null)
   assert.strictEqual(native.supports_permit, false)
+  // …and is exchange-only: posting a GIG in the native token is refused 422,
+  // which is exactly what this field exists to say before the caller tries.
+  assert.deepStrictEqual(native.roles, ['exchange'])
 })
 
 test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip }, async () => {

@@ -36,6 +36,7 @@ const BASE: ChainRegistryEntry = {
       is_stable: true,
       token_address: '0xUsdc',
       supports_permit: true,
+      roles: ['gig', 'exchange'],
     },
   ],
 }

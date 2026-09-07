@@ -127,6 +127,7 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
       is_stable: true,
       token_address: '0xUSDC',
       supports_permit: true,
+      roles: ['gig', 'exchange'],
     },
     // Native gas token, token_address null, must NOT produce a row.
     {
@@ -136,6 +137,7 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
       is_stable: false,
       token_address: null,
       supports_permit: false,
+      roles: ['exchange'],
     },
   ],
 }

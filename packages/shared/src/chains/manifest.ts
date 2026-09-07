@@ -41,7 +41,8 @@ export type GasPolicy =
  * is both gig-eligible (the stablecoin gig policy) AND exchange-tradable, so
  * `roles` is a set, not a single value. Native gas tokens are `token: null`.
  */
-export type AssetRole = 'gig' | 'exchange'
+export const ASSET_ROLES = ['gig', 'exchange'] as const
+export type AssetRole = (typeof ASSET_ROLES)[number]
 
 /**
  * One asset on a chain. `token` is the on-chain contract/mint, or `null` for

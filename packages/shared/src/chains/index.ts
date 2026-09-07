@@ -5,6 +5,7 @@ export {
   assertManifestValid,
   type ChainManifestEntry,
   type ChainAsset,
+  ASSET_ROLES,
   type AssetRole,
   type GasPolicy,
   type ChainStatus,

@@ -39,8 +39,8 @@ const CHAIN: ChainRegistryEntry = {
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
   assets: [
-    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true },
-    { id: 'NOPERMIT', symbol: 'NOP', decimals: 6, is_stable: false, token_address: '0xN', supports_permit: false },
+    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
+    { id: 'NOPERMIT', symbol: 'NOP', decimals: 6, is_stable: false, token_address: '0xN', supports_permit: false, roles: ['exchange'] },
   ],
 }
 

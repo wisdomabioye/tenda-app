@@ -1,5 +1,6 @@
 import type { Endpoint } from '../endpoint'
 import type { SupportedCurrency } from '../../constants'
+import type { AssetRole } from '../../chains/manifest'
 
 export interface PlatformConfig {
   fee_bps: number
@@ -43,6 +44,16 @@ export interface ChainRegistryEntry {
     /** EIP-2612: the escrow's *WithPermit entry points work for this asset.
      *  Capability only — the domain version stays server-side. */
     supports_permit: boolean
+    /**
+     * What this asset may be used for HERE — the answer the escrow validators
+     * will actually give. Listing an asset is not the same as accepting it:
+     * gigs take exactly ONE asset per chain and the exchange takes a set, so a
+     * client that picked any listed asset for a gig got a 422 it could not have
+     * predicted from this response. Derived from `gigAssetByChain` /
+     * `exchangeAssetsByChain`, the same functions `assertGigAsset` and
+     * `assertExchangeAsset` refuse with, so it cannot promise what they reject.
+     */
+    roles: AssetRole[]
   }>
 }
 

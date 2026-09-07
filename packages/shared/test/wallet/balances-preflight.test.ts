@@ -24,7 +24,7 @@ const EVM_CHAIN: ChainRegistryEntry = {
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
   assets: [
-    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true },
+    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
   ],
 }
 const SOL_CHAIN: ChainRegistryEntry = {
@@ -33,7 +33,7 @@ const SOL_CHAIN: ChainRegistryEntry = {
   display_name: 'Solana Devnet',
   escrow_address: 'PROGRAM',
   assets: [
-    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false },
+    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false, roles: ['gig', 'exchange'] },
   ],
 }
 

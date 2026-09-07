@@ -16,7 +16,7 @@ export const ENABLED_CHAINS: ChainRegistryEntry[] = [
     display_name: 'Solana Devnet',
     escrow_address: 'Escrw111111111111111111111111111111111111111',
     assets: [
-      { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1111', supports_permit: false },
+      { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1111', supports_permit: false, roles: ['gig', 'exchange'] },
     ],
   },
   {
@@ -25,7 +25,7 @@ export const ENABLED_CHAINS: ChainRegistryEntry[] = [
     display_name: 'Base Sepolia',
     escrow_address: '0x000000000000000000000000000000000000e5c1',
     assets: [
-      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xusdc', supports_permit: true },
+      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xusdc', supports_permit: true, roles: ['gig', 'exchange'] },
     ],
   },
 ]
