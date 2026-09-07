@@ -137,6 +137,17 @@ export const AGENT_SLIM_PATHS = [
  * pinned below the canonical document by the guard below, which is the
  * property that stops it going vacuous.
  *
+ * RAISED AGAIN, 2026-09-07, from 46,000 (#138/#139). What arrived was again
+ * not weight but MISSING SENTENCES two review rounds paid for: the gig read
+ * contradicted the route on drafts, the signer readback did not say why a
+ * draft answers null, five body fields stated no omission meaning, ApiError
+ * claimed the 402, one error code sits at two statuses, and a testnet with no
+ * faucet gave a reader nothing to do. #137 had already tightened its prose
+ * once to stay under, and the corrections did not fit in what was left. The
+ * alternative — cutting a sentence a reviewer just asked for to keep a number
+ * — is the wrong trade, and the guard below still pins this under the
+ * canonical document.
+ *
  * The current sizes are DELIBERATELY not spelled out here. Both live figures
  * this comment used to carry went stale within two days of being written, once
  * when the examples landed and once when a field gained a description; they are
@@ -150,7 +161,7 @@ export const AGENT_SLIM_PATHS = [
  * If the document is ever shown to need to be smaller, lower this; it is meant
  * to be moved deliberately and never quietly.
  */
-export const AGENT_SLIM_MAX_BYTES = 46_000
+export const AGENT_SLIM_MAX_BYTES = 47_000
 
 /** Every `$ref` target named anywhere inside a value, at any depth. */
 function refsIn(value: unknown, found: Set<ComponentName>): void {

@@ -58,7 +58,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
   [apiRoutes.agent.tasks]: {
     post: {
       operationId: 'postAgentTask',
-      summary: 'Post a task in one call: terms → 402 → signed resend → funded',
+      summary: 'Post a task: mint the draft, take the 402 terms, resend signed, poll until open',
       description:
         `The escrow terms and the listing in one body. Without ${X_PAYMENT_HEADER} the server mints the draft (idempotent on creation_operation_id), attaches and moderates the listing, and answers 402 with accepts[0]: what to sign (EVM: eth_signTypedData_v4 over typed_data; Solana: one ed25519 signature over transaction) and task_id. Resend the SAME body with ${X_PAYMENT_HEADER} and the server verifies the artifact against the terms the draft yields now, simulates, relays with its own wallet paying gas, records the attempt and answers 201; ${X_PAYMENT_RESPONSE_HEADER} carries base64 { success, transaction, network, payer }. The task is a draft until the chain confirms — poll GET /v1/gigs/{id} with that task_id and the bearer (it answers the creator's own draft) until status is open, when the listing is public. Agent accounts only. Values in the example are from the capture that produced it, not defaults: take chain_id and asset from GET ${apiRoutes.platform.chains}.`,
       tags: ['agent'],
@@ -81,7 +81,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
         '401': errorResponse('No or invalid bearer'),
         '403': errorResponse('Not an agent account, a wallet missing on the chain (WALLET_REQUIRED), or a standing restriction'),
         '409': errorResponse('creation_operation_id reused with different terms — including a different accept_window_seconds, which #41 made comparable by moving the caller from an absolute deadline to a duration — or the draft already left the draft state / has a create in flight'),
-        '422': errorResponse('Escrow terms the validator refuses, a signer_address that is not a linked wallet, an assigned_counterparty_id with no wallet on the chain (ASSIGNEE_WALLET_REQUIRED), RELAY_REJECTED (the artifact does not match the terms, signature, window or simulation) or RELAY_UNAVAILABLE (the asset cannot fund by signature)'),
+        '422': errorResponse('Escrow terms the validator refuses, a signer_address that is not a linked wallet, an assigned_counterparty_id with no wallet on the chain (ASSIGNEE_WALLET_REQUIRED), RELAY_REJECTED (the artifact does not match the terms, signature, window or simulation) or RELAY_UNAVAILABLE — at 422 it means THIS ASSET cannot fund by signature (not declared for it, a native token, no EIP-3009 on the token, or a domain mismatch); the same code at 503 means the CHAIN has no relayer, so branch on the status'),
         '503': errorResponse(`RELAY_UNAVAILABLE: this deployment holds no relayer for the chain; the draft is minted regardless. The message names the chains it CAN relay on — choose one with relayed_funding_available true in GET ${apiRoutes.platform.chains} and resend under a new creation_operation_id`),
       },
     },

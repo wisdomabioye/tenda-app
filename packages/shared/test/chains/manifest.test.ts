@@ -805,3 +805,42 @@ test('chainPublicFacts agrees with evmPublicRpcUrl on every manifest chain — o
     assert.equal(chainPublicFacts(chain.id).rpc_url, evmPublicRpcUrl(chain.id), chain.id)
   }
 })
+
+// ---------- openMint (#139): a testnet gig asset has a faucet OR an open mint --
+
+const testnetBase: ChainManifestEntry = {
+  id: 'eip155:11155111', namespace: 'eip155', family: 'eth', kind: 'testnet', status: 'planned',
+  displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', explorerUrl: 'https://scan.example',
+  gasPolicy: 'none',
+  assets: [
+    { id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', permit: { version: '2' } },
+    { id: 'ETH_BASE', roles: ['exchange'], token: null },
+  ],
+}
+
+test('assertManifestValid refuses a testnet gig asset with neither a faucetUrl nor openMint', () => {
+  assert.throws(() => assertManifestValid([testnetBase]), /neither a faucetUrl nor openMint/)
+})
+
+test('assertManifestValid accepts the testnet gig asset with either answer', () => {
+  assert.doesNotThrow(() => assertManifestValid([{ ...testnetBase, faucetUrl: 'https://faucet.example' }]))
+  const [gig, native] = testnetBase.assets
+  assert.doesNotThrow(() => assertManifestValid([{ ...testnetBase, assets: [{ ...gig, openMint: true }, native] }]))
+})
+
+test('assertManifestValid refuses openMint on a mainnet and on a native asset', () => {
+  const [gig, native] = testnetBase.assets
+  const mainnet: ChainManifestEntry = { ...testnetBase, id: 'eip155:1', kind: 'mainnet', assets: [{ ...gig, openMint: true }, native] }
+  assert.throws(() => assertManifestValid([mainnet]), /openMint — testnet ERC-20 mocks only/)
+  const nativeMock: ChainManifestEntry = { ...testnetBase, faucetUrl: 'https://faucet.example', assets: [gig, { ...native, openMint: true }] }
+  assert.throws(() => assertManifestValid([nativeMock]), /openMint — testnet ERC-20 mocks only/)
+})
+
+test('0G Galileo is the one open-mint testnet, and every other testnet gig asset has a faucet', () => {
+  for (const entry of CHAIN_MANIFEST.filter((c) => c.kind === 'testnet')) {
+    const gig = entry.assets.find((a) => a.roles.includes('gig'))
+    assert.ok(gig, `${entry.id} has a gig asset`)
+    assert.equal(gig.openMint === true, entry.id === 'eip155:16602', `${entry.id} openMint`)
+    assert.equal(entry.faucetUrl !== undefined, entry.id !== 'eip155:16602', `${entry.id} faucetUrl`)
+  }
+})

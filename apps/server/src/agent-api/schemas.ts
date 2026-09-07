@@ -143,7 +143,7 @@ const GIG_DETAIL_ONLY: Readonly<Record<keyof GigDetailOnly, SchemaObject>> = {
   submitted_at: nullable(isoInstant),
   approval_deadline: nullable(isoInstant),
   dispute_bond_raw: rawAmount,
-  my_signer_address: nullable({ type: 'string', description: 'Bearer-scoped; null for anonymous readers' }),
+  my_signer_address: nullable({ type: 'string', description: 'The wallet this viewer is bound to on the escrow, as attested ON CHAIN — stamped when the create confirms, so the creator\'s own draft answers null; the address a quote binds is `payment.creator` in the 402 terms. Null for anonymous readers and non-parties' }),
   assigned_counterparty_id: nullable(uuid),
   is_assigned: { type: 'boolean' },
   unassign_window_seconds: { type: 'integer', minimum: 0, description: 'Seconds after an approval-mode assignment during which the poster may unassign; fixed at create from the deployment\'s platform config' },
@@ -208,7 +208,7 @@ const apiError = closedFor<ApiError>(
     details: { type: 'object', additionalProperties: true },
   },
   ['statusCode', 'error', 'message', 'code'],
-  'Every non-2xx answer.',
+  'Every non-2xx answer except the 402, which is the x402 envelope (AgentTaskPaymentRequired).',
 )
 
 export const AGENT_API_SCHEMAS: Readonly<Record<V0ComponentName, SchemaObject>> = {

@@ -634,3 +634,57 @@ test('#132: the chains operation and the one-shot 503 both point at relayed_fund
   assert.ok(entry.required?.includes('faucet_url'))
   assert.deepStrictEqual(entry.properties?.faucet_url?.type, ['string', 'null'])
 })
+
+/**
+ * #138 — the round-two reviewer's four prose defects, each pinned where a
+ * reader meets it. (1) The gig read used to say drafts answer 404 identically
+ * while the task operation sends the creator there to poll a draft and the
+ * route answers them 200. (2) `my_signer_address` said only "null for
+ * anonymous readers" — it is the chain-attested signer, null on a draft by
+ * design, and the quote's binding address is `payment.creator`. (3) Three body
+ * fields stated no omission meaning. (4) "in one call" oversold a 402, a
+ * resend and a poll.
+ */
+test('#138: the gig read names the creator exception, the signer readback says why a draft is null, omissions are stated, and the summary does not oversell', () => {
+  const read = AGENT_API_DOCUMENT.paths[apiRoutes.gigs.get.replace(':id', '{id}')]?.get
+  assert.ok(read !== undefined)
+  assert.doesNotMatch(read.description, /answer 404 identically/)
+  assert.match(read.description, /creator reads their own draft/)
+  assert.match(read.description, /both parties keep reading a taken-down listing/)
+
+  const signer = AGENT_API_DOCUMENT.components.schemas.GigDetail.properties?.my_signer_address
+  assert.match(signer?.description ?? '', /draft answers null/)
+  assert.match(signer?.description ?? '', /payment\.creator/)
+
+  const body = AGENT_API_DOCUMENT.components.schemas.AgentTaskBody.properties ?? {}
+  for (const field of ['assigned_counterparty_id', 'latitude', 'longitude', 'proof_params'] as const) {
+    assert.match(body[field]?.description ?? '', /[Oo]mitted = /, `${field} states what omission means`)
+  }
+
+  const tasks = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
+  assert.doesNotMatch(tasks?.summary ?? '', /in one call/)
+  assert.match(tasks?.summary ?? '', /402/)
+  assert.match(tasks?.summary ?? '', /poll/)
+
+  // Round three (2026-09-07): `remote` decides on-site vs remote and stated no
+  // default; `description` stated no omission meaning; ApiError claimed EVERY
+  // non-2xx while the 402 is the x402 envelope; and RELAY_UNAVAILABLE appears
+  // at both 422 and 503 for two different causes, which the text must say
+  // until #143 splits the code.
+  assert.strictEqual(body.remote?.default, false)
+  assert.match(body.remote?.description ?? '', /[Oo]mitted = false/)
+  assert.match(body.description?.description ?? '', /[Oo]mitted = null/)
+  assert.match(AGENT_API_DOCUMENT.components.schemas.ApiError.description ?? '', /except the 402/)
+  assert.match(tasks?.responses['422']?.description ?? '', /same code at 503/)
+})
+
+/**
+ * #139 step 0 — the registry's answer for a testnet with no faucet is a CLAIM
+ * ("the token's mint() is open"), so the field says it and the manifest is what
+ * makes it true: see manifest.test.ts for the validator half.
+ */
+test('#139: a null faucet on a testnet is explained as an open mint at the asset token', () => {
+  const faucet = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry.properties?.faucet_url
+  assert.match(faucet?.description ?? '', /mint\(\) is open/)
+  assert.match(faucet?.description ?? '', /token_address/)
+})

@@ -80,6 +80,14 @@ export interface ChainAsset {
    * than to unusable signatures.
    */
   eip3009?: true
+  /**
+   * The token is a repo MOCK whose `mint()` is open — callable by anyone, no
+   * faucet needed (#139). TESTNET GIG ASSETS ONLY, and the validator holds the
+   * pair: a testnet's gig asset either has a chain `faucetUrl` or is declared
+   * here, never neither, so the registry's "null faucet on a testnet means an
+   * open mint" sentence is true by construction rather than by memory.
+   */
+  openMint?: true
 }
 
 /**
@@ -445,6 +453,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
         token: '0x3780460189622E60cB7ec6e8e97038A386674B71',
         permit: { version: '2' },
         eip3009: true,
+        openMint: true,
       },
       { id: 'OG', roles: ['exchange'], token: null },
     ],
@@ -603,6 +612,17 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.faucetUrl !== undefined && !/^https:\/\//.test(entry.faucetUrl)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' faucetUrl must be an https URL`)
+    }
+    for (const asset of entry.assets) {
+      if (asset.openMint !== undefined && (entry.kind !== 'testnet' || asset.token === null)) {
+        throw new Error(`CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' declares openMint — testnet ERC-20 mocks only`)
+      }
+    }
+    // The registry tells a testnet reader with a null faucet to mint at the
+    // token — so every testnet gig asset must have one answer or the other.
+    const gigAsset = entry.assets.find((a) => a.roles.includes('gig'))
+    if (entry.kind === 'testnet' && gigAsset !== undefined && entry.faucetUrl === undefined && gigAsset.openMint === undefined) {
+      throw new Error(`CHAIN_MANIFEST: testnet '${entry.id}' has gig asset '${gigAsset.id}' with neither a faucetUrl nor openMint`)
     }
     if ((entry.gasPolicy === 'feeCurrency') !== (entry.feeCurrency !== undefined)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency must be set iff gasPolicy is 'feeCurrency'`)

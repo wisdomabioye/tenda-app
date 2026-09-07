@@ -52,8 +52,10 @@ export interface ChainRegistryEntry {
   explorer_url: string | null
   /**
    * Where a caller obtains this chain's TEST USDC, or null: on every mainnet,
-   * and on a testnet whose gig token is the repo's own mock with an open
-   * `mint()` rather than a faucet (#137). Testnets only, by manifest rule.
+   * and on a testnet whose gig token is the repo's own mock (#137) — there
+   * `mint()` is open and callable by anyone, at the asset's `token_address`.
+   * The manifest guarantees the split: a testnet gig asset carries a faucet
+   * OR is declared `openMint` (#139), never neither.
    */
   faucet_url: string | null
   assets: Array<{

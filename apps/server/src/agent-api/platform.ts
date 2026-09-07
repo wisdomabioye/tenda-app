@@ -78,7 +78,7 @@ const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry,
   explorer_url: nullable({ type: 'string', description: 'Block-explorer base URL, or null' }),
   faucet_url: nullable({
     type: 'string',
-    description: 'Where to obtain this chain\'s TEST USDC. Null on mainnets, and on a testnet whose gig token has no public faucet (a repo mock with an open mint())',
+    description: 'Where to obtain this chain\'s TEST USDC. Null on mainnets, and on a testnet whose gig token is a repo mock — there the token\'s mint() is open and callable by anyone, so mint to yourself at the asset\'s token_address',
   }),
   assets: { type: 'array', items: ref('ChainRegistryAsset') },
 }

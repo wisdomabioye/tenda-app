@@ -187,7 +187,7 @@ export const AGENT_API_PATHS: Readonly<Record<string, PathItem>> = {
       operationId: 'getGig',
       summary: 'One gig, with its escrow facts and proof requirements',
       description:
-        'Public for any open gig. `proof_requirements` and `proof_params` state what a worker must hand over before submitting — geotag check-ins are verified within `radius_m` of the gig pin, structured payloads must conform to the declared fields. Drafts, taken-down listings and unknown ids answer 404 identically. With a bearer, parties additionally receive counterparty, proofs and dispute; anonymous readers receive null/[]/null.',
+        'Public for any open gig. `proof_requirements` and `proof_params` state what a worker must hand over before submitting — geotag check-ins are verified within `radius_m` of the gig pin, structured payloads must conform to the declared fields. Unknown ids answer 404, and so do drafts and taken-down listings to anyone OUTSIDE them: the creator reads their own draft with a bearer (the poll target after POST /v1/agent/tasks), and both parties keep reading a taken-down listing. With a bearer, parties additionally receive counterparty, proofs and dispute; anonymous readers receive null/[]/null.',
       tags: ['gigs'],
       parameters: [{ name: 'id', in: 'path', required: true, schema: uuid }],
       responses: {
