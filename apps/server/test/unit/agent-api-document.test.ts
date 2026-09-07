@@ -669,14 +669,12 @@ test('#138: the gig read names the creator exception, the signer readback says w
 
   // Round three (2026-09-07): `remote` decides on-site vs remote and stated no
   // default; `description` stated no omission meaning; ApiError claimed EVERY
-  // non-2xx while the 402 is the x402 envelope; and RELAY_UNAVAILABLE appears
-  // at both 422 and 503 for two different causes, which the text must say
-  // until #143 splits the code.
+  // non-2xx while the 402 is the x402 envelope. (The 422/503 code split is
+  // #143, held in relay-error-codes.test.ts.)
   assert.strictEqual(body.remote?.default, false)
   assert.match(body.remote?.description ?? '', /[Oo]mitted = false/)
   assert.match(body.description?.description ?? '', /[Oo]mitted = null/)
   assert.match(AGENT_API_DOCUMENT.components.schemas.ApiError.description ?? '', /except the 402/)
-  assert.match(tasks?.responses['422']?.description ?? '', /same code at 503/)
 })
 
 /**
@@ -686,6 +684,8 @@ test('#138: the gig read names the creator exception, the signer readback says w
  */
 test('#139: a null faucet on a testnet is explained as an open mint at the asset token', () => {
   const faucet = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry.properties?.faucet_url
+  assert.match(faucet?.description ?? '', /mint\(\) is open/)
+  assert.match(faucet?.description ?? '', /token_address/)
   // `network_kind` is what makes the two nulls distinguishable, so it is
   // required and spelled from the shared vocabulary rather than restated. Not
   // `kind`: the 402 carries that name twice already with other meanings.
@@ -694,6 +694,4 @@ test('#139: a null faucet on a testnet is explained as an open mint at the asset
   assert.ok(!('kind' in (entry.properties ?? {})), 'a third `kind` in the document')
   assert.deepStrictEqual(entry.properties?.network_kind?.enum, CHAIN_KINDS)
   assert.match(faucet?.description ?? '', /`network_kind` tells the two nulls apart/)
-  assert.match(faucet?.description ?? '', /mint\(\) is open/)
-  assert.match(faucet?.description ?? '', /token_address/)
 })

@@ -107,12 +107,21 @@ export const ErrorCode = {
   // matches config).
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
   /**
-   * Relayed funding (x402) cannot be offered here: the chain has no relayer
-   * configured, or the asset cannot fund an escrow by signature (no EIP-3009
-   * on this token, a native asset). The caller falls back to signing and
-   * broadcasting the create transaction itself.
+   * Relayed funding (x402) cannot be offered on this CHAIN: the deployment
+   * holds no relayer for it (503). The message names the chains it can relay
+   * on. The caller falls back to signing and broadcasting the create
+   * transaction itself, or chooses a chain whose registry entry says
+   * `relayed_funding_available`.
    */
   RELAY_UNAVAILABLE:             'RELAY_UNAVAILABLE',
+  /**
+   * Relayed funding cannot be offered for this ASSET on this chain (422): the
+   * asset is not declared for it, is a native token, lacks EIP-3009 on the
+   * live token, or its domain does not match. Split from RELAY_UNAVAILABLE
+   * (#143) so a client branches on the code, not the status — two conditions
+   * used to share one code at two statuses.
+   */
+  RELAY_UNSUPPORTED_ASSET:       'RELAY_UNSUPPORTED_ASSET',
   /**
    * The payment artifact in X-PAYMENT was refused before broadcast: it does
    * not match the terms, its signature does not verify, its window has

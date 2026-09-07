@@ -34,7 +34,9 @@ import {
 import type { EvmRelayer } from './relayer'
 
 function unavailable(reason: string): never {
-  throw new AppError(422, ErrorCode.RELAY_UNAVAILABLE, `relayed funding unavailable: ${reason}`)
+  // Per-ASSET, 422 — distinct from the per-CHAIN 503 RELAY_UNAVAILABLE in
+  // relayDraftFunding (#143), so a client branches on the code.
+  throw new AppError(422, ErrorCode.RELAY_UNSUPPORTED_ASSET, `relayed funding unavailable: ${reason}`)
 }
 
 /** Everything both quote and relay derive from the draft, resolved once per call. */

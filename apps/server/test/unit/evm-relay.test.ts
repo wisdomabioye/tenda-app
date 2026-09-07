@@ -139,10 +139,10 @@ async function paymentFor(terms: RelayTerms, signer = agent, mutate: (m: Receive
   }
 }
 
-const refusedWith = (code: 'RELAY_REJECTED' | 'RELAY_UNAVAILABLE', pattern: RegExp) => (err: unknown): boolean =>
+const refusedWith = (code: 'RELAY_REJECTED' | 'RELAY_UNSUPPORTED_ASSET', pattern: RegExp) => (err: unknown): boolean =>
   err instanceof AppError && err.statusCode === 422 && err.code === code && pattern.test(err.message)
 const rejectedWith = (pattern: RegExp) => refusedWith('RELAY_REJECTED', pattern)
-const unavailableWith = (pattern: RegExp) => refusedWith('RELAY_UNAVAILABLE', pattern)
+const unavailableWith = (pattern: RegExp) => refusedWith('RELAY_UNSUPPORTED_ASSET', pattern)
 
 // ---------- surface -----------------------------------------------------------
 

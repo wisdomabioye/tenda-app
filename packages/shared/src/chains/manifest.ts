@@ -76,7 +76,7 @@ export interface ChainAsset {
    * with Tenda's relayer paying the gas (createEscrowFor, #17/#18). Requires
    * `permit` (the domain version it reuses); the server additionally probes
    * the live token for RECEIVE_WITH_AUTHORIZATION_TYPEHASH before quoting, so
-   * a declaration ahead of a redeploy degrades to RELAY_UNAVAILABLE rather
+   * a declaration ahead of a redeploy degrades to RELAY_UNSUPPORTED_ASSET rather
    * than to unusable signatures.
    */
   eip3009?: true
