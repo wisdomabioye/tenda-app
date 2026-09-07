@@ -9,6 +9,7 @@
 import { CHAIN_MANIFEST, isNativeAsset, type ChainAsset, type ChainManifestEntry } from './manifest'
 import { isEvmChainId } from '../utils/address'
 import type { ChainNamespace } from '../db/schema/chains'
+import type { ChainRegistryEntry } from '../api/contracts/platform.contract'
 import { getAssetMeta } from '../constants/assets'
 
 /** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
@@ -61,6 +62,29 @@ export function requireEvmPublicRpcUrl(id: string): string {
     throw new Error(`no publicRpcUrl for EVM chain '${id}' (not in CHAIN_MANIFEST)`)
   }
   return url
+}
+
+/**
+ * The three PUBLIC facts `GET /v1/platform/chains` publishes per chain (#132 /
+ * #137), in wire spelling: the client RPC (through `evmPublicRpcUrl`, the one
+ * source for it), the explorer, and where a TESTNET's USDC comes from. Every
+ * one is null when the manifest records none — a Solana cluster derives its
+ * own RPC and has no explorer entry; a mainnet has no faucet by manifest rule.
+ *
+ * ONE mapping, because two grew: the server route and the web e2e stub each
+ * spelled these three lookups by hand, and a stub that maps a field
+ * differently from the route is a fixture claiming a shape the server never
+ * sends. Null for an unknown id rather than a throw — the route reaches this
+ * only for chains the adapter registry holds, and a stub fixture names ids the
+ * manifest may not.
+ */
+export function chainPublicFacts(id: string): Pick<ChainRegistryEntry, 'rpc_url' | 'explorer_url' | 'faucet_url'> {
+  const entry = findChain(id)
+  return {
+    rpc_url: evmPublicRpcUrl(id),
+    explorer_url: entry?.explorerUrl ?? null,
+    faucet_url: entry?.faucetUrl ?? null,
+  }
 }
 
 /**

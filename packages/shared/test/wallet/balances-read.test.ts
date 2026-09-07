@@ -17,7 +17,7 @@ import type { ChainRegistryEntry } from '../../src/api/contracts/platform.contra
 
 function evmChain(id: string, name: string): ChainRegistryEntry {
   return {
-    id, namespace: 'eip155', display_name: name, escrow_address: '0xEscrow',
+    id, namespace: 'eip155', display_name: name, escrow_address: '0xEscrow', relayed_funding_available: false, rpc_url: null, explorer_url: null, faucet_url: null,
     assets: [
       { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
       { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
@@ -25,7 +25,7 @@ function evmChain(id: string, name: string): ChainRegistryEntry {
   }
 }
 const solChain: ChainRegistryEntry = {
-  id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet', escrow_address: 'PROGRAM',
+  id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet', escrow_address: 'PROGRAM', relayed_funding_available: false, rpc_url: null, explorer_url: null, faucet_url: null,
   assets: [
     { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false, roles: ['gig', 'exchange'] },
     { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
@@ -127,7 +127,7 @@ test('a reader rejection is dropped, not thrown; sumUsdcRaw of nothing is 0', as
 
 test('a chain with NO USDC asset yields a null usdc slot and contributes 0 to the sum', async () => {
   const nativeOnly: ChainRegistryEntry = {
-    id: 'eip155:42220', namespace: 'eip155', display_name: 'Celo', escrow_address: '0xE',
+    id: 'eip155:42220', namespace: 'eip155', display_name: 'Celo', escrow_address: '0xE', relayed_funding_available: false, rpc_url: null, explorer_url: null, faucet_url: null,
     assets: [{ id: 'CELO', symbol: 'CELO', decimals: 18, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] }],
   }
   evmResults = [[{ assetId: 'CELO', symbol: 'CELO', amountRaw: '7', decimals: 18, isStable: false }]]

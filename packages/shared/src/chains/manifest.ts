@@ -143,6 +143,15 @@ export interface ChainManifestEntry {
    * derived elsewhere so no explorer is recorded here for Solana clusters.
    */
   explorerUrl?: string
+  /**
+   * Where a developer obtains this chain's test USDC (#137). TESTNETS ONLY —
+   * validated below, because a faucet on a mainnet entry is a claim that
+   * cannot be true. Absent on a testnet means there is no public faucet for
+   * the gig token: 0G Galileo runs the repo's mock with an open `mint()`.
+   * VERIFIED 2026-09-07 against faucet.circle.com's network list: Base
+   * Sepolia, Celo Sepolia and Solana Devnet are offered; 0G is not.
+   */
+  faucetUrl?: string
   gasPolicy: GasPolicy
   /**
    * Asset id whose token funds gas, for `gasPolicy: 'feeCurrency'`. Required iff
@@ -208,6 +217,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     status: 'live',
     displayName: 'Solana Devnet',
     minConfirmations: 1,
+    faucetUrl: 'https://faucet.circle.com',
     gasPolicy: 'native-seed',
     // Same lamport cost as mainnet (rent is a protocol constant); devnet SOL is
     // free, so the value only matters for a representative smoke test here.
@@ -257,6 +267,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 1,
     publicRpcUrl: 'https://sepolia.base.org',
     explorerUrl: 'https://sepolia.basescan.org',
+    faucetUrl: 'https://faucet.circle.com',
     gasPolicy: 'paymaster',
     assets: [
       // Circle USDC on Base Sepolia — confirmed live (dress-rehearsal #124);
@@ -359,6 +370,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 3,
     publicRpcUrl: 'https://forno.celo-sepolia.celo-testnet.org',
     explorerUrl: 'https://sepolia.celoscan.io',
+    faucetUrl: 'https://faucet.circle.com',
     gasPolicy: 'feeCurrency',
     // Same USDC-gas model as mainnet. Adapter resolved + verified on-chain
     // 2026-07-13 (chainId 11142220, directory 0x9212…11BF,
@@ -585,6 +597,12 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.namespace === 'eip155' && (entry.explorerUrl ?? '').length === 0) {
       throw new Error(`CHAIN_MANIFEST: EVM chain '${entry.id}' must set an explorerUrl`)
+    }
+    if (entry.faucetUrl !== undefined && entry.kind !== 'testnet') {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' is a ${entry.kind} and cannot declare a faucetUrl`)
+    }
+    if (entry.faucetUrl !== undefined && !/^https:\/\//.test(entry.faucetUrl)) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' faucetUrl must be an https URL`)
     }
     if ((entry.gasPolicy === 'feeCurrency') !== (entry.feeCurrency !== undefined)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency must be set iff gasPolicy is 'feeCurrency'`)

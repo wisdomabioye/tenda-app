@@ -606,3 +606,31 @@ for (const [label, doc] of [
     if (label === 'canonical') assert.ok(promisesFeed && carriesFeed)
   })
 }
+
+/**
+ * #132 — the registry operation and the 503 both name the readiness field.
+ *
+ * "A chain appears only when this server holds its configuration and can
+ * settle on it" was read, reasonably, as "can fund a task on it". The field
+ * that answers the real question is `relayed_funding_available`; the operation
+ * that lists chains must tell the reader to use it, and the 503 the wrong
+ * choice produces must send them back to it — so the recovery is written in
+ * both places a reader can be standing when they need it.
+ */
+test('#132: the chains operation and the one-shot 503 both point at relayed_funding_available', () => {
+  const chains = AGENT_API_DOCUMENT.paths[apiRoutes.platform.chains]?.get
+  assert.ok(chains !== undefined)
+  assert.match(chains.description ?? '', /relayed_funding_available/)
+  assert.doesNotMatch(chains.description ?? '', /can settle on it/, 'the sentence the reviewer misread is gone')
+  const entry = AGENT_API_DOCUMENT.components.schemas.ChainRegistryEntry
+  assert.strictEqual(entry.properties?.relayed_funding_available?.type, 'boolean')
+  assert.ok(entry.required?.includes('relayed_funding_available'), 'never optional — an absent field would read as "unknown", which is the guess this exists to remove')
+  assert.match(entry.properties?.relayed_funding_available?.description ?? '', /503/)
+  const tasks = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
+  assert.match(tasks?.responses['503']?.description ?? '', /relayed_funding_available/)
+  assert.match(tasks?.responses['503']?.description ?? '', /names the chains it CAN relay on/)
+  // #137: the testnet money question is answered on the entry, nullable
+  // because most deployments are mainnets and one testnet has no faucet.
+  assert.ok(entry.required?.includes('faucet_url'))
+  assert.deepStrictEqual(entry.properties?.faucet_url?.type, ['string', 'null'])
+})

@@ -16,6 +16,7 @@ export {
   gigAssetByChain,
   exchangeAssetsByChain,
   evmPublicRpcUrl,
+  chainPublicFacts,
   requireEvmPublicRpcUrl,
   evmChainNumericId,
   nativeCurrencyOf,

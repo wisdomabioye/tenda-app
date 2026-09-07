@@ -8,6 +8,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema'
+import type { ChainRegistryEntry } from '@tenda/shared'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,
@@ -165,5 +166,51 @@ test('platform/chains: a chain with no adapter is omitted, not advertised', { sk
     assert.ok(!ids.includes(ORPHAN), `unconfigured chain must not be served, got ${ids.join(',')}`)
   } finally {
     await app.db.delete(chains).where(eq(chains.id, ORPHAN))
+  }
+})
+
+/**
+ * #132 / #137 — the registry says which listed chains the one-shot can FUND,
+ * and where a testnet caller gets the money.
+ *
+ * The description used to say a chain appears only when the server "can settle
+ * on it", and an external reviewer read that as "can relay on it", posted to
+ * Celo Sepolia, got 503 RELAY_UNAVAILABLE, and had to GUESS a second chain.
+ * The harness has exactly that shape: the Solana fake has no relay, the EVM
+ * fake has one. So the two answers below are the two answers a deployment
+ * gives, read from the same adapters the 503 is decided on.
+ */
+test('platform/chains: relayed_funding_available is the adapter\'s relay, per chain', { skip }, async () => {
+  const app = getApp()
+  await app.db.insert(chains).values({
+    id: TEST_CHAIN_ID_ALT,
+    namespace: 'eip155',
+    display_name: 'Base Sepolia',
+    min_confirmations: 1,
+    treasury_address: `0x${'aa'.repeat(20)}`,
+    escrow_program: FAKE_EVM_ESCROW,
+    is_enabled: true,
+  })
+  try {
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    assert.strictEqual(res.statusCode, 200)
+    const { data } = res.json<{ data: ChainRegistryEntry[] }>()
+    const byId = new Map(data.map((c) => [c.id, c]))
+    // The Solana fake: listed (a caller signing its own gas settles here) and
+    // NOT relayable — exactly the chain the one-shot answers 503 on.
+    assert.strictEqual(byId.get(TEST_CHAIN_ID)?.relayed_funding_available, false)
+    // The EVM fake carries a relay, so this is the chain to choose.
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.relayed_funding_available, true)
+    // The public facts come from the manifest, per chain: Base Sepolia publishes
+    // an RPC, an explorer and Circle's faucet; a Solana cluster derives its RPC
+    // client-side and records no explorer, and Circle serves devnet USDC.
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.rpc_url, 'https://sepolia.base.org')
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.explorer_url, 'https://sepolia.basescan.org')
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.faucet_url, 'https://faucet.circle.com')
+    assert.strictEqual(byId.get(TEST_CHAIN_ID)?.rpc_url, null)
+    assert.strictEqual(byId.get(TEST_CHAIN_ID)?.explorer_url, null)
+    assert.strictEqual(byId.get(TEST_CHAIN_ID)?.faucet_url, 'https://faucet.circle.com')
+  } finally {
+    await app.db.delete(chains).where(eq(chains.id, TEST_CHAIN_ID_ALT))
   }
 })

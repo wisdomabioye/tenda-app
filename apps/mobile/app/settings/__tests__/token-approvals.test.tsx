@@ -119,6 +119,10 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [
     {
       id: 'USDC_BASE_SEPOLIA',
@@ -146,6 +150,10 @@ const SOLANA_DEVNET: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'TendaProgram1111',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [],
 }
 

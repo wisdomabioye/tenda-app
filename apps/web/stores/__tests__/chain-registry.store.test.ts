@@ -21,6 +21,10 @@ const CHAIN: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'PROGRAM',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [],
 }
 

@@ -14,6 +14,7 @@ import {
   exchangeAssetsByChain,
   evmPublicRpcUrl,
   requireEvmPublicRpcUrl,
+  chainPublicFacts,
   evmChainNumericId,
   nativeAssetOf,
   nativeCurrencyOf,
@@ -728,4 +729,79 @@ test('eip3009 (#18): every declaration rides a permit domain, and a declaration 
     assets: base.assets.map((a) => (a.id === 'USDC_BASE' ? { id: a.id, roles: a.roles, token: a.token, eip3009: true } : a)),
   }
   assert.throws(() => assertManifestValid([broken]), /declares eip3009 but no permit domain/)
+})
+
+// ---------- faucetUrl (#137): a testnet fact, refused everywhere else --------
+
+test('assertManifestValid refuses a faucetUrl on a mainnet — a faucet there is a claim that cannot be true', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet', status: 'planned',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', explorerUrl: 'https://scan.example',
+    gasPolicy: 'none', faucetUrl: 'https://faucet.example',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /cannot declare a faucetUrl/)
+})
+
+test('assertManifestValid refuses a faucetUrl that is not https', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:11155111', namespace: 'eip155', family: 'eth', kind: 'testnet', status: 'planned',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', explorerUrl: 'https://scan.example',
+    gasPolicy: 'none', faucetUrl: 'http://faucet.example',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /must be an https URL/)
+})
+
+test('the testnets Circle serves carry its faucet; 0G Galileo, whose USDC is the repo mock, carries none', () => {
+  // VERIFIED 2026-09-07 against faucet.circle.com's network list. A testnet
+  // gaining a faucet, or losing one, is a manifest edit and shows up here.
+  const faucets = Object.fromEntries(
+    CHAIN_MANIFEST.filter((c) => c.kind === 'testnet').map((c) => [c.id, c.faucetUrl ?? null]),
+  )
+  assert.deepEqual(faucets, {
+    'solana:devnet': 'https://faucet.circle.com',
+    'eip155:84532': 'https://faucet.circle.com',
+    'eip155:11142220': 'https://faucet.circle.com',
+    'eip155:16602': null,
+  })
+  for (const c of CHAIN_MANIFEST.filter((c) => c.kind === 'mainnet')) {
+    assert.equal(c.faucetUrl, undefined, `${c.id} is a mainnet and declares a faucet`)
+  }
+})
+
+// ---------- chainPublicFacts (#132 / #137): the registry's per-chain facts ---
+
+test('chainPublicFacts spells the manifest facts in wire form for an EVM testnet, all three present', () => {
+  // Pinned literally rather than read back off the manifest: a helper that
+  // returned the wrong FIELD (say publicRpcUrl under explorer_url) would still
+  // agree with itself, and the literal is what catches that.
+  assert.deepEqual(chainPublicFacts('eip155:84532'), {
+    rpc_url: 'https://sepolia.base.org',
+    explorer_url: 'https://sepolia.basescan.org',
+    faucet_url: 'https://faucet.circle.com',
+  })
+})
+
+test('chainPublicFacts: a Solana cluster has no RPC or explorer entry but may have a faucet; a mainnet has no faucet', () => {
+  assert.deepEqual(chainPublicFacts('solana:devnet'), {
+    rpc_url: null,
+    explorer_url: null,
+    faucet_url: 'https://faucet.circle.com',
+  })
+  const mainnet = chainPublicFacts('eip155:42220')
+  assert.equal(mainnet.faucet_url, null)
+  assert.match(String(mainnet.rpc_url), /^https:\/\//)
+  assert.match(String(mainnet.explorer_url), /^https:\/\//)
+})
+
+test('chainPublicFacts answers all-null for an id the manifest does not know, without throwing', () => {
+  assert.deepEqual(chainPublicFacts('eip155:999999'), { rpc_url: null, explorer_url: null, faucet_url: null })
+  assert.deepEqual(chainPublicFacts('not-a-chain'), { rpc_url: null, explorer_url: null, faucet_url: null })
+})
+
+test('chainPublicFacts agrees with evmPublicRpcUrl on every manifest chain — one source for the RPC', () => {
+  for (const chain of CHAIN_MANIFEST) {
+    assert.equal(chainPublicFacts(chain.id).rpc_url, evmPublicRpcUrl(chain.id), chain.id)
+  }
 })

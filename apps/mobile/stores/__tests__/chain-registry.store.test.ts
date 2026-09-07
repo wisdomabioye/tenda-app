@@ -25,7 +25,7 @@ import { isRegistryUsable } from '@tenda/shared'
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 import { GALILEO, SOLANA } from '../__fixtures__/chain-registry'
 
-const STORAGE_KEY = 'chain_registry_v2'
+const STORAGE_KEY = 'chain_registry_v3'
 const setItem = AsyncStorage.setItem as jest.Mock
 
 const state = () => useChainRegistryStore.getState()

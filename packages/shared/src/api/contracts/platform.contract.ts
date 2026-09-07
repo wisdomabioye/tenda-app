@@ -33,6 +33,29 @@ export interface ChainRegistryEntry {
   /** Deployed escrow contract (EVM) / program id (Solana) — the approve /
    *  permit SPENDER for client-side ERC-20 flows (allowance screen, permit). */
   escrow_address: string
+  /**
+   * Whether THIS deployment can fund an escrow here on the caller's behalf —
+   * the x402 one-shot (`POST /v1/agent/tasks`) and `POST /v1/escrows/:id/fund`.
+   * True iff the server holds a relayer key for the chain (#132). A chain can
+   * be listed and settle perfectly well for a caller signing its own gas while
+   * this is false; the one-shot answers 503 RELAY_UNAVAILABLE there. An agent
+   * must read this before choosing `chain_id`, never discover it from the 503.
+   */
+  relayed_funding_available: boolean
+  /**
+   * Public, read-only JSON-RPC endpoint for the chain — the manifest's
+   * `publicRpcUrl`, never the server's keyed endpoint. Null where a client
+   * derives it itself (Solana clusters).
+   */
+  rpc_url: string | null
+  /** Block-explorer base URL, or null where the manifest records none. */
+  explorer_url: string | null
+  /**
+   * Where a caller obtains this chain's TEST USDC, or null: on every mainnet,
+   * and on a testnet whose gig token is the repo's own mock with an open
+   * `mint()` rather than a faucet (#137). Testnets only, by manifest rule.
+   */
+  faucet_url: string | null
   assets: Array<{
     id: string
     symbol: string

@@ -188,6 +188,12 @@ test('one-shot: a chain without a relayer answers 503 after minting the draft; a
   const onSolana = await app.inject({ method: 'POST', url: URL, headers: authHeader(agent.token), payload: agentTaskBody({ chain_id: TEST_CHAIN_ID, asset: 'USDC_SOL' }) })
   assert.strictEqual(onSolana.statusCode, 503, onSolana.body)
   assert.strictEqual(onSolana.json().code, 'RELAY_UNAVAILABLE')
+  // #132: recovery is deterministic from the body alone — it names the chains
+  // this deployment CAN relay on (the EVM fake, and only it) and the registry
+  // field that says so. The reviewer who hit this live had to guess a chain.
+  assert.match(onSolana.json().message, new RegExp(`Chains it can relay on: ${TEST_CHAIN_ID_ALT}\\b`))
+  assert.ok(!onSolana.json().message.includes(`${TEST_CHAIN_ID_ALT},`), 'only the relaying chain is named')
+  assert.match(onSolana.json().message, /relayed_funding_available in GET \/v1\/platform\/chains/)
   const malformed = await app.inject({ method: 'POST', url: URL, headers: { ...authHeader(agent.token), [X_PAYMENT_HEADER]: 'not-base64-json' }, payload: agentTaskBody() })
   assert.strictEqual(malformed.statusCode, 400)
   assert.strictEqual((await app.db.select({ id: escrows.id }).from(escrows)).length, 1, 'the malformed header minted nothing')

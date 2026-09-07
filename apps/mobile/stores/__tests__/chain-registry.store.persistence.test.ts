@@ -1,13 +1,16 @@
 /**
  * Chain registry persistence: the fast-first-paint snapshot, its move from
- * SecureStore to AsyncStorage, and the one-time migration between them.
+ * SecureStore to AsyncStorage, and what happens to a SUPERSEDED snapshot.
  *
  * The move exists because the snapshot is public chain facts sitting in a
  * store with an Android 2048-byte VALUE CAP: at 1747 bytes with four chains,
  * roughly one more chain would have made every persist fail silently and
- * frozen the paint at the last pre-cap registry. The migration write-through
- * matters because the legacy copy is deleted — without it, a failed launch
- * fetch on the next launch would find neither copy.
+ * frozen the paint at the last pre-cap registry.
+ *
+ * The snapshot key is VERSIONED against the wire shape. v3 (#132/#137) added
+ * four required fields, so a v2 snapshot — in either store — must never
+ * hydrate: it would rehydrate as the new type with undefined fields, which is
+ * the exact failure the version exists to prevent. It is reclaimed instead.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
@@ -20,7 +23,9 @@ jest.mock('@/api/client', () => ({
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { SOLANA } from '../__fixtures__/chain-registry'
 
-const STORAGE_KEY = 'chain_registry_v2'
+const STORAGE_KEY = 'chain_registry_v3'
+/** The previous shape's key, in both stores it ever lived in. */
+const SUPERSEDED_KEY = 'chain_registry_v2'
 
 const state = () => useChainRegistryStore.getState()
 
@@ -28,7 +33,7 @@ beforeEach(async () => {
   useChainRegistryStore.setState({ chains: null, status: 'idle' })
   mockChainsRequest.mockReset().mockResolvedValue({ data: [SOLANA] })
   await AsyncStorage.clear()
-  await SecureStore.deleteItemAsync(STORAGE_KEY)
+  await SecureStore.deleteItemAsync(SUPERSEDED_KEY)
 })
 
 describe('loadPersisted', () => {
@@ -92,32 +97,64 @@ describe('loadPersisted', () => {
   })
 })
 
-// ─── SecureStore → AsyncStorage migration ─────────────────────────────────────
+// ─── a superseded (v2) snapshot ───────────────────────────────────────────
 
-describe('the legacy SecureStore snapshot', () => {
-  it('migrates: hydrates, is written through to AsyncStorage, and is deleted', async () => {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([SOLANA]))
+describe('a superseded v2 snapshot', () => {
+  // A v2 entry as a v2 launch wrote it — the four v3 fields absent. Built by
+  // stripping the current fixture rather than typed as ChainRegistryEntry,
+  // because the whole point is that it is NOT one.
+  const {
+    relayed_funding_available: _r, rpc_url: _u, explorer_url: _e, faucet_url: _f,
+    ...v2Entry
+  } = SOLANA
+  const v2 = JSON.stringify([v2Entry])
+
+  // Never READ, not merely never seated. The reclaim runs before the read, so
+  // a fallback read of a superseded copy finds nothing and passes every
+  // "chains is null" assertion by accident of ordering — measured: a re-added
+  // SecureStore write-through and a v2 AsyncStorage fallback both survived
+  // them. The rule the tests hold is that the key is not consulted at all.
+  // The two storage mocks are already jest.fn instances, so their call lists
+  // are read directly (a spy on them cannot be restored without wiping their
+  // implementations — that broke the sibling test when tried).
+  const legacyRead = SecureStore.getItemAsync as jest.Mock
+  const asyncRead = AsyncStorage.getItem as jest.Mock
+
+  it('in the SecureStore era is NOT hydrated and is reclaimed — never read, never written through', async () => {
+    await SecureStore.setItemAsync(SUPERSEDED_KEY, v2)
+    legacyRead.mockClear()
 
     await state().loadPersisted()
 
-    expect(state().chains).toEqual([SOLANA])
-    expect(state().status).toBe('ready')
-    // Write-through: the legacy copy is gone after this, so the snapshot must
-    // already live in the new store or a failed launch fetch next session
-    // would find neither.
-    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify([SOLANA]))
-    expect(await SecureStore.getItemAsync(STORAGE_KEY)).toBeNull()
+    expect(legacyRead).not.toHaveBeenCalledWith(SUPERSEDED_KEY)
+    // The old shape would have seated `relayed_funding_available: undefined`
+    // under a type that says boolean. The network answer lands instead.
+    expect(state().chains).toBeNull()
+    expect(state().status).toBe('idle')
+    expect(await SecureStore.getItemAsync(SUPERSEDED_KEY)).toBeNull()
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 
-  it('never shadows an AsyncStorage snapshot, and is deleted regardless', async () => {
-    const legacy = [{ ...SOLANA, display_name: 'Old Solana' }]
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(legacy))
+  it('in AsyncStorage is NOT hydrated and is removed — never read', async () => {
+    await AsyncStorage.setItem(SUPERSEDED_KEY, v2)
+    asyncRead.mockClear()
+
+    await state().loadPersisted()
+
+    expect(asyncRead).not.toHaveBeenCalledWith(SUPERSEDED_KEY)
+    expect(state().chains).toBeNull()
+    expect(await AsyncStorage.getItem(SUPERSEDED_KEY)).toBeNull()
+  })
+
+  it('never shadows a current snapshot, and is reclaimed regardless', async () => {
+    await SecureStore.setItemAsync(SUPERSEDED_KEY, v2)
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([SOLANA]))
 
     await state().loadPersisted()
 
     expect(state().chains).toEqual([SOLANA])
-    expect(await SecureStore.getItemAsync(STORAGE_KEY)).toBeNull()
+    expect(state().status).toBe('ready')
+    expect(await SecureStore.getItemAsync(SUPERSEDED_KEY)).toBeNull()
   })
 })
 

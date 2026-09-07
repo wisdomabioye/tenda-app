@@ -69,6 +69,17 @@ const CHAIN_REGISTRY_ENTRY_PROPERTIES: Readonly<Record<keyof ChainRegistryEntry,
   namespace: { type: 'string', enum: chainNamespaceEnum },
   display_name: { type: 'string' },
   escrow_address: { type: 'string', description: 'Escrow contract / program id — the spender an agent authorises' },
+  relayed_funding_available: {
+    type: 'boolean',
+    description:
+      'True iff this deployment holds a relayer for the chain, so the one-shot can fund a task here. False: POST /v1/agent/tasks answers 503 RELAY_UNAVAILABLE on it (still listed — a caller paying its own gas can settle here). Choose a chain with this true',
+  },
+  rpc_url: nullable({ type: 'string', description: 'Public read-only JSON-RPC endpoint; null where the client derives it (Solana clusters)' }),
+  explorer_url: nullable({ type: 'string', description: 'Block-explorer base URL, or null' }),
+  faucet_url: nullable({
+    type: 'string',
+    description: 'Where to obtain this chain\'s TEST USDC. Null on mainnets, and on a testnet whose gig token has no public faucet (a repo mock with an open mint())',
+  }),
   assets: { type: 'array', items: ref('ChainRegistryAsset') },
 }
 const chainRegistryEntry: SchemaObject = closedFor<ChainRegistryEntry>(
@@ -98,9 +109,9 @@ export const AGENT_API_PLATFORM_PATHS: Readonly<Record<string, PathItem>> = {
   [apiRoutes.platform.chains]: {
     get: {
       operationId: 'listChains',
-      summary: 'The chains THIS deployment settles on',
+      summary: 'The chains THIS deployment settles on, and which of them can relay',
       description:
-        'Anonymous, and per-deployment: a chain appears only when this server holds its configuration and can settle on it, so testnet and mainnet deployments answer differently. Read it before choosing `chain_id` or `asset` — those are shape-checked, not enumerated, because THIS is the list.',
+        'Anonymous, and per-deployment: a chain appears only when this server holds its configuration and can build and verify transactions on it, so testnet and mainnet deployments answer differently. Listed is NOT the same as fundable by the one-shot: `relayed_funding_available` says whether POST /v1/agent/tasks can fund a task there; false answers 503 RELAY_UNAVAILABLE. Read it before choosing `chain_id` or `asset` — those are shape-checked, not enumerated, because THIS is the list — and pick a chain with it true. On testnets `faucet_url` is where the test USDC comes from.',
       tags: ['platform'],
       responses: { '200': { description: 'The enabled chains and their enabled assets', content: json(ref('ChainRegistry')) } },
     },

@@ -10,6 +10,10 @@ export const SOL_CHAIN = {
   namespace: 'solana',
   display_name: 'Solana',
   escrow_address: 'PROG',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [{ id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false }],
 }
 
@@ -18,6 +22,10 @@ export const EVM_CHAIN = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xE',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [{ id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true }],
 }
 

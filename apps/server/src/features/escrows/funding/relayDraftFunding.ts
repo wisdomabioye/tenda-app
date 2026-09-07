@@ -6,7 +6,7 @@
  * around it and how they shape the answer.
  */
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { ErrorCode, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
+import { ErrorCode, apiRoutes, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/lib/escrow-routes'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
@@ -24,6 +24,23 @@ export type RelayDraftOutcome =
       enqueued: boolean
       settlement: RelaySettlementResponse
     }
+
+/**
+ * The 503 body when THIS deployment holds no relayer for the chain (#132).
+ * Pure, so both of its branches are unit-tested — the harness always carries
+ * one relay-capable fake, so the "no chain at all" answer is unreachable
+ * through the routes yet real on a deployment configured without relayer keys.
+ * It names the chains the deployment CAN relay on and the registry field that
+ * says so, so recovery is deterministic from the error alone: a caller never
+ * has to guess a second chain.
+ */
+export function relayUnavailableMessage(chain_id: string, relaying: readonly string[]): string {
+  return (
+    `relayed funding is not available on ${chain_id}: this deployment holds no relayer for it. ` +
+    (relaying.length > 0 ? `Chains it can relay on: ${relaying.join(', ')}` : 'It can relay on no chain') +
+    ` — see relayed_funding_available in GET ${apiRoutes.platform.chains}`
+  )
+}
 
 export async function relayDraftFunding(
   fastify: FastifyInstance,
@@ -43,7 +60,10 @@ export async function relayDraftFunding(
     body: args.body,
   })
   if (adapter.relay === undefined) {
-    throw new AppError(503, ErrorCode.RELAY_UNAVAILABLE, `relayed funding is not available on ${escrow.chain_id}`)
+    // The list is read from the same adapters the registry publishes — never
+    // from the manifest — so the 503 cannot name a chain the registry denies.
+    const relaying = fastify.chains.list().filter((a) => a.relay !== undefined).map((a) => a.chain_id)
+    throw new AppError(503, ErrorCode.RELAY_UNAVAILABLE, relayUnavailableMessage(escrow.chain_id, relaying))
   }
   // The creator: the declared wallet, else the primary — which
   // assertCanTransact (inside prepareDraftCreate) has just guaranteed.

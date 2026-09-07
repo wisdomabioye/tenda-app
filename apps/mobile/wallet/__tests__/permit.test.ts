@@ -51,6 +51,10 @@ function registry(supports_permit: boolean) {
         namespace: 'eip155',
         display_name: 'Base Sepolia',
         escrow_address: '0xEscrow',
+        relayed_funding_available: false,
+        rpc_url: null,
+        explorer_url: null,
+        faucet_url: null,
         assets: [
           {
             id: 'USDC_BASE',

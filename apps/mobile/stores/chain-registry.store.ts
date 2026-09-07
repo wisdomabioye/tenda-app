@@ -8,15 +8,25 @@ import type { ChainRegistryEntry } from '@tenda/shared'
 // Versioned: bump when ChainRegistryEntry gains REQUIRED fields, so a stale
 // persisted snapshot (older shape) is ignored instead of rehydrating as the
 // new type with undefined fields. v2 = escrow_address + supports_permit.
+// v3 (#132/#137) = relayed_funding_available + rpc_url + explorer_url +
+// faucet_url — and `roles` (#129), which shipped without a bump of its own.
 //
 // Persisted in AsyncStorage, NOT SecureStore: the registry is public chain
 // facts (nothing secret to protect), and Android's expo-secure-store rejects
 // values over 2048 bytes — the snapshot was 1747 bytes with four chains, so
 // roughly one more chain would have made every persist fail silently and
 // frozen the fast first paint at the last pre-cap registry.
-const STORAGE_KEY = 'chain_registry_v2'
-// The pre-AsyncStorage location; read once as a migration, then deleted.
-const LEGACY_SECURE_STORE_KEY = 'chain_registry_v2'
+const STORAGE_KEY = 'chain_registry_v3'
+/**
+ * The superseded snapshot, in BOTH places it ever lived — the SecureStore era
+ * (pre-AsyncStorage) and the v2 AsyncStorage key. Reclaimed on read and never
+ * hydrated: the SecureStore→AsyncStorage migration used to write the legacy
+ * copy through, which was right while the shape stayed the same, and would now
+ * carry an older shape into the v3 key — exactly the rehydrate-as-the-new-type
+ * the version bump exists to prevent. One launch after an upgrade pays a cold
+ * fetch for its first paint; that is the cost of a shape change, paid once.
+ */
+const SUPERSEDED_KEY = 'chain_registry_v2'
 
 /**
  * Lifecycle of the registry load, mirroring `walletsStatus` in the auth store
@@ -67,22 +77,11 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
 
   loadPersisted: async () => {
     try {
-      let raw = await AsyncStorage.getItem(STORAGE_KEY)
-      if (raw === null) {
-        // One-time migration from the SecureStore era. Written through to
-        // AsyncStorage immediately: the legacy copy is deleted below, so
-        // without the write-through a failed launch fetch on the next launch
-        // would find NEITHER copy — the exact no-registry session this store
-        // exists to prevent.
-        raw = await SecureStore.getItemAsync(LEGACY_SECURE_STORE_KEY)
-        if (raw !== null) await AsyncStorage.setItem(STORAGE_KEY, raw)
-      }
-      // Fire-and-forget: reclaiming the keystore slot must not gate (or fail)
-      // the bootstrap. Reaching this line means AsyncStorage HOLDS the snapshot
-      // (or none exists anywhere) — a failed write-through above threw past
-      // this delete into the outer catch, keeping the legacy copy for the next
-      // launch to migrate. That ordering is load-bearing.
-      void SecureStore.deleteItemAsync(LEGACY_SECURE_STORE_KEY).catch(() => {})
+      // Fire-and-forget: reclaiming the superseded slots must not gate (or
+      // fail) the bootstrap, and neither copy is read — see SUPERSEDED_KEY.
+      void SecureStore.deleteItemAsync(SUPERSEDED_KEY).catch(() => {})
+      void AsyncStorage.removeItem(SUPERSEDED_KEY).catch(() => {})
+      const raw = await AsyncStorage.getItem(STORAGE_KEY)
       if (!raw) return
       // Don't clobber a fresher network result that already landed.
       if (get().chains === null) {

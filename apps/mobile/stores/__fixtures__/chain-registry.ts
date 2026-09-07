@@ -10,6 +10,10 @@ export const SOLANA: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana',
   escrow_address: 'Esc111',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [
     {
       id: 'USDC_SOL',
@@ -29,6 +33,10 @@ export const GALILEO: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: '0G Galileo',
   escrow_address: '0xEsc',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [
     {
       id: 'USDC_0G',

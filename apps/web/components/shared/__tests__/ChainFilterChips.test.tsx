@@ -17,6 +17,10 @@ const chainOf = (id: string, display_name: string): ChainRegistryEntry => ({
   namespace: id.startsWith('solana') ? 'solana' : 'eip155',
   display_name,
   escrow_address: 'x',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [],
 })
 

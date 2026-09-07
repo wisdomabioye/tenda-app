@@ -39,6 +39,10 @@ function registryEntry(id: string): ChainRegistryEntry {
     namespace: manifest.namespace,
     display_name: manifest.displayName,
     escrow_address: 'unused-by-these-tests',
+    relayed_funding_available: false,
+    rpc_url: null,
+    explorer_url: null,
+    faucet_url: null,
     assets: [
       { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false, roles: ['exchange'] },
     ],

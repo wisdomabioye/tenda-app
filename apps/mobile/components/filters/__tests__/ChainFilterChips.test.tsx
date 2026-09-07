@@ -30,6 +30,10 @@ const chain = (id: string, display_name: string): ChainRegistryEntry => ({
   namespace: id.startsWith('solana') ? 'solana' : 'eip155',
   display_name,
   escrow_address: '0xdead',
+  relayed_funding_available: false,
+  rpc_url: null,
+  explorer_url: null,
+  faucet_url: null,
   assets: [],
 })
 

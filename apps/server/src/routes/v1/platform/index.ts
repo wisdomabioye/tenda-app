@@ -4,6 +4,7 @@ import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
 import { getExchangeRates } from '@server/lib/exchange-rates'
 import {
+  chainPublicFacts,
   exchangeAssetsByChain,
   findChain,
   gigAssetByChain,
@@ -100,10 +101,18 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
 
     const data: ChainRegistryEntry[] = chainRows.flatMap((c) => {
       if (!fastify.chains.has(c.id)) return []
+      const adapter = fastify.chains.get(c.id)
+      // The public facts of the chain come from the manifest, through the ONE
+      // shared mapping (#137); the one fact about THIS deployment — whether it
+      // holds a relayer — comes from the adapter, the same object
+      // `relayDraftFunding` refuses on when it is absent (#132). Read from the
+      // same place so this cannot advertise a relay the 503 takes away.
       return [
         {
           ...c,
-          escrow_address: fastify.chains.get(c.id).escrowAddress,
+          escrow_address: adapter.escrowAddress,
+          relayed_funding_available: adapter.relay !== undefined,
+          ...chainPublicFacts(c.id),
           assets: assetRows
             .filter((a) => a.chain_id === c.id)
             .map(({ chain_id: _chain_id, ...asset }) => ({
