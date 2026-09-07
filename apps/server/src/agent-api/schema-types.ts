@@ -43,8 +43,8 @@ export interface SchemaObject {
 
 /**
  * The names the document registers under `components.schemas` — the only
- * legal `$ref` targets. One list per SURFACE, and the three maps that fill
- * them (./schemas, ./schemas-agent, ./platform) are each typed
+ * legal `$ref` targets. One list per SURFACE, and the four maps that fill
+ * them (./schemas, ./schemas-agent, ./platform, ./schemas-auth) are each typed
  * `Record<…ComponentName, SchemaObject>` against their own, so a schema
  * missing from its map, or a `ref()` to a name nothing registers, is a
  * compile error.
@@ -60,10 +60,23 @@ export const V1_COMPONENT_NAMES = [
 ] as const
 /** The deployment-truth surface (#126): what `GET /v1/platform/chains` answers. */
 export const PLATFORM_COMPONENT_NAMES = ['ChainRegistryAsset', 'ChainRegistryEntry', 'ChainRegistry'] as const
+/**
+ * The BOOTSTRAP surface (#130): the nonce an agent signs over and the proof it
+ * sends back. Registration already documented both by NAME — "POST
+ * /v1/auth/nonce, sign the auth message" — while defining neither, so the one
+ * step a wallet-owning agent has to take first was the one step the document
+ * could not describe. A reviewer walked into exactly that on 2026-09-07.
+ */
+export const AUTH_COMPONENT_NAMES = ['AuthNonce', 'AuthVerifyBody'] as const
 export type V0ComponentName = (typeof V0_COMPONENT_NAMES)[number]
 export type V1ComponentName = (typeof V1_COMPONENT_NAMES)[number]
 export type PlatformComponentName = (typeof PLATFORM_COMPONENT_NAMES)[number]
-export type ComponentName = V0ComponentName | V1ComponentName | PlatformComponentName
+export type AuthComponentName = (typeof AUTH_COMPONENT_NAMES)[number]
+export type ComponentName =
+  | V0ComponentName
+  | V1ComponentName
+  | PlatformComponentName
+  | AuthComponentName
 
 /** Where `$ref` targets live — spelled once, here, and read back by the drift tests. */
 export const COMPONENT_REF_PREFIX = '#/components/schemas/'

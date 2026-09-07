@@ -1,7 +1,8 @@
 /**
  * The Agent API document — the machine-readable contract served at
  * AGENT_API_DOCUMENT_PATH: the v0 read surface (./paths, ./schemas) and the
- * v1 write surface (./paths-agent, ./schemas-agent, #19) in one OpenAPI file.
+ * v1 write surface (./paths-agent, ./schemas-agent, #19) and the bootstrap it
+ * depends on (./paths-auth, ./schemas-auth, #130) in one OpenAPI file.
  * This module owns the metadata, the security scheme and the STABILITY
  * GUARANTEES, which are the point of publishing it: an agent integrates
  * against what is written here.
@@ -13,9 +14,11 @@
  */
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
+import { AUTH_PATHS } from './paths-auth'
 import { AGENT_API_PLATFORM_PATHS, AGENT_API_PLATFORM_SCHEMAS } from './platform'
 import { AGENT_API_SCHEMAS } from './schemas'
 import { AGENT_API_V1_SCHEMAS } from './schemas-agent'
+import { AUTH_SCHEMAS } from './schemas-auth'
 import type { ComponentName, SchemaObject } from './schema-types'
 
 /** OpenAPI's HTTP security scheme — the one shape this document uses. */
@@ -110,9 +113,9 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = {
     { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
     { name: 'platform', description: 'What THIS deployment is configured for — the chains and assets it can settle on' },
   ],
-  paths: { ...AGENT_API_PATHS, ...AGENT_API_V1_PATHS, ...AGENT_API_PLATFORM_PATHS },
+  paths: { ...AGENT_API_PATHS, ...AUTH_PATHS, ...AGENT_API_V1_PATHS, ...AGENT_API_PLATFORM_PATHS },
   components: {
-    schemas: { ...AGENT_API_SCHEMAS, ...AGENT_API_V1_SCHEMAS, ...AGENT_API_PLATFORM_SCHEMAS },
+    schemas: { ...AGENT_API_SCHEMAS, ...AUTH_SCHEMAS, ...AGENT_API_V1_SCHEMAS, ...AGENT_API_PLATFORM_SCHEMAS },
     securitySchemes: SECURITY_SCHEMES,
   },
 }

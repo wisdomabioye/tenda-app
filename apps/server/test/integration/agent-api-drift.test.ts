@@ -17,7 +17,7 @@ import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import type { ValidateFunction } from 'ajv'
 import type { FastifyInstance } from 'fastify'
-import { CHAIN_MANIFEST, MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, type AgentTaskPaymentRequired, type GigsContract, type PlatformContract } from '@tenda/shared'
+import { CHAIN_MANIFEST, MAX_PAGINATION_LIMIT, MAX_PROXIMITY_RADIUS_KM, TENDA_RELAY_SCHEME, X402_VERSION, X_PAYMENT_HEADER, apiRoutes, buildAuthMessage, type AgentTaskPaymentRequired, type AuthNonceResponse, type GigsContract, type PlatformContract } from '@tenda/shared'
 import { assets, chains, escrow_proofs, featured_slots, gig_applications } from '@tenda/shared/db/schema'
 import {
   AGENT_API_CACHE_SECONDS,
@@ -60,6 +60,13 @@ function responseValidator(path: string, method: 'get' | 'post' = 'get', status:
   const content = AGENT_API_DOCUMENT.paths[path][method]?.responses[status]?.content
   assert.ok(content !== undefined, `${method.toUpperCase()} ${path} documents no ${status} body`)
   return ajv.compile(content[JSON_MEDIA_TYPE].schema)
+}
+
+/** The POST operation a path documents — asserted present, so a rename fails loudly. */
+function operation(path: string): NonNullable<(typeof AGENT_API_DOCUMENT)['paths'][string]['post']> {
+  const post = AGENT_API_DOCUMENT.paths[path]?.post
+  assert.ok(post !== undefined, `the document declares no POST ${path}`)
+  return post
 }
 
 function assertValid(validate: ValidateFunction, body: unknown, label: string): void {
@@ -467,4 +474,71 @@ test('v1: the live registration answer, the 402 terms and the 201 all validate a
   const draft = await app.inject({ method: 'GET', url: gigUrl(quote.json<AgentTaskPaymentRequired>().task_id), headers: authHeader(agent.token) })
   assertValid(responseValidator(documented(GIGS.get)), draft.json(), `GET ${GIGS.get} as the agent`)
   assert.strictEqual(draft.json<GigDetail>().creator.is_agent, true)
+})
+
+/**
+ * #130 — the bootstrap, proved LIVE.
+ *
+ * Registration has always told a wallet-owning reader to "POST /v1/auth/nonce,
+ * sign the auth message". Neither document defined that operation, so no guard
+ * had ever compared its answer, or the message format it describes, to
+ * anything. A reviewer with a wallet stopped exactly there on 2026-09-07.
+ *
+ * Three claims, in the order a reader meets them: the nonce body is the shape
+ * the document promises; the message template the document PUBLISHES is the one
+ * the shared builder produces (so following the document byte-for-byte produces
+ * a message this server parses); and the verify body it declares is one the
+ * route accepts, refusing on the SIGNATURE rather than on the shape.
+ */
+test('#130: the live nonce, the published auth-message template, and the verify body the route accepts', { skip }, async () => {
+  const app = getApp()
+  await resetDb(app)
+
+  const issued = await app.inject({ method: 'POST', url: apiRoutes.auth.nonce })
+  assert.strictEqual(issued.statusCode, 200, issued.body)
+  assertValid(responseValidator(apiRoutes.auth.nonce, 'post'), issued.json(), `POST ${apiRoutes.auth.nonce}`)
+
+  // The template is published by rendering `buildAuthMessage` over
+  // placeholders, so a real message differs from it only by substitution.
+  // Asserted that way round rather than by restating the format here — a copy
+  // of the format in this file would be the second implementation the shared
+  // builder exists to prevent.
+  const { nonce, issued_at } = issued.json<AuthNonceResponse>()
+  const address = `0x${'ab'.repeat(20)}`
+  const message = buildAuthMessage({
+    address,
+    chain_id: TEST_CHAIN_ID_ALT,
+    uri: 'https://api.example',
+    nonce,
+    issued_at: new Date(issued_at),
+  })
+  const asTemplate = message
+    .replace(address, '{address}')
+    .replace(TEST_CHAIN_ID_ALT, '{chain_id}')
+    .replace('https://api.example', '{api_base_url}')
+    .replace(nonce, '{nonce}')
+    .replace(new Date(issued_at).toISOString(), '{issued_at}')
+  assert.ok(
+    (operation(apiRoutes.auth.nonce).description ?? '').includes(asTemplate),
+    `the published template is not what buildAuthMessage produces:\n--- expected the description to contain ---\n${asTemplate}`,
+  )
+
+  // The declared body, for a wallet no account holds. Under the test harness
+  // the chain adapter is a FAKE and accepts the signature, so the request runs
+  // PAST parsing and past verification and lands on the account lookup: 404
+  // WALLET_NOT_LINKED. That is the stronger assertion of the two available
+  // here — it proves the route read every field of the declared body, where a
+  // wrong schema is refused 400 on a field several steps earlier.
+  //
+  // This is also how the 404 came to be documented at all: written first
+  // expecting the 401 a real adapter gives (observed live, INVALID_SIGNATURE),
+  // this case answered 404 and the operation did not declare it.
+  const refused = await app.inject({
+    method: 'POST',
+    url: apiRoutes.auth.verify,
+    payload: { method: 'wallet', chain_id: TEST_CHAIN_ID_ALT, address, message, signature: `0x${'11'.repeat(65)}` },
+  })
+  assert.strictEqual(refused.statusCode, 404, refused.body)
+  assert.ok(operation(apiRoutes.auth.verify).responses['404'] !== undefined, 'the 404 must stay declared')
+  assertValid(responseValidator(apiRoutes.auth.verify, 'post', '404'), refused.json(), `POST ${apiRoutes.auth.verify} → 404`)
 })

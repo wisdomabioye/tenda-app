@@ -25,10 +25,13 @@ import { AppError } from '@server/lib/errors'
 import type { AppDatabase } from '@server/plugins/db'
 
 const NONCE_BYTES = 32 // 256 bits of entropy.
-const NONCE_TTL_SECONDS = 300
+export const NONCE_TTL_SECONDS = 300
 
-// 256 bits base64url-encoded with no padding = exactly 43 chars.
-const NONCE_FORMAT = /^[A-Za-z0-9_-]{43}$/
+// 256 bits base64url-encoded with no padding = exactly 43 chars. EXPORTED so
+// the agent document publishes this exact pattern rather than a second copy
+// of it (#130) — the validator below and the schema a reader signs against
+// cannot then disagree.
+export const NONCE_FORMAT = /^[A-Za-z0-9_-]{43}$/
 
 export interface IssuedNonce {
   /** base64url, 256 bits, exactly 43 chars. */

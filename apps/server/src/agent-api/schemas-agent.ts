@@ -42,8 +42,14 @@ import { COUNTRY_CODES, chainId, isoInstant, latitude, longitude, rawAmount, uui
 
 const hexAddress: SchemaObject = { type: 'string', description: '0x-hex address (EVM) or base58 (Solana)' }
 
-/** The wallet proof of /v1/auth/verify { method: "wallet" }: a message signed over a /v1/auth/nonce. */
-const WALLET_PROOF: Readonly<Record<keyof LinkWalletBody, SchemaObject>> = {
+/**
+ * The wallet proof of /v1/auth/verify { method: "wallet" }: a message signed
+ * over a /v1/auth/nonce. EXPORTED since #130 so ./schemas-auth documents the
+ * verify body with these same four fields instead of restating them — the two
+ * operations take the identical proof and must not be able to describe it
+ * differently.
+ */
+export const WALLET_PROOF: Readonly<Record<keyof LinkWalletBody, SchemaObject>> = {
   chain_id: chainId,
   address: hexAddress,
   message: { type: 'string', description: 'The auth message verbatim — Chain / URI / Nonce / Issued At lines; the signature is over these exact bytes' },
@@ -215,7 +221,7 @@ const agentTaskCreated = closedFor<AgentTaskCreated>(
     enqueued: {
       type: 'boolean',
       description:
-        'Whether confirmation was queued immediately. False means the queue was momentarily unavailable, NOT that anything was lost: the attempt is recorded either way and the reconciliation sweep confirms it a few minutes later. Poll GET /v1/gigs/{task_id} exactly the same way.',
+        'Whether confirmation was queued immediately. False means the queue was momentarily unavailable, NOT that anything was lost: the attempt is recorded either way and the reconciliation sweep confirms it a few minutes later. Poll GET /v1/gigs/{id} with this `task_id` exactly the same way.',
     },
   },
   ['task_id', 'tx_ref', 'status', 'recorded', 'enqueued'],

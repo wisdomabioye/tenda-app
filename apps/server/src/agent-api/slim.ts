@@ -86,7 +86,17 @@ export const AGENT_SLIM_PATHS = [
   // The task POST answers 401 until one of them has been used; the two reads
   // below it need no bearer at all, which is why they can come after.
   apiRoutes.agent.demoSession,
+  // The nonce comes BEFORE registration because registration cannot be
+  // attempted without it: its body carries a message signed over one (#130).
+  // Leaving it out is what made the wallet door undocumented while the
+  // keyless one worked — the subset described the second step of a flow whose
+  // first step it never defined, and a reviewer stopped there on 2026-09-07.
+  apiRoutes.auth.nonce,
   apiRoutes.agent.register,
+  // Signing an EXISTING agent back in. Last of the doors because it is the
+  // only one a first-time reader does not need, and the only one registration
+  // itself points forward to.
+  apiRoutes.auth.verify,
   // Then the CHOICE, before the post that depends on it: `chain_id` on the task
   // body is shape-checked and NOT enumerated (#126) and `asset` is a bare
   // string, so a document that cannot know which chains a deployment settles on
@@ -109,12 +119,23 @@ export const AGENT_SLIM_PATHS = [
  *
  * It cannot be derived: see the note above on why the reviewers' byte figures
  * contradict each other. What it can do is stop the document drifting back
- * toward the size that caused the complaint. 40,000 sits below the canonical
- * document — and the projection is now very close to it, because #126 spent
- * most of the slack adding GET /v1/platform/chains. Treat the next size failure
- * as a prompt to remove weight, not to raise this: the room that is left is in
- * `x-tenda-stability`, ~2.4 KB of integration policy carried identically in
- * both documents that a bot making its first call does not need (#127).
+ * toward the size that caused the complaint.
+ *
+ * RAISED ONCE, 2026-09-07, from 40,000 (#130). The instruction this comment
+ * used to carry — treat a size failure as a prompt to remove weight, the room
+ * being `x-tenda-stability` — was followed and then spent: #127 took that
+ * ~2.4 KB, and the projection sat ~1.4 KB under the ceiling with nothing left
+ * to trim. What arrived next was not weight but a MISSING step: a reviewer
+ * with a wallet could not authenticate, because registration named
+ * /v1/auth/nonce and /v1/auth/verify and neither document defined them. Two
+ * operations do not fit in 1.4 KB, and no trim creates that room without
+ * deleting something a reader needs.
+ *
+ * So the trade was made the other way round, deliberately and on the record: a
+ * document a few KB larger is a far cheaper failure than a document an agent
+ * cannot start from. The ceiling still binds — it is still checked, and still
+ * pinned below the canonical document by the guard below, which is the
+ * property that stops it going vacuous.
  *
  * The current sizes are DELIBERATELY not spelled out here. Both live figures
  * this comment used to carry went stale within two days of being written, once
@@ -129,7 +150,7 @@ export const AGENT_SLIM_PATHS = [
  * If the document is ever shown to need to be smaller, lower this; it is meant
  * to be moved deliberately and never quietly.
  */
-export const AGENT_SLIM_MAX_BYTES = 40_000
+export const AGENT_SLIM_MAX_BYTES = 46_000
 
 /** Every `$ref` target named anywhere inside a value, at any depth. */
 function refsIn(value: unknown, found: Set<ComponentName>): void {

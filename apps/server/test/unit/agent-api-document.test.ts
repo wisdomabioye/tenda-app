@@ -33,6 +33,7 @@ import {
   AGENT_API_STABILITY,
   AGENT_API_VERSION,
 } from '@server/agent-api/openapi'
+import { AGENT_SLIM_DOCUMENT } from '@server/agent-api/slim'
 import { operationsOf } from '@server/agent-api/paths'
 import { PLATFORM_COMPONENT_NAMES, type SchemaObject } from '@server/agent-api/schema-types'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
@@ -83,9 +84,17 @@ test('the public reads are GET-only and every agent write POST-only, all spelled
   // Writes that take a body. The demo session is a POST too, but it takes NONE
   // — that is its whole shape (#108) — so it is asserted separately below
   // rather than weakened into this list.
-  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks]
+  // `/v1/auth/verify` joins them since #130: it takes the same wallet proof and
+  // is how an existing agent signs back in, which registration has always told
+  // readers to use.
+  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks, apiRoutes.auth.verify]
   const BODYLESS = [apiRoutes.agent.demoSession]
-  assert.deepStrictEqual(Object.keys(paths).sort(), [...READS, ...WRITES, ...BODYLESS].sort())
+  // The nonce (#130) is a POST that takes nothing either, but it is NOT a door:
+  // it hands out something to sign, not a bearer, and it has no 503 because a
+  // deployment cannot be configured without it. Its own list rather than a
+  // weakened BODYLESS — the 503 assertion below is load-bearing for the demo.
+  const BOOTSTRAP = [apiRoutes.auth.nonce]
+  assert.deepStrictEqual(Object.keys(paths).sort(), [...READS, ...WRITES, ...BODYLESS, ...BOOTSTRAP].sort())
   for (const path of READS) {
     const item = paths[path]
     assert.deepStrictEqual(Object.keys(item), ['get'], `${path} must be read-only`)
@@ -109,6 +118,13 @@ test('the public reads are GET-only and every agent write POST-only, all spelled
     assert.strictEqual(item.post?.security, undefined, `${path} is anonymous — it is how a bearer is obtained`)
     assert.ok(item.post?.responses['200'] !== undefined, `${path} documents its 200`)
     assert.ok(item.post?.responses['503'] !== undefined, `${path} documents the unconfigured deployment`)
+  }
+  for (const path of BOOTSTRAP) {
+    const item = paths[path]
+    assert.deepStrictEqual(Object.keys(item), ['post'], `${path} must be write-only`)
+    assert.strictEqual(item.post?.requestBody, undefined, `${path} must take no body`)
+    assert.strictEqual(item.post?.security, undefined, `${path} is anonymous — it precedes having a bearer`)
+    assert.ok(item.post?.responses['200'] !== undefined, `${path} documents its 200`)
   }
   // The one-shot is bearer-scoped and documents BOTH halves of the x402 round trip.
   const tasks = paths[apiRoutes.agent.tasks].post
@@ -407,4 +423,96 @@ test('the schemas compile under a STRICT validator and the closure bites', () =>
   assert.strictEqual(validate({ ...user, handle: '@ada' }), false)
   // A wrong type on a documented key is too.
   assert.strictEqual(validate({ ...user, review_score: 4.8 }), false)
+})
+
+/**
+ * THE GUARD THIS DIRECTORY WAS MISSING (#130).
+ *
+ * Every earlier check asked whether the paths the document DECLARES are
+ * correct. None asked whether the paths it TALKS ABOUT exist. So
+ * `/v1/agent/register` could instruct a reader to "POST /v1/auth/nonce" for
+ * months while no document defined that operation, and every guard stayed
+ * green — the sentence is just a string, and nothing compared it to
+ * `paths`. A reviewer with a wallet found it on 2026-09-07 by trying to
+ * follow it, which is the only way it could have been found.
+ *
+ * The rule: a `/v1/...` path spoken in prose is a promise the reader can
+ * navigate to. Either define it, or do not name it.
+ *
+ * The two documents are checked SEPARATELY and against their own `paths`,
+ * because the subset legitimately carries fewer: a sentence that resolves in
+ * the canonical document can still dangle in the projection, which is exactly
+ * the shape a projection introduces and the reason one list would hide it.
+ */
+const PROSE_PATH = /\/v1\/[A-Za-z0-9_\-{}/]*[A-Za-z0-9_}](?:\.[A-Za-z0-9]+)?/g
+
+/**
+ * Paths a document may NAME without defining, each with the reason it is
+ * allowed to. Deliberately tiny and deliberately explicit: an exemption list
+ * that grows silently is how the defect this test exists for came back.
+ */
+const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
+  [AGENT_API_DOCUMENT_PATH]: 'the OTHER document — a pointer to it is the one outward reference the subset is allowed',
+  '/v1/escrows': 'named once, to say which fields AgentTaskBody is composed of — an explanation, not a call to make',
+  '/v1/gigs': 'same sentence, same reason',
+}
+
+for (const [label, doc] of [
+  ['canonical', AGENT_API_DOCUMENT],
+  ['slim', AGENT_SLIM_DOCUMENT],
+] as const) {
+  test(`${label} document: every path named in prose is one it defines`, () => {
+    const defined = new Set(Object.keys(doc.paths))
+    const dangling = new Map<string, string>()
+    // Walk the document as TEXT, so a path named anywhere — an operation
+    // description, a schema description, a stability line, a parameter — is
+    // caught. Restricting this to descriptions is how a variant of the same
+    // defect survives in a place nobody thought to look.
+    const walk = (node: unknown, where: string): void => {
+      if (typeof node === 'string') {
+        // `/v1/agent/*` names a FAMILY of paths, not one of them — the
+        // stability guarantees speak about the whole write surface that way.
+        // Stripped before matching rather than exempted after, because the
+        // exemption list is for real paths a document may name, and a
+        // wildcard is not a path a reader could navigate to.
+        const prose = node.replace(/\/v1\/[A-Za-z0-9_\-/]*\/\*/g, '')
+        for (const named of prose.match(PROSE_PATH) ?? []) {
+          if (defined.has(named)) continue
+          if (named in NAMEABLE_WITHOUT_DEFINING) continue
+          dangling.set(named, where)
+        }
+        return
+      }
+      if (Array.isArray(node)) {
+        node.forEach((item, i) => { walk(item, `${where}[${i}]`) })
+        return
+      }
+      if (typeof node === 'object' && node !== null) {
+        for (const [key, value] of Object.entries(node)) walk(value, `${where}.${key}`)
+      }
+    }
+    walk(doc, '$')
+
+    assert.deepStrictEqual(
+      [...dangling.entries()],
+      [],
+      `the ${label} document sends a reader to paths it does not define: ` +
+        [...dangling].map(([path, where]) => `${path} (at ${where})`).join(', '),
+    )
+  })
+}
+
+test('the bootstrap a wallet-owning agent needs is in BOTH documents', () => {
+  // The narrow, behavioural half of the guard above: not merely "no dangling
+  // reference" — which deleting the sentence would also satisfy — but that the
+  // two operations are actually there. A future trim that drops them to win
+  // back bytes fails here rather than silently restoring the 2026-09-07 wall.
+  for (const [label, doc] of [
+    ['canonical', AGENT_API_DOCUMENT],
+    ['slim', AGENT_SLIM_DOCUMENT],
+  ] as const) {
+    for (const path of [apiRoutes.auth.nonce, apiRoutes.auth.verify]) {
+      assert.ok(doc.paths[path]?.post !== undefined, `${label} document lost POST ${path}`)
+    }
+  }
 })
