@@ -350,6 +350,13 @@ test('a CONFIGURED chain is advertised even where the manifest still calls it pl
   // passed because the fixture happened to omit those chains, which is a
   // fixture measuring itself.
   //
+  // Since #145 the state this test exercises — configured while the manifest
+  // still says planned — cannot BOOT: the secrets loader refuses it and names
+  // the chain. The card's rule stands (read the deployment, never the
+  // manifest); what changed is that the two are now made to agree upstream,
+  // so this case is the card's contract under a fixture, not a production
+  // state it will meet.
+  //
   // And the rule was wrong anyway. `SECRET_SCHEMA.eip155` requires ESCROW_ADDR,
   // so a chain cannot be configured at all unless a contract is deployed there
   // to point at. A deployment that HAS those secrets is therefore better

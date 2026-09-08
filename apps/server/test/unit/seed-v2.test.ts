@@ -20,11 +20,11 @@ const RPC = 'https://rpc.example'
 
 const solDevnet = (extra: NodeJS.ProcessEnv = {}) =>
   loadChainSecrets({ CHAIN_SOLANA_DEVNET_RPC_URL: RPC, CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL, ...extra })
-const baseMainnet = () =>
+const baseSepolia = () =>
   loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+    CHAIN_EIP155_84532_RPC_URL: RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
   })
 const celoMainnet = () =>
   loadChainSecrets({
@@ -81,15 +81,15 @@ test('missing USDC mint → USDC_SOL skipped with a named warning, never silent'
 })
 
 test('BASE: chain + manifest USDC + native ETH, treasury/escrow from secrets', () => {
-  const rows = buildSeedRows(baseMainnet())
-  const base = rows.chains.find((c) => c.id === 'eip155:8453')
+  const rows = buildSeedRows(baseSepolia())
+  const base = rows.chains.find((c) => c.id === 'eip155:84532')
   assert.ok(base)
   assert.strictEqual(base.escrow_program, EVM_ESCROW)
   assert.strictEqual(base.treasury_address, EVM_TREASURY)
-  assert.strictEqual(base.min_confirmations, 2) // manifest: 2 for an L2 (was 5)
+  assert.strictEqual(base.min_confirmations, 1) // manifest: 1 on the Sepolia L2
   const usdc = rows.assets.find((a) => a.id === 'USDC_BASE')
   assert.ok(usdc)
-  assert.strictEqual(usdc.token_address, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
+  assert.strictEqual(usdc.token_address, '0x036CbD53842c5426634e7929541eC2318f3dCF7e')
   assert.ok(usdc.decimals === 6 && usdc.is_stable === true)
   const eth = rows.assets.find((a) => a.id === 'ETH_BASE')
   assert.ok(eth && eth.token_address === null && eth.decimals === 18)
@@ -115,12 +115,12 @@ test('different-family chains seed together', () => {
       CHAIN_SOLANA_DEVNET_RPC_URL: RPC,
       CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL,
       CHAIN_SOLANA_DEVNET_USDC_MINT: MINT,
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
     }),
   )
-  assert.deepStrictEqual(rows.chains.map((c) => c.id).sort(), ['eip155:8453', 'solana:devnet'])
+  assert.deepStrictEqual(rows.chains.map((c) => c.id).sort(), ['eip155:84532', 'solana:devnet'])
 })
 
 test('fiat providers are always seeded', () => {
@@ -184,14 +184,14 @@ test('the seed emits a chain_contracts row per chain, carrying the deploy block'
   // superseded contract strands its escrows.
   const rows = buildSeedRows(
     loadChainSecrets({
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
-      CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_ESCROW_DEPLOY_BLOCK: '44318123',
     }),
   )
   assert.deepStrictEqual(rows.chain_contracts, [
-    { chain_id: 'eip155:8453', address: EVM_ESCROW.toLowerCase(), deploy_block: 44_318_123 },
+    { chain_id: 'eip155:84532', address: EVM_ESCROW.toLowerCase(), deploy_block: 44_318_123 },
   ])
 })
 
@@ -202,9 +202,9 @@ test('the seed NORMALISES the recorded address, whatever casing env carries', ()
   const checksummed = '0x954FC8a4908f49B7499504190ab11d925dEE490b'
   const rows = buildSeedRows(
     loadChainSecrets({
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: checksummed,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: checksummed,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
     }),
   )
   assert.strictEqual(rows.chain_contracts[0].address, checksummed.toLowerCase())
@@ -223,7 +223,7 @@ test('the recorded address always matches the chain row it accompanies', () => {
   // One source (`escrowAddressOf`) feeds both, and they must not be able to
   // drift: `chains.escrow_program` says CURRENT, `chain_contracts` says LEGITIMATE,
   // and the current contract must always be legitimate.
-  const rows = buildSeedRows(baseMainnet())
+  const rows = buildSeedRows(baseSepolia())
   for (const chain of rows.chains) {
     const recorded = rows.chain_contracts.filter((r) => r.chain_id === chain.id)
     assert.strictEqual(recorded.length, 1)

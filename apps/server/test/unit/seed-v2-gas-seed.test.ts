@@ -93,13 +93,13 @@ test('a seed key on a chain that declares no amount funds nothing and warns noth
   // reader to ignore the line that matters.
   const rows = buildSeedRows(
     loadChainSecrets({
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
-      CHAIN_EIP155_8453_GAS_SEED_KEY: `0x${'cd'.repeat(32)}`,
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_GAS_SEED_KEY: `0x${'cd'.repeat(32)}`,
     }),
   )
-  const c = rows.chains.find((row) => row.id === 'eip155:8453')
+  const c = rows.chains.find((row) => row.id === 'eip155:84532')
   assert.ok(c)
   assert.strictEqual(c.gas_seed_amount_raw, null)
   assert.strictEqual(c.gas_seed_wallet_address, null)

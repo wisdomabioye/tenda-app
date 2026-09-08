@@ -21,27 +21,27 @@ function solanaDevnetEnv(): NodeJS.ProcessEnv {
   }
 }
 
-function baseMainnetEnv(): NodeJS.ProcessEnv {
+function baseSepoliaEnv(): NodeJS.ProcessEnv {
   return {
-    CHAIN_EIP155_8453_RPC_URL: 'https://base-sepolia.example/v2/key',
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ADDR,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_ADDR,
+    CHAIN_EIP155_84532_RPC_URL: 'https://base-sepolia.example/v2/key',
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ADDR,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_ADDR,
   }
 }
 
 test('relayerKey (#18): an EVM key is captured when well-formed, refused by name when not', () => {
   const key = `0x${'ab'.repeat(32)}`
-  const ok = loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RELAYER_KEY: key })
-  const secret = ok.get('eip155:8453')
+  const ok = loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_RELAYER_KEY: key })
+  const secret = ok.get('eip155:84532')
   assert.equal(secret?.namespace === 'eip155' ? secret.relayerKey : undefined, key)
   // Absent → undefined, the adapter then offers no relay surface.
-  const none = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  const none = loadChainSecrets(baseSepoliaEnv()).get('eip155:84532')
   assert.equal(none?.namespace === 'eip155' ? none.relayerKey : 'wrong-ns', undefined)
   // An address, a short key, a missing 0x: each is a boot error naming the key.
   for (const bad of [EVM_ADDR, `0x${'ab'.repeat(31)}`, 'ab'.repeat(32)]) {
     assert.throws(
-      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RELAYER_KEY: bad }),
-      /CHAIN_EIP155_8453_RELAYER_KEY/,
+      () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_RELAYER_KEY: bad }),
+      /CHAIN_EIP155_84532_RELAYER_KEY/,
     )
   }
 })
@@ -64,24 +64,24 @@ test('relayerKey (#18): the Solana key rides the solana shape when it is a 64-by
 test('sweepEnabled (#43): OFF unless asked for, and a relayer key is not asking', () => {
   const key = `0x${'ab'.repeat(32)}`
   const evm = (env: NodeJS.ProcessEnv) => {
-    const s = loadChainSecrets(env).get('eip155:8453')
+    const s = loadChainSecrets(env).get('eip155:84532')
     return s?.namespace === 'eip155' ? s : undefined
   }
 
   // The case the flag exists for: a chain fully set up to relay for agents,
   // which must NOT thereby be spending that float on sweeps.
-  assert.equal(evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RELAYER_KEY: key })?.sweepEnabled, false)
+  assert.equal(evm({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_RELAYER_KEY: key })?.sweepEnabled, false)
   // No key, no flag, no chain-level anything: still false, never undefined —
   // the consumer reads a decision here, not the absence of one.
-  assert.equal(evm(baseMainnetEnv())?.sweepEnabled, false)
+  assert.equal(evm(baseSepoliaEnv())?.sweepEnabled, false)
   // Explicitly declined reads the same as never mentioned.
   assert.equal(
-    evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: 'false' })?.sweepEnabled,
+    evm({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_SWEEP_ENABLED: 'false' })?.sweepEnabled,
     false,
   )
   // And on.
   assert.equal(
-    evm({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: 'true' })?.sweepEnabled,
+    evm({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_SWEEP_ENABLED: 'true' })?.sweepEnabled,
     true,
   )
 })
@@ -92,8 +92,8 @@ test('sweepEnabled (#43): anything that is not the two literals is a boot error 
   // these would silently mean `false` under a truthiness check.
   for (const bad of ['yes', 'True', 'TRUE', '1', 'on', 'enabled']) {
     assert.throws(
-      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: bad }),
-      /CHAIN_EIP155_8453_SWEEP_ENABLED/,
+      () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_SWEEP_ENABLED: bad }),
+      /CHAIN_EIP155_84532_SWEEP_ENABLED/,
       `'${bad}' must be refused by name`,
     )
   }
@@ -106,7 +106,7 @@ test('sweepEnabled (#43): the shared env boundary still owns whitespace and empt
   // Asserted here because a future strictness pass could plausibly break either
   // and both are load-bearing for an operator editing a .env by hand.
   const read = (v: string) => {
-    const s = loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_SWEEP_ENABLED: v }).get('eip155:8453')
+    const s = loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_SWEEP_ENABLED: v }).get('eip155:84532')
     return s?.namespace === 'eip155' ? s.sweepEnabled : 'wrong-ns'
   }
   assert.equal(read(' true '), true, 'surrounding whitespace is trimmed, not rejected')
@@ -116,18 +116,18 @@ test('sweepEnabled (#43): the shared env boundary still owns whitespace and empt
 
 test('gasSeedKey (#53a): the EVM seed key is captured when well-formed, refused by name when not', () => {
   const key = `0x${'cd'.repeat(32)}`
-  const ok = loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_GAS_SEED_KEY: key })
-  const secret = ok.get('eip155:8453')
+  const ok = loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_GAS_SEED_KEY: key })
+  const secret = ok.get('eip155:84532')
   assert.equal(secret?.namespace === 'eip155' ? secret.gasSeedKey : undefined, key)
   // Absent → undefined, and the chain's gas columns then seed NULL.
-  const none = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  const none = loadChainSecrets(baseSepoliaEnv()).get('eip155:84532')
   assert.equal(none?.namespace === 'eip155' ? none.gasSeedKey : 'wrong-ns', undefined)
   // Same evmKey shape as the relayer key: an address, a short key, a bare hex
   // string are each a boot error naming THIS variable, not the other one.
   for (const bad of [EVM_ADDR, `0x${'cd'.repeat(31)}`, 'cd'.repeat(32)]) {
     assert.throws(
-      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_GAS_SEED_KEY: bad }),
-      /CHAIN_EIP155_8453_GAS_SEED_KEY/,
+      () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_GAS_SEED_KEY: bad }),
+      /CHAIN_EIP155_84532_GAS_SEED_KEY/,
     )
   }
 })
@@ -139,18 +139,18 @@ test('gasSeedKey (#53a): seed and relayer floats are separate keys, never one wa
   const relayer = `0x${'ab'.repeat(32)}`
   const seed = `0x${'cd'.repeat(32)}`
   const both = loadChainSecrets({
-    ...baseMainnetEnv(),
-    CHAIN_EIP155_8453_RELAYER_KEY: relayer,
-    CHAIN_EIP155_8453_GAS_SEED_KEY: seed,
-  }).get('eip155:8453')
+    ...baseSepoliaEnv(),
+    CHAIN_EIP155_84532_RELAYER_KEY: relayer,
+    CHAIN_EIP155_84532_GAS_SEED_KEY: seed,
+  }).get('eip155:84532')
   assert.ok(both?.namespace === 'eip155')
   assert.equal(both.relayerKey, relayer)
   assert.equal(both.gasSeedKey, seed)
 
   // Only the relayer configured: the seed stays dormant rather than inheriting.
   const relayOnly = loadChainSecrets({
-    ...baseMainnetEnv(),
-    CHAIN_EIP155_8453_RELAYER_KEY: relayer,
-  }).get('eip155:8453')
+    ...baseSepoliaEnv(),
+    CHAIN_EIP155_84532_RELAYER_KEY: relayer,
+  }).get('eip155:84532')
   assert.equal(relayOnly?.namespace === 'eip155' ? relayOnly.gasSeedKey : 'wrong-ns', undefined)
 })
