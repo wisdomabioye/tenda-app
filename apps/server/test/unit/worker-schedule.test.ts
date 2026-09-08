@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { REPEATABLES, WORKER_CONCURRENCY } from '@server/plugins/workers'
+import { RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
 import type { JobName } from '@server/plugins/queue'
 
 const byName = new Map(REPEATABLES.map((r) => [r.name as string, r]))
@@ -63,6 +64,10 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   assert.strictEqual(byName.get('expire-applications')?.every_ms, 60_000)
   assert.strictEqual(byName.get('expire-fiat-quotes')?.every_ms, 60_000)
   assert.strictEqual(byName.get('reconcile')?.every_ms, 5 * 60_000)
+  // The SAME constant the Agent API document states the sweep cadence from —
+  // a schedule edited here alone would leave the document promising a cadence
+  // the deployment no longer runs at.
+  assert.strictEqual(byName.get('reconcile')?.every_ms, RECONCILE_INTERVAL_MS)
   assert.strictEqual(byName.get('reconcile-fiat')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('update-price-stats')?.every_ms, 24 * 3_600_000)
   // #43 sweeps deliberately slower than the notices it follows: nothing becomes

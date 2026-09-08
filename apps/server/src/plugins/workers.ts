@@ -32,6 +32,7 @@ import {
   type JobPayload,
 } from '@server/plugins/queue'
 import { buildProcessors } from '@server/workers/processors'
+import { RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
 
 /**
  * Per-queue worker parallelism. `Record<JobName, number>` so a new queue cannot
@@ -107,7 +108,7 @@ export const REPEATABLES = [
   // minute (the first-refusal delay is a day), and every tick that finds work
   // spends real gas.
   repeatable({ name: 'sweep-escrows', every_ms: 15 * 60_000, payload: { tick_id: 'cron' } }),
-  repeatable({ name: 'reconcile', every_ms: 5 * 60_000, payload: {} }),
+  repeatable({ name: 'reconcile', every_ms: RECONCILE_INTERVAL_MS, payload: {} }),
   repeatable({ name: 'reconcile-fiat', every_ms: 5 * 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'expire-fiat-quotes', every_ms: 60_000, payload: { tick_id: 'cron' } }),
   // Nightly rollup (stage-6): grounds the moderation price-sanity prompts.

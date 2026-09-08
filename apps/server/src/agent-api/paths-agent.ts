@@ -10,7 +10,7 @@
  */
 import { X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes } from '@tenda/shared'
 import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
-import { RECONCILE_GIVE_UP_MS } from '@server/jobs/reconcile-escrows'
+import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
 import { ref } from './schema-types'
 
@@ -28,9 +28,10 @@ const BEARER = [{ bearer: [] as const }] as const
  */
 const LIFECYCLE_AFTER_201 =
   `Poll no faster than every ${EVM_POLL_INTERVAL_MS / 1000} s, the cadence the server's own EVM listener polls at. ` +
-  `The relayed create can FAIL (the chain rejects it) or TIME OUT (not seen on chain within ${RECONCILE_GIVE_UP_MS / 60_000} minutes of the resend); ` +
+  `The relayed create can FAIL (the chain rejects it) or TIME OUT (not seen on chain within ${RECONCILE_GIVE_UP_MS / 60_000} minutes of the resend, ` +
+  `stamped by a sweep that runs every ${RECONCILE_INTERVAL_MS / 60_000} minutes — so allow up to ${(RECONCILE_GIVE_UP_MS + RECONCILE_INTERVAL_MS) / 60_000}); ` +
   `in both cases the task stays status draft and becomes resendable: the SAME body WITHOUT ${X_PAYMENT_HEADER} answers a fresh 402 with fresh terms, ` +
-  `so a draft still reading draft past that horizon means resend, not wait. A resend WHILE the create is in flight is 409. ` +
+  `so a draft still reading draft past that horizon means resend, not wait. A resend WHILE the create is in flight is 409 — inside the horizon that means wait, past it retry after the next sweep. ` +
   `The terms themselves lapse first — see accepts[0].expires_at_unix.`
 
 const paymentHeader: ParameterObject = {

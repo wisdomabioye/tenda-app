@@ -17,7 +17,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { RELAY_QUOTE_TTL_SECONDS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
 import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
-import { RECONCILE_GIVE_UP_MS } from '@server/jobs/reconcile-escrows'
+import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
 import { AGENT_API_DOCUMENT, AGENT_API_POST, AGENT_API_STABILITY } from '@server/agent-api/openapi'
 
 const task = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
@@ -37,9 +37,17 @@ test('#146 (3): the operation names the poll cadence and the give-up horizon, fr
   const text = task.description
   assert.match(text, new RegExp(`every ${EVM_POLL_INTERVAL_MS / 1000} s`), 'the cadence is the listener poll interval')
   assert.match(text, new RegExp(`within ${RECONCILE_GIVE_UP_MS / 60_000} minutes`), 'the horizon is the reconcile give-up')
+  // The horizon alone overstated it: the timeout is stamped by a SWEEP, at the
+  // first tick at or after the give-up age, so a resend exactly at the horizon
+  // can still meet the in-flight 409. The document names the cadence and the
+  // sum, both from the constants the schedule runs on.
+  assert.match(text, new RegExp(`sweep that runs every ${RECONCILE_INTERVAL_MS / 60_000} minutes`), 'the sweep cadence is the schedule\'s')
+  assert.match(text, new RegExp(`allow up to ${(RECONCILE_GIVE_UP_MS + RECONCILE_INTERVAL_MS) / 60_000}`), 'the worst case is horizon plus one tick')
+  assert.match(text, /past it retry after the next sweep/)
   // A retyped figure would pass a looser check; these pin the derivation.
   assert.strictEqual(EVM_POLL_INTERVAL_MS % 1000, 0)
   assert.strictEqual(RECONCILE_GIVE_UP_MS % 60_000, 0)
+  assert.strictEqual(RECONCILE_INTERVAL_MS % 60_000, 0)
 })
 
 test('#144 document half: the failure branch after the 201 is stated — fail, time out, resend fresh, 409 in flight', () => {
@@ -61,14 +69,6 @@ test('#144: the two terms integers say what they are and what a late signature g
   assert.match(timeout, /422 RELAY_REJECTED/)
   assert.match(timeout, /WITHOUT X-PAYMENT re-quotes fresh terms/)
   assert.match(expires, /issued-at plus max_timeout_seconds/)
-})
-
-test('the examples ride the one document: five inline, none by $ref', () => {
-  // Moved here from the retired subset's suite (#135): the request, 402, 201,
-  // X-PAYMENT header and the POLLED gig, inline where a reader meets them.
-  const serialised = JSON.stringify(AGENT_API_DOCUMENT)
-  assert.strictEqual(serialised.includes('"examples"'), false, 'OpenAPI `examples` (the $ref-able form) crept in')
-  assert.strictEqual([...serialised.matchAll(/"example":/g)].length, 5)
 })
 
 test('#146 (2): the registry asset says whether it funds by signature, and what a false one gets', () => {

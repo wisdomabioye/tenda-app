@@ -24,6 +24,13 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 
 // ---------- policy constants ---------------------------------------------
 
+/**
+ * How often the sweep runs (plugins/workers.ts schedules it from this). Named
+ * here, beside the horizon it enforces, because the Agent API document states
+ * both: a timeout is stamped at the first tick AT OR AFTER the give-up age, so
+ * "resendable" arrives up to one tick later than the horizon alone says.
+ */
+export const RECONCILE_INTERVAL_MS = 5 * 60_000
 /** Don't probe attempts younger than this, the normal path is still live. */
 export const RECONCILE_MIN_AGE_MS = 5 * 60_000
 /** Unknown on chain past this age → failed_at = TIMEOUT (blockhash expired). */
