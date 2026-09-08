@@ -18,8 +18,10 @@ import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-in
 
 /**
  * Mid-rate for any exchange-tradable asset, priced via CoinGecko (per-asset
- * coin id from ASSET_META). Stablecoins resolve to ~1 USD in the target fiat;
- * volatiles (SOL/ETH/CELO) to their live price.
+ * coin id from ASSET_META). Every asset — stable or volatile — resolves to its
+ * own live quote: a dollar stable lands near 1 USD in the target fiat, a naira
+ * stable (cNGN) near 1 NGN, and SOL/ETH/CELO at their market price. No peg is
+ * assumed anywhere on this path.
  *
  * DIRECT FIRST, THEN CROSS THROUGH USD. CoinGecko prices in ~60 fiats and two
  * of our payout currencies are not among them — it returns no `ghs` and no

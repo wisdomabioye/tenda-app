@@ -130,9 +130,11 @@ test('findChain returns undefined on unknown without throwing', () => {
 })
 
 test('gigAssetByChain resolves a USDC stablecoin wherever a chain carries gigs, null when unknown', () => {
-  // Not "every chain": a chain with no verified stablecoin ships exchange-only
-  // (0G mainnet, below) and gigAssetByChain answers null for it — the state the
-  // server's assertGigAsset 422s and the composers' pickers filter out. What
+  // Not "every chain" by construction: a chain with no verified stablecoin
+  // would ship exchange-only and gigAssetByChain would answer null for it —
+  // the state the server's assertGigAsset 422s and the composers' pickers
+  // filter out. No manifest chain is in that state today (the gig-less list
+  // below is pinned EMPTY since 0G mainnet gained USDC.e on 2026-08-27). What
   // stays unconditional is the POLICY: where a gig asset exists, it is USDC.
   for (const entry of CHAIN_MANIFEST) {
     const gigAsset = gigAssetByChain(entry.id)
@@ -211,7 +213,7 @@ test('exchangeAssetsByChain returns USDC + the native token per chain; empty for
     const native = entry.assets.find(isNativeAsset)
     assert.ok(native !== undefined && ids.includes(native.id), `${entry.id} native must be exchange-tradable`)
     // Where the chain carries a gig USDC, it is also exchange-tradable (roles
-    // overlap); a gig-less chain (0G mainnet) has nothing to overlap.
+    // overlap); a gig-less chain — none today — would have nothing to overlap.
     const gigAsset = gigAssetByChain(entry.id)
     assert.ok(gigAsset === null || ids.includes(gigAsset), `${entry.id} USDC must be exchange-tradable`)
   }
