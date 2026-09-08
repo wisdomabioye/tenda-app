@@ -21,10 +21,11 @@
  * reviewers a round runs concurrently, so no live session is evicted, and
  * small enough to bound the table.
  */
-import { and, desc, eq, inArray, isNull, notExists } from 'drizzle-orm'
+import { and, desc, eq, inArray, notExists } from 'drizzle-orm'
 import { escrows, tx_attempts, user_wallets } from '@tenda/shared/db/schema'
 import type { AppDatabase } from '@server/plugins/db'
 import { normalizeWalletAddress } from '@server/lib/auth/wallet-address'
+import { pendingCreateAttempt } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'
 
 export const DEMO_DRAFT_CAP_DEFAULT = 20
 
@@ -52,21 +53,13 @@ export async function isDemoAccount(
   return held !== undefined
 }
 
-/** A draft whose create is awaiting confirmation is not abandoned; it is never rung out. */
+/**
+ * A draft whose create is awaiting confirmation is not abandoned; it is never
+ * rung out. The clauses are the discard route's own (`pendingCreateAttempt`),
+ * correlated on the escrow column so one SELECT answers for every draft.
+ */
 function noCreateInFlight(db: AppDatabase) {
-  return notExists(
-    db
-      .select({ id: tx_attempts.id })
-      .from(tx_attempts)
-      .where(
-        and(
-          eq(tx_attempts.escrow_id, escrows.id),
-          eq(tx_attempts.action, 'create'),
-          isNull(tx_attempts.confirmed_at),
-          isNull(tx_attempts.failed_at),
-        ),
-      ),
-  )
+  return notExists(db.select({ id: tx_attempts.id }).from(tx_attempts).where(pendingCreateAttempt(escrows.id)))
 }
 
 /**
