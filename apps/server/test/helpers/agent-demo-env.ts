@@ -20,3 +20,11 @@
 export const DEMO_ADDRESS = '0xD0d0D0d0D0d0D0d0D0d0D0d0D0d0D0d0D0d0D0d0'
 
 process.env.AGENT_DEMO_ADDRESS = DEMO_ADDRESS
+
+/**
+ * The draft ring's cap (#147), set LOW so a suite can fill it in a handful of
+ * posts. Every demo suite shares it, since config is fixed per process; none
+ * of them minted more than one draft per case before the ring existed.
+ */
+export const DEMO_DRAFT_CAP = 3
+process.env.AGENT_DEMO_DRAFT_CAP = String(DEMO_DRAFT_CAP)

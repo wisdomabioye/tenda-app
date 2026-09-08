@@ -9,6 +9,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
+import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
 import { knownSlackEnvKeys, slackEnvKey } from '@server/lib/slack'
 import { buildOtpSenders, type OtpSenderHost } from '@server/lib/onboarding-deps'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
@@ -40,6 +41,7 @@ const OPTIONAL = [
   'OPENROUTER_MODERATION_MODEL',
   'OPENROUTER_MODERATION_TIMEOUT_MS',
   'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS',
+  'AGENT_DEMO_DRAFT_CAP',
 ]
 
 beforeEach(() => {
@@ -100,6 +102,16 @@ test('OpenRouter moderation defaults are bounded and independently configurable'
   assert.strictEqual(custom.OPENROUTER_MODERATION_MODEL, 'anthropic/claude-3.5-haiku')
   assert.strictEqual(custom.OPENROUTER_MODERATION_TIMEOUT_MS, 4_500)
   assert.strictEqual(custom.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS, 120)
+})
+
+test('AGENT_DEMO_DRAFT_CAP (#147): defaults to the ring module\'s constant, takes a positive integer, refuses anything else by name', () => {
+  assert.strictEqual(loadConfig().AGENT_DEMO_DRAFT_CAP, DEMO_DRAFT_CAP_DEFAULT)
+  process.env.AGENT_DEMO_DRAFT_CAP = '7'
+  assert.strictEqual(loadConfig().AGENT_DEMO_DRAFT_CAP, 7)
+  for (const bad of ['0', '-1', '2.5', 'many']) {
+    process.env.AGENT_DEMO_DRAFT_CAP = bad
+    assert.match(loadError().message, /AGENT_DEMO_DRAFT_CAP must be a positive integer/, `'${bad}' must be refused`)
+  }
 })
 
 test('invalid OpenRouter numeric settings fail boot together', () => {

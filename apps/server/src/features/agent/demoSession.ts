@@ -29,6 +29,10 @@
  *   - It cannot lock itself out. The pending-gig cap counts gigs a worker has
  *     ACCEPTED or SUBMITTED and excludes drafts outright, so a shared account
  *     accumulating demo drafts never starts refusing the next reviewer.
+ *   - It cannot fill the table either (#147). Nothing deletes drafts, so
+ *     every review run used to leave one forever; the account now keeps a
+ *     RING of its most recent unfunded drafts (`AGENT_DEMO_DRAFT_CAP`), the
+ *     oldest going when a new one is minted — ./demoDraftRing.
  */
 import { ErrorCode, apiRoutes, isEvmAddress } from '@tenda/shared'
 import type { FastifyInstance } from 'fastify'

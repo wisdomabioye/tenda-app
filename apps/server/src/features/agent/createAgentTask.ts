@@ -18,6 +18,7 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { ErrorCode, type AgentTaskBody, type RelayPaymentPayload } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
+import { getConfig } from '@server/config'
 import { getPlatformConfig } from '@server/lib/platform'
 import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { assertCallerWallet, readSignerPreference } from '@server/lib/escrow'
@@ -26,6 +27,7 @@ import { validateCreateEscrow } from '@server/features/escrows/creation/validate
 import { findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
 import { attachGigDetails } from '@server/features/gigs/attachGigDetails'
 import { relayDraftFunding, type RelayDraftOutcome } from '@server/features/escrows/funding/relayDraftFunding'
+import { evictDraftsBeyond, isDemoAccount } from './demoDraftRing'
 
 export type AgentTaskOutcome = RelayDraftOutcome & { task_id: string }
 
@@ -91,6 +93,15 @@ export async function createAgentTask(
   // Find the draft this operation already minted (the resend), or insert it.
   let escrow = await findReplayedDraft(fastify.db, identity)
   if (escrow === null) {
+    // A NEW draft, and only then: the shared demo account keeps a ring of its
+    // most recent unfunded drafts (#147), so the oldest beyond the cap go
+    // before this one is minted. A resend lands on the replayed draft above
+    // and rings nothing out. Ordinary agents are untouched.
+    const config = getConfig()
+    if (await isDemoAccount(fastify.db, user_id, config.AGENT_DEMO_ADDRESS)) {
+      const evicted = await evictDraftsBeyond(fastify.db, { user_id, keep: config.AGENT_DEMO_DRAFT_CAP - 1 })
+      if (evicted > 0) args.log.info({ user_id, evicted, cap: config.AGENT_DEMO_DRAFT_CAP }, 'demo draft ring: oldest drafts discarded')
+    }
     const { unassign_window_seconds } = await getPlatformConfig(fastify.db)
     escrow = (
       await insertDraft(fastify.db, {

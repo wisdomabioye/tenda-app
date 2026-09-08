@@ -1,6 +1,7 @@
 import { slackConfigProblems } from '@server/lib/slack'
-import { optionalEnv, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
 import { moderationConfig } from '@server/features/moderation/config'
+import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
@@ -112,6 +113,8 @@ export interface Config {
   APPLE_OAUTH_CLIENT_IDS: string[] | null
   /** Demo agent's EVM address (#108); null = no demo, the route 503s. An ADDRESS, never a key — features/agent/demoSession.ts has the argument. */
   AGENT_DEMO_ADDRESS: string | null
+  /** Unfunded drafts the demo account keeps before the oldest is rung out (#147; features/agent/demoDraftRing.ts). */
+  AGENT_DEMO_DRAFT_CAP: number
 }
 
 /** Parse a comma-separated env var into a trimmed non-empty list, or null. */
@@ -121,19 +124,8 @@ function csvEnv(raw: string | undefined): string[] | null {
   return items.length > 0 ? items : null
 }
 
-function positiveIntegerEnv(key: string, fallback: number): number {
-  const raw = optionalEnv(key)
-  if (raw === null) return fallback
-  const value = Number(raw)
-  return Number.isSafeInteger(value) && value > 0 ? value : fallback
-}
-
-function positiveIntegerProblem(key: string): string[] {
-  const raw = optionalEnv(key)
-  return raw !== null && (!Number.isSafeInteger(Number(raw)) || Number(raw) <= 0)
-    ? [`${key} must be a positive integer`]
-    : []
-}
+/** Every optional var that must parse as a positive integer when set. */
+const POSITIVE_INTEGER_ENV_VARS = ['OPENROUTER_MODERATION_TIMEOUT_MS', 'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS', 'AGENT_DEMO_DRAFT_CAP'] as const
 
 function moderationModelProblem(): string[] {
   const model = optionalEnv('OPENROUTER_MODERATION_MODEL')
@@ -210,8 +202,7 @@ export function loadConfig(): Config {
       : []),
     ...urlEnvProblems(OPTIONAL_URL_ENV_VARS, BASE_URL_PROTOCOLS),
     ...slackConfigProblems(),
-    ...positiveIntegerProblem('OPENROUTER_MODERATION_TIMEOUT_MS'),
-    ...positiveIntegerProblem('OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS'),
+    ...POSITIVE_INTEGER_ENV_VARS.flatMap((key) => positiveIntegerProblem(key)),
     ...moderationModelProblem(),
   ]
 
@@ -247,6 +238,7 @@ export function loadConfig(): Config {
     PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? 250),
     JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
     AGENT_DEMO_ADDRESS:    optionalEnv('AGENT_DEMO_ADDRESS'),
+    AGENT_DEMO_DRAFT_CAP:  positiveIntegerEnv('AGENT_DEMO_DRAFT_CAP', DEMO_DRAFT_CAP_DEFAULT),
     TERMII_API_KEY:        optionalEnv('TERMII_API_KEY'),
     TERMII_SENDER_ID:      optionalEnv('TERMII_SENDER_ID'),
     TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],

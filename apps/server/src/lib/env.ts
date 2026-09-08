@@ -85,3 +85,25 @@ export function urlEnvProblems(
   }
   return problems
 }
+
+/**
+ * An optional positive-integer var, or its fallback when unset. A value that
+ * is set but not a positive integer ALSO answers the fallback here — the boot
+ * check (`positiveIntegerProblem`) is what refuses it, by name, so the two
+ * are used together: read with this, validate with that.
+ */
+export function positiveIntegerEnv(key: string, fallback: number, env: NodeJS.ProcessEnv = process.env): number {
+  const raw = optionalEnv(key, env)
+  if (raw === null) return fallback
+  const value = Number(raw)
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback
+}
+
+/** The boot problem for a set-but-malformed positive-integer var; nothing when unset or well-formed. */
+export function positiveIntegerProblem(key: string, env: NodeJS.ProcessEnv = process.env): string[] {
+  const raw = optionalEnv(key, env)
+  return raw !== null && (!Number.isSafeInteger(Number(raw)) || Number(raw) <= 0)
+    ? [`${key} must be a positive integer`]
+    : []
+}
+
