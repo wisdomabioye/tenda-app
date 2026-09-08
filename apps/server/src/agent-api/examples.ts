@@ -1,5 +1,5 @@
 /**
- * RECORDED examples, attached inline to the slim agent document (#109).
+ * RECORDED examples, attached inline to the Agent API document (#109).
  *
  * WHY THEY EXIST. Ten reviewers read this contract on 2026-09-05 and all ten
  * reported the same thing: they never called the endpoint, and the document
@@ -17,10 +17,10 @@
  * quietly rot; they can only fail loudly.
  *
  * WHY INLINE AND NEVER `$ref`. A reader whose fetch stops early must meet the
- * payload beside the endpoint, not in a tail it never reaches. That is also
- * why they go only in the SLIM document: the canonical one is for humans and
- * codegen, and every byte added there makes it more complete and less readable
- * to exactly the audience that complained.
+ * payload beside the endpoint, not in a tail it never reaches. They used to go
+ * only in the agent-only subset, the canonical document being kept for humans
+ * and codegen; the subset is retired (#135, 2026-09-08) and the one document
+ * carries them.
  *
  * WHAT THE VALUES ARE. A real EIP-3009 authorization over a real ERC-20's own
  * domain separator, a nonce the escrow contract itself computed, and a
@@ -156,18 +156,18 @@ function gigOperation(get: OperationObject, recorded: RecordedExchange): Operati
 const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
 
 /**
- * The slim document with the recorded exchange attached. Everything else is
- * carried through by reference, so the drift guard still compares the rest of
- * each path against the canonical document byte for byte.
+ * The document with the recorded exchange attached. Everything else is carried
+ * through by reference — nothing but the `example` keys is touched, which the
+ * examples suite holds by identity on the untouched parts.
  *
  * TWO paths carry examples, because the flow the reviewers recited has two
  * halves: the task post (request, 402, 201, X-PAYMENT) and the POLL it ends on.
  * Publishing only the first left a reader at exactly the step ten of ten said
  * they could not see.
  *
- * The recording is a PARAMETER, defaulted, for the same reason `slimAgentDocument`
- * takes its document: so the guards can run this over a fixture — including the
- * stale one that proves the missing-field refusal actually refuses.
+ * The recording is a PARAMETER, defaulted, so the guards can run this over a
+ * fixture — including the stale one that proves the missing-field refusal
+ * actually refuses.
  */
 export function withRecordedExamples(
   doc: OpenApiDocument,

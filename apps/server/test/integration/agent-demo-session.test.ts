@@ -145,7 +145,7 @@ test('the demo bearer REACHES THE 402 — the step every round-one reviewer miss
   await seedAltChain(app)
   const session = await openDemoSession()
 
-  // The same body the slim document publishes as its request example.
+  // The same body the document publishes as its request example.
   const quoted = await app.inject({
     method: 'POST',
     url: apiRoutes.agent.tasks,

@@ -1,22 +1,24 @@
 /**
- * GET /v1/agent/openapi.json — the agent-only subset of the Agent API
- * document (src/agent-api/slim).
+ * GET /v1/agent/openapi.json — the SAME Agent API document as /v1/openapi.json,
+ * at the path the agent-only subset (#110) used to be served from.
  *
- * Public and unauthenticated for the same reason the canonical document is: an
- * agent must be able to discover the contract before it holds anything. The
- * directory is named `openapi.json` so @fastify/autoload mounts the route at
- * exactly the path the document declares for itself (AGENT_SLIM_DOCUMENT_PATH);
- * the guard asserts the two agree, as it does for the canonical one.
+ * The subset is retired (#135, 2026-09-08) and its recorded examples now ride
+ * the one document. The path stays because it was handed out — hackathon
+ * submission, AskBots project page, round-two reviewers — and a URL that was
+ * given must keep answering. Public and unauthenticated for the same reason
+ * the canonical route is: an agent must be able to discover the contract
+ * before it holds anything. The directory is named `openapi.json` so
+ * @fastify/autoload mounts the route at exactly AGENT_API_AGENT_PATH; the
+ * drift suite asserts the two paths answer identical bytes.
  */
 import type { FastifyPluginAsync } from 'fastify'
-import { AGENT_API_CACHE_SECONDS, type OpenApiDocument } from '@server/agent-api/openapi'
-import { AGENT_SLIM_DOCUMENT } from '@server/agent-api/slim'
+import { AGENT_API_CACHE_SECONDS, AGENT_API_DOCUMENT, type OpenApiDocument } from '@server/agent-api/openapi'
 
-const agentSlimOpenapiRoute: FastifyPluginAsync = async (fastify) => {
+const agentOpenapiAliasRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Reply: OpenApiDocument }>('/', async (_request, reply) => {
     reply.header('cache-control', `public, max-age=${AGENT_API_CACHE_SECONDS}`)
-    return AGENT_SLIM_DOCUMENT
+    return AGENT_API_DOCUMENT
   })
 }
 
-export default agentSlimOpenapiRoute
+export default agentOpenapiAliasRoute

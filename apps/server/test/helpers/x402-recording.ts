@@ -131,7 +131,7 @@ export function writeRecording(live: RecordedExchange): void {
  * GENERATED — do not edit. One real x402 exchange, captured through the real
  * route against a real node by
  * test/integration/agent-x402-recording.anvil.test.ts, and published inline in
- * the slim agent document by ./examples.
+ * the Agent API document by ./examples.
  *
  * Re-record with \`pnpm record:x402\` after a DELIBERATE wire change. Editing
  * this file by hand defeats the only property it has: that a reader is looking

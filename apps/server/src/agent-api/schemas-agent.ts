@@ -35,6 +35,8 @@ import {
   TENDA_RELAY_SCHEME,
   type User,
   X402_VERSION,
+  RELAY_QUOTE_TTL_SECONDS,
+  SOLANA_BLOCKHASH_VALIDITY_SECONDS,
 } from '@tenda/shared'
 import { userRoleEnum, userStatusEnum } from '@tenda/shared/db/schema'
 import { closedFor, nullable, ref, type SchemaObject, type V1ComponentName } from './schema-types'
@@ -188,8 +190,16 @@ const relayTerms = closedFor<RelayTerms>(
     amount_raw: rawAmount,
     pay_to: { type: 'string', description: 'The escrow contract / program that receives the funds' },
     escrow_id: uuid,
-    max_timeout_seconds: { type: 'integer' },
-    expires_at_unix: { type: 'integer' },
+    max_timeout_seconds: {
+      type: 'integer',
+      description:
+        `Seconds these terms stay signable from the moment of the 402 — the quote window (${RELAY_QUOTE_TTL_SECONDS} on EVM; the blockhash validity, ${SOLANA_BLOCKHASH_VALIDITY_SECONDS}, on Solana). ` +
+        'Sign and resend before expires_at_unix: a late signature is 422 RELAY_REJECTED, and the same body WITHOUT X-PAYMENT re-quotes fresh terms.',
+    },
+    expires_at_unix: {
+      type: 'integer',
+      description: 'Unix seconds at which these terms lapse — issued-at plus max_timeout_seconds. Compare against your own clock before signing.',
+    },
     payment: { oneOf: [ref('EvmAuthorizationTerms'), ref('SolanaTransactionTerms')] },
   },
   ['scheme', 'network', 'asset', 'asset_id', 'amount_raw', 'pay_to', 'escrow_id', 'max_timeout_seconds', 'expires_at_unix', 'payment'],

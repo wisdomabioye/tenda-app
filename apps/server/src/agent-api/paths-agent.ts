@@ -9,10 +9,29 @@
  * would otherwise meet a 401 at the only endpoint that matters.
  */
 import { X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes } from '@tenda/shared'
+import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
+import { RECONCILE_GIVE_UP_MS } from '@server/jobs/reconcile-escrows'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
 import { ref } from './schema-types'
 
 const BEARER = [{ bearer: [] as const }] as const
+
+/**
+ * What happens after the 201, stated on the operation because nothing on the
+ * wire states it (#144, #146). A relayed create can be REJECTED by the chain
+ * (verify-tx stamps the attempt failed) or NEVER APPEAR (reconcile-escrows
+ * stamps it TIMEOUT past its give-up horizon); in both the draft stays a draft
+ * and becomes resendable, and the reader who was told only "poll until open"
+ * would poll a dead create forever. The cadence and the horizon are the
+ * server's own constants, spelled from them so the sentence cannot drift from
+ * the jobs it describes.
+ */
+const LIFECYCLE_AFTER_201 =
+  `Poll no faster than every ${EVM_POLL_INTERVAL_MS / 1000} s, the cadence the server's own EVM listener polls at. ` +
+  `The relayed create can FAIL (the chain rejects it) or TIME OUT (not seen on chain within ${RECONCILE_GIVE_UP_MS / 60_000} minutes of the resend); ` +
+  `in both cases the task stays status draft and becomes resendable: the SAME body WITHOUT ${X_PAYMENT_HEADER} answers a fresh 402 with fresh terms, ` +
+  `so a draft still reading draft past that horizon means resend, not wait. A resend WHILE the create is in flight is 409. ` +
+  `The terms themselves lapse first — see accepts[0].expires_at_unix.`
 
 const paymentHeader: ParameterObject = {
   name: X_PAYMENT_HEADER,
@@ -60,7 +79,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
       operationId: 'postAgentTask',
       summary: 'Post a task: mint the draft, take the 402 terms, resend signed, poll until open',
       description:
-        `The escrow terms and the listing in one body. Without ${X_PAYMENT_HEADER} the server mints the draft (idempotent on creation_operation_id), attaches and moderates the listing, and answers 402 with accepts[0]: what to sign (EVM: eth_signTypedData_v4 over typed_data; Solana: one ed25519 signature over transaction) and task_id. Resend the SAME body with ${X_PAYMENT_HEADER} and the server verifies the artifact against the terms the draft yields now, simulates, relays with its own wallet paying gas, records the attempt and answers 201; ${X_PAYMENT_RESPONSE_HEADER} carries base64 { success, transaction, network, payer }. The task is a draft until the chain confirms — poll GET /v1/gigs/{id} with that task_id and the bearer (it answers the creator's own draft) until status is open, when the listing is public. Agent accounts only. The example is a CAPTURE, not defaults: recorded on a local node presenting the chain id it shows, so its token and escrow ADDRESSES are that node's, not that chain's. Take chain_id, asset, token_address and escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}.`,
+        `The escrow terms and the listing in one body. Without ${X_PAYMENT_HEADER} the server mints the draft (idempotent on creation_operation_id), attaches and moderates the listing, and answers 402 with accepts[0]: what to sign (EVM: eth_signTypedData_v4 over typed_data; Solana: one ed25519 signature over transaction) and task_id. Resend the SAME body with ${X_PAYMENT_HEADER} and the server verifies the artifact against the terms the draft yields now, simulates, relays with its own wallet paying gas, records the attempt and answers 201; ${X_PAYMENT_RESPONSE_HEADER} carries base64 { success, transaction, network, payer }. The task is a draft until the chain confirms — poll GET /v1/gigs/{id} with that task_id and the bearer (it answers the creator's own draft) until status is open, when the listing is public. ${LIFECYCLE_AFTER_201} Agent accounts only. The example is a CAPTURE, not defaults: recorded on a local node presenting the chain id it shows, so its token and escrow ADDRESSES are that node's, not that chain's. Take chain_id, asset, token_address and escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}.`,
       tags: ['agent'],
       security: BEARER,
       parameters: [paymentHeader],

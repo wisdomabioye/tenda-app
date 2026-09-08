@@ -210,14 +210,10 @@ const NON_CONTRACT_PATHS = [
   // (agent-api-drift.test.ts) holds it to the path it declares for itself.
   '/v1/openapi.json',
 
-  // The AGENT-ONLY subset of that document (#110), for the same reason and
-  // held by the same suite. It exists because six of ten round-one reviewers
-  // could not read the canonical document to the end; how far each got is not
-  // established, so the only claim made is that this one is SMALLER — and that
-  // claim is MEASURED by test/unit/agent-api-slim.test.ts rather than written
-  // here as a byte figure, which is how the figure this line used to carry went
-  // stale the day #109's recorded examples landed. Both are published: complete
-  // at the path above, and the task-posting flow alone here.
+  // The SAME document at the path the agent-only subset (#110) used to be
+  // served from. The subset was retired (#135, 2026-09-08) once it was only 15%
+  // smaller than its parent; the URL stays because it was handed out, and the
+  // agent drift suite asserts the two paths answer identical bytes.
   '/v1/agent/openapi.json',
 
   // The public agent card (#84). A well-known document fetched by ERC-8004

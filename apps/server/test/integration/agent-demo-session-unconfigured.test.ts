@@ -27,7 +27,7 @@ test('with no demo address configured the route answers 503 and names the variab
 
 test('the route is SERVED even when unconfigured — a 503 is an answer, a 404 would be drift', { skip }, async () => {
   // The document promises this path. If an unset variable removed the route,
-  // the slim document would be describing something that is not there, which is
+  // the document would be describing something that is not there, which is
   // the exact failure mode its drift guard exists to catch.
   assert.ok(getApp().hasRoute({ method: 'POST', url: apiRoutes.agent.demoSession }))
 })

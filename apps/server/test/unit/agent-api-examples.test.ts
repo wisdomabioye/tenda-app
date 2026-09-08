@@ -15,7 +15,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
-import { AGENT_SLIM_DOCUMENT, slimAgentDocument } from '@server/agent-api/slim'
 import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
 import { recordedPaymentHeader, withRecordedExamples } from '@server/agent-api/examples'
 import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
@@ -26,12 +25,12 @@ const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
 import { agentApiAjv } from '../helpers/agent-api-validator'
 
 const ajv = agentApiAjv()
-const tasks = AGENT_SLIM_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
+const tasks = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
 
-/** The media-type object a status documents in the served slim document. */
+/** The media-type object a status documents in the served document. */
 function content(status: '402' | '201') {
   const media = tasks?.responses[status]?.content?.[JSON_MEDIA_TYPE]
-  assert.ok(media !== undefined, `the slim document documents no JSON body for ${status}`)
+  assert.ok(media !== undefined, `the document documents no JSON body for ${status}`)
   return media
 }
 
@@ -167,18 +166,22 @@ test('nothing is published by $ref — a truncated reader meets the payload wher
   // #109's one placement rule. A `$ref`d example sits in a tail the reader who
   // needs it most may never reach, which is the failure this whole document
   // exists to route around.
-  const serialised = JSON.stringify(AGENT_SLIM_DOCUMENT)
+  const serialised = JSON.stringify(AGENT_API_DOCUMENT)
   assert.strictEqual(serialised.includes('"examples"'), false, 'OpenAPI `examples` (the $ref-able form) crept in')
   const inlineCount = [...serialised.matchAll(/"example":/g)].length
   assert.strictEqual(inlineCount, 5, 'expected the request, 402, 201, X-PAYMENT and the POLLED gig')
 })
 
 /*
- * The DEGRADATION cases. `AGENT_SLIM_DOCUMENT` is built at module load, so a
+ * The DEGRADATION cases. `AGENT_API_DOCUMENT` is built at module load, so a
  * throw in the attacher is not a failed example — it is a server that does not
  * boot, and it would take out every route rather than one document. Each of
  * these feeds it a document missing the piece an example would attach to and
  * asserts it returns something serviceable instead.
+ *
+ * Each starts from the SERVED document, which already carries its examples:
+ * the attacher is idempotent on `example`, so stripping a piece and
+ * re-attaching measures exactly the degradation the case names.
  */
 
 test('a document with NEITHER attachment point is returned untouched, not thrown at', () => {
@@ -188,7 +191,7 @@ test('a document with NEITHER attachment point is returned untouched, not thrown
 })
 
 test('a task operation with no parameters, body or documented 402 still yields a valid document', () => {
-  const base = slimAgentDocument(AGENT_API_DOCUMENT)
+  const base = AGENT_API_DOCUMENT
   const post = base.paths[apiRoutes.agent.tasks]?.post
   assert.ok(post !== undefined)
   const { parameters: _p, requestBody: _b, ...bare } = post
@@ -211,7 +214,7 @@ test('a task operation with no parameters, body or documented 402 still yields a
 })
 
 test('a documented response with no JSON body is left alone rather than given one', () => {
-  const base = slimAgentDocument(AGENT_API_DOCUMENT)
+  const base = AGENT_API_DOCUMENT
   const post = base.paths[apiRoutes.agent.tasks]?.post
   assert.ok(post !== undefined)
   const stripped = {
@@ -232,7 +235,7 @@ test('a parameter that is not X-PAYMENT is carried through untouched', () => {
   // The attacher stamps ONE header. Anything else the operation documents must
   // come out the far side identical — an example on the wrong parameter is a
   // wrong instruction, not a harmless extra.
-  const base = slimAgentDocument(AGENT_API_DOCUMENT)
+  const base = AGENT_API_DOCUMENT
   const post = base.paths[apiRoutes.agent.tasks]?.post
   assert.ok(post?.parameters !== undefined)
   const other = { name: 'x-request-id', in: 'header', required: false, schema: { type: 'string' } } as const

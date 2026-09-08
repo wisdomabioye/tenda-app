@@ -13,7 +13,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { apiRoutes } from '@tenda/shared'
-import { AGENT_SLIM_DOCUMENT, slimAgentDocument } from '@server/agent-api/slim'
 import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
 import { withRecordedExamples, type RecordedExchange } from '@server/agent-api/examples'
 import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
@@ -25,10 +24,10 @@ const ajv = agentApiAjv()
 /** The gig detail's key in the document — OpenAPI's spelling, not Fastify's. */
 const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
 
-/** The media-type object the polled gig documents in the served slim document. */
+/** The media-type object the polled gig documents in the served document. */
 function gigContent() {
-  const media = AGENT_SLIM_DOCUMENT.paths[GIG_DETAIL_PATH]?.get?.responses['200']?.content?.[JSON_MEDIA_TYPE]
-  assert.ok(media !== undefined, 'the slim document documents no JSON body for the gig detail')
+  const media = AGENT_API_DOCUMENT.paths[GIG_DETAIL_PATH]?.get?.responses['200']?.content?.[JSON_MEDIA_TYPE]
+  assert.ok(media !== undefined, 'the document documents no JSON body for the gig detail')
   return media
 }
 
@@ -124,7 +123,7 @@ test('and the mirror: losing the GIG path does not cost the task examples', () =
 })
 
 test('a gig path documenting no JSON 200 is left alone rather than given one', () => {
-  const base = slimAgentDocument(AGENT_API_DOCUMENT)
+  const base = AGENT_API_DOCUMENT
   const get = base.paths[GIG_DETAIL_PATH]?.get
   assert.ok(get !== undefined)
   const stripped = {

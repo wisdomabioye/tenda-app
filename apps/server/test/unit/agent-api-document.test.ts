@@ -35,7 +35,6 @@ import {
   AGENT_API_STABILITY,
   AGENT_API_VERSION,
 } from '@server/agent-api/openapi'
-import { AGENT_SLIM_DOCUMENT } from '@server/agent-api/slim'
 import { operationsOf } from '@server/agent-api/paths'
 import { PLATFORM_COMPONENT_NAMES, type SchemaObject } from '@server/agent-api/schema-types'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
@@ -454,7 +453,9 @@ const PROSE_PATH = /\/v1\/[A-Za-z0-9_\-{}/]*[A-Za-z0-9_}](?:\.[A-Za-z0-9]+)?/g
  * that grows silently is how the defect this test exists for came back.
  */
 const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
-  [AGENT_API_DOCUMENT_PATH]: 'the OTHER document — a pointer to it is the one outward reference the subset is allowed (whether even that should stay is #135)',
+  // The subset that pointed at "the other document" is retired (#135); a
+  // document naming its own path is not sending a reader anywhere else.
+  [AGENT_API_DOCUMENT_PATH]: 'its own path',
   // `/v1/escrows` and `/v1/gigs` were exempt here from the day this guard was
   // written: AgentTaskBody described itself as "POST /v1/escrows minus kind
   // and permit plus POST /v1/gigs minus escrow_id" — an explanation to someone
@@ -463,10 +464,7 @@ const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
   // what the fields ARE (#136), and the exemption is gone with it.
 }
 
-for (const [label, doc] of [
-  ['canonical', AGENT_API_DOCUMENT],
-  ['slim', AGENT_SLIM_DOCUMENT],
-] as const) {
+for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
   test(`${label} document: every path named in prose is one it defines`, () => {
     const defined = new Set(Object.keys(doc.paths))
     const dangling = new Map<string, string>()
@@ -508,15 +506,12 @@ for (const [label, doc] of [
   })
 }
 
-test('the bootstrap a wallet-owning agent needs is in BOTH documents', () => {
+test('the bootstrap a wallet-owning agent needs is in the document', () => {
   // The narrow, behavioural half of the guard above: not merely "no dangling
   // reference" — which deleting the sentence would also satisfy — but that the
-  // two operations are actually there. A future trim that drops them to win
-  // back bytes fails here rather than silently restoring the 2026-09-07 wall.
-  for (const [label, doc] of [
-    ['canonical', AGENT_API_DOCUMENT],
-    ['slim', AGENT_SLIM_DOCUMENT],
-  ] as const) {
+  // two operations are actually there. A future trim that drops them fails
+  // here rather than silently restoring the 2026-09-07 wall.
+  for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
     for (const path of [apiRoutes.auth.nonce, apiRoutes.auth.verify]) {
       assert.ok(doc.paths[path]?.post !== undefined, `${label} document lost POST ${path}`)
     }
@@ -595,10 +590,7 @@ test('#136: omitted policy fields state their default, and the deployment-set te
  * an implication rather than a fixed sentence: either document may promise the
  * feed, and whichever does must define the path a reader would browse it at.
  */
-for (const [label, doc] of [
-  ['canonical', AGENT_API_DOCUMENT],
-  ['slim', AGENT_SLIM_DOCUMENT],
-] as const) {
+for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
   test(`#136: the ${label} document promises the feed only if it carries it`, () => {
     const promisesFeed = /public feed/.test(doc.info.description)
     const carriesFeed = doc.paths[apiRoutes.gigs.list] !== undefined

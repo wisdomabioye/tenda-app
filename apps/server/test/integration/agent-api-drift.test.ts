@@ -22,14 +22,10 @@ import { assets, chains, escrow_proofs, featured_slots, gig_applications } from 
 import {
   AGENT_API_CACHE_SECONDS,
   AGENT_API_DOCUMENT,
+  AGENT_API_AGENT_PATH,
   AGENT_API_DOCUMENT_PATH,
   AGENT_API_STABILITY,
 } from '@server/agent-api/openapi'
-import {
-  AGENT_SLIM_DOCUMENT,
-  AGENT_SLIM_DOCUMENT_PATH,
-  AGENT_SLIM_MAX_BYTES,
-} from '@server/agent-api/slim'
 import {
   TEST_CHAIN_ID_ALT,
   TEST_DB_CONFIGURED,
@@ -145,29 +141,25 @@ test('GET /v1/openapi.json serves the document itself, cacheable, without a bear
 })
 
 /**
- * The slim document (#110) has to be SERVED, not merely built. Its unit suite
- * proves the projection; only this proves an agent can fetch it — which is the
- * entire point, since every round-one reviewer stopped at the fetch.
+ * The agent path (#110) was where the agent-only subset lived; the subset is
+ * retired (#135) but the URL was handed out, so it must keep answering — and
+ * answering the SAME bytes as the canonical path, or a reader who was given
+ * one URL integrates against something the other does not say.
  */
-test('GET /v1/agent/openapi.json serves the slim document, cacheable, without a bearer', { skip }, async () => {
-  const response = await getApp().inject({ method: 'GET', url: AGENT_SLIM_DOCUMENT_PATH })
-  assert.strictEqual(response.statusCode, 200)
-  assert.match(response.headers['content-type'] as string, /application\/json/)
-  assert.strictEqual(response.headers['cache-control'], `public, max-age=${AGENT_API_CACHE_SECONDS}`)
-  assert.deepStrictEqual(response.json(), JSON.parse(JSON.stringify(AGENT_SLIM_DOCUMENT)))
-  // The property the document exists for, asserted on the bytes that actually
-  // cross the wire rather than on the in-process constant — serialisation, and
-  // any encoding Fastify applies, happen between the two. No claim here about
-  // where a reader's cut falls: that is not derivable (see slim.ts).
-  assert.ok(
-    Buffer.byteLength(response.rawPayload) < AGENT_SLIM_MAX_BYTES,
-    `served ${Buffer.byteLength(response.rawPayload)} bytes, ceiling ${AGENT_SLIM_MAX_BYTES}`,
-  )
+test('GET /v1/agent/openapi.json serves the identical document, cacheable, without a bearer', { skip }, async () => {
+  const alias = await getApp().inject({ method: 'GET', url: AGENT_API_AGENT_PATH })
+  const canonical = await getApp().inject({ method: 'GET', url: AGENT_API_DOCUMENT_PATH })
+  assert.strictEqual(alias.statusCode, 200)
+  assert.match(alias.headers['content-type'] as string, /application\/json/)
+  assert.strictEqual(alias.headers['cache-control'], `public, max-age=${AGENT_API_CACHE_SECONDS}`)
+  // Bytes, not parsed shapes: serialisation happens between the constant and
+  // the wire, and the promise is that both URLs hand a reader the same file.
+  assert.strictEqual(alias.rawPayload.toString(), canonical.rawPayload.toString())
 })
 
-test('every path+method the slim document promises is one this server actually serves', { skip }, async () => {
-  // The drift that matters at runtime: a slim document naming a route that
-  // 404s is worse than no document, because an agent integrates against it.
+test('every path+method the document promises is one this server actually serves', { skip }, async () => {
+  // The drift that matters at runtime: a document naming a route that 404s is
+  // worse than no document, because an agent integrates against it.
   //
   // Driven by the METHOD the document declares, not a blanket GET — the two
   // agent paths are POST-only, and Fastify answers an unmatched method with
@@ -179,7 +171,7 @@ test('every path+method the slim document promises is one this server actually s
   // is `{code:'INTERNAL_ERROR', message:'Route GET /... not found'}`. The
   // message prefix is the discriminator, so this passes for an unauthenticated
   // POST (401) and an unknown id (404) and fails only when nothing is mounted.
-  for (const [path, item] of Object.entries(AGENT_SLIM_DOCUMENT.paths)) {
+  for (const [path, item] of Object.entries(AGENT_API_DOCUMENT.paths)) {
     const url = path.replace('{id}', '00000000-0000-4000-8000-000000000000')
     for (const method of ['get', 'post'] as const) {
       if (item[method] === undefined) continue

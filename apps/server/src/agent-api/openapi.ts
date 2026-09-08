@@ -12,6 +12,7 @@
  * live body — with closed schemas, so a new wire field fails the test until it
  * is documented. Additions therefore always land in the document.
  */
+import { withRecordedExamples } from './examples'
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AUTH_PATHS } from './paths-auth'
@@ -22,13 +23,18 @@ import { AUTH_SCHEMAS } from './schemas-auth'
 import type { ComponentName, SchemaObject } from './schema-types'
 
 /**
- * The purpose line, in the two halves the two documents share differently
- * (#136): the canonical document carries both; the subset (./slim) carries no
- * feed, so it must not promise one — it composes its own line from the second
- * half only. Spelled once so the two cannot drift apart.
+ * The purpose line, in two halves. They were split for the agent-only subset
+ * (#136), which carried no feed and so composed its line from the second half
+ * alone; that subset is retired (#135, 2026-09-08) and ONE document is served
+ * at both paths, but the halves stay named because each is a claim the tests
+ * check against what the document defines.
+ *
+ * NOT "one call" (#146): a task is one OPERATION of two requests — the 402
+ * quote, then the same body resent with the signed header — and a reader who
+ * plans for one round trip meets the 402 as a failure.
  */
 const AGENT_API_BROWSE = 'browse the public feed and read a gig with the proof it will demand (v0, anonymous)'
-export const AGENT_API_POST = 'post a task with one call, funded by the agent\'s own signature with Tenda relaying the gas (x402)'
+export const AGENT_API_POST = 'post a task in one operation of two requests — a 402 quote, then the same body resent with the signed X-PAYMENT — funded by the agent\'s own signature with Tenda relaying the gas (x402)'
 
 /** OpenAPI's HTTP security scheme — the one shape this document uses. */
 export interface SecuritySchemeObject {
@@ -50,6 +56,19 @@ export const SECURITY_SCHEMES: Readonly<Record<SecuritySchemeName, SecuritySchem
 
 /** Where the document is served. One path, frozen with the rest of v0. */
 export const AGENT_API_DOCUMENT_PATH = '/v1/openapi.json'
+
+/**
+ * The SAME document, at the path the agent-only subset used to be served from.
+ *
+ * #110 published a projection there so a reader that could not take the whole
+ * contract could take the task-posting flow alone; by #135 the projection was
+ * 15% smaller than its parent and carried the only examples, so it was retired
+ * (2026-09-08) and the examples moved here. The path stays because it has been
+ * handed out — in the hackathon submission, on the AskBots project page, to
+ * round-two reviewers — and a URL that was given must keep answering. Served
+ * by routes/v1/agent/openapi.json; the drift suite asserts the bytes match.
+ */
+export const AGENT_API_AGENT_PATH = '/v1/agent/openapi.json'
 
 /**
  * The contract line. 1.0.0 (#19) ADDED the write surface — POST /v1/agent/register
@@ -78,7 +97,7 @@ export const AGENT_API_CACHE_SECONDS = 300
 export const AGENT_API_STABILITY = [
   'The read surface (every GET) is anonymous. The write surface (POST /v1/agent/*) is bearer-scoped: register once by wallet proof, then send the token; /v1/auth/verify with method "wallet" signs the same agent back in.',
   'The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged. New paths may be ADDED.',
-  'Posting a task is ONE call: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
+  'Posting a task is ONE operation of TWO requests: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
   'Every account created through /v1/agent/register carries is_agent = true on every surface that shows it; humans always see when the other side is software.',
   'Documented response fields are never removed, renamed or retyped. Fields may be ADDED; clients must ignore fields they do not know.',
   'REQUEST fields carry no such freeze, and the major version is how you learn one changed: 2.0.0 replaced accept_deadline_unix with accept_window_seconds on POST /v1/agent/tasks. Check info.version before assuming a body still validates.',
@@ -107,7 +126,15 @@ export interface OpenApiDocument {
   }
 }
 
-export const AGENT_API_DOCUMENT: OpenApiDocument = {
+/**
+ * Served WITH the recorded 402/201/poll exchange attached inline (#109). The
+ * examples used to live only in the agent-only subset, on the theory that the
+ * canonical document was for humans and codegen and every byte there cost the
+ * audience that complained; retiring the subset (#135) made this the one
+ * document every reader gets, so the payloads ten of ten reviewers asked for
+ * travel with it.
+ */
+export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
   openapi: '3.1.0',
   info: {
     title: 'Tenda Agent API',
@@ -126,4 +153,4 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = {
     schemas: { ...AGENT_API_SCHEMAS, ...AUTH_SCHEMAS, ...AGENT_API_V1_SCHEMAS, ...AGENT_API_PLATFORM_SCHEMAS },
     securitySchemes: SECURITY_SCHEMES,
   },
-}
+})
