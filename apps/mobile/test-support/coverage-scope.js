@@ -231,6 +231,15 @@ module.exports = [
   'hooks/escrow/proof-hash.ts',
   'features/escrow/transition-failure.ts', // 100/100/100/100
   'components/gig/GigDetailGate.tsx',
+  // The screen behind that gate (#152). Listed with its first suite and
+  // MEASURED with it listed, per the rule above: the file reads
+  // 100/100/100/100 and the global figures hold at 94.64 / 93.58 / 94.12 /
+  // 94.80, well clear of the 90 floor. (No ungated comparison is quoted
+  // because none was taken — the file was gated from the first measurement.)
+  // The literal brackets are the path, not a character class; globsToMatcher
+  // and jest's own collector both match it, which the coverage table confirms
+  // by reporting a `mobile/app/gig/[id]` row.
+  'app/gig/[id]/index.tsx',
   'components/shared/ReviewScore.tsx',
   // The counterparty card, gated with its first suite (#19: the agent badge).
   // Measured before listing: the file reads 77.77 / 60.86 / 66.66 / 77.77 (the
