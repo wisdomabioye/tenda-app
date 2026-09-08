@@ -10,10 +10,17 @@
  * feed and never released.
  *
  * The bound keeps every CURRENT row's revision — those are load-bearing — plus
- * the most recent `memory` others, in the order they were first remembered.
- * A late frame arrives within seconds of the row leaving; anything older than
- * hundreds of departures is not a late frame, it is a gig the reader will meet
- * afresh, and treating it as new is the right answer.
+ * the most recent `memory` others, in the order they DEPARTED. A late frame
+ * arrives within seconds of the row leaving; anything older than hundreds of
+ * departures is not a late frame, it is a gig the reader will meet afresh, and
+ * treating it as new is the right answer.
+ *
+ * Departure order, not first-sight order. The first cut dropped from the front
+ * of the map as first remembered, and the rows that sit longest on a feed —
+ * the ones seeded at page load — are exactly the ones remembered first: when
+ * one finally left after `memory` others had come and gone it was the FIRST
+ * forgotten, at the moment its late frame was most likely, and that frame
+ * replayed as new. MEASURED before the fix.
  */
 import { MAX_PAGINATION_LIMIT } from '../utils/validation'
 
@@ -24,6 +31,15 @@ import { MAX_PAGINATION_LIMIT } from '../utils/validation'
  */
 export const GIG_FEED_REVISION_MEMORY = MAX_PAGINATION_LIMIT * 2
 
+/**
+ * The map's KEY ORDER is the record of when each row departed: departed rows
+ * sit first, oldest departure first, and every current row after them. A row
+ * that has just left the list is therefore found among the current rows' slots
+ * and moves behind every earlier departure, which is what lets the front be
+ * dropped as "the oldest". Object key order is insertion order for these
+ * (non-index) keys, so a rebuilt map keeps the order it was built in. Nothing
+ * to move and nothing to drop hands back the very same object.
+ */
 export function pruneGigFeedRevisions(
   revisions: Readonly<Record<string, string>>,
   currentIds: readonly string[],
@@ -32,9 +48,9 @@ export function pruneGigFeedRevisions(
   const current = new Set(currentIds)
   const entries = Object.entries(revisions)
   const departed = entries.filter(([id]) => !current.has(id))
-  if (departed.length <= memory) return revisions
-  // Object key order is insertion order for these (non-index) keys, so the
-  // first entries are the longest remembered; drop from the front.
-  const forget = new Set(departed.slice(0, departed.length - Math.max(0, memory)).map(([id]) => id))
-  return Object.fromEntries(entries.filter(([id]) => !forget.has(id)))
+  const held = entries.filter(([id]) => current.has(id))
+  const keep = Math.max(0, memory)
+  const ordered = entries.every(([id], index) => current.has(id) === index >= departed.length)
+  if (ordered && departed.length <= keep) return revisions
+  return Object.fromEntries([...departed.slice(Math.max(0, departed.length - keep)), ...held])
 }
