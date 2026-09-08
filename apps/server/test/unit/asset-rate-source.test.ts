@@ -105,6 +105,24 @@ test('midRate: an asset outside ASSET_META is 503, and the feed is never called'
   assert.strictEqual(called, false, 'an unknown asset must not reach CoinGecko')
 })
 
+test('midRate: a prototype key is not an asset — refused like any unknown, feed never called', async () => {
+  // The #116 defect: a bracket read of ASSET_META answers 'toString' with an
+  // inherited FUNCTION, so an `=== undefined` guard let it through and the
+  // feed was asked for the coin id `undefined`. The registry vocabulary is
+  // read through `getAssetMeta` (Object.hasOwn) for exactly this reason, and
+  // asserting the fetch never happens is what tells the two apart — a 503
+  // alone could come from the feed answering nothing for `undefined`.
+  for (const key of ['toString', 'constructor', '__proto__']) {
+    let called = false
+    globalThis.fetch = (() => {
+      called = true
+      return Promise.resolve(jsonResponse({}))
+    }) as typeof fetch
+    await assert.rejects(assetRateSource().midRate(key, 'NGN'), is503, key)
+    assert.strictEqual(called, false, `'${key}' must not reach CoinGecko`)
+  }
+})
+
 test('midRate: a currency outside the vocabulary is 503, and reaches neither leg', async () => {
   // The arm #97 changed. 'XXX' is a well-formed ISO-shaped code that is not one
   // of ours, so the rates map cannot hold it however healthy the feed is.

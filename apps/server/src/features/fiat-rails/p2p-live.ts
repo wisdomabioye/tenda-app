@@ -10,7 +10,7 @@ import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
 import { getAssetRates } from '@server/lib/exchange-rates'
 import { getUsdFxRates } from '@server/lib/fx-rates'
-import { ASSET_META, isSupportedCurrency } from '@tenda/shared'
+import { getAssetMeta, isSupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from './config'
@@ -43,8 +43,11 @@ import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-in
 export function assetRateSource(): RateSource {
   return {
     async midRate(asset, fiat_currency) {
-      const meta = ASSET_META[asset]
-      if (meta === undefined) {
+      // The shared accessor, never a bracket read: `ASSET_META['toString']`
+      // answers a TRUTHY inherited function, an `=== undefined` guard never
+      // fires, and CoinGecko is then asked for the coin id `undefined` (#116).
+      const meta = getAssetMeta(asset)
+      if (meta === null) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate source for asset '${asset}'`)
       }
       // Outside the vocabulary there is nothing to cross TO: the FX rates are
