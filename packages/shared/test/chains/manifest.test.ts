@@ -23,7 +23,7 @@ import {
   evmManifestEntries,
   firstEvmChainIdByKind,
 } from '../../src/chains/manifest-queries'
-import { ASSET_META } from '../../src/constants/assets'
+import { ASSET_META, getAssetMeta } from '../../src/constants/assets'
 import { isEvmChainId } from '../../src/utils/address'
 
 // The manifest is a hand-maintained data table that the server registry,
@@ -40,7 +40,9 @@ test('manifest is non-empty and every id is unique', () => {
 test('every asset id resolves in ASSET_META', () => {
   for (const entry of CHAIN_MANIFEST) {
     for (const asset of entry.assets) {
-      assert.ok(ASSET_META[asset.id] !== undefined, `${asset.id} on ${entry.id} missing from ASSET_META`)
+      // The accessor, not a bracket read: `ASSET_META['constructor']` is a truthy
+      // function, so the old `!== undefined` would have passed a prototype key.
+      assert.ok(getAssetMeta(asset.id) !== null, `${asset.id} on ${entry.id} missing from ASSET_META`)
     }
   }
 })
@@ -135,8 +137,8 @@ test('gigAssetByChain resolves a USDC stablecoin wherever a chain carries gigs, 
   for (const entry of CHAIN_MANIFEST) {
     const gigAsset = gigAssetByChain(entry.id)
     if (gigAsset === null) continue
-    const meta = ASSET_META[gigAsset]
-    assert.ok(meta !== undefined, `${entry.id} -> ${gigAsset} present in ASSET_META`)
+    const meta = getAssetMeta(gigAsset)
+    assert.ok(meta !== null, `${entry.id} -> ${gigAsset} present in ASSET_META`)
     assert.equal(meta.is_stable, true, `${entry.id} gig asset must be a stablecoin`)
     assert.equal(meta.symbol, 'USDC', `${entry.id} gig asset must be USDC`)
   }
@@ -203,7 +205,7 @@ test('exchangeAssetsByChain returns USDC + the native token per chain; empty for
     for (const id of ids) {
       const asset = entry.assets.find((a) => a.id === id)
       assert.ok(asset?.roles.includes('exchange'), `${id} on ${entry.id} must be exchange-tagged`)
-      assert.ok(ASSET_META[id] !== undefined, `${id} present in ASSET_META`)
+      assert.ok(getAssetMeta(id) !== null, `${id} present in ASSET_META`)
     }
     // The chain's native token is always exchange-tradable.
     const native = entry.assets.find(isNativeAsset)

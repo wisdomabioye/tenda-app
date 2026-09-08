@@ -16,7 +16,7 @@
  */
 
 import { assets, chain_contracts, chains } from '@tenda/shared/db/schema/chains'
-import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
+import { chainById, getAssetMeta, type ChainAsset } from '@tenda/shared'
 import { escrowAddressOf } from '@server/chains/registry-sync'
 // Leaf import, not the barrel: this module documents itself as pure (no
 // database), and the barrel pulls in the registry + boot probe, which import
@@ -123,8 +123,10 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
   // symbol/decimals/is_stable come from the shared ASSET_META registry,
   // the seed only contributes the deployment-specific chain/token wiring.
   function assetRow(id: string, chain_id: string, token_address: string | null): AssetRow {
-    const meta = ASSET_META[id]
-    if (meta === undefined) throw new Error(`asset '${id}' missing from shared ASSET_META`)
+    // The shared accessor (Object.hasOwn), never a bracket read: `ASSET_META['constructor']`
+    // is a truthy function and the guard below would never fire (#116 follow-up).
+    const meta = getAssetMeta(id)
+    if (meta === null) throw new Error(`asset '${id}' missing from shared ASSET_META`)
     return { id, chain_id, symbol: meta.symbol, decimals: meta.decimals, token_address, is_stable: meta.is_stable }
   }
 

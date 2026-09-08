@@ -10,7 +10,7 @@
  */
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { ASSET_META, ErrorCode, MAX_GIG_DESCRIPTION_LENGTH, type CreateGigDetailsBody } from '@tenda/shared'
+import { ErrorCode, MAX_GIG_DESCRIPTION_LENGTH, getAssetMeta, type CreateGigDetailsBody } from '@tenda/shared'
 import { gig_details, users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/lib/escrow-routes'
@@ -44,6 +44,21 @@ export async function attachGigDetails(
 
   const details = validateGigDetails(body, creator?.country ?? null)
 
+  // The shared accessor, never `ASSET_META[escrow.asset]?.decimals ?? 0`: a
+  // prototype key ('toString') answered a FUNCTION there, its `.decimals` was
+  // undefined, and the fallback quietly moderated the price at ZERO decimals —
+  // a 1 USDC gig read as a million dollars. The create path pins `asset` to
+  // the seeded table, so a registry miss here is a build/registry disagreement
+  // and is said so, not smoothed over (#116 follow-up).
+  const meta = getAssetMeta(escrow.asset)
+  if (meta === null) {
+    throw new AppError(
+      500,
+      ErrorCode.INTERNAL_ERROR,
+      `asset '${escrow.asset}' is not in the shared asset registry this build carries`,
+    )
+  }
+
   // Stage-6 gate: block verdicts never reach the feed; warns pass with
   // the verdict recorded for the admin queue.
   const verdict = await moderateGig(
@@ -57,7 +72,7 @@ export async function attachGigDetails(
       country: details.country ?? creator?.country ?? '',
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,
-      asset_decimals: ASSET_META[escrow.asset]?.decimals ?? 0,
+      asset_decimals: meta.decimals,
     },
     { kind: 'gig_published', id: escrow.id },
   )
