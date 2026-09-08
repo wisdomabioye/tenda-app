@@ -23,7 +23,7 @@ import { render, screen } from '@testing-library/react'
 import { useLayoutEffect, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { GigFeedServerFrame, GigSummary } from '@tenda/shared'
-import { deliveryGig } from '@/e2e/fixtures/gigs'
+import { frameFor, gig } from '@/hooks/gig/__fixtures__/gig-feed-frames'
 
 const seams = vi.hoisted(() => ({
   listener: null as ((event: GigFeedServerFrame) => void) | null,
@@ -40,22 +40,6 @@ vi.mock('@/stores/realtime.store', () => ({
 }))
 
 import { useGigFeedRealtime } from '@/hooks/gig/useGigFeedRealtime'
-
-function gig(id: string, revision: string, title: string): GigSummary {
-  return { ...deliveryGig, escrow_id: id, public_feed_revision: revision, title }
-}
-
-function frameFor(item: GigSummary, revision: string): GigFeedServerFrame {
-  return {
-    type: 'gig_available',
-    channel: 'feed:gigs',
-    event_id: `event-${revision}`,
-    escrow_id: item.escrow_id,
-    gig_revision: revision,
-    occurred_at: '2026-08-25T00:00:00.000Z',
-    gig: { ...item, public_feed_revision: revision },
-  }
-}
 
 /**
  * Fires `frame` from the harness's OWN layout effect.

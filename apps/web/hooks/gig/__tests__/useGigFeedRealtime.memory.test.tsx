@@ -12,8 +12,8 @@
 import { act, render, screen } from '@testing-library/react'
 import { useLayoutEffect, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { GIG_FEED_REVISION_MEMORY, type GigFeedServerFrame, type GigListQuery, type GigSummary } from '@tenda/shared'
-import { deliveryGig } from '@/e2e/fixtures/gigs'
+import { GIG_FEED_REVISION_MEMORY, MAX_PAGINATION_LIMIT, type GigFeedServerFrame, type GigListQuery, type GigSummary } from '@tenda/shared'
+import { frameFor, gig } from '@/hooks/gig/__fixtures__/gig-feed-frames'
 
 const seams = vi.hoisted(() => ({
   listener: null as ((event: GigFeedServerFrame) => void) | null,
@@ -29,22 +29,6 @@ vi.mock('@/stores/realtime.store', () => ({
 }))
 
 import { useGigFeedRealtime } from '@/hooks/gig/useGigFeedRealtime'
-
-function gig(id: string, revision: string, title: string): GigSummary {
-  return { ...deliveryGig, escrow_id: id, public_feed_revision: revision, title }
-}
-
-function frameFor(item: GigSummary, revision: string): GigFeedServerFrame {
-  return {
-    type: 'gig_available',
-    channel: 'feed:gigs',
-    event_id: `event-${item.escrow_id}-${revision}`,
-    escrow_id: item.escrow_id,
-    gig_revision: revision,
-    occurred_at: '2026-08-25T00:00:00.000Z',
-    gig: { ...item, public_feed_revision: revision },
-  }
-}
 
 function Harness({
   items,
@@ -93,10 +77,11 @@ describe('useGigFeedRealtime revision memory (#73)', () => {
 
   it('once more than the memory have departed after it, the same stale frame reads as new — the stated trade', () => {
     const { rerender } = render(<Harness items={[FIRST]} />)
-    // Enough churn to push FIRST out of memory: each page departs entirely.
-    const pages = Math.ceil((GIG_FEED_REVISION_MEMORY + 1) / 50) + 1
-    for (let p = 0; p < pages; p += 1) rerender(<Harness items={page(50, `p${p}`)} />)
-    rerender(<Harness items={page(50, 'last')} frame={frameFor(gig('first', '6', 'First, stale at 6'), '6')} />)
+    // Enough churn to push FIRST out of memory: a full server page (the cap
+    // the memory is derived from) departs entirely on every render.
+    const pages = Math.ceil((GIG_FEED_REVISION_MEMORY + 1) / MAX_PAGINATION_LIMIT) + 1
+    for (let p = 0; p < pages; p += 1) rerender(<Harness items={page(MAX_PAGINATION_LIMIT, `p${p}`)} />)
+    rerender(<Harness items={page(MAX_PAGINATION_LIMIT, 'last')} frame={frameFor(gig('first', '6', 'First, stale at 6'), '6')} />)
     expect(screen.getByText('First, stale at 6')).toBeInTheDocument()
   })
 
