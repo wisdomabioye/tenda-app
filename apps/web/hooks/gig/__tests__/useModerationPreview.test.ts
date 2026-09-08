@@ -159,10 +159,12 @@ test('an asset outside the registry still sends decimals — the fallback, not u
   expect(result.current).toEqual(VERDICT)
 })
 
-test('a prototype-key asset takes the same fallback — the registry is read through the accessor, never a bracket', async () => {
+test('a prototype-key asset takes the same fallback as an unknown id', async () => {
   // `ASSET_META['toString']` is a truthy function; the accessor answers null for
-  // it, so the decimals fall back exactly as for an unknown id (the web guard
-  // test holds every site in this tree to the accessor).
+  // it, so the decimals fall back exactly as for an unknown id. This pins the
+  // FALLBACK only: MEASURED, a bracket read answers the same 9 here (an
+  // inherited function has no `decimals`), so what holds this hook to the
+  // accessor is lib/__tests__/asset-registry-access.guard.test.ts, not this.
   const { result } = renderHook(() => useModerationPreview({ ...READY, asset: 'toString' }))
   await debounce()
   expect(previewMock).toHaveBeenCalledWith(expect.objectContaining({ asset_decimals: 9 }))

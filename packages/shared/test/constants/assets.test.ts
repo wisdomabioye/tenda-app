@@ -318,12 +318,16 @@ test('splitAssetAmount / formatAssetAmount: an inherited Object key shows no fig
   }
 })
 
-test('assetSymbol: the ticker for a registry id, the id itself otherwise — a prototype key is shown as the key, never as a function', () => {
+test('assetSymbol: the ticker for a registry id, the id itself otherwise — an inherited Object key included', () => {
+  // What this guards is the FALLBACK contract every display surface shares.
+  // MEASURED under mutation (2026-09-08): a bracket read answers the same for
+  // the symbol, because an inherited function carries no `symbol` property —
+  // so no assertion here can tell the accessor from a bracket; the web guard
+  // test holds the sites to the accessor, and `getAssetMeta`'s own cases above
+  // are where the prototype-key defect (NaN decimals) is actually pinned.
   assert.equal(assetSymbol('USDC_BASE'), 'USDC')
   assert.equal(assetSymbol('MYSTERY'), 'MYSTERY')
-  for (const key of INHERITED_OBJECT_KEYS) {
-    assert.equal(assetSymbol(key), key, key)
-    assert.doesNotMatch(assetSymbol(key), /function|native code/)
-  }
+  assert.equal(assetSymbol(''), '')
+  for (const key of INHERITED_OBJECT_KEYS) assert.equal(assetSymbol(key), key, key)
 })
 

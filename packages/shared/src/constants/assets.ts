@@ -133,8 +133,11 @@ export function getAssetMeta(asset: string): AssetMeta | null {
  * The ticker to SHOW for an asset id, or the id itself when the registry does
  * not know it — the one fallback every display surface had re-typed
  * (`getAssetMeta(a)?.symbol ?? a`, four times in shared and six in web). One
- * spelling, through the accessor, so a prototype key renders as the key it is
- * and never as a function's text.
+ * spelling, through the accessor, so the registry is read one way everywhere
+ * and the web guard test can hold every site to it. (For the SYMBOL a bracket
+ * read happened to answer the same — an inherited function has no `symbol` —
+ * which is why the fallback, not the accessor, is what this helper owns; the
+ * accessor is where `decimals` stops being NaN.)
  */
 export function assetSymbol(asset: string): string {
   return getAssetMeta(asset)?.symbol ?? asset
