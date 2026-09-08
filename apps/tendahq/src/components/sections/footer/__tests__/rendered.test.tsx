@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { HealthResponse } from '@/api/platform'
 import { APP_INFO } from '@/content'
+import { APP_INFO as BRAND } from '@tenda/shared/app-info'
 import { asText } from '@/test-support/html-text'
 import { ThemeContext, type ThemeContextValue } from '@/theme/theme-context'
 import { Footer } from '../Footer'
@@ -100,5 +101,17 @@ describe('the status chip', () => {
     expect(out).toContain(FOOTER_LEGAL.status.down)
     expect(out).not.toContain(FOOTER_LEGAL.status.ok)
     expect(out).not.toContain(FOOTER_LEGAL.status.checking)
+  })
+})
+
+describe('the reach-us links', () => {
+  it('are WhatsApp, Telegram and X, each the shared brand\'s own URL', () => {
+    // The community group is how workers reach Tenda; a link typed here
+    // instead of read from the brand facts is how the apps and the site
+    // would drift to two different groups.
+    expect(FOOTER_SOCIAL.map((l) => l.label)).toEqual(['WhatsApp', 'Telegram', 'X'])
+    expect(FOOTER_SOCIAL.map((l) => l.href)).toEqual([BRAND.support.whatsapp, BRAND.social.telegram, BRAND.social.twitter])
+    expect(BRAND.support.whatsapp).toMatch(/^https:\/\/chat\.whatsapp\.com\//)
+    for (const link of FOOTER_SOCIAL) expect(link.external).toBe(true)
   })
 })

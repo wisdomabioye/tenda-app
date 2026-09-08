@@ -87,7 +87,7 @@ export const APP_INFO = {
   },
 
   support: {
-    whatsapp: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
+    whatsapp: 'https://chat.whatsapp.com/FP3Tv8157jZJmxq48jurnS',
     email: 'hello@tendahq.com',
   },
 

@@ -78,6 +78,8 @@ export const APP_INFO = {
 
   /** Social — brand truth, one source. */
   twitterUrl: BRAND.social.twitter,
+  /** The community group anyone can join — the support channel, same source the apps ship. */
+  whatsappUrl: BRAND.support.whatsapp,
   discordUrl: '#',
   githubUrl: 'https://github.com/wisdomabioye/tenda-app',
   telegramUrl: BRAND.social.telegram,
