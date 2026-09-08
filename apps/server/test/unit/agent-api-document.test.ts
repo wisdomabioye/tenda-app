@@ -439,12 +439,9 @@ test('the schemas compile under a STRICT validator and the closure bites', () =>
  * follow it, which is the only way it could have been found.
  *
  * The rule: a `/v1/...` path spoken in prose is a promise the reader can
- * navigate to. Either define it, or do not name it.
- *
- * The two documents are checked SEPARATELY and against their own `paths`,
- * because the subset legitimately carries fewer: a sentence that resolves in
- * the canonical document can still dangle in the projection, which is exactly
- * the shape a projection introduces and the reason one list would hide it.
+ * navigate to. Either define it, or do not name it. (It used to run over two
+ * documents, each against its own `paths`, because the agent-only subset
+ * carried fewer; the subset is retired (#135) and ONE document is served.)
  */
 const PROSE_PATH = /\/v1\/[A-Za-z0-9_\-{}/]*[A-Za-z0-9_}](?:\.[A-Za-z0-9]+)?/g
 
@@ -454,9 +451,11 @@ const PROSE_PATH = /\/v1\/[A-Za-z0-9_\-{}/]*[A-Za-z0-9_}](?:\.[A-Za-z0-9]+)?/g
  * that grows silently is how the defect this test exists for came back.
  */
 const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
-  // The subset that pointed at "the other document" is retired (#135); a
-  // document naming its own path is not sending a reader anywhere else.
-  [AGENT_API_DOCUMENT_PATH]: 'its own path',
+  // EMPTY, and measured to be: the one entry it carried — the document's own
+  // path — was the subset's pointer at "the other document" (#135), and with
+  // the subset retired no string in the document names it (0 matches on the
+  // serialised document, 2026-09-08). A register entry nothing exercises is
+  // the silent growth the sentence above warns about, in the other direction.
   // `/v1/escrows` and `/v1/gigs` were exempt here from the day this guard was
   // written: AgentTaskBody described itself as "POST /v1/escrows minus kind
   // and permit plus POST /v1/gigs minus escrow_id" — an explanation to someone
@@ -465,57 +464,53 @@ const NAMEABLE_WITHOUT_DEFINING: Readonly<Record<string, string>> = {
   // what the fields ARE (#136), and the exemption is gone with it.
 }
 
-for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
-  test(`${label} document: every path named in prose is one it defines`, () => {
-    const defined = new Set(Object.keys(doc.paths))
-    const dangling = new Map<string, string>()
-    // Walk the document as TEXT, so a path named anywhere — an operation
-    // description, a schema description, a stability line, a parameter — is
-    // caught. Restricting this to descriptions is how a variant of the same
-    // defect survives in a place nobody thought to look.
-    const walk = (node: unknown, where: string): void => {
-      if (typeof node === 'string') {
-        // `/v1/agent/*` names a FAMILY of paths, not one of them — the
-        // stability guarantees speak about the whole write surface that way.
-        // Stripped before matching rather than exempted after, because the
-        // exemption list is for real paths a document may name, and a
-        // wildcard is not a path a reader could navigate to.
-        const prose = node.replace(/\/v1\/[A-Za-z0-9_\-/]*\/\*/g, '')
-        for (const named of prose.match(PROSE_PATH) ?? []) {
-          if (defined.has(named)) continue
-          if (named in NAMEABLE_WITHOUT_DEFINING) continue
-          dangling.set(named, where)
-        }
-        return
+test('every path named in prose is one the document defines', () => {
+  const defined = new Set(Object.keys(paths))
+  const dangling = new Map<string, string>()
+  // Walk the document as TEXT, so a path named anywhere — an operation
+  // description, a schema description, a stability line, a parameter — is
+  // caught. Restricting this to descriptions is how a variant of the same
+  // defect survives in a place nobody thought to look.
+  const walk = (node: unknown, where: string): void => {
+    if (typeof node === 'string') {
+      // `/v1/agent/*` names a FAMILY of paths, not one of them — the
+      // stability guarantees speak about the whole write surface that way.
+      // Stripped before matching rather than exempted after, because the
+      // exemption list is for real paths a document may name, and a
+      // wildcard is not a path a reader could navigate to.
+      const prose = node.replace(/\/v1\/[A-Za-z0-9_\-/]*\/\*/g, '')
+      for (const named of prose.match(PROSE_PATH) ?? []) {
+        if (defined.has(named)) continue
+        if (named in NAMEABLE_WITHOUT_DEFINING) continue
+        dangling.set(named, where)
       }
-      if (Array.isArray(node)) {
-        node.forEach((item, i) => { walk(item, `${where}[${i}]`) })
-        return
-      }
-      if (typeof node === 'object' && node !== null) {
-        for (const [key, value] of Object.entries(node)) walk(value, `${where}.${key}`)
-      }
+      return
     }
-    walk(doc, '$')
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => { walk(item, `${where}[${i}]`) })
+      return
+    }
+    if (typeof node === 'object' && node !== null) {
+      for (const [key, value] of Object.entries(node)) walk(value, `${where}.${key}`)
+    }
+  }
+  walk(AGENT_API_DOCUMENT, '$')
 
-    assert.deepStrictEqual(
-      [...dangling.entries()],
-      [],
-      `the ${label} document sends a reader to paths it does not define: ` +
-        [...dangling].map(([path, where]) => `${path} (at ${where})`).join(', '),
-    )
-  })
-}
+  assert.deepStrictEqual(
+    [...dangling.entries()],
+    [],
+    'the document sends a reader to paths it does not define: ' +
+      [...dangling].map(([path, where]) => `${path} (at ${where})`).join(', '),
+  )
+})
 
 test('the bootstrap a wallet-owning agent needs is in the document', () => {
   // The narrow, behavioural half of the guard above: not merely "no dangling
   // reference" — which deleting the sentence would also satisfy — but that the
   // two operations are actually there. A future trim that drops them fails
   // here rather than silently restoring the 2026-09-07 wall.
-  for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
-    for (const path of [apiRoutes.auth.nonce, apiRoutes.auth.verify]) {
-      assert.ok(doc.paths[path]?.post !== undefined, `${label} document lost POST ${path}`)
-    }
+  for (const path of [apiRoutes.auth.nonce, apiRoutes.auth.verify]) {
+    assert.ok(paths[path]?.post !== undefined, `the document lost POST ${path}`)
   }
 })
 
@@ -587,20 +582,19 @@ test('#136: omitted policy fields state their default, and the deployment-set te
  * #136 — a document that promises the public feed must carry it.
  *
  * The subset used to prepend the canonical purpose line verbatim, which opens
- * with "browse the public feed", to a document with no `/v1/gigs`. Checked as
- * an implication rather than a fixed sentence: either document may promise the
- * feed, and whichever does must define the path a reader would browse it at.
+ * with "browse the public feed", to a document with no `/v1/gigs`. The subset
+ * is gone (#135); the implication stays, because it is what a future trim of
+ * the read surface would break: a document may promise the feed only if it
+ * defines the path a reader would browse it at.
  */
-for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
-  test(`#136: the ${label} document promises the feed only if it carries it`, () => {
-    const promisesFeed = /public feed/.test(doc.info.description)
-    const carriesFeed = doc.paths[apiRoutes.gigs.list] !== undefined
-    assert.ok(!promisesFeed || carriesFeed, `the ${label} document promises the public feed and defines no ${apiRoutes.gigs.list}`)
-    // And the canonical one really does both — so the implication is not
-    // vacuously true because nobody promises anything any more.
-    if (label === 'canonical') assert.ok(promisesFeed && carriesFeed)
-  })
-}
+test('#136: the document promises the feed only if it carries it — and today it does both', () => {
+  const promisesFeed = /public feed/.test(AGENT_API_DOCUMENT.info.description)
+  const carriesFeed = paths[apiRoutes.gigs.list] !== undefined
+  assert.ok(!promisesFeed || carriesFeed, `the document promises the public feed and defines no ${apiRoutes.gigs.list}`)
+  // Both halves hold, so the implication is not vacuously true because nobody
+  // promises anything any more.
+  assert.ok(promisesFeed && carriesFeed)
+})
 
 /**
  * #132 — the registry operation and the 503 both name the readiness field.

@@ -23,13 +23,11 @@ import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
 import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
 
 test('#133: the operation labels the example as a local-node capture and points at the registry for live addresses', () => {
-  for (const [label, doc] of [['canonical', AGENT_API_DOCUMENT]] as const) {
-    const description = doc.paths[apiRoutes.agent.tasks]?.post?.description ?? ''
-    assert.match(description, /CAPTURE, not defaults/, label)
-    assert.match(description, /local node/, label)
-    assert.match(description, /token and escrow ADDRESSES are that node's/, label)
-    assert.match(description, new RegExp(`escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}`), label)
-  }
+  const description = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post?.description ?? ''
+  assert.match(description, /CAPTURE, not defaults/)
+  assert.match(description, /local node/)
+  assert.match(description, /token and escrow ADDRESSES are that node's/)
+  assert.match(description, new RegExp(`escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}`))
 })
 
 test('#133: the recorded addresses are NOT the manifest\'s for the chain id they carry — which is why the label exists', () => {
