@@ -148,6 +148,7 @@ export {
   type GigDeadlineMeta,
   type GigDeadlineSource,
 } from './gig-display'
+export { gigShareMessage } from './gig-share'
 export {
   EXCHANGE_STATUS_BADGE_VARIANT,
   EXCHANGE_STATUS_LABEL,

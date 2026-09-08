@@ -12,7 +12,7 @@
  */
 import { Copy } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { showToast } from './Toast'
+import { copyText } from './clipboard'
 
 export function CopyButton({
   value,
@@ -25,21 +25,11 @@ export function CopyButton({
   label: string
   className?: string
 }) {
-  async function copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(value)
-      showToast('success', `${label} copied`)
-    } catch {
-      // Clipboard access can be denied (permissions policy, insecure context).
-      showToast('error', 'Could not copy — select the text instead')
-    }
-  }
-
   return (
     <button
       type="button"
       aria-label={`Copy ${label.toLowerCase()}`}
-      onClick={() => void copy()}
+      onClick={() => void copyText(value, label)}
       className={cn(
         'flex h-7 w-7 shrink-0 items-center justify-center rounded-control text-content-tertiary transition-colors hover:bg-surface-inset hover:text-content-primary',
         className,

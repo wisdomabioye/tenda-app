@@ -72,6 +72,11 @@ export const GIG_DETAIL_COPY = {
   unavailableBrowse: 'Browse open gigs',
   crossBorder: 'Cross-border',
   postedPrefix: 'Posted',
+  /** The header's share action — the share sheet where the browser has one,
+   *  the clipboard otherwise; the toast then names what was copied. The
+   *  sentence itself is shared `gigShareMessage`, the same one mobile sends. */
+  share: 'Share',
+  shareLinkLabel: 'Link',
   terminology: {
     payment: 'Payment',
     chain: 'Chain',

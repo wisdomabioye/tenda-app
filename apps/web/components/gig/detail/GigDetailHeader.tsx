@@ -18,7 +18,9 @@ import { ChevronRight, Clock, Globe, MapPin } from 'lucide-react'
 import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import { ChainBadge } from '@/components/shared/ChainBadge'
 import { Eyebrow, RelativeTime } from '@/components/ui'
+import { siteUrl } from '@/lib/config/site-url'
 import { gigsHref, parseGigFeedFilters } from '@/lib/gigs/search-params'
+import { ShareGigButton } from './ShareGigButton'
 import { GIG_DETAIL_COPY } from './copy'
 
 /**
@@ -31,28 +33,40 @@ function categoryHref(gig: GigDetail): string {
   return gigsHref(parseGigFeedFilters({}, new Set()), { category: gig.category })
 }
 
+/**
+ * What the share hands over: the page's own canonical URL, absolute — the
+ * same origin `metadataBase` declares, so the link a reader forwards is the
+ * one the unfurl and the sitemap already name.
+ */
+function gigShareUrl(gig: GigDetail): string {
+  return new URL(`/gig/${gig.escrow_id}`, siteUrl()).toString()
+}
+
 export function GigDetailHeader({ gig }: { gig: GigDetail }) {
   const CategoryIcon = CATEGORY_ICONS[gig.category]
   const tone = CATEGORY_TONE[gig.category]
 
   return (
     <header className="rounded-card border border-border-subtle bg-surface-card px-5 py-5 shadow-card sm:px-7 sm:py-[26px]">
-      <nav
-        aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2 type-body-small font-semibold text-content-tertiary"
-      >
-        <Link href="/" className="hover:text-content-primary">
-          {GIG_DETAIL_COPY.breadcrumbRoot}
-        </Link>
-        <ChevronRight size={14} aria-hidden />
-        <Link href={categoryHref(gig)} className="hover:text-content-primary">
-          {CATEGORY_LABELS[gig.category]}
-        </Link>
-        <ChevronRight size={14} aria-hidden />
-        {/* The escrow id is the thing a reader quotes to support, so it is
-            shown in full and in mono rather than truncated to look tidy. */}
-        <span className="break-all font-numeric type-caption">{gig.escrow_id}</span>
-      </nav>
+      <div className="flex items-start justify-between gap-3">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex min-w-0 flex-wrap items-center gap-2 type-body-small font-semibold text-content-tertiary"
+        >
+          <Link href="/" className="hover:text-content-primary">
+            {GIG_DETAIL_COPY.breadcrumbRoot}
+          </Link>
+          <ChevronRight size={14} aria-hidden />
+          <Link href={categoryHref(gig)} className="hover:text-content-primary">
+            {CATEGORY_LABELS[gig.category]}
+          </Link>
+          <ChevronRight size={14} aria-hidden />
+          {/* The escrow id is the thing a reader quotes to support, so it is
+              shown in full and in mono rather than truncated to look tidy. */}
+          <span className="break-all font-numeric type-caption">{gig.escrow_id}</span>
+        </nav>
+        <ShareGigButton title={gig.title} url={gigShareUrl(gig)} />
+      </div>
 
       <div className="mt-[22px] flex items-center gap-1.5">
         <CategoryIcon size={14} aria-hidden className={`shrink-0 ${tone.text}`} />

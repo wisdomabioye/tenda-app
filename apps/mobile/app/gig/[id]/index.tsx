@@ -29,7 +29,7 @@ import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { useGigsStore } from '@/stores'
-import { apiConfig, canAccept, formatAssetAmount, formatDuration } from '@tenda/shared'
+import { apiConfig, canAccept, formatAssetAmount, formatDuration, gigShareMessage } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { api } from '@/api/client'
 import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
@@ -121,7 +121,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   function handleShare() {
     const baseUrl = apiConfig[getEnv()].baseUrl
-    Share.share({ message: `${gig.title} on Tenda\n${baseUrl}/gig/${gig.escrow_id}` })
+    Share.share({ message: `${gigShareMessage(gig.title)}\n${baseUrl}/gig/${gig.escrow_id}` })
   }
 
   function handleTransactionConfirmed() {

@@ -4,6 +4,7 @@
  * party-scoped values anyway cannot get them onto a crawler-visible page.
  */
 import { act, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CATEGORY_LABELS, PROOF_TYPE_LABEL, chainLabel, type GigDetail } from '@tenda/shared'
 import { GigBrief, briefParagraphs } from '@/components/gig/detail/GigBrief'
@@ -16,6 +17,7 @@ import { GigSettlementSteps } from '@/components/gig/detail/GigSettlementSteps'
 import { GigTerms, gigTerms } from '@/components/gig/detail/GigTerms'
 import { GigUnavailable } from '@/components/gig/detail/GigUnavailable'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
+import { siteUrl } from '@/lib/config/site-url'
 import {
   LEAKED_COUNTERPARTY_NAME,
   deliveryGigDetail,
@@ -45,6 +47,23 @@ describe('GigDetailHeader', () => {
   it('is the page headline', () => {
     render(<GigDetailHeader gig={gig} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(gig.title)
+  })
+
+  it('shares the ABSOLUTE canonical URL — the origin metadataBase declares, not a bare path', async () => {
+    // A share sheet is installed so the URL the header composes is observed
+    // as handed over, not inferred from markup; removed after, since jsdom
+    // has none and the clipboard cases in ShareGigButton.test rely on that.
+    const share = vi.fn(() => Promise.resolve())
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true })
+    try {
+      render(<GigDetailHeader gig={gig} />)
+      await userEvent.click(screen.getByRole('button', { name: GIG_DETAIL_COPY.share }))
+      expect(share).toHaveBeenCalledWith(
+        expect.objectContaining({ url: `${siteUrl().origin}/gig/${gig.escrow_id}` }),
+      )
+    } finally {
+      Reflect.deleteProperty(navigator, 'share')
+    }
   })
 
   it('resolves the location, and flags cross-border only when the gig is', () => {
