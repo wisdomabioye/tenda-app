@@ -9,6 +9,7 @@ import {
   compareGigFeedRevisions,
   compareGigSummariesByRecency,
   matchesGigFeedQuery,
+  GIG_FEED_REVISION_MEMORY,
   type GigFeedState,
 } from '../../src/gig-feed'
 
@@ -258,3 +259,46 @@ test('a caller that stores less than a summary matches on the full gig and store
   })
   assert.deepEqual(removed.state.items.map((item) => item.escrow_id), ['a'])
 })
+
+/**
+ * #73 — the revision memory is BOUNDED by the reducer itself, so every
+ * consumer (web anonymous feed, web open-gigs list, mobile) is bounded without
+ * remembering to be. The trade is stated as a test: a departed gig's revision
+ * is remembered for GIG_FEED_REVISION_MEMORY further departures and then
+ * forgotten, at which point an old frame for it reads as new.
+ */
+test('#73: the revision map stays bounded as gigs come and go, remembering the newest departures', () => {
+  let state: GigFeedState = { items: [], revisions: {} }
+  const churn = GIG_FEED_REVISION_MEMORY + 50
+  for (let i = 0; i < churn; i += 1) {
+    // Each gig arrives and leaves: after this the list is empty and the gig has departed.
+    const item = gig(`churn-${i}`, '2026-08-13T10:00:00.000Z')
+    const arrived = applyGigFeedEvent({ state, event: available(item, '1'), query: {}, project: identity })
+    assert.equal(arrived.outcome, 'applied')
+    const left = applyGigFeedEvent({ state: arrived.state, event: unavailable(item.escrow_id, '2'), query: {}, project: identity })
+    assert.equal(left.outcome, 'applied')
+    state = left.state
+  }
+  assert.equal(state.items.length, 0)
+  assert.equal(Object.keys(state.revisions).length, GIG_FEED_REVISION_MEMORY, 'exactly the memory, never the whole history')
+
+  // The most recent departure is still guarded: its old frame is stale.
+  const recent = gig(`churn-${churn - 1}`, '2026-08-13T10:00:00.000Z')
+  assert.equal(applyGigFeedEvent({ state, event: available(recent, '1'), query: {}, project: identity }).outcome, 'ignored_stale')
+  // The earliest one has been forgotten: the same old frame now reads as new — the stated trade.
+  const forgotten = gig('churn-0', '2026-08-13T10:00:00.000Z')
+  assert.equal(applyGigFeedEvent({ state, event: available(forgotten, '1'), query: {}, project: identity }).outcome, 'applied')
+})
+
+test('#73: a CURRENT row is never forgotten, however much churn surrounds it', () => {
+  const pinned = gig('pinned', '2026-08-13T10:00:00.000Z', { public_feed_revision: '9' })
+  let state: GigFeedState = { items: [pinned], revisions: { pinned: '9' } }
+  for (let i = 0; i < GIG_FEED_REVISION_MEMORY + 20; i += 1) {
+    const item = gig(`c-${i}`, '2026-08-13T10:00:00.000Z')
+    state = applyGigFeedEvent({ state, event: unavailable(item.escrow_id, '1'), query: {}, project: identity }).state
+  }
+  assert.equal(state.revisions.pinned, '9')
+  const stale = applyGigFeedEvent({ state, event: available({ ...pinned, title: 'old' }, '3'), query: {}, project: identity })
+  assert.equal(stale.outcome, 'ignored_stale')
+})
+

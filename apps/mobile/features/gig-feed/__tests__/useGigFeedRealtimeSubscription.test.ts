@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native'
-import type { GigFeedServerFrame } from '@tenda/shared'
+import { GIG_FEED_REVISION_MEMORY, type GigFeedServerFrame } from '@tenda/shared'
 import { gigDetail } from '@/components/gig/__fixtures__/gig-detail'
 
 let feedListener: ((frame: GigFeedServerFrame) => void) | undefined
@@ -159,3 +159,32 @@ test('a rejected reconciliation does not permanently block later recovery', asyn
   await act(async () => { feedListener?.(available()); await Promise.resolve() })
   expect(target.reconcile).toHaveBeenCalledTimes(2)
 })
+
+test('#73: the seeded revision memory is bounded across renders — a long-departed row is no longer guarded', () => {
+  const first = gigDetail({ escrow_id: 'first', public_feed_revision: '7', title: 'Current' })
+  const target = {
+    items: [first],
+    applyRealtimeItems: jest.fn(),
+    reconcile: jest.fn(async () => true),
+  }
+  const { rerender } = renderHook(({ t }: { t: typeof target }) => useGigFeedRealtimeSubscription(t, {}), {
+    initialProps: { t: target },
+  })
+  // More departures than the memory, page by page; `first` left on the first turn.
+  const pages = Math.ceil((GIG_FEED_REVISION_MEMORY + 1) / 50) + 1
+  for (let p = 0; p < pages; p += 1) {
+    const items = Array.from({ length: 50 }, (_, i) => gigDetail({ escrow_id: `p${p}-${i}`, public_feed_revision: '1' }))
+    rerender({ t: { ...target, items } })
+  }
+  const stale = available()
+  if (stale.type === 'gig_available') {
+    stale.escrow_id = 'first'
+    stale.gig = { ...first, title: 'Stale' }
+    stale.gig_revision = '6'
+  }
+  act(() => feedListener?.(stale))
+  // Forgotten, so the old frame is applied as new — the reducer's stated trade,
+  // and the proof the map did not keep every gig the session ever saw.
+  expect(target.applyRealtimeItems).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ escrow_id: 'first', title: 'Stale' })]))
+})
+

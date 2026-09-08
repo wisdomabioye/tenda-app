@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import {
   applyGigFeedEvent,
+  pruneGigFeedRevisions,
   type GigFeedState,
   type GigListQuery,
   type GigSummary,
@@ -33,9 +34,14 @@ export function useGigFeedRealtimeSubscription(
   const mountedRef = useRef(true)
   queryRef.current = query
   targetRef.current = target
+  // Revisions accumulate across renders, BOUNDED (#73): the rows on screen
+  // plus the most recently departed, never every gig the session ever saw.
   stateRef.current = {
     items: target.items,
-    revisions: { ...stateRef.current.revisions, ...revisionsFromItems(target.items) },
+    revisions: pruneGigFeedRevisions(
+      { ...stateRef.current.revisions, ...revisionsFromItems(target.items) },
+      target.items.map((gig) => gig.escrow_id),
+    ),
   }
 
   const requestReconciliation = useCallback((): void => {

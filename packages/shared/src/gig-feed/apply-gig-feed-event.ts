@@ -5,6 +5,7 @@ import {
   type GigFeedRecencyFields,
 } from './compare-gig-summaries-by-recency'
 import { matchesGigFeedQuery } from './matches-gig-feed-query'
+import { pruneGigFeedRevisions } from './prune-gig-feed-revisions'
 import type { ApplyGigFeedEventInput, GigFeedEventResult } from './gig-feed.types'
 
 function withoutGig<T extends GigFeedRecencyFields>(items: readonly T[], escrowId: string): T[] {
@@ -32,13 +33,17 @@ export function applyGigFeedEvent<T extends GigFeedRecencyFields>(
     return { outcome: 'reconciliation_required', reason: 'server_only_filter', state }
   }
 
-  const revisions = { ...state.revisions, [event.escrow_id]: event.gig_revision }
   const remaining = withoutGig(state.items, event.escrow_id)
-  if (event.type === 'gig_unavailable' || !matchesGigFeedQuery(event.gig, query)) {
-    return { outcome: 'applied', state: { items: remaining, revisions } }
-  }
-  return {
-    outcome: 'applied',
-    state: { items: [...remaining, project(event.gig)].sort(compareGigSummariesByRecency), revisions },
-  }
+  const items =
+    event.type === 'gig_unavailable' || !matchesGigFeedQuery(event.gig, query)
+      ? remaining
+      : [...remaining, project(event.gig)].sort(compareGigSummariesByRecency)
+  // Remember this frame's revision, then bound the memory to the rows still
+  // held plus the most recently departed (#73) — the map used to keep every
+  // gig a session ever saw.
+  const revisions = pruneGigFeedRevisions(
+    { ...state.revisions, [event.escrow_id]: event.gig_revision },
+    items.map((gig) => gig.escrow_id),
+  )
+  return { outcome: 'applied', state: { items, revisions } }
 }

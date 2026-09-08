@@ -6,6 +6,7 @@ export {
   type GigFeedRecencyFields,
 } from './compare-gig-summaries-by-recency'
 export { matchesGigFeedQuery } from './matches-gig-feed-query'
+export { GIG_FEED_REVISION_MEMORY, pruneGigFeedRevisions } from './prune-gig-feed-revisions'
 export type {
   ApplyGigFeedEventInput,
   ClientMatchableGigFeedQuery,

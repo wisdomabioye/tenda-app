@@ -27,6 +27,7 @@
 import { useEffect, useRef } from 'react'
 import {
   applyGigFeedEvent,
+  pruneGigFeedRevisions,
   type GigFeedRecencyFields,
   type GigFeedServerFrame,
   type GigFeedState,
@@ -94,12 +95,16 @@ export function useGigFeedRealtime<T extends Revisioned>(args: GigFeedRealtimeAr
   // guard only engages for a revision it already knows.
   useIsomorphicLayoutEffect(() => {
     argsRef.current = args
-    // Rows come from the render; revisions ACCUMULATE. A row the server has
-    // since dropped still has a revision worth remembering, or its late frame
-    // replays as new.
+    // Rows come from the render; revisions ACCUMULATE, bounded (#73). A row
+    // the server has since dropped still has a revision worth remembering, or
+    // its late frame replays as new — but only the most recent departures:
+    // the map used to keep every gig a session ever saw.
     stateRef.current = {
       items: args.items,
-      revisions: { ...stateRef.current.revisions, ...revisionsFrom(args.items) },
+      revisions: pruneGigFeedRevisions(
+        { ...stateRef.current.revisions, ...revisionsFrom(args.items) },
+        args.items.map((gig) => gig.escrow_id),
+      ),
     }
   }, [args])
 
@@ -123,7 +128,10 @@ export function useGigFeedRealtime<T extends Revisioned>(args: GigFeedRealtimeAr
         // the same frame would order a fresh reconcile every time it arrived.
         stateRef.current = {
           items: before.items,
-          revisions: { ...before.revisions, [event.escrow_id]: event.gig_revision },
+          revisions: pruneGigFeedRevisions(
+            { ...before.revisions, [event.escrow_id]: event.gig_revision },
+            before.items.map((gig) => gig.escrow_id),
+          ),
         }
         current.onReconcile()
         return
