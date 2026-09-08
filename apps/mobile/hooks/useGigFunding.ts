@@ -17,12 +17,18 @@ import {
   type EscrowCreationAttempt,
   reuseOrCreateEscrowCreationAttempt,
   SECONDS_PER_HOUR,
+  ApiClientError,
+  checkEscrowTransitionApplied,
+  randomUuid,
+  WalletError,
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
+  type GigFormValues,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import { ApiClientError, checkEscrowTransitionApplied, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
-import { WalletError } from '@tenda/shared'
 import {
   declaredSignerFor,
   resolveSignersForChain,
@@ -33,12 +39,6 @@ import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import type { TxPhase } from '@/hooks/useEscrowActions'
-import {
-  classifyTransactionGateError,
-  TRANSACTION_GATE_MESSAGE,
-  transactionGateRoute,
-} from '@tenda/shared'
-import type { GigFormValues } from '@tenda/shared'
 
 
 interface FundingMonitor {

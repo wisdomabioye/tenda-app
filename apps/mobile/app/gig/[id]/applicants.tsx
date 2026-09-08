@@ -11,13 +11,21 @@
 import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { formatAssetAmount, canAssign, type GigApplicant, type GigDetail, formatDuration, checkEscrowTransitionApplied } from '@tenda/shared'
+import {
+  formatAssetAmount,
+  canAssign,
+  type GigApplicant,
+  type GigDetail,
+  formatDuration,
+  checkEscrowTransitionApplied,
+  TX_PROGRESS_LABEL,
+  txSuccessCopy,
+  approvalContextOf,
+} from '@tenda/shared'
 import { ScreenContainer, Header, showToast } from '@/components/ui'
 import { TransactionMonitor } from '@/components/feedback'
 import { TakedownNotice, TxConfirmDialog } from '@/components/escrow'
-import { TX_PROGRESS_LABEL, txSuccessCopy } from '@tenda/shared'
 import { GigDetailGate } from '@/components/gig'
-import { approvalContextOf } from '@tenda/shared'
 import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'

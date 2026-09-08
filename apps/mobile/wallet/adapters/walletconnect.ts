@@ -16,14 +16,18 @@
  */
 import { Buffer } from 'buffer'
 import { Linking } from 'react-native'
-import { WalletError } from '@tenda/shared'
-import { connectThenSign, isUserRejection } from '@tenda/shared'
-import { guardWalletRequest } from '@tenda/shared'
+import {
+  WalletError,
+  connectThenSign,
+  isUserRejection,
+  guardWalletRequest,
+  type SignMessageResult,
+  type WalletAccount,
+  type AuthenticateResult,
+} from '@tenda/shared'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
 import { reownConfigured } from '../reown/config'
 import { WALLET_CHAINS } from '../config'
-import type { SignMessageResult, WalletAccount } from '@tenda/shared'
-import type { AuthenticateResult } from '@tenda/shared'
 import type { WalletAdapter } from './types'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */

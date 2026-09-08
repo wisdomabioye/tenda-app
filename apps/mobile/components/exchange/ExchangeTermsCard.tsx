@@ -10,7 +10,6 @@ import {
   ASSET_META,
   computeRelevantDeadline,
   formatAssetAmount,
-  formatFiat,
   formatPaymentWindow,
   formatRate,
   truncateWallet,

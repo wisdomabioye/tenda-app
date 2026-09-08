@@ -5,10 +5,15 @@ import {
   type EscrowCreationAttempt,
   reuseOrCreateEscrowCreationAttempt,
   SECONDS_PER_HOUR,
+  ApiClientError,
+  randomUuid,
+  InsufficientBalanceError,
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import { ApiClientError, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import {
   declaredSignerFor,
@@ -16,13 +21,7 @@ import {
   settleSignerFor,
   signSendAndReport,
 } from '@/wallet/dispatch'
-import { InsufficientBalanceError } from '@tenda/shared'
 import { ensureSufficientBalance } from '@/wallet/balances'
-import {
-  classifyTransactionGateError,
-  TRANSACTION_GATE_MESSAGE,
-  transactionGateRoute,
-} from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 

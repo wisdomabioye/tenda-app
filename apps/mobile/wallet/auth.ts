@@ -17,11 +17,10 @@
  * this path and is no longer sent.
  */
 
-import { buildAuthMessage, apiConfig, type VerifyResponse } from '@tenda/shared'
+import { buildAuthMessage, apiConfig, type VerifyResponse, type WalletAccount } from '@tenda/shared'
 import { api } from '@/api/client'
 import { getEnv } from '@/lib/env'
 import { WALLET_CHAINS } from '@/wallet/config'
-import type { WalletAccount } from '@tenda/shared'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**

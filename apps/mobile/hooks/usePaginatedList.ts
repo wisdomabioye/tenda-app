@@ -137,7 +137,10 @@ export function usePaginatedList<TItem, TQuery extends object>({
         }
       }
     },
-    [pageSize],
+    // `cursor` is referentially stable (usePageCursor memoises on
+    // `cursorPagination` alone and keeps its position in refs), so naming it
+    // here satisfies the rule without churning this callback's identity.
+    [pageSize, cursor],
   )
 
   // Bumping the generation invalidates any page still in flight for the OLD

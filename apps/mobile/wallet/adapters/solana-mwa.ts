@@ -6,15 +6,18 @@ import {
   VersionedTransaction,
   type Transaction,
 } from '@solana/web3.js'
-import { TRANSACTION_COPY } from '@tenda/shared'
+import {
+  TRANSACTION_COPY,
+  WalletError,
+  isRetryableSolanaRpcError,
+  type SignMessageResult,
+  type WalletAccount,
+  type AuthenticateResult,
+} from '@tenda/shared'
 import bs58 from 'bs58'
 import { authorizeSession, withMwaRetry } from './mwa-shared'
-import { WalletError } from '@tenda/shared'
 import { WALLET_CHAINS } from '../config'
-import type { SignMessageResult, WalletAccount } from '@tenda/shared'
-import type { AuthenticateResult } from '@tenda/shared'
 import type { WalletAdapter } from './types'
-import { isRetryableSolanaRpcError } from '@tenda/shared'
 import { solanaRpcTransport } from '@/wallet/solana-rpc'
 
 /**

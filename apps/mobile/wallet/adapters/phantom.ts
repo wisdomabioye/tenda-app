@@ -3,13 +3,16 @@ import { Buffer } from 'buffer'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 import * as SecureStore from 'expo-secure-store'
-import { WalletError } from '@tenda/shared'
+import {
+  WalletError,
+  connectThenSign,
+  type AuthenticateResult,
+  type SignMessageResult,
+  type WalletAccount,
+} from '@tenda/shared'
 import { metadata, SOLANA_NETWORK, WALLET_CHAINS } from '../config'
 import { canOpenScheme } from './detect'
-import { connectThenSign } from '@tenda/shared'
-import type { AuthenticateResult } from '@tenda/shared'
 import type { WalletAdapter } from './types'
-import type { SignMessageResult, WalletAccount } from '@tenda/shared'
 
 /**
  * Phantom on iOS via Phantom's encrypted universal-link protocol

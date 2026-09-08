@@ -4,7 +4,19 @@
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { acceptWindowState, unassignWindowEndsAt, type GigDetail } from '@tenda/shared'
+import {
+  acceptWindowState,
+  unassignWindowEndsAt,
+  type GigDetail,
+  applicantsCtaLabel,
+  APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
+  applicationStatusLine,
+  openApplicationLine,
+  UNASSIGN_WINDOW_INFORMATION,
+  approvalContextOf,
+  type ApprovalBranch,
+  type CtaWidth,
+} from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
@@ -14,14 +26,6 @@ import {
   DeadlineCountdownDisplay,
 } from '@/components/shared/DeadlineCountdown'
 import { useCountdown } from '@/hooks/useCountdown'
-import {
-  applicantsCtaLabel,
-  APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
-  applicationStatusLine,
-  openApplicationLine,
-  UNASSIGN_WINDOW_INFORMATION,
-} from '@tenda/shared'
-import { approvalContextOf, type ApprovalBranch, type CtaWidth } from '@tenda/shared'
 import { widthProps } from './slots'
 
 /**

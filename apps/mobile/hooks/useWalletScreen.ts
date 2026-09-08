@@ -2,20 +2,22 @@ import { useState, useCallback, useMemo, useRef } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import { isRegistryUsable } from '@tenda/shared'
-import { useChainRegistryStore } from '@/stores/chain-registry.store'
-import { resolveWalletSection } from '@tenda/shared'
-import { readWalletBalances, sumUsdcRaw, type WalletChainBalance } from '@tenda/shared'
-import { groupByDay } from '@tenda/shared'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { amountRawToDisplay } from '@tenda/shared'
-import type {
-  ChainRegistryEntry,
-  LinkedWallet,
-  UserEscrowTransaction,
-  UserTransactionsQuery,
-  UserTransactionsSummary,
+import {
+  isRegistryUsable,
+  resolveWalletSection,
+  readWalletBalances,
+  sumUsdcRaw,
+  type WalletChainBalance,
+  groupByDay,
+  amountRawToDisplay,
+  type ChainRegistryEntry,
+  type LinkedWallet,
+  type UserEscrowTransaction,
+  type UserTransactionsQuery,
+  type UserTransactionsSummary,
 } from '@tenda/shared'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const EMPTY_SUMMARY: UserTransactionsSummary = {
   earned_raw: '0',

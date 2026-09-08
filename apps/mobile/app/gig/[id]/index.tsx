@@ -19,17 +19,23 @@ import {
   type ActiveSheet,
 } from '@/components/gig'
 import { ApplySheet, useGigApprovalFlow } from '@/components/gig/gig-applications'
-import { partiesOf } from '@tenda/shared'
+import {
+  partiesOf,
+  txSuccessCopy,
+  apiConfig,
+  canAccept,
+  formatAssetAmount,
+  formatDuration,
+  gigShareMessage,
+} from '@tenda/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
 import { DetailChrome, EscrowTransactionMonitor, TxConfirmDialog } from '@/components/escrow'
-import { txSuccessCopy } from '@tenda/shared'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { useGigsStore } from '@/stores'
-import { apiConfig, canAccept, formatAssetAmount, formatDuration, gigShareMessage } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { api } from '@/api/client'
 import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'

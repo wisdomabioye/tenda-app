@@ -23,7 +23,7 @@ import type {
   UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { errorMessage, PROOF_COPY, WalletError } from '@tenda/shared'
+import { errorMessage, PROOF_COPY } from '@tenda/shared'
 import {
   declaredSignerFor,
   resolveSignersForChain,
@@ -32,7 +32,6 @@ import {
 } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
-import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
 import { surfaceTransitionFailure } from '@/features/escrow/transition-failure'
 import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProofs'
