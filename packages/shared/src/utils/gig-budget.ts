@@ -10,7 +10,7 @@
  * It lives here rather than in either client because it is one rule about one
  * field, and a copy in each app is how the two drift apart.
  */
-import { getAssetMeta } from '../constants/assets'
+import { getAssetMeta, assetSymbol } from '../constants/assets'
 import { isAmountRaw } from './amount-raw'
 import { formatUnits, parseUnits, sanitizeDecimalText } from './units'
 import { gigAmountBounds } from './validation'
@@ -72,7 +72,7 @@ export function gigBudgetToText(raw: string, asset: string): string {
 /** The rail as the reader would read it, e.g. "1 – 50000 USDC". */
 export function gigBudgetRangeLabel(asset: string): string {
   const { min_raw, max_raw } = gigAmountBounds(asset)
-  const symbol = getAssetMeta(asset)?.symbol ?? asset
+  const symbol = assetSymbol(asset)
   return `${gigBudgetToText(min_raw, asset)} – ${gigBudgetToText(max_raw, asset)} ${symbol}`
 }
 

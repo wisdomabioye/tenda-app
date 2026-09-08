@@ -16,7 +16,7 @@
  * withholds (#36).
  */
 import {
-  ASSET_META,
+  assetSymbol,
   chainLabel,
   truncateWallet,
   BOUND_WALLET_LABEL,
@@ -53,7 +53,7 @@ interface TermRow {
 
 export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
   const currency = offer.fiat_currency
-  const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  const symbol = assetSymbol(offer.asset)
   const { feeRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
 
   const rows: TermRow[] = [

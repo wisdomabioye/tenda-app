@@ -9,7 +9,7 @@
  * the reader comes back to the list they were reading.
  */
 import {
-  ASSET_META,
+  assetSymbol,
   CURRENCY_META,
   PAYOUT_CURRENCIES,
   type SupportedCurrency,
@@ -47,7 +47,7 @@ export function exchangeHref({ tab, currency, chainId }: ExchangeRouteState): st
 
 /** The rate line under an offer's headline figure, e.g. "NGN / USDC". */
 export function rateUnitLabel(fiatCurrency: string, asset: string): string {
-  return `${fiatCurrency} / ${ASSET_META[asset]?.symbol ?? asset}`
+  return `${fiatCurrency} / ${assetSymbol(asset)}`
 }
 
 /** A currency chip's label — the symbol and the code, as the comp writes it. */

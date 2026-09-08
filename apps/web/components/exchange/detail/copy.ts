@@ -3,7 +3,7 @@
  * the countdown block is showing.
  */
 import type { EscrowStatus, ExchangeDetail } from '@tenda/shared'
-import { ASSET_META, computeRelevantDeadline, formatDurationShort } from '@tenda/shared'
+import { assetSymbol, computeRelevantDeadline, formatDurationShort } from '@tenda/shared'
 import type { EscrowChatContext } from '@/lib/chat-href'
 
 /** Which seat the reader is in: 'seller' created this offer, 'buyer' is anyone else. */
@@ -11,9 +11,9 @@ export type OfferPerspective = 'buyer' | 'seller'
 
 export const OFFER_DETAIL_COPY = {
   back: 'All offers',
-  sideLabel: (asset: string) => `Selling ${ASSET_META[asset]?.symbol ?? asset}`,
+  sideLabel: (asset: string) => `Selling ${assetSymbol(asset)}`,
   rateUnit: (currency: string, asset: string) =>
-    `${currency} per ${ASSET_META[asset]?.symbol ?? asset}`,
+    `${currency} per ${assetSymbol(asset)}`,
   /**
    * The comp says the rate is "fixed the moment you confirm". It is fixed
    * EARLIER than that — the seller set it when they posted, and the escrow

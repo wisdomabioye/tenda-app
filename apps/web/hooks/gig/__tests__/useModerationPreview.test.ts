@@ -159,6 +159,16 @@ test('an asset outside the registry still sends decimals — the fallback, not u
   expect(result.current).toEqual(VERDICT)
 })
 
+test('a prototype-key asset takes the same fallback — the registry is read through the accessor, never a bracket', async () => {
+  // `ASSET_META['toString']` is a truthy function; the accessor answers null for
+  // it, so the decimals fall back exactly as for an unknown id (the web guard
+  // test holds every site in this tree to the accessor).
+  const { result } = renderHook(() => useModerationPreview({ ...READY, asset: 'toString' }))
+  await debounce()
+  expect(previewMock).toHaveBeenCalledWith(expect.objectContaining({ asset_decimals: 9 }))
+  expect(result.current).toEqual(VERDICT)
+})
+
 test('a superseded request that FAILS cannot clear the newer verdict', async () => {
   // The other half of the stale-response rule. Without the guard in the catch,
   // an abandoned request's rejection wipes the verdict belonging to the input

@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ASSET_META,
+  assetSymbol,
   CATEGORY_HINTS,
   DEFAULT_COMPLETION_SECONDS,
   PROOF_NOTE,
@@ -134,7 +134,7 @@ export function useGigForm(
 
   // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
   const asset = gigAssetByChain(chainId) ?? gigAssetByChain(defaultChainId) ?? 'USDC_SOL'
-  const assetSymbol = ASSET_META[asset]?.symbol ?? asset
+  const symbol = assetSymbol(asset)
 
   // Stage-6 live moderation hints, debounced, advisory only; the server
   // re-runs the same pipeline on create and stays authoritative.
@@ -222,7 +222,7 @@ export function useGigForm(
     /** Re-run the wallets[] load after it failed (#59 notice's retry). */
     retryWallets: refreshWallets,
     asset,
-    assetSymbol,
+    assetSymbol: symbol,
     moderation,
     isValid,
     missingRequirement,

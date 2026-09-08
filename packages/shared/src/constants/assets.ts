@@ -130,6 +130,17 @@ export function getAssetMeta(asset: string): AssetMeta | null {
 }
 
 /**
+ * The ticker to SHOW for an asset id, or the id itself when the registry does
+ * not know it — the one fallback every display surface had re-typed
+ * (`getAssetMeta(a)?.symbol ?? a`, four times in shared and six in web). One
+ * spelling, through the accessor, so a prototype key renders as the key it is
+ * and never as a function's text.
+ */
+export function assetSymbol(asset: string): string {
+  return getAssetMeta(asset)?.symbol ?? asset
+}
+
+/**
  * Every asset id that IS USDC, across chains. Derived from ASSET_META rather
  * than hardcoded, so adding `USDC_<CHAIN>` to the map above is enough.
  *
@@ -263,13 +274,12 @@ export interface SplitAssetAmount {
  * `parseUnits` (utils/units), which are BigInt-exact — never this.
  */
 export function splitAssetAmount(amount_raw: string, asset: string): SplitAssetAmount {
-  const meta = getAssetMeta(asset)
   const value = amountRawToDisplay(amount_raw, asset)
   return {
     amount: formatAmountOrUnknown(value, (v) =>
       v.toLocaleString('en-US', { maximumFractionDigits: 4 }),
     ),
-    symbol: meta?.symbol ?? asset,
+    symbol: assetSymbol(asset),
   }
 }
 

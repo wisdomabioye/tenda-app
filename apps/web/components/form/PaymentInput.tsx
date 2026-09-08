@@ -16,7 +16,7 @@
  */
 import { useState } from 'react'
 import {
-  ASSET_META,
+  assetSymbol,
   gigBudgetRangeLabel,
   gigBudgetToRaw,
   gigBudgetToText,
@@ -34,7 +34,7 @@ export function PaymentInput({
   value: string
   onChange: (raw: string) => void
 }) {
-  const symbol = ASSET_META[asset]?.symbol ?? asset
+  const symbol = assetSymbol(asset)
 
   // Seeded once from the incoming raw (a resumed draft) and owned by the
   // field thereafter — the text is what the reader typed, and re-deriving it

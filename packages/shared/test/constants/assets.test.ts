@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
+import { assetSymbol, formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   ASSET_META,
   assertStablePegs,
   getAssetMeta,
@@ -317,3 +317,13 @@ test('splitAssetAmount / formatAssetAmount: an inherited Object key shows no fig
     assert.equal(formatAssetAmount('1000', key), `${UNKNOWN_AMOUNT_DISPLAY} ${key}`)
   }
 })
+
+test('assetSymbol: the ticker for a registry id, the id itself otherwise — a prototype key is shown as the key, never as a function', () => {
+  assert.equal(assetSymbol('USDC_BASE'), 'USDC')
+  assert.equal(assetSymbol('MYSTERY'), 'MYSTERY')
+  for (const key of INHERITED_OBJECT_KEYS) {
+    assert.equal(assetSymbol(key), key, key)
+    assert.doesNotMatch(assetSymbol(key), /function|native code/)
+  }
+})
+
