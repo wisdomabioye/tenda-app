@@ -67,9 +67,12 @@ test('at most one gig asset per chain, and it IS the one gigAssetByChain answers
   // returns the FIRST asset carrying the role and calls it "the" gig asset, so
   // a second one does not fail anywhere — it is silently ignored, or it wins
   // and changes the currency every gig on that chain is denominated in,
-  // depending only on where someone typed it in the array. That is the
-  // constraint holding cNGN to `roles: ['exchange']` until the composer and
-  // the wire can carry a CHOSEN gig asset instead of a derived one.
+  // depending only on where someone typed it in the array. This is the RULE,
+  // not a stopgap (#114, decided 2026-09-08): cNGN stays `roles: ['exchange']`
+  // by design — its issuer can pause, blacklist or burn an escrowed balance,
+  // and it exists on Celo alone — so no chain gets a second gig asset, and a
+  // chosen-asset composer is not on the road map. The guard is what makes a
+  // future entry that disagrees fail here instead of shipping.
   for (const entry of CHAIN_MANIFEST) {
     const gigs = entry.assets.filter((a) => a.roles.includes('gig'))
     assert.ok(gigs.length <= 1, `${entry.id} has ${gigs.length} gig assets`)

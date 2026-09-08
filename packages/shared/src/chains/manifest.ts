@@ -373,6 +373,12 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       // which is the honest limit of what is known, because the token does NOT
       // expose its adminOperationsContract (no public getter; not in the first
       // 13 proxy slots), so the whitelist itself cannot be read from outside.
+      //
+      // DECIDED 2026-09-08 (#114, user): cNGN is EXCHANGE-ONLY BY DESIGN, not
+      // until something is built. A token whose issuer can pause, blacklist or
+      // burn an escrowed balance is not escrow money, and it exists on Celo
+      // alone. One gig asset per chain is therefore the rule (the manifest
+      // test holds it), not a limitation of the composer or the wire.
       { id: 'cNGN', roles: ['exchange'], token: '0xF6829D7393dAe24509eb1E52eE8e572e2E271a4f' },
       { id: 'cUSD', roles: ['exchange'], token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
       { id: 'CELO', roles: ['exchange'], token: null },
