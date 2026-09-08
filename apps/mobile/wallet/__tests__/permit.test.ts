@@ -27,7 +27,7 @@ jest.mock('@/stores/chain-registry.store', () => ({
 }))
 
 import { api } from '@/api/client'
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, type ChainRegistryEntry } from '@tenda/shared'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
 import { ensureEvmSession } from '@/wallet/ensure-session'
@@ -44,7 +44,8 @@ const registryMock = useChainRegistryStore.getState as jest.Mock
 const CHAIN = 'eip155:84532'
 const OWNER = '0xAbC0000000000000000000000000000000000001'
 
-function registry(supports_permit: boolean) {
+// The wire shape, so the stub cannot serve a registry the server never sends.
+function registry(supports_permit: boolean): { chains: ChainRegistryEntry[] } {
   return {
     chains: [
       {
@@ -62,6 +63,7 @@ function registry(supports_permit: boolean) {
             token_address: '0xToken',
             supports_permit,
             funds_by_signature: supports_permit,
+            roles: ['gig', 'exchange'],
           },
         ],
       },
