@@ -61,6 +61,7 @@ function registry(supports_permit: boolean) {
             is_stable: true,
             token_address: '0xToken',
             supports_permit,
+            funds_by_signature: supports_permit,
           },
         ],
       },

@@ -42,15 +42,15 @@ beforeEach(() => {
 const EVM_CHAIN: ChainRegistryEntry = {
   id: 'eip155:84532', namespace: 'eip155', display_name: 'Base Sepolia', escrow_address: '0xE', ...registryEntryDefaults('eip155:84532'),
   assets: [
-    { id: 'USDC_BASE_SEPOLIA', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0x' + 'a'.repeat(40), supports_permit: true, roles: ['gig', 'exchange'] },
-    { id: 'ETH_BASE_SEPOLIA', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
+    { id: 'USDC_BASE_SEPOLIA', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0x' + 'a'.repeat(40), supports_permit: true, funds_by_signature: true, roles: ['gig', 'exchange'] },
+    { id: 'ETH_BASE_SEPOLIA', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false, funds_by_signature: false, roles: ['exchange'] },
   ],
 }
 const SOL_CHAIN: ChainRegistryEntry = {
   id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet', escrow_address: 'P', ...registryEntryDefaults('solana:devnet'),
   assets: [
-    { id: 'USDC_SOL_DEV', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MintAddr', supports_permit: false, roles: ['gig', 'exchange'] },
-    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
+    { id: 'USDC_SOL_DEV', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MintAddr', supports_permit: false, funds_by_signature: true, roles: ['gig', 'exchange'] },
+    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false, funds_by_signature: true, roles: ['exchange'] },
   ],
 }
 

@@ -26,6 +26,7 @@ export {
   firstEvmChainIdByKind,
   CHAIN_NAMESPACE_LABEL,
   OBSERVED_GAS_PRICE_WEI,
+  assetFundsBySignature,
   GAS_SEED_LIFECYCLE_MULTIPLE,
   GAS_SEED_LOW_BALANCE_GRANTS,
 } from './manifest-queries'

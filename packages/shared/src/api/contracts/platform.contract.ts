@@ -91,6 +91,15 @@ export interface ChainRegistryEntry {
      *  Capability only — the domain version stays server-side. */
     supports_permit: boolean
     /**
+     * This asset can fund an escrow BY SIGNATURE on this chain — the one-shot
+     * `POST /v1/agent/tasks` path (#146). EVM: the token carries EIP-3009 under
+     * its permit domain (declared; the relay still probes the live token).
+     * Solana: every asset, the creator signs the whole transaction. False =
+     * that route answers 422 RELAY_UNSUPPORTED_ASSET for it. Derived from the
+     * SAME predicate the relay refuses with, `assetFundsBySignature`.
+     */
+    funds_by_signature: boolean
+    /**
      * What this asset may be used for HERE — the answer the escrow validators
      * will actually give. Listing an asset is not the same as accepting it:
      * gigs take exactly ONE asset per chain and the exchange takes a set, so a

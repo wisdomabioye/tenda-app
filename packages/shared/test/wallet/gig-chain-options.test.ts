@@ -43,7 +43,7 @@ function registryEntry(id: string): ChainRegistryEntry {
     escrow_address: 'unused-by-these-tests',
     ...registryEntryDefaults(id),
     assets: [
-      { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false, roles: ['gig', 'exchange'] },
+      { id: gigAsset, symbol: 'USDC', decimals: 6, is_stable: true, token_address: null, supports_permit: false, funds_by_signature: false, roles: ['gig', 'exchange'] },
     ],
   }
 }

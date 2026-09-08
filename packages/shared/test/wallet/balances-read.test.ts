@@ -20,16 +20,16 @@ function evmChain(id: string, name: string): ChainRegistryEntry {
   return {
     id, namespace: 'eip155', display_name: name, escrow_address: '0xEscrow', ...registryEntryDefaults(id),
     assets: [
-      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
-      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
+      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, funds_by_signature: true, roles: ['gig', 'exchange'] },
+      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false, funds_by_signature: false, roles: ['exchange'] },
     ],
   }
 }
 const solChain: ChainRegistryEntry = {
   id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet', escrow_address: 'PROGRAM', ...registryEntryDefaults('solana:devnet'),
   assets: [
-    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false, roles: ['gig', 'exchange'] },
-    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] },
+    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false, funds_by_signature: true, roles: ['gig', 'exchange'] },
+    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false, funds_by_signature: true, roles: ['exchange'] },
   ],
 }
 
@@ -129,7 +129,7 @@ test('a reader rejection is dropped, not thrown; sumUsdcRaw of nothing is 0', as
 test('a chain with NO USDC asset yields a null usdc slot and contributes 0 to the sum', async () => {
   const nativeOnly: ChainRegistryEntry = {
     id: 'eip155:42220', namespace: 'eip155', display_name: 'Celo', escrow_address: '0xE', ...registryEntryDefaults('eip155:42220'),
-    assets: [{ id: 'CELO', symbol: 'CELO', decimals: 18, is_stable: false, token_address: null, supports_permit: false, roles: ['exchange'] }],
+    assets: [{ id: 'CELO', symbol: 'CELO', decimals: 18, is_stable: false, token_address: null, supports_permit: false, funds_by_signature: false, roles: ['exchange'] }],
   }
   evmResults = [[{ assetId: 'CELO', symbol: 'CELO', amountRaw: '7', decimals: 18, isStable: false }]]
   const out = await readWalletBalances([{ chain_ns: 'eip155', address: '0xabc' }], [nativeOnly], readers)

@@ -377,6 +377,7 @@ test('a schema requires every property it declares — a listed-but-optional fie
   const asset: ChainRegistryEntry['assets'][number] = {
     id: 'USDC_CELO', symbol: 'USDC', decimals: 6, is_stable: true,
     token_address: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C', supports_permit: true,
+    funds_by_signature: true,
     roles: ['gig', 'exchange'],
   }
   assert.strictEqual(validate(asset), true, 'a real asset must validate')

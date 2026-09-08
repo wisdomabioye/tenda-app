@@ -70,3 +70,14 @@ test('the examples ride the one document: five inline, none by $ref', () => {
   assert.strictEqual(serialised.includes('"examples"'), false, 'OpenAPI `examples` (the $ref-able form) crept in')
   assert.strictEqual([...serialised.matchAll(/"example":/g)].length, 5)
 })
+
+test('#146 (2): the registry asset says whether it funds by signature, and what a false one gets', () => {
+  const asset = AGENT_API_DOCUMENT.components.schemas.ChainRegistryAsset
+  const field = asset.properties?.funds_by_signature
+  assert.ok(field !== undefined, 'funds_by_signature is published on the registry asset')
+  assert.ok(asset.required?.includes('funds_by_signature'), 'and it is required — no optional key on the wire')
+  assert.match(field.description ?? '', /POST \/v1\/agent\/tasks/)
+  assert.match(field.description ?? '', /422 RELAY_UNSUPPORTED_ASSET/)
+  assert.match(field.description ?? '', /supports_permit is a different capability/)
+})
+

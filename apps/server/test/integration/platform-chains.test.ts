@@ -73,6 +73,10 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
     // Solana has no EIP-2612 — capability must read false despite USDC.
     supports_permit: false,
+    // …but every Solana asset funds by signature: the creator signs the whole
+    // transaction and the relayer only pays the fee (#146). The two flags are
+    // different capabilities, which is exactly why both are published.
+    funds_by_signature: true,
     // What the escrow validators will ACCEPT this asset for. USDC is the
     // chain's one gig asset and is exchange-tradable too.
     roles: ['gig', 'exchange'],
@@ -81,6 +85,8 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
   const native = data[0].assets.find((a: { id: string }) => a.id === TEST_NATIVE_ASSET)
   assert.strictEqual(native.token_address, null)
   assert.strictEqual(native.supports_permit, false)
+  // Native SOL too: a signed transaction can move lamports as well as SPL.
+  assert.strictEqual(native.funds_by_signature, true)
   // …and is exchange-only: posting a GIG in the native token is refused 422,
   // which is exactly what this field exists to say before the caller tries.
   assert.deepStrictEqual(native.roles, ['exchange'])
@@ -111,6 +117,12 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
     const usdc = evm.assets.find((a: { id: string }) => a.id === 'USDC_BASE')
     // Manifest declares permit v2 for USDC_BASE → capability true on the wire.
     assert.strictEqual(usdc.supports_permit, true)
+    // …and EIP-3009 under that domain → it funds by signature (#146). Read
+    // from the SAME predicate the relay refuses with, so this cannot advertise
+    // what the relay denies. (This fixture seeds only USDC on the EVM chain;
+    // the native-reads-false half is pinned on the predicate itself, in
+    // shared's funds-by-signature.test.ts, over every EVM native asset.)
+    assert.strictEqual(usdc.funds_by_signature, true)
   } finally {
     await app.db.delete(assets).where(eq(assets.id, 'USDC_BASE'))
     await app.db.delete(chains).where(eq(chains.id, EVM_CHAIN))

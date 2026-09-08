@@ -173,6 +173,37 @@ export const CHAIN_NAMESPACE_LABEL: Record<ChainNamespace, string> = {
 }
 
 /**
+ * Whether an asset can FUND an escrow by signature on its chain — the question
+ * an agent has to answer before it posts, and the one the relay refuses with
+ * 422 RELAY_UNSUPPORTED_ASSET when the answer is no (#146).
+ *
+ * ONE predicate, asked by the relay that enforces it and by the registry that
+ * publishes it, so the wire can never advertise what the relay denies. Solana
+ * is true for every asset: the creator signs the whole transaction and Tenda
+ * only pays the fee. EVM needs the token to carry EIP-3009 under its permit
+ * domain, both DECLARED on the manifest asset; the relay additionally probes
+ * the live token before quoting, so a declaration ahead of a redeploy degrades
+ * to the same 422 rather than to an unusable signature. Unknown chain or asset
+ * answers false.
+ *
+ * The manifest is a parameter (defaulted, like `loadChainSecrets`) because the
+ * real one declares EIP-3009 on every permit asset, so the permit-only branch
+ * could not otherwise be exercised — and a clause no test can reach is one a
+ * mutation removes unnoticed.
+ */
+export function assetFundsBySignature(
+  chain_id: string,
+  asset_id: string,
+  manifest: readonly ChainManifestEntry[] = CHAIN_MANIFEST,
+): boolean {
+  const chain = manifest.find((c) => c.id === chain_id)
+  if (chain === undefined) return false
+  if (chain.namespace === 'solana') return chain.assets.some((a) => a.id === asset_id)
+  const asset = chain.assets.find((a) => a.id === asset_id)
+  return asset !== undefined && asset.eip3009 === true && asset.permit !== undefined
+}
+
+/**
  * OBSERVED native gas price per seed-bearing chain, in wei — the fact that
  * turns a gas-seed amount from a guess into a measurement (#53b item 1).
  *

@@ -41,8 +41,8 @@ const CHAIN: ChainRegistryEntry = {
   escrow_address: '0xEscrow',
   ...registryEntryDefaults('eip155:84532'),
   assets: [
-    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, roles: ['gig', 'exchange'] },
-    { id: 'NOPERMIT', symbol: 'NOP', decimals: 6, is_stable: false, token_address: '0xN', supports_permit: false, roles: ['exchange'] },
+    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, funds_by_signature: true, roles: ['gig', 'exchange'] },
+    { id: 'NOPERMIT', symbol: 'NOP', decimals: 6, is_stable: false, token_address: '0xN', supports_permit: false, funds_by_signature: false, roles: ['exchange'] },
   ],
 }
 

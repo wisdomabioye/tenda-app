@@ -10,6 +10,7 @@
 import { encodeFunctionData } from 'viem'
 import { tagCalldata } from '@server/features/attribution'
 import {
+  assetFundsBySignature,
   ErrorCode,
   RELAY_QUOTE_TTL_SECONDS,
   TENDA_RELAY_SCHEME,
@@ -52,8 +53,13 @@ export function evmEscrowRelay(ctx: EvmAdapterContext, relayer: EvmRelayer): Esc
   const contract = ctx.args.escrow_contract
 
   async function resolve(args: RelayedCreateArgs): Promise<RelayContext> {
+    // The SAME predicate GET /v1/platform/chains publishes as `funds_by_signature`
+    // (#146): the registry cannot advertise what this refuses. The manifest
+    // asset is still read here for its permit domain version, and the second
+    // clause is only what lets the compiler see that it is defined past this
+    // line — the predicate already guarantees it.
     const config = chainById(chain_id).assets.find((a) => a.id === args.payload.asset)
-    if (config?.eip3009 === undefined || config.permit === undefined) {
+    if (!assetFundsBySignature(chain_id, args.payload.asset) || config?.permit === undefined) {
       unavailable(`asset '${args.payload.asset}' cannot fund an escrow by signature on ${chain_id}`)
     }
     const { token_address } = await ctx.args.deps.resolveAsset(args.payload.asset)

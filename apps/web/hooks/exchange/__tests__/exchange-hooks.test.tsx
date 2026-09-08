@@ -122,7 +122,7 @@ const SOLANA_CHAIN: ChainRegistryEntry = {
   escrow_address: 'Prog1',
   ...registryEntryDefaults('solana:devnet'),
   assets: [
-    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1', supports_permit: false, roles: ['gig', 'exchange'] },
+    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'Mint1', supports_permit: false, funds_by_signature: true, roles: ['gig', 'exchange'] },
   ],
 }
 const VERIFIED_SOL: LinkedWallet = {

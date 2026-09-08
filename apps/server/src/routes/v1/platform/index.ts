@@ -4,6 +4,7 @@ import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
 import { getExchangeRates } from '@server/lib/exchange-rates'
 import {
+  assetFundsBySignature,
   chainById,
   chainPublicFacts,
   exchangeAssetsByChain,
@@ -134,6 +135,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
             .map(({ chain_id: _chain_id, ...asset }) => ({
               ...asset,
               supports_permit: supportsPermit(c.id, asset.id),
+              funds_by_signature: assetFundsBySignature(c.id, asset.id),
               roles: rolesOf(c.id, asset.id),
             })),
         }]

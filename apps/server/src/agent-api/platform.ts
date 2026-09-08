@@ -52,6 +52,11 @@ const CHAIN_REGISTRY_ASSET_PROPERTIES: Readonly<Record<keyof ChainRegistryAssetW
   is_stable: { type: 'boolean' },
   token_address: nullable({ type: 'string', description: 'ERC-20 contract / SPL mint; null for the native gas token' }),
   supports_permit: { type: 'boolean', description: 'EIP-2612: approvable by signature' },
+  funds_by_signature: {
+    type: 'boolean',
+    description:
+      'This asset can fund a task by signature on this chain — the POST /v1/agent/tasks path. EVM: the token carries EIP-3009 receiveWithAuthorization under its permit domain (declared; the relay still probes the live token before quoting). Solana: every asset, since the creator signs the whole transaction and Tenda pays the fee. False = that post answers 422 RELAY_UNSUPPORTED_ASSET for this asset — choose another asset or chain. supports_permit is a different capability (EIP-2612 approval) and does not imply this one.',
+  },
   roles: {
     type: 'array',
     items: { type: 'string', enum: ASSET_ROLES },
