@@ -11,6 +11,7 @@ import {
 import {
   chainById,
   findChain,
+  OBSERVED_GAS_PRICE_WEI,
   gigAssetByChain,
   exchangeAssetsByChain,
   evmPublicRpcUrl,
@@ -508,6 +509,24 @@ const solanaSeedBase: ChainManifestEntry = {
   gasSeedAmountRaw: '7000000',
   assets: [{ id: 'SOL', roles: ['exchange'], token: null }],
 }
+
+test('every chain that declares a seed amount has an OBSERVED gas price behind it (#77)', () => {
+  // The reverse guard lives in the anvil budget test (observed → declares a
+  // seed). This is the direction that catches a guessed number: a chain may
+  // not hand out native gas at an amount nobody measured a price for. 0G
+  // mainnet was exactly that until 2026-09-08 — its amount was Galileo's,
+  // carried across, with no mainnet reading on record.
+  // EVM only: the table is in WEI from eth_gasPrice. Solana's seed is sized
+  // from the protocol's fixed fee (SOLANA_TX_FEE_LAMPORTS), which is a
+  // constant, not an observation, so those two chains are rightly absent.
+  const seeded = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.gasSeedAmountRaw !== undefined).map((c) => c.id)
+  assert.ok(seeded.length > 0, 'no seed-bearing EVM chain — the guard would be vacuous')
+  for (const id of seeded) {
+    assert.ok(id in OBSERVED_GAS_PRICE_WEI, `${id} declares gasSeedAmountRaw but no observed gas price justifies it`)
+    assert.ok(OBSERVED_GAS_PRICE_WEI[id] > 0n, `${id} observed price must be positive`)
+  }
+  assert.ok(seeded.includes('eip155:16661'), '0G mainnet is a seed-bearing chain and must stay covered')
+})
 
 test('assertManifestValid rejects gasSeedAmountRaw on a non-native-seed chain', () => {
   const bad: ChainManifestEntry = { ...solanaSeedBase, gasPolicy: 'none' }

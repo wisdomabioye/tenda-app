@@ -493,19 +493,17 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
      *
      * The gas UNITS behind this number are real: evm-gas-budget.anvil.test.ts
      * runs the user-signed lifecycle against the same TendaEscrow bytecode this
-     * chain will run and sums the receipts. What cannot be measured yet is 0G
-     * MAINNET's gas price — the chain carries no deployment (#13), so nothing
-     * here can be exercised against it, and `OBSERVED_GAS_PRICE_WEI` therefore
-     * lists Galileo only. This amount is Galileo's, carried across.
+     * chain will run and sums the receipts. The PRICE was Galileo's, carried
+     * across, until 0G MAINNET's own was measured on 2026-09-08 (#77):
+     * eth_gasPrice on https://evmrpc.0g.ai answered 3892412684 wei (~3.9 gwei),
+     * identical across three reads — BELOW Galileo's 4.0 — and it is listed in
+     * `OBSERVED_GAS_PRICE_WEI` at the same rounded-up 5 gwei, so this amount is
+     * justified on mainnet too. Re-observe and let the budget test re-derive
+     * it if the chain's pricing ever changes.
      *
-     * BEFORE MAINNET SHIPS: observe eth_gasPrice on 16661, add it to
-     * OBSERVED_GAS_PRICE_WEI, and let the budget test re-derive this figure. If
-     * mainnet prices above Galileo's 4 gwei, this number is too small — and a
-     * user one transaction short is exactly as stuck as one with nothing.
-     *
-     * Inert until then either way: SECRET_SCHEMA.eip155 requires ESCROW_ADDR,
-     * so the chain cannot be configured, `db:seed` leaves both gas columns NULL,
-     * and every seed path skips it.
+     * Inert on a deployment that holds no ESCROW_ADDR for this chain:
+     * SECRET_SCHEMA.eip155 requires it, so the chain cannot be configured,
+     * `db:seed` leaves both gas columns NULL, and every seed path skips it.
      */
     gasSeedAmountRaw: '10000000000000000',
     assets: [

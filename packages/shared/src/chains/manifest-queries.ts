@@ -183,10 +183,14 @@ export const CHAIN_NAMESPACE_LABEL: Record<ChainNamespace, string> = {
  *
  *   eip155:16602 (0G Galileo) — eth_gasPrice returned 4000000007 wei
  *   (~4.0 gwei), identical across three consecutive reads, 2026-09-02.
+ *   eip155:16661 (0G mainnet) — eth_gasPrice returned 3892412684 wei
+ *   (~3.9 gwei) on https://evmrpc.0g.ai, identical across three consecutive
+ *   reads, 2026-09-08 (#77). Mainnet does NOT price above Galileo, so the
+ *   amount Galileo's measurement justified carries to mainnet unchanged.
  *
- * Rounded UP to 5 gwei. The reading is what the chain charges at rest; the
- * grant has to survive the moment it is spent, which is not the moment it was
- * measured.
+ * Both rounded UP to 5 gwei. The reading is what the chain charges at rest;
+ * the grant has to survive the moment it is spent, which is not the moment it
+ * was measured.
  *
  * A chain listed here MUST declare `gasSeedAmountRaw`, and the amount must
  * cover the measured lifecycle — both asserted by
@@ -195,6 +199,7 @@ export const CHAIN_NAMESPACE_LABEL: Record<ChainNamespace, string> = {
  */
 export const OBSERVED_GAS_PRICE_WEI: Readonly<Record<string, bigint>> = {
   'eip155:16602': 5_000_000_000n,
+  'eip155:16661': 5_000_000_000n,
 }
 
 /**
