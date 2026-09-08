@@ -10,7 +10,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { gig_details } from '@tenda/shared/db/schema'
+import { escrows, gig_details } from '@tenda/shared/db/schema'
+import { moderation_verdicts } from '@tenda/shared/db/schema/moderation'
 import { apiRoutes, type AgentTaskPaymentRequired } from '@tenda/shared'
 import { eq } from 'drizzle-orm'
 import { TEST_DB_CONFIGURED, authHeader, seedAltChain, useTestApp } from '../helpers/test-app'
@@ -36,9 +37,37 @@ test('one-shot: the Stage-6 moderation gate refuses a blocked listing 400 CONTEN
   })
   assert.strictEqual(res.statusCode, 400, res.body)
   assert.strictEqual(res.json().code, 'CONTENT_MODERATED')
-  // Refused BEFORE the listing existed; the draft stays for a fixed retry, as
-  // the bad-listing case in agent-tasks.test.ts documents.
+  // Refused BEFORE anything was written (#155): no listing, and no draft
+  // either — the gate runs ahead of the mint, so a blocked body leaves only
+  // its verdict behind, for the admin log.
   assert.strictEqual((await app.db.select().from(gig_details)).length, 0)
+  assert.strictEqual((await app.db.select({ id: escrows.id }).from(escrows)).length, 0, 'a blocked listing minted a draft')
+  const blocked = await app.db.select().from(moderation_verdicts).where(eq(moderation_verdicts.decision, 'block'))
+  assert.strictEqual(blocked.length, 1, 'the block is still on the audit trail')
+})
+
+test('one-shot: the verdict is recorded against the draft it minted — the admin log still reaches the row', { skip }, async () => {
+  // The gate now runs before the row exists (#155), so the verdict's subject
+  // is the id the draft is minted UNDER. Measured: recording it against no
+  // subject leaves every approve/warn trail pointing nowhere, and nothing
+  // else pinned the link.
+  const app = getApp()
+  await seedAltChain(app)
+  const agent = await registerAgent(app)
+  const res = await app.inject({
+    method: 'POST',
+    url: URL,
+    headers: authHeader(agent.token),
+    // A title this process has not moderated yet: a content-cache hit records
+    // no verdict at all, by design (repeat submissions do not re-persist).
+    payload: agentTaskBody({ title: 'Transcribe the recorded town-hall meeting' }),
+  })
+  assert.strictEqual(res.statusCode, 402, res.body)
+  const task_id = res.json<AgentTaskPaymentRequired>().task_id
+  const trail = await app.db.select().from(moderation_verdicts).where(eq(moderation_verdicts.subject_id, task_id))
+  assert.strictEqual(trail.length, 1)
+  assert.strictEqual(trail[0]?.subject_kind, 'gig_published')
+  assert.strictEqual(trail[0]?.decision, 'approve')
 })
 
 test('one-shot: a listing country that is only an Object.prototype key is a clean 400, never a 500', { skip }, async () => {

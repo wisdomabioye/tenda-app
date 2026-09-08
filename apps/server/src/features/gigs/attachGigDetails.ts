@@ -4,6 +4,13 @@
  * (POST /v1/agent/tasks) runs the identical guards, validation and Stage-6
  * moderation gate rather than a second copy of them.
  *
+ * Two halves, exported separately because the one-shot needs them apart
+ * (#155): `prepareGigDetails` validates and moderates the BODY and needs
+ * only the terms the draft will carry, so it can run before the draft row
+ * exists; `upsertGigDetails` needs the row. A gate that ran after the insert
+ * left a draft with no listing behind every refused body. `attachGigDetails`
+ * composes both over an existing draft — the human route, and the resend.
+ *
  * Upsert while draft so a retry after a validation/moderation fix never
  * 409s; once the create tx confirms (draft → open) the satellite is
  * immutable through this path.
@@ -14,27 +21,28 @@ import { ErrorCode, MAX_GIG_DESCRIPTION_LENGTH, getAssetMeta, type CreateGigDeta
 import { gig_details, users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/lib/escrow-routes'
-import { validateGigDetails } from '@server/lib/gig-details'
+import { validateGigDetails, type ValidatedGigDetails } from '@server/lib/gig-details'
+import type { AppDatabase } from '@server/plugins/db'
 import { moderateGig } from '@server/features/moderation/service'
 import { buildModerationDeps } from '@server/features/moderation/store'
 
 export type GigDetailsRow = typeof gig_details.$inferSelect
 
-export async function attachGigDetails(
-  fastify: FastifyInstance,
-  args: { escrow: EscrowRow; user_id: string; body: Partial<Omit<CreateGigDetailsBody, 'escrow_id'>> },
-): Promise<GigDetailsRow> {
-  const { escrow, user_id, body } = args
-  if (escrow.creator_id !== user_id) {
-    throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the escrow creator can attach gig details')
-  }
-  if (escrow.kind !== 'gig') {
-    throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached to gig escrows')
-  }
-  if (escrow.status !== 'draft') {
-    throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached while the escrow is a draft')
-  }
+export type GigDetailsBody = Partial<Omit<CreateGigDetailsBody, 'escrow_id'>>
 
+/** What moderation prices a listing against: the draft's id (the verdict's subject) and its terms. */
+export type ListingSubject = Pick<EscrowRow, 'id' | 'asset' | 'amount_raw'>
+
+/**
+ * Validate the listing body and run it through the Stage-6 gate. Pure over
+ * the body and the subject's terms — nothing here reads or writes the draft,
+ * which is what lets the one-shot refuse a listing before it mints one.
+ */
+export async function prepareGigDetails(
+  fastify: FastifyInstance,
+  args: { escrow: ListingSubject; user_id: string; body: GigDetailsBody },
+): Promise<ValidatedGigDetails> {
+  const { escrow, user_id, body } = args
   // Creator's stored country (JWT country can be up to 7 days stale).
   const [creator] = await fastify.db
     .select({ country: users.country })
@@ -79,9 +87,17 @@ export async function attachGigDetails(
   if (verdict.decision === 'block') {
     throw new AppError(400, ErrorCode.CONTENT_MODERATED, verdict.reasons.join('; ') || 'Content not allowed')
   }
+  return details
+}
 
-  const values = { escrow_id: escrow.id, ...details }
-  const [row] = await fastify.db
+/** Write the prepared listing onto its draft — insert, or replace on the resend. */
+export async function upsertGigDetails(
+  db: AppDatabase,
+  escrow_id: string,
+  details: ValidatedGigDetails,
+): Promise<GigDetailsRow> {
+  const values = { escrow_id, ...details }
+  const [row] = await db
     .insert(gig_details)
     .values(values)
     .onConflictDoUpdate({ target: gig_details.escrow_id, set: values })
@@ -90,4 +106,23 @@ export async function attachGigDetails(
     throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'gig_details upsert returned no row')
   }
   return row
+}
+
+/** The listing onto an EXISTING draft: the ownership and state guards, then both halves. */
+export async function attachGigDetails(
+  fastify: FastifyInstance,
+  args: { escrow: EscrowRow; user_id: string; body: GigDetailsBody },
+): Promise<GigDetailsRow> {
+  const { escrow, user_id, body } = args
+  if (escrow.creator_id !== user_id) {
+    throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the escrow creator can attach gig details')
+  }
+  if (escrow.kind !== 'gig') {
+    throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached to gig escrows')
+  }
+  if (escrow.status !== 'draft') {
+    throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached while the escrow is a draft')
+  }
+  const details = await prepareGigDetails(fastify, { escrow, user_id, body })
+  return upsertGigDetails(fastify.db, escrow.id, details)
 }

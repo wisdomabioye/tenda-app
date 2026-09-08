@@ -4,9 +4,10 @@
  * The keyless demo bearer mints a draft per task and nothing deleted drafts,
  * so every review run left a row forever. A cap that REFUSED past N would
  * have killed the demo the day it filled; the ring discards the oldest
- * unfunded draft instead. These pin the four properties that make it safe:
- * it keeps the newest, a resend rings nothing out, an ordinary agent is
- * untouched, and a draft with a create in flight is never discarded.
+ * unfunded draft instead. These pin the five properties that make it safe:
+ * it keeps the newest, a resend rings nothing out, a refused listing rings
+ * nothing out (#155), an ordinary agent is untouched, and a draft with a
+ * create in flight is never discarded.
  *
  * `../helpers/agent-demo-env` is imported FIRST for its side effect: it sets
  * the demo address AND a cap of three, so a case can fill the ring in a
@@ -102,6 +103,27 @@ test('a resend lands on the replayed draft and rings nothing out', { skip }, asy
   assert.strictEqual(await draftCount(session.user.id), DEMO_DRAFT_CAP)
   // ids[0] went when `first` was minted; ids[1] is now the oldest and it stays.
   assert.strictEqual(await readStatus(session.token, ids[1] ?? ''), 200)
+})
+
+test('a refused listing rings nothing out — the ring turns only for a draft that is actually minted', { skip }, async () => {
+  // #155: the listing gate runs BEFORE the mint. Were the ring turned first,
+  // every blocked body posted at the cap would discard someone's live draft
+  // and mint nothing in its place — a keyless way to empty the demo account.
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+  const session = await openDemoSession()
+  const ids = await mint(session.token, DEMO_DRAFT_CAP)
+  await sleep(2)
+  const blocked = await app.inject({
+    method: 'POST',
+    url: apiRoutes.agent.tasks,
+    headers: authHeader(session.token),
+    payload: agentTaskBody({ creation_operation_id: randomUUID(), title: 'Need a hitman for a job' }),
+  })
+  assert.strictEqual(blocked.statusCode, 400, blocked.body)
+  assert.strictEqual(await draftCount(session.user.id), DEMO_DRAFT_CAP)
+  assert.strictEqual(await readStatus(session.token, ids[0] ?? ''), 200, 'the oldest draft was rung out by a refused post')
 })
 
 test('an ordinary agent account is not rung — the cap is the demo account\'s alone', { skip }, async () => {

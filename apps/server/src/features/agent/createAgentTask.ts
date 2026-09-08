@@ -1,8 +1,9 @@
 /**
  * The agent one-shot (#19): one call carries the escrow terms AND the
- * listing; the server mints the draft, attaches and moderates the listing,
- * and answers 402 with the x402 terms bound to that draft — or, when the
- * call carries `X-PAYMENT`, relays the artifact and answers the created task.
+ * listing; the server validates and moderates the listing, mints the draft
+ * with it attached, and answers 402 with the x402 terms bound to that draft
+ * — or, when the call carries `X-PAYMENT`, relays the artifact and answers
+ * the created task.
  *
  * Nothing here is new machinery. It composes the pieces the human flow runs
  * as separate requests — draft resolution (POST /v1/escrows), the listing
@@ -25,7 +26,7 @@ import { assertCallerWallet, readSignerPreference } from '@server/lib/escrow'
 import { normalizeContractAddress } from '@server/chains/contracts'
 import { validateCreateEscrow } from '@server/features/escrows/creation/validateCreateEscrow'
 import { findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
-import { attachGigDetails } from '@server/features/gigs/attachGigDetails'
+import { attachGigDetails, prepareGigDetails, upsertGigDetails } from '@server/features/gigs/attachGigDetails'
 import { relayDraftFunding, type RelayDraftOutcome } from '@server/features/escrows/funding/relayDraftFunding'
 import { evictDraftsBeyond, isDemoAccount } from './demoDraftRing'
 
@@ -93,10 +94,23 @@ export async function createAgentTask(
   // Find the draft this operation already minted (the resend), or insert it.
   let escrow = await findReplayedDraft(fastify.db, identity)
   if (escrow === null) {
-    // A NEW draft, and only then: the shared demo account keeps a ring of its
-    // most recent unfunded drafts (#147), so the oldest beyond the cap go
-    // before this one is minted. A resend lands on the replayed draft above
-    // and rings nothing out. Ordinary agents are untouched.
+    // A NEW draft. The listing is validated and moderated FIRST (#155): it is
+    // the last gate, and run after the insert it left a draft with no listing
+    // behind every refused body — bounded for the demo account by the ring,
+    // unbounded for an agent minting fresh operation ids. The verdict is
+    // recorded against the id the draft is minted under, so an approve/warn
+    // trail links to its row exactly as before; a refused call leaves nothing
+    // but its verdict, which is what the admin log is for.
+    const escrow_id = randomUUID()
+    const listing = await prepareGigDetails(fastify, {
+      escrow: { id: escrow_id, asset: terms.asset, amount_raw: terms.amount_raw },
+      user_id,
+      body,
+    })
+    // Only then does the shared demo account's ring turn (#147): its oldest
+    // unfunded drafts beyond the cap go before this one is minted. A resend
+    // lands on the replayed draft above and rings nothing out, and neither
+    // does a refused listing. Ordinary agents are untouched.
     const config = getConfig()
     if (await isDemoAccount(fastify.db, user_id, config.AGENT_DEMO_ADDRESS)) {
       const evicted = await evictDraftsBeyond(fastify.db, { user_id, keep: config.AGENT_DEMO_DRAFT_CAP - 1 })
@@ -107,18 +121,21 @@ export async function createAgentTask(
       await insertDraft(fastify.db, {
         ...identity,
         now,
-        escrow_id: randomUUID(),
+        escrow_id,
         is_seeker: account.is_seeker,
         unassign_window_seconds,
         escrow_contract: normalizeContractAddress(adapter.namespace, adapter.escrowAddress),
       })
     ).row
+    // `escrow.id`, not `escrow_id`: a concurrent identical request may have won
+    // the operation key, and the listing then belongs on the winner's draft —
+    // the same terms, so the verdict above priced the same amount.
+    await upsertGigDetails(fastify.db, escrow.id, listing)
+  } else {
+    // The resend re-attaches the same fields (an upsert), and changed fields
+    // are re-moderated exactly as a human's retry through POST /v1/gigs would be.
+    await attachGigDetails(fastify, { escrow, user_id, body })
   }
-
-  // The listing, moderated, on every call: the resend re-attaches the same
-  // fields (an upsert), and changed fields are re-moderated exactly as a
-  // human's retry through POST /v1/gigs would be.
-  await attachGigDetails(fastify, { escrow, user_id, body })
 
   const outcome = await relayDraftFunding(fastify, { escrow, user_id, body, payment: args.payment, log: args.log })
   return { ...outcome, task_id: escrow.id }

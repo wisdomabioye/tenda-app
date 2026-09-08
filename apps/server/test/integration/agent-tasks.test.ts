@@ -96,7 +96,7 @@ test('one-shot: the operation key refuses changed terms (409) but a changed LIST
   assert.strictEqual(listing?.title, 'Photograph the storefront (urgent)')
 })
 
-test('one-shot refusals: 401 anonymous, 403 for a human account, 422 without an operation id or with a permit (nothing minted); 400 for a bad listing, whose draft stays for the retry', { skip }, async () => {
+test('one-shot refusals: 401 anonymous, 403 for a human account, 422 without an operation id or with a permit, 400 for a bad listing — nothing minted by any of them, and the fixed listing lands under the same operation', { skip }, async () => {
   const app = getApp()
   await seedAltChain(app)
   const human = await createTransactableUser(app)
@@ -115,14 +115,23 @@ test('one-shot refusals: 401 anonymous, 403 for a human account, 422 without an 
   const withPermit = await post(agent.token, { ...agentTaskBody(), permit: { value_raw: '1', deadline_unix: 1, signature: '0x' } })
   assert.strictEqual(withPermit.statusCode, 422)
   assert.match(withPermit.json().message, /not part of the one-shot/)
-  const badListing = await post(agent.token, { ...agentTaskBody(), category: 'not-a-category' })
+  const body = agentTaskBody()
+  const badListing = await post(agent.token, { ...body, category: 'not-a-category' })
   assert.strictEqual(badListing.statusCode, 400)
   assert.strictEqual(badListing.json().code, 'VALIDATION_ERROR')
-  const drafts = await app.db.select({ id: escrows.id }).from(escrows)
-  // The bad listing DID mint its draft (terms were valid) and left it a
-  // draft with no listing — the retry with a fixed listing lands on it.
-  assert.strictEqual(drafts.length, 1)
+  // The terms were valid, and still no draft: the listing is validated BEFORE
+  // the mint (#155). Measured before the fix, this body left one draft with no
+  // listing per call, and a fresh operation id each time made that unbounded.
+  assert.strictEqual((await app.db.select({ id: escrows.id }).from(escrows)).length, 0, 'a refused listing minted a draft')
   assert.strictEqual((await app.db.select().from(gig_details)).length, 0)
+  // The retry with the listing fixed, under the SAME operation id, mints the
+  // one draft and attaches — the 402 → resend contract needs no orphan to land on.
+  const fixed = await post(agent.token, body)
+  assert.strictEqual(fixed.statusCode, 402, fixed.body)
+  const task_id = fixed.json<AgentTaskPaymentRequired>().task_id
+  assert.strictEqual((await app.db.select({ id: escrows.id }).from(escrows)).length, 1)
+  const [listing] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, task_id))
+  assert.strictEqual(listing?.category, body.category)
 })
 
 test('one-shot: a signer_address the agent has not linked is 422 ESCROW_WRONG_WALLET, and nothing is minted', { skip }, async () => {
