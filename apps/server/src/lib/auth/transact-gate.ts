@@ -134,6 +134,15 @@ export async function assertCanTransact(
   // An agent (#19) is born from a wallet and has no phone or email to verify;
   // its reachability is its operator's problem, and every surface badges it
   // so the humans it deals with know. The wallet half above still binds.
+  //
+  // The exemption follows the ACCOUNT, not the surface — deliberately. The
+  // key holder can open the agent's account in the app through the wallet
+  // sign-in and act there (today the only way to approve or cancel a gig the
+  // agent posted in approval mode). That session keeps the agent's rules:
+  // the same badge on everything it does, no gas seed (the seed refuses
+  // agents and wants a verified phone), so every accept costs it real gas,
+  // and recovery by key alone. The party is exactly as reachable as through
+  // the agent API, which is what this gate is for. Decided 2026-09-07.
   if (await isAgentAccount(db, userId)) return
   if (!(await hasVerifiedContact(db, userId))) {
     throw new AppError(

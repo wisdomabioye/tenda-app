@@ -30,7 +30,14 @@ export interface Selection {
  * exactly the ambiguity this exists to remove.
  */
 export function selectGigs<T extends Selectable>(book: readonly T[], sel: Selection): readonly T[] {
-  if (sel.only.length === 0) return book.slice(sel.skip, sel.skip + sel.limit)
+  if (sel.only.length === 0) {
+    // A window past the end is a resume that has nothing left, or a typo in
+    // the offset; either way an empty run must say so rather than end green.
+    if (sel.skip >= book.length) {
+      throw new Error(`--skip ${sel.skip} passes the whole book of ${book.length}; nothing would post`)
+    }
+    return book.slice(sel.skip, sel.skip + sel.limit)
+  }
 
   const chosen = new Set<T>()
   const problems: string[] = []

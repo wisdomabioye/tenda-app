@@ -4,10 +4,12 @@
  * The long-form rationale for each, and the local purchasing-power reasoning
  * behind the amounts, lives in /home/abioye/tenda/task.md.
  *
- * TYPED, NOT JSON, and that is the point: `GigSeed` is derived from
- * `AgentTaskBody`, so an invalid category, an unknown proof type, or a
- * `structured` requirement without its params is a COMPILE error rather than a
- * 422 discovered one gig into a live run.
+ * TYPED: `GigSeed` is derived from `AgentTaskBody`, so an invalid category,
+ * an unknown proof type, or a `structured` requirement without its params is
+ * a COMPILE error here. A signed-off JSON book (`--book`, see `book.ts`) has
+ * no compiler, so it — and this book too — is run through the server's own
+ * validators before anything posts. `--write-book` dumps this one as the
+ * starting point for that file.
  *
  * THE PARAM RULE the compiler cannot express, so it is stated here: `proof_params`
  * is required if and only if `proof_requirements` contains `geotag` or

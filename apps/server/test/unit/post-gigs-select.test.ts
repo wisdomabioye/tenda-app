@@ -89,3 +89,11 @@ test('parseOnly splits a comma list and yields nothing when absent', () => {
   assert.deepEqual(parseOnly('a,b'), ['a', 'b'])
   assert.deepEqual(parseOnly(undefined), [])
 })
+
+test('a window that starts past the end is refused, not an empty green run', () => {
+  // A resume with nothing left, or a typo in the offset: either must say so.
+  assert.throws(() => selectGigs(BOOK, sel({ skip: BOOK.length })), /passes the whole book of 5/)
+  assert.equal(selectGigs(BOOK, sel({ skip: BOOK.length - 1 })).length, 1)
+  // `--only` is not positional, so the window is not consulted at all.
+  assert.equal(selectGigs(BOOK, sel({ skip: BOOK.length, only: ['matatu'] })).length, 1)
+})

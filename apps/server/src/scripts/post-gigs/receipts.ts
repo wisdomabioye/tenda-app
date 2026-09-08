@@ -14,7 +14,16 @@
  * process dies mid-write. A partial last line is one lost receipt; a truncated
  * array is all of them.
  */
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+
+/**
+ * Where a run's receipts live: beside the agent-id script's, under the server
+ * package's `receipts/` root, and COMMITTED — a task id that exists only on
+ * one laptop is not a handle for cancelling a mainnet gig. Relative to the
+ * working directory, which `pnpm --filter tenda-server` makes this package.
+ */
+export const RECEIPT_DIR = 'receipts/post-gigs'
 
 export interface Receipt {
   /** When it was posted, ISO 8601. */
@@ -34,6 +43,7 @@ export interface Receipt {
 
 /** One line, flushed immediately — see the module note on why this is sync. */
 export function appendReceipt(path: string, receipt: Receipt): void {
+  mkdirSync(dirname(path), { recursive: true })
   appendFileSync(path, `${JSON.stringify(receipt)}\n`, 'utf8')
 }
 
@@ -53,5 +63,5 @@ export function defaultReceiptPath(api: string): string {
       return 'unknown-host'
     }
   })()
-  return `post-gigs-receipts.${host}.jsonl`
+  return `${RECEIPT_DIR}/${host}.jsonl`
 }

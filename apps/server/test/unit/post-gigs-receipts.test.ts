@@ -9,7 +9,7 @@ import * as assert from 'node:assert'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { appendReceipt, defaultReceiptPath, type Receipt } from '@server/scripts/post-gigs/receipts'
+import { RECEIPT_DIR, appendReceipt, defaultReceiptPath, type Receipt } from '@server/scripts/post-gigs/receipts'
 
 const dir = mkdtempSync(join(tmpdir(), 'receipts-'))
 
@@ -79,7 +79,18 @@ test('the same host resolves to the same file so a resume appends', () => {
 test('a malformed api falls back instead of throwing', () => {
   // Exercises the catch branch: a bad --api should fail later with a clear
   // message, not here while choosing a filename.
-  assert.equal(defaultReceiptPath('not a url'), 'post-gigs-receipts.unknown-host.jsonl')
+  assert.equal(defaultReceiptPath('not a url'), `${RECEIPT_DIR}/unknown-host.jsonl`)
+})
+
+test('receipts live under the package\'s receipts/ root, beside the agent-id script\'s', () => {
+  assert.equal(RECEIPT_DIR, 'receipts/post-gigs')
+  assert.equal(defaultReceiptPath('https://api.tendahq.com'), `${RECEIPT_DIR}/api.tendahq.com.jsonl`)
+})
+
+test('the folder is created on first write — a fresh checkout has no receipts dir', () => {
+  const path = join(dir, 'nested', 'deeper', 'first.jsonl')
+  appendReceipt(path, receipt({ task_id: 'first' }))
+  assert.equal(JSON.parse(readFileSync(path, 'utf8').trim()).task_id, 'first')
 })
 
 test('a port in the API URL does not put a colon in the filename', () => {

@@ -1,93 +1,60 @@
 /**
  * Seed a gig book against a running API, as an AGENT.
  *
- *   pnpm --filter tenda-server post-gigs -- --api https://dev-api.tendahq.com \
- *     --chain eip155:16602 [--skip 1] [--limit 3] [--amount 1000000] [--dry-run]
+ *   pnpm --filter tenda-server post-gigs -- --write-book book.json
+ *   AGENT_KEY=0x… pnpm --filter tenda-server post-gigs -- --api https://dev-api.tendahq.com \
+ *     --chain eip155:16602 [--book book.json] [--skip 1] [--limit 3] [--amount 1000000] [--dry-run]
+ *
+ * THE BOOK IS A FILE OR THE BUILT-IN ONE. `--write-book` dumps the built-in
+ * book as JSON; a reviewer edits and signs it off; `--book` posts that file.
+ * Either way the book is run through the server's own validators BEFORE the
+ * agent registers (`book.ts`), so a bad entry fails here, by index and in the
+ * server's words, never as a 422 one gig into a funded run.
  *
  * `--skip` RESUMES a partial run. Every post is funded and irreversible, so a
  * run that posted 7 of 20 must be continued, not restarted: each invocation
  * mints fresh `creation_operation_id`s, so re-running the whole book would
  * duplicate the 7 already on chain rather than deduplicate against them.
  *
- * Needs E2E_AGENT_KEY. The agent's wallet funds every escrow; the server's
- * RELAYER pays the gas, so the agent needs the token and no native balance.
+ * Needs AGENT_KEY exported in the shell — NOT in .env; this script loads no
+ * dotenv, so a key in the env file is ignored on purpose. The agent's wallet
+ * funds every escrow; the server's RELAYER pays the gas, so the agent needs
+ * the token and no native balance. A dry run needs no key.
  *
  * WHY THIS IS NOT `verify:agent-hire`. That script proves the whole hire loop
  * and settles it, which means it onboards a WORKER — and worker onboarding
  * falls back to a phone OTP read out of the server's log file. That works
  * against a local server and cannot work against a deployed one. Posting is
  * purely the agent side, and agents are wallet-born: `POST /v1/agent/register`
- * takes a wallet signature and no OTP. So this reuses that script's HTTP and
- * chain helpers and does only the half that a deployed environment allows.
+ * takes a wallet signature and no OTP. So this reuses that script's HTTP
+ * helpers and does only the half that a deployed environment allows.
  *
- * THE CHAIN AND ASSET ARE FLAGS, not constants. `verify:agent-hire` hardcodes
- * Galileo and its mock token; the same book has to seed 0G mainnet without a
- * second copy, so the asset is resolved from the shared manifest by chain id —
- * which also means a chain with no gig asset fails HERE with a clear message
- * rather than as a 422 mid-run.
+ * THE CHAIN AND ASSET ARE FLAGS, not constants: the asset is resolved from
+ * the shared manifest by chain id, so a chain with no gig asset fails HERE
+ * with a clear message rather than as a 422 mid-run. The fee and the asset's
+ * decimals are read the same way — from the API and the asset registry —
+ * because a projection printed with a typed 250 bps or a typed six decimals is
+ * a number the deployment can contradict.
  */
 
-import 'dotenv/config'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   apiRoutes,
   chainById,
+  getAssetMeta,
   gigAssetByChain,
   TENDA_RELAY_SCHEME,
   X402_VERSION,
   type AgentTaskBody,
+  type PlatformConfig,
 } from '@tenda/shared'
-import { stripTrailingSlash } from '@server/lib/env'
-import { makeApi, newOperationId, registerAgent, type Api } from '../agent-hire-e2e/actors'
+import { expectStatus, makeApi, newOperationId, registerAgent, type Api } from '../agent-hire-e2e/actors'
+import { parseArgs, readAgentKey, type PostArgs } from './args'
+import { readBookFile, validateBook, writeBook } from './book'
 import { GIG_BOOK, type GigSeed } from './gigs'
 import { withRateLimitRetry, type RetryOptions } from './rate-limit'
-import { parseOnly, selectGigs } from './select'
+import { selectGigs } from './select'
 import { appendReceipt, defaultReceiptPath } from './receipts'
-
-interface Args {
-  api: string
-  chain: string
-  skip: number
-  limit: number
-  only: readonly string[]
-  amount: string | null
-  dryRun: boolean
-  out: string | null
-}
-
-function parseArgs(argv: readonly string[]): Args {
-  const get = (flag: string): string | undefined => {
-    const i = argv.indexOf(flag)
-    return i === -1 ? undefined : argv[i + 1]
-  }
-  const api = get('--api')
-  const chain = get('--chain')
-  if (api === undefined || chain === undefined) {
-    throw new Error('usage: post-gigs --api <base-url> --chain <caip2> [--only tok,tok] [--skip N] [--limit N] [--amount RAW] [--out FILE] [--dry-run]')
-  }
-  const limit = Number(get('--limit') ?? GIG_BOOK.length)
-  if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit must be a positive integer')
-  const skip = Number(get('--skip') ?? 0)
-  if (!Number.isInteger(skip) || skip < 0) throw new Error('--skip must be a non-negative integer')
-  if (skip >= GIG_BOOK.length) {
-    throw new Error(`--skip ${skip} passes the whole book of ${GIG_BOOK.length}; nothing would post`)
-  }
-  return {
-    // The SAME normalisation the server applies to `API_BASE_URL`, because this
-    // value is not only a request prefix: it is signed into the auth message's
-    // `URI:` line and compared there BYTE FOR BYTE. `--api https://x/` would
-    // otherwise fail registration with a URI mismatch that reads like a
-    // signing bug rather than a stray slash.
-    api: stripTrailingSlash(api),
-    chain,
-    skip,
-    limit,
-    only: parseOnly(get('--only')),
-    out: get('--out') ?? null,
-    amount: get('--amount') ?? null,
-    dryRun: argv.includes('--dry-run'),
-  }
-}
 
 /**
  * How many times one leg may be re-sent through the limiter. Five covers a
@@ -97,11 +64,16 @@ function parseArgs(argv: readonly string[]): Args {
  */
 const RETRY_ATTEMPTS = 5
 
-/** 6-decimal base units as a human amount. The asset symbol is printed once, in the header. */
-const usd = (raw: string): string => (Number(raw) / 1e6).toFixed(6)
+/** Base units as a human amount, at the ASSET's decimals: '2000000' at 6 → '2.000000'. */
+export function formatAmount(raw: string, decimals: number): string {
+  const unit = 10n ** BigInt(decimals)
+  const value = BigInt(raw)
+  const fraction = (value % unit).toString().padStart(decimals, '0')
+  return decimals === 0 ? `${value / unit}` : `${value / unit}.${fraction}`
+}
 
 /** What the CONTRACT will pay out, by its own arithmetic: floor division. */
-function projectPayout(amountRaw: string, feeBps: number): { fee: bigint; payout: bigint } {
+export function projectPayout(amountRaw: string, feeBps: number): { fee: bigint; payout: bigint } {
   const amount = BigInt(amountRaw)
   const fee = (amount * BigInt(feeBps)) / 10_000n
   return { fee, payout: amount - fee }
@@ -176,52 +148,56 @@ async function postOne(
   }
 }
 
-function bodyFor(seed: GigSeed, args: Args, asset: string): AgentTaskBody {
-  return {
-    ...seed,
-    ...(args.amount !== null ? { amount_raw: args.amount } : {}),
-    creation_operation_id: newOperationId(),
-    chain_id: args.chain,
-    asset,
-  }
+/** A validated seed plus the run's half: a fresh operation id, the chain, its asset. */
+export function bodyFor(seed: GigSeed, chain_id: string, asset: string): AgentTaskBody {
+  return { ...seed, creation_operation_id: newOperationId(), chain_id, asset }
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2))
-  const key = process.env['E2E_AGENT_KEY']
-  if (key === undefined || key === '') throw new Error('E2E_AGENT_KEY is not set')
-
+async function post(args: PostArgs): Promise<void> {
   const entry = chainById(args.chain)
   const asset = gigAssetByChain(args.chain)
   if (asset === null) throw new Error(`${args.chain} declares no gig asset in the manifest`)
+  const meta = getAssetMeta(asset)
+  if (meta === null) throw new Error(`${asset} has no entry in the shared asset registry`)
+  const amount = (raw: string): string => formatAmount(raw, meta.decimals)
 
-  const account = privateKeyToAccount(key as `0x${string}`)
-  const book = selectGigs(GIG_BOOK, args)
+  // The whole book is checked BEFORE anything else happens, the built-in one
+  // included: a typed entry can still break a runtime rule (a city outside its
+  // country), and a file has had no compiler at all.
+  const source = args.book === null ? GIG_BOOK : readBookFile(args.book)
+  const validated = validateBook(source, { chain_id: args.chain, asset, amount: args.amount })
+  const book = selectGigs(validated, { skip: args.skip, limit: args.limit ?? validated.length, only: args.only })
 
   console.log(`API    : ${args.api}`)
   console.log(`Chain  : ${entry.displayName} (${args.chain})  asset ${asset}`)
-  console.log(`Agent  : ${account.address}`)
+  console.log(`Book   : ${args.book ?? 'built-in'} (${validated.length} gigs, all valid)`)
   console.log(
     `Gigs   : ${book.length}${args.skip > 0 ? ` (skipping the first ${args.skip})` : ''}` +
-      `${args.amount !== null ? ` · all at ${usd(args.amount)}` : ''}`,
+      `${args.amount !== null ? ` · all at ${amount(args.amount)}` : ''}`,
   )
-
   // The projection, printed BEFORE anything is posted: on a real chain this is
   // the last cheap moment to notice that the book costs more than intended.
-  const total = book.reduce((sum, g) => sum + BigInt(args.amount ?? g.amount_raw), 0n)
-  console.log(`Funding: ${usd(total.toString())} from the agent wallet\n`)
+  const total = book.reduce((sum, g) => sum + BigInt(g.amount_raw), 0n)
+  console.log(`Funding: ${amount(total.toString())} ${meta.symbol} from the agent wallet\n`)
+
+  const api = makeApi(args.api)
 
   if (args.dryRun) {
+    const cfg = await api(apiRoutes.platform.config)
+    expectStatus('GET /v1/platform/config', cfg, 200)
+    const { fee_bps } = cfg.json as unknown as PlatformConfig
     for (const [i, seed] of book.entries()) {
-      const raw = args.amount ?? seed.amount_raw
-      const { fee, payout } = projectPayout(raw, 250)
+      const { fee, payout } = projectPayout(seed.amount_raw, fee_bps)
       console.log(
-        `${String(i + 1).padStart(2)}. ${usd(raw)} → worker ${usd(payout.toString())} (fee ${usd(fee.toString())})  ${seed.title}`,
+        `${String(i + 1).padStart(2)}. ${amount(seed.amount_raw)} → worker ${amount(payout.toString())} (fee ${amount(fee.toString())} at ${fee_bps} bps)  ${seed.title}`,
       )
     }
     console.log('\n--dry-run: nothing was posted.')
     return
   }
+
+  const account = privateKeyToAccount(readAgentKey(process.env))
+  console.log(`Agent  : ${account.address}`)
 
   // Enough attempts to outlast a few windows: the route admits five gigs a
   // minute, so a full book spends most of its wall-clock waiting by design.
@@ -235,8 +211,7 @@ async function main(): Promise<void> {
   const receiptPath = args.out ?? defaultReceiptPath(args.api)
   console.log(`Receipts: ${receiptPath} (written as each gig lands)\n`)
 
-  const api = makeApi(args.api)
-  const reg = await registerAgent(api, account, args.chain, 'Tenda seed agent', args.api)
+  const reg = await registerAgent(api, account, args.chain, args.name, args.api)
   console.log(`registered agent → ${reg.token.slice(0, 12)}…\n`)
 
   const posted: Posted[] = []
@@ -244,7 +219,7 @@ async function main(): Promise<void> {
   for (const [i, seed] of book.entries()) {
     const label = `${String(i + 1).padStart(2)}/${book.length}`
     try {
-      const body = bodyFor(seed, args, asset)
+      const body = bodyFor(seed, args.chain, asset)
       const p = await postOne(api, reg.token, account, body, retry)
       // BEFORE the next gig: this escrow is funded and irreversible, and its id
       // is the only handle for cancelling it later. A run cut short by the rate
@@ -260,7 +235,7 @@ async function main(): Promise<void> {
         requires_approval: body.requires_approval === true,
       })
       posted.push(p)
-      console.log(`${label} ✓ ${usd(p.amountRaw)} ${p.taskId}  ${p.title}`)
+      console.log(`${label} ✓ ${amount(p.amountRaw)} ${p.taskId}  ${p.title}`)
     } catch (err) {
       // One bad listing must not abandon the rest — and on a funded chain the
       // ones already posted are real, so the run has to report them either way.
@@ -279,6 +254,16 @@ async function main(): Promise<void> {
   }
 }
 
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2))
+  if (args.mode === 'write-book') {
+    writeBook(args.file, GIG_BOOK)
+    console.log(`wrote ${GIG_BOOK.length} gigs to ${args.file} — edit, sign off, then post with --book ${args.file}`)
+    return
+  }
+  await post(args)
+}
+
 // Only when run directly, so importing this module cannot post a gig book.
 if (require.main === module) {
   main().catch((err: unknown) => {
@@ -286,5 +271,3 @@ if (require.main === module) {
     process.exitCode = 1
   })
 }
-
-export { projectPayout, bodyFor, parseArgs }
