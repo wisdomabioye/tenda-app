@@ -129,7 +129,8 @@ test('one-shot refusals: 401 anonymous, 403 for a human account, 422 without an 
   const fixed = await post(agent.token, body)
   assert.strictEqual(fixed.statusCode, 402, fixed.body)
   const task_id = fixed.json<AgentTaskPaymentRequired>().task_id
-  assert.strictEqual((await app.db.select({ id: escrows.id }).from(escrows)).length, 1)
+  const drafts = await app.db.select({ id: escrows.id, creation_operation_id: escrows.creation_operation_id }).from(escrows)
+  assert.deepStrictEqual(drafts, [{ id: task_id, creation_operation_id: body.creation_operation_id }])
   const [listing] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, task_id))
   assert.strictEqual(listing?.category, body.category)
 })
