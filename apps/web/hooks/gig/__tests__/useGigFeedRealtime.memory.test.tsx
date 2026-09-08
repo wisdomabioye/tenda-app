@@ -1,15 +1,18 @@
 /**
  * The hook's revision memory is bounded (#73) at BOTH places it grows: the
- * per-render seed and the reconcile branch. The reducer bounds its own path;
- * these are the two the hook owns. Observed through behaviour, not the ref:
- * a stale frame for a departed row is refused while remembered and accepted
- * once forgotten — the stated trade, pinned here so a future "remember
- * everything" cannot creep back.
+ * per-render seed (the first two cases) and the reconcile branch (the third,
+ * under a server-only query, where the hook records a revision without ever
+ * changing the rows). The reducer bounds its own path; these are the two the
+ * hook owns. Observed through behaviour, not the ref: a stale frame for a
+ * departed row is refused while remembered and accepted once forgotten — the
+ * stated trade, pinned here so a future "remember everything" cannot creep
+ * back. MEASURED: with the reconcile-branch prune removed the first two cases
+ * stayed green, which is why the third exists.
  */
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { useLayoutEffect, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { GIG_FEED_REVISION_MEMORY, type GigFeedServerFrame, type GigSummary } from '@tenda/shared'
+import { GIG_FEED_REVISION_MEMORY, type GigFeedServerFrame, type GigListQuery, type GigSummary } from '@tenda/shared'
 import { deliveryGig } from '@/e2e/fixtures/gigs'
 
 const seams = vi.hoisted(() => ({
@@ -43,15 +46,25 @@ function frameFor(item: GigSummary, revision: string): GigFeedServerFrame {
   }
 }
 
-function Harness({ items, frame }: { items: readonly GigSummary[]; frame?: GigFeedServerFrame }) {
+function Harness({
+  items,
+  frame,
+  query = {},
+  onReconcile = () => {},
+}: {
+  items: readonly GigSummary[]
+  frame?: GigFeedServerFrame
+  query?: GigListQuery
+  onReconcile?: () => void
+}) {
   const [applied, setApplied] = useState<readonly GigSummary[] | null>(null)
   const rows = applied ?? items
   useGigFeedRealtime<GigSummary>({
     items: rows,
-    query: {},
+    query,
     project: (g) => g,
     applyItems: (next) => setApplied(next),
-    onReconcile: () => {},
+    onReconcile,
   })
   useLayoutEffect(() => {
     if (frame !== undefined) seams.listener?.(frame)
@@ -85,5 +98,25 @@ describe('useGigFeedRealtime revision memory (#73)', () => {
     for (let p = 0; p < pages; p += 1) rerender(<Harness items={page(50, `p${p}`)} />)
     rerender(<Harness items={page(50, 'last')} frame={frameFor(gig('first', '6', 'First, stale at 6'), '6')} />)
     expect(screen.getByText('First, stale at 6')).toBeInTheDocument()
+  })
+
+  it('the reconcile branch remembers a frame\'s revision, and forgets it past the memory, the same way', () => {
+    // A server-only query: every available frame is the server's to place, so
+    // the hook records the revision and asks for a reconcile. The record is
+    // observable as the one thing it changes — a stale frame for a remembered
+    // row asks for NOTHING, and the same frame asks again once forgotten.
+    const onReconcile = vi.fn()
+    render(<Harness items={[]} query={{ q: 'paint' }} onReconcile={onReconcile} />)
+    const send = (frame: GigFeedServerFrame) => act(() => seams.listener?.(frame))
+    send(frameFor(FIRST, '7'))
+    expect(onReconcile).toHaveBeenCalledTimes(1)
+    send(frameFor(FIRST, '6'))
+    expect(onReconcile).toHaveBeenCalledTimes(1)
+    // More distinct rows than the memory, each recorded through the same branch.
+    const others = page(GIG_FEED_REVISION_MEMORY + 1, 'other')
+    for (const other of others) send(frameFor(other, '1'))
+    expect(onReconcile).toHaveBeenCalledTimes(1 + others.length)
+    send(frameFor(FIRST, '6'))
+    expect(onReconcile).toHaveBeenCalledTimes(2 + others.length)
   })
 })
