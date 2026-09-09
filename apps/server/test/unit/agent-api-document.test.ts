@@ -267,7 +267,13 @@ test('no description hand-writes a chain or asset id — those are per-deploymen
     ...CHAIN_MANIFEST.flatMap((entry) => entry.assets.map((asset) => asset.id)),
   ]
   assert.ok(forbidden.length > 0, 'the manifest is empty — this would pass vacuously')
-  const prose: { where: string; text: string }[] = []
+  const prose: { where: string; text: string }[] = [
+    // The document's OWN description, which since #157 stage 3 carries the
+    // integration guide — the longest prose in the file, and the piece most
+    // likely to reach for a concrete example. It was outside this scan while
+    // it was one sentence.
+    { where: 'info.description', text: AGENT_API_DOCUMENT.info.description },
+  ]
   for (const [name, schema] of Object.entries(components.schemas)) {
     walk(schema, (node) => {
       if (node.description !== undefined) prose.push({ where: `schema ${name}`, text: node.description })

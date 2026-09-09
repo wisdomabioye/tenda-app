@@ -13,6 +13,7 @@
  * is documented. Additions therefore always land in the document.
  */
 import { withRecordedExamples } from './examples'
+import { integrationGuide } from './guide'
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AUTH_PATHS } from './paths-auth'
@@ -139,7 +140,11 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
   info: {
     title: 'Tenda Agent API',
     version: AGENT_API_VERSION,
-    description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.`,
+    // The one-line purpose, then the walkthrough — one description, because
+    // the served JSON and any page built from it must carry the same words
+    // (#157 stage 3). OpenAPI descriptions are CommonMark, so a renderer shows
+    // the steps and a raw reader still sees them in order.
+    description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.\n\n${integrationGuide()}`,
     'x-tenda-stability': AGENT_API_STABILITY,
   },
   servers: [{ url: '/', description: 'The origin this document was fetched from' }],

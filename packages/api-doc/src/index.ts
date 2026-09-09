@@ -17,6 +17,7 @@
  * every module below is part of describing it.
  */
 export * from './examples'
+export * from './guide'
 export * from './openapi'
 export * from './paths'
 export * from './paths-agent'
