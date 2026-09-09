@@ -87,11 +87,9 @@ export interface EvmRpc {
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmReceipt | null>
   getBlockNumber(): Promise<bigint>
   /**
-   * Every mined log the contract emitted in [from_block, to_block], ascending
-   * block order. Reverted txs emit no logs, so only real state changes appear.
-   */
-  /**
-   * Log references from ANY of `contracts` in the block range.
+   * Log references from ANY of `contracts` in [from_block, to_block], ascending
+   * block order. Reverted transactions emit no logs, so only real state changes
+   * appear.
    *
    * Plural because a chain that has redeployed still has live escrows funded by
    * the superseded contract, and a listener watching only the current address

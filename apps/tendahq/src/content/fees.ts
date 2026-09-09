@@ -24,8 +24,9 @@
  *      server's own constants.
  */
 
-import { ASSET_META } from '@tenda/shared/constants/assets'
+import { getAssetMeta } from '@tenda/shared/constants/assets'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
+import { ESCROW_LIMITS } from '@tenda/shared/constants/escrow'
 import { GIG_ASSET_IDS } from './chains'
 
 /** bps → a display percentage: 250 → '2.5', 100 → '1'. */
@@ -40,6 +41,23 @@ export const FEE_PCT = pct(PLATFORM_CONFIG_DEFAULTS.fee_bps)
 export const SEEKER_FEE_PCT = pct(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps)
 
 /**
+ * The CEILING the escrow contract enforces on the platform fee, as a display
+ * percentage ('10').
+ *
+ * A different fact from the two rates above, and the FAQ's trust answer leans
+ * on it: the fee is read at settlement rather than frozen at post time, so the
+ * only thing bounding what a live escrow can be charged is this cap. That
+ * answer typed "10%" by hand — the one fee figure on the landing still written
+ * out, in the section a sceptical reader checks first, and a claim about the
+ * CONTRACT rather than about a tunable.
+ *
+ * Derived from `ESCROW_LIMITS.maxPlatformFeeBps`, which is the same 1000 bps
+ * TendaEscrow declares as `MAX_PLATFORM_FEE_BPS` and validates every
+ * `setFeeBps` against — so the sentence cannot outlive the bound it describes.
+ */
+export const MAX_FEE_PCT = pct(ESCROW_LIMITS.maxPlatformFeeBps)
+
+/**
  * §04's worked example, computed rather than typed.
  *
  * The principal is the one editorial choice — a round, small, believable gig
@@ -51,13 +69,34 @@ export const SEEKER_FEE_PCT = pct(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps)
  */
 const EXAMPLE_PRINCIPAL_USDC = 12
 /**
+ * The registry entry for the asset gigs are actually escrowed in.
+ *
+ * Read through `getAssetMeta` (Object.hasOwn), never `ASSET_META[id]` — the
+ * accessor the rest of the monorepo was swept onto after #116, because a plain
+ * bracket read answers a prototype key ('toString', 'constructor') with a
+ * truthy inherited FUNCTION whose `.decimals` is undefined. `10 ** undefined`
+ * is NaN, and the whole worked example below would render as NaN with nothing
+ * throwing. The key here comes from the manifest so it cannot be one of those
+ * today; the accessor is what keeps that a property of the ACCESS rather than
+ * of the current caller.
+ *
+ * Throwing is the right answer to a miss: this runs at module load, so a gig
+ * asset the registry does not carry fails the landing's build rather than
+ * shipping a fee example computed from nothing.
+ */
+const GIG_ASSET = getAssetMeta(GIG_ASSET_IDS[0])
+if (GIG_ASSET === null) {
+  throw new Error(`landing fees: gig asset '${GIG_ASSET_IDS[0]}' is not in the shared asset registry`)
+}
+
+/**
  * Base units per whole token, from the DECIMALS of the asset gigs are actually
  * escrowed in — not a typed-out 1_000_000. The number is only 1e6 because USDC
  * is a 6-decimal token, which is a fact about the asset registry rather than
  * about this file, and reading it from there is what stops the worked example
  * being wrong by a factor of ten if the gig asset ever changes.
  */
-const USDC_BASE_UNITS = 10 ** ASSET_META[GIG_ASSET_IDS[0]].decimals
+const USDC_BASE_UNITS = 10 ** GIG_ASSET.decimals
 
 /**
  * The symbol gigs are escrowed in ('USDC'), from the same asset whose decimals
@@ -68,7 +107,7 @@ const USDC_BASE_UNITS = 10 ** ASSET_META[GIG_ASSET_IDS[0]].decimals
  * loop's custody scene — and a symbol typed next to a derived number is one
  * edit away from labelling it wrongly.
  */
-export const GIG_ASSET_SYMBOL: string = ASSET_META[GIG_ASSET_IDS[0]].symbol
+export const GIG_ASSET_SYMBOL: string = GIG_ASSET.symbol
 
 function usdc(baseUnits: number): string {
   const whole = baseUnits / USDC_BASE_UNITS

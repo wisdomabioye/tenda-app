@@ -21,7 +21,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { and, eq } from 'drizzle-orm'
 import { apiRoutes, type AgentRegisterResponse, type AgentTaskBody, type AgentTaskPaymentRequired } from '@tenda/shared'
 import { escrows, tx_attempts } from '@tenda/shared/db/schema'
-import { isDemoAccount } from '@server/features/agent/demoDraftRing'
+import { discardDrafts, isDemoAccount } from '@server/features/agent/demoDraftRing'
 import {
   TEST_DB_CONFIGURED,
   authHeader,
@@ -152,6 +152,61 @@ test('a draft whose create is in flight is never discarded, whatever its age', {
   // The ring counts only what it may discard, so the pending one sits ABOVE the cap.
   assert.strictEqual(await draftCount(session.user.id), DEMO_DRAFT_CAP + 1)
   assert.strictEqual(await readStatus(session.token, ids[1] ?? ''), 404, 'the next-oldest should have gone instead')
+})
+
+test('the DISCARD re-checks the in-flight guard, so a create recorded mid-ring cannot erase its escrow', { skip }, async () => {
+  // The case above proves the SELECT skips an in-flight draft. This one is the
+  // window BETWEEN the two statements, which is reachable precisely because the
+  // demo account is shared: one caller's resend records its create attempt
+  // while another caller's ring is already holding the ids it chose. Handing
+  // those ids straight to the discard IS that state.
+  //
+  // Deleting there is not a lost draft — the relayer has broadcast and paid the
+  // gas, and the cascade takes the tx_attempts row verify-tx would have applied,
+  // so the escrow is orphaned on-chain with no server record.
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+  const session = await openDemoSession()
+  const ids = await mint(session.token, 2)
+  const [inFlight, ordinary] = ids
+  assert.ok(inFlight !== undefined && ordinary !== undefined)
+  await app.db.insert(tx_attempts).values({ user_id: session.user.id, escrow_id: inFlight, action: 'create', tx_ref: `create-${randomUUID()}` })
+
+  assert.strictEqual(await discardDrafts(app.db, ids), 1, 'only the draft with no create in flight may go')
+  assert.strictEqual(await readStatus(session.token, inFlight), 200, 'a draft whose create is in flight was erased by the discard')
+  assert.strictEqual(await readStatus(session.token, ordinary), 404, 'the draft with nothing in flight should still have gone')
+})
+
+test('a settled attempt is no longer in flight, so its draft is dischargeable again', { skip }, async () => {
+  // The other side of the guard: `pendingCreateAttempt` counts only attempts
+  // with neither confirmed_at nor failed_at. A create that FAILED leaves a row
+  // behind, and treating that as "in flight" would pin the draft forever — the
+  // ring would stop being able to free the account at all.
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+  const session = await openDemoSession()
+  const [only] = await mint(session.token, 1)
+  assert.ok(only !== undefined)
+  await app.db.insert(tx_attempts).values({
+    user_id: session.user.id,
+    escrow_id: only,
+    action: 'create',
+    tx_ref: `create-${randomUUID()}`,
+    failed_at: new Date(),
+  })
+  assert.strictEqual(await discardDrafts(app.db, [only]), 1, 'a failed create still pinned the draft')
+})
+
+test('discardDrafts on an empty list touches nothing', { skip }, async () => {
+  const app = getApp()
+  await resetDb(app)
+  await seedAltChain(app)
+  const session = await openDemoSession()
+  await mint(session.token, 1)
+  assert.strictEqual(await discardDrafts(app.db, []), 0)
+  assert.strictEqual(await draftCount(session.user.id), 1)
 })
 
 test('isDemoAccount: the demo account by its wallet; nobody when no demo is configured', { skip }, async () => {

@@ -10,9 +10,14 @@ import {TendaEscrow} from "../src/TendaEscrow.sol";
 ///   TENDA_ADMIN            Safe 3-of-5 address (protocol admin)
 ///   TENDA_DISPUTE_ADMIN    separate dispute authority (ops key at launch)
 ///   TENDA_TREASURY         fee recipient
-/// Optional env (fee defaults mirror the Solana platform config; the approval
-/// window does NOT — off-chain `platform_config.approval_window_seconds` is
-/// 172800, this contract defaults to 24h and is the shorter of the two):
+/// Optional env (the fee defaults mirror the Solana platform config). The
+/// approval window has no off-chain counterpart to mirror: it is a CONTRACT
+/// value and nothing else, read live per chain and served as
+/// `approval_window_seconds` on the registry (#148, which dropped the
+/// `platform_config.approval_window_seconds` column this note used to compare
+/// against). Deployments differ on purpose — Celo mainnet runs 24h, the
+/// testnets 48h — so set it deliberately per chain rather than taking the
+/// default by omission:
 ///   TENDA_FEE_BPS              default 250
 ///   TENDA_SEEKER_FEE_BPS       default 100
 ///   TENDA_APPROVAL_WINDOW_S    default 86400 (24h)

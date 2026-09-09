@@ -56,6 +56,21 @@ export const ANVIL_KEYS = {
  */
 export const ANVIL_GRACE_SECONDS = 3_600
 
+/**
+ * The fee schedule TendaEscrow is deployed with here, in basis points. Named
+ * for the same reason the grace period is: a suite that asserts the treasury's
+ * cut of a real settlement has to assert THIS number, and a second copy in a
+ * test goes silently wrong the day this one changes. The seeker rate is
+ * deployed too — no suite drives an `is_seeker` escrow through anvil yet, so
+ * it stays local to the constructor call rather than becoming an export
+ * nothing reads.
+ */
+export const ANVIL_FEE_BPS = 250
+const ANVIL_SEEKER_FEE_BPS = 100
+
+/** The approval window the fixture deploys — 48h, the testnet value (#148). */
+const ANVIL_APPROVAL_WINDOW_SECONDS = 172_800
+
 /** Matches the manifest's Base Sepolia entry, so its permit/eip3009 config applies verbatim. */
 const ANVIL_CHAIN_NUMERIC_ID = 84532
 export const ANVIL_CHAIN_ID = `eip155:${ANVIL_CHAIN_NUMERIC_ID}`
@@ -150,9 +165,9 @@ export async function startAnvilFixture(port: number): Promise<AnvilFixture> {
     creator.address,
     creator.address,
     treasury.address,
-    250,
-    100,
-    172_800,
+    ANVIL_FEE_BPS,
+    ANVIL_SEEKER_FEE_BPS,
+    ANVIL_APPROVAL_WINDOW_SECONDS,
     ANVIL_GRACE_SECONDS,
   ])
   for (const to of [creator.address, worker.address]) {

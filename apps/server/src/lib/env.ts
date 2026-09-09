@@ -107,3 +107,35 @@ export function positiveIntegerProblem(key: string, env: NodeJS.ProcessEnv = pro
     : []
 }
 
+/**
+ * The boot problem for a set-but-malformed integer var whose legal range
+ * INCLUDES its endpoints — the check `positiveIntegerProblem` cannot do.
+ *
+ * It exists for `PLATFORM_FEE_BPS`, which was the one numeric optional with no
+ * boot validation at all: `Number('2.5%')` is NaN, and the unseeded fallback in
+ * lib/platform.ts caches that as `fee_bps` for five minutes, so NaN reaches
+ * every fee computation. It could not simply join the positive-integer list,
+ * because ZERO is a legal fee and that check rejects it — which is the likely
+ * reason it was skipped rather than an oversight about whether it mattered.
+ *
+ * The BOUNDS are the caller's, deliberately: this only knows how to check a
+ * closed range, and which range is right is a question about the setting. For
+ * PLATFORM_FEE_BPS the answer is the contract's MAX_PLATFORM_FEE_BPS, mirrored
+ * by `ESCROW_LIMITS.maxPlatformFeeBps` — NOT the column's wider 0–10000 CHECK,
+ * which would let an env hold a fee no escrow could be created with. config.ts
+ * says so at the call site.
+ */
+export function integerRangeProblem(
+  key: string,
+  min: number,
+  max: number,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const raw = optionalEnv(key, env)
+  if (raw === null) return []
+  const value = Number(raw)
+  return Number.isSafeInteger(value) && value >= min && value <= max
+    ? []
+    : [`${key} must be an integer between ${min} and ${max}`]
+}
+

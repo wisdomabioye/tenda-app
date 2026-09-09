@@ -295,9 +295,6 @@ export const platform_config = pgTable(
       'platform_config_max_pending_gigs_range_chk',
       sql`${t.max_pending_gigs} BETWEEN 1 AND ${sql.raw(String(MAX_PENDING_GIGS_CEILING))}`,
     ),
-    // Mirrors the bound BOTH contracts enforce, so a value the chain would
-    // revert can never be stored — the column is the source the create route
-    // stamps onto the escrow.
     // Same reasoning as max_pending_gigs: 0 would lock every worker out of
     // applying, and the ceiling keeps a typo from disabling the cap.
     check(
@@ -308,6 +305,9 @@ export const platform_config = pgTable(
       'platform_config_application_ttl_range_chk',
       sql`${t.application_ttl_seconds} BETWEEN ${sql.raw(String(MIN_APPLICATION_TTL_SECONDS))} AND ${sql.raw(String(MAX_APPLICATION_TTL_SECONDS))}`,
     ),
+    // Mirrors the bound BOTH contracts enforce, so a value the chain would
+    // revert can never be stored — the column is the source the create route
+    // stamps onto the escrow.
     check(
       'platform_config_unassign_window_range_chk',
       sql`${t.unassign_window_seconds} BETWEEN ${sql.raw(String(ESCROW_LIMITS.minUnassignWindowSeconds))} AND ${sql.raw(String(ESCROW_LIMITS.maxUnassignWindowSeconds))}`,

@@ -23,8 +23,10 @@ import { randomUUID } from 'node:crypto'
 import type { Hex } from 'viem'
 import { encodeApprove } from '@tenda/shared'
 import { evmAdapter } from '@server/chains/evm'
+import { computePlatformFee } from '@server/lib/escrow/fees'
 import {
   ANVIL_CHAIN_ID,
+  ANVIL_FEE_BPS,
   ERC20_ABI,
   anvilSkip,
   sendUnsigned as sendUnsignedOn,
@@ -243,7 +245,14 @@ test('permit path: payload → signTypedData → createEscrowWithPermit lands wi
     functionName: 'balanceOf',
     args: [fx.treasury.address],
   })
-  const expectedFee = (BigInt(AMOUNT) * 250n) / 10_000n
+  // The rate the fixture DEPLOYED, not a second copy of it: a literal here
+  // asserts the platform's cut against a number this file made up.
+  const expectedFee = BigInt(computePlatformFee({
+    amount_raw: AMOUNT,
+    is_seeker: false,
+    fee_bps: ANVIL_FEE_BPS,
+    seeker_fee_bps: 0,
+  }))
   assert.strictEqual(treasuryAfter - treasuryBefore, expectedFee)
 })
 

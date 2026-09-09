@@ -1,6 +1,7 @@
 import { slackConfigProblems } from '@server/lib/slack'
-import { optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
 import { moderationConfig } from '@server/features/moderation/config'
+import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
@@ -203,6 +204,12 @@ export function loadConfig(): Config {
     ...urlEnvProblems(OPTIONAL_URL_ENV_VARS, BASE_URL_PROTOCOLS),
     ...slackConfigProblems(),
     ...POSITIVE_INTEGER_ENV_VARS.flatMap((key) => positiveIntegerProblem(key)),
+    // Its own line, not POSITIVE_INTEGER_ENV_VARS: zero is a legal fee, which
+    // `positiveIntegerProblem` refuses. The ceiling is the CONTRACT's
+    // (MAX_PLATFORM_FEE_BPS), which the admin route caps at too; the column's
+    // CHECK is the wider 0-10000, and taking that would let an env set a fee
+    // every other surface — and the contract itself — refuses.
+    ...integerRangeProblem('PLATFORM_FEE_BPS', 0, ESCROW_LIMITS.maxPlatformFeeBps),
     ...moderationModelProblem(),
   ]
 
@@ -235,7 +242,10 @@ export function loadConfig(): Config {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
     // Non-null: required, so the blank check above already threw.
     API_BASE_URL:          baseUrlEnv('API_BASE_URL')!,
-    PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? 250),
+    // The default is the COLUMN's, from the shared constant, so the unseeded
+    // fallback and a freshly-seeded row cannot answer different fees; a SET
+    // value was checked above against the contract's ceiling, not the column's.
+    PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? PLATFORM_CONFIG_DEFAULTS.fee_bps),
     JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
     AGENT_DEMO_ADDRESS:    optionalEnv('AGENT_DEMO_ADDRESS'),
     AGENT_DEMO_DRAFT_CAP:  positiveIntegerEnv('AGENT_DEMO_DRAFT_CAP', DEMO_DRAFT_CAP_DEFAULT),

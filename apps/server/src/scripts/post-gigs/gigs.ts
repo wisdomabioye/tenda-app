@@ -1,8 +1,13 @@
 /**
  * The seed gig book — 20 listings drawn from work that is genuinely bought
  * today (price monitoring, speech data, localisation, field verification).
- * The long-form rationale for each, and the local purchasing-power reasoning
- * behind the amounts, lives in /home/abioye/tenda/task.md.
+ *
+ * How a run uses this book, and what each amount has to survive, is in
+ * `./README.md` — the operator runbook that lives beside the script so the two
+ * change in the same commit. The long-form per-gig rationale and the local
+ * purchasing-power working are the maintainer's own notes and are deliberately
+ * NOT in this repo; this comment used to name their absolute path on one
+ * laptop, which is a dead reference for every other reader.
  *
  * TYPED: `GigSeed` is derived from `AgentTaskBody`, so an invalid category,
  * an unknown proof type, or a `structured` requirement without its params is

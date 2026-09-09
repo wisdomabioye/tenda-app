@@ -48,6 +48,7 @@ export {
 export {
   FEE_PCT,
   SEEKER_FEE_PCT,
+  MAX_FEE_PCT,
   FEE_EXAMPLE,
   GIG_ASSET_SYMBOL,
 } from './fees'

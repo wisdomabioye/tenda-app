@@ -9,6 +9,10 @@
  * is one list both targets emit, and every output is deterministic so the CI
  * drift gates compare apples to apples.
  */
+// `vi` alone is IMPORTED. `describe`/`it`/`expect` resolve as ambient globals
+// in this package, `vi` does not — so the six `vi.spyOn` calls below compiled
+// nowhere and `pnpm --filter web type-check` was red with TS2304.
+import { vi } from 'vitest'
 import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
 import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
 import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'

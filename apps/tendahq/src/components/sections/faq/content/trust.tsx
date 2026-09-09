@@ -1,4 +1,4 @@
-import { APP_INFO, CHAIN_NAMES_PROSE, MAINNET_STATUS_CLAUSE } from '@/content'
+import { APP_INFO, CHAIN_NAMES_PROSE, MAINNET_STATUS_CLAUSE, MAX_FEE_PCT } from '@/content'
 import type { FaqCategory } from '../types'
 
 /**
@@ -43,7 +43,7 @@ export const TRUST_CATEGORY: FaqCategory = {
           <p>
             One caveat we&apos;d rather state than bury: the platform fee is read{' '}
             <em>at settlement</em>, not frozen when you post, so a fee change reaches escrows
-            that are already open. The contract caps it at 10% and every change is a public
+            that are already open. The contract caps it at {MAX_FEE_PCT}% and every change is a public
             on-chain transaction, but that is the one admin action with any reach into a live
             escrow. The review window works the other way — it is stamped onto your escrow when
             proof lands, so a later change cannot move a deadline you are already relying on.

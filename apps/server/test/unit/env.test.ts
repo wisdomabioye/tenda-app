@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { isAbsoluteUrl, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { integerRangeProblem, isAbsoluteUrl, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
 
 const HTTPS = ['https'] as const
 const HTTP_S = ['https', 'http'] as const
@@ -141,3 +141,46 @@ test('positiveIntegerProblem: nothing to report when unset, blank or well-formed
   assert.deepStrictEqual(positiveIntegerProblem('N', { N: '3' }), [])
 })
 
+// ---------- integerRangeProblem (the endpoints-inclusive sibling) -------------
+
+test('integerRangeProblem: an unset or blank var is never a problem', () => {
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, {}), [])
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, { N: '   ' }), [])
+})
+
+test('integerRangeProblem: BOTH endpoints are legal — the reason it is not positiveIntegerProblem', () => {
+  // Zero is the case that forced this to exist: PLATFORM_FEE_BPS=0 is a
+  // deployment that charges nothing, and the positive-integer check refuses it.
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, { N: '0' }), [])
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, { N: '10000' }), [])
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, { N: ' 250 ' }), [])
+  assert.deepStrictEqual(positiveIntegerProblem('N', { N: '0' }), ['N must be a positive integer'])
+})
+
+test('integerRangeProblem: names the var and the range it wanted', () => {
+  for (const bad of ['-1', '10001', '2.5', '2.5%', 'free', String(Number.MAX_SAFE_INTEGER + 2)]) {
+    assert.deepStrictEqual(
+      integerRangeProblem('N', 0, 10_000, { N: bad }),
+      ['N must be an integer between 0 and 10000'],
+      bad,
+    )
+  }
+})
+
+test('integerRangeProblem: exponent notation parses, exactly as positiveIntegerEnv does', () => {
+  // Pinned rather than fixed: Number('1e3') is 1000, a safe integer in range,
+  // and the sibling above has always accepted it. Recording the boundary is
+  // what stops the two from drifting apart silently.
+  assert.deepStrictEqual(integerRangeProblem('N', 0, 10_000, { N: '1e3' }), [])
+})
+
+test('integerRangeProblem: defaults to process.env like every other reader here', () => {
+  const key = 'TENDA_RANGE_ENV_PROBE'
+  try {
+    process.env[key] = '99999'
+    assert.deepStrictEqual(integerRangeProblem(key, 0, 10_000), [`${key} must be an integer between 0 and 10000`])
+  } finally {
+    delete process.env[key]
+  }
+  assert.deepStrictEqual(integerRangeProblem(key, 0, 10_000), [])
+})

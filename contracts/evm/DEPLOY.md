@@ -38,12 +38,30 @@ forge test           # permit paths + invariant suite — see the warning below
 forge fmt --check    # style gate
 ```
 
-> ⚠️ **`forge test` is NOT green as of 2026-09-05**: 127 pass, 4 fail, all four
-> in `test/invariant/` with `panic: arithmetic underflow or overflow`, and
-> deterministic across fuzz seeds. Tracked as **#113**. It is unresolved whether
-> the fault is in the handler (harness) or in `TendaEscrow` itself — until that
-> is known, treat the invariant suite as guaranteeing NOTHING, and decide
-> deliberately whether that blocks the deploy rather than reading a green 127.
+> ℹ️ **#113 is diagnosed, and it is the HARNESS, not `TendaEscrow`.** This note
+> used to say `forge test` was "NOT green as of 2026-09-05: 127 pass, 4 fail …
+> deterministic across fuzz seeds", that it was unresolved whether the fault lay
+> in the handler or the contract, and therefore to "treat the invariant suite as
+> guaranteeing NOTHING". Measured 2026-09-09, all three parts were wrong:
+>
+> - The fault is `test/invariant/TendaEscrowHandler.sol:312`,
+>   `actors[(actorSeed + 1) % ACTOR_COUNT]`, which overflows in checked 0.8
+>   arithmetic when the fuzzer picks `actorSeed = type(uint256).max`. That is a
+>   panic in the handler's own arithmetic, before `TendaEscrow` is called.
+>   `[invariant] fail_on_revert = true` in `foundry.toml` turns it into a suite
+>   failure rather than a skipped call.
+> - It is not deterministic. It LOOKED deterministic because foundry persists a
+>   counterexample under `contracts/evm/cache/invariant/failures/` (gitignored)
+>   and REPLAYS it first on every later run — so once found on a machine it
+>   never goes away there. `rm -rf contracts/evm/cache/invariant/failures` and a
+>   fresh run is **5 passed, 64 runs × 3072 calls each**, 131/131 for the whole
+>   suite.
+> - So the invariant suite is not guaranteeing nothing. Read a green run as
+>   green. If you meet the panic, it is this seed and not a solvency break.
+>
+> Still worth fixing before the audit engagement (**#166**): bound the seed
+> before the arithmetic. An auditor who runs the suite will hit it and reasonably
+> read it as a contract failure.
 
 ---
 
@@ -59,8 +77,9 @@ The deploy script (`script/Deploy.s.sol`) reads these from the environment:
 | `TENDA_DISPUTE_ADMIN` | separate dispute authority (ops key at launch) |
 | `TENDA_TREASURY` | fee recipient — normally the same Safe as `TENDA_ADMIN` |
 
-**Optional (fee defaults mirror the Solana platform config — keep them unless
-product says otherwise; the approval window deliberately does NOT, see below):**
+**Optional (the fee defaults mirror the Solana platform config — keep them
+unless product says otherwise; the approval window has no off-chain
+counterpart, see below):**
 
 | Env var | Default | Meaning |
 |---|---|---|
@@ -69,11 +88,20 @@ product says otherwise; the approval window deliberately does NOT, see below):**
 | `TENDA_APPROVAL_WINDOW_S` | `86400` | 24h poster review window |
 | `TENDA_GRACE_PERIOD_S` | `3600` | 1h grace period |
 
-> ⚠️ The 24h approval window is a **temporary Celo hackathon setting**, not the
-> product default. Off-chain `platform_config.approval_window_seconds` is still
-> `172800`, so a contract deployed on this default reclaims to the worker a day
-> earlier than the app advertises. Tracked for revert as **#96**; pass
-> `TENDA_APPROVAL_WINDOW_S=172800` explicitly for any deploy that is not Celo.
+> ⚠️ **The approval window is now a CONTRACT value and nothing else** (#148),
+> which changed what this warning has to say. It used to read "off-chain
+> `platform_config.approval_window_seconds` is still 172800, so this default
+> reclaims a day earlier than the app advertises" — that premise is gone: #148
+> DROPPED that column, and every surface now reads the window live off the
+> contract, served as `approval_window_seconds` on each `ChainRegistryEntry`.
+> There is no second number for a deploy to contradict, and #96 (tracked as a
+> revert of the 24h value) is superseded by that.
+>
+> What remains true is that the value is per-deployment and the deployments
+> already differ on purpose — Celo mainnet 24h, the testnets 48h. So decide it
+> deliberately and pass `TENDA_APPROVAL_WINDOW_S` explicitly rather than taking
+> `86400` by omission, and remember it is what a worker's claim right is
+> measured against.
 
 > These four are validated on-chain (`_validateFeeBps`, `_validateApprovalWindow`,
 > `_validateGracePeriod`). They are also mutable post-deploy via the admin (Safe)
@@ -347,6 +375,26 @@ chain-specific addresses; gas handling comes from the manifest's `gasPolicy`:
 
 There is no contract-level pause. To take a chain offline operationally, unset
 **all** its `CHAIN_<ID>_*` vars (a partial unset is a boot error) and restart
-the server — the adapter stops registering and requests for that chain fail
-closed with `no adapter registered for chain_id '<id>'`. Funds already in
-escrows remain claimable directly on-chain via the Safe.
+the server — the adapter stops registering and every escrow ACTION on that
+chain fails closed with a 503 `SERVICE_UNAVAILABLE` (`lib/escrow/build-tx.ts`
+checks `chains.has` and refuses there rather than letting the registry's raw
+throw become a 500). Creating a new escrow is refused earlier still: the chain
+is not in the registry the composer reads, and the create validator answers 422.
+One gap to know about during an incident — resolving a DISPUTE resolves its
+adapter without that guard (`lib/escrow/resolve-tx.ts`), so that one surfaces as
+a 500 rather than a 503.
+
+> ⚠️ **Two things this procedure will do that are easy to be surprised by, and
+> the second one traps money.**
+>
+> 1. **On a deployment with `SEED_ON_BOOT=true` the boot REFUSES.** The seed
+>    disables every chain outside the active config, and that refusal is
+>    deliberate — see `ALLOW_CHAIN_DISABLE` in `apps/server/.env.example`. Set it
+>    to the exact lowercase string `true` for the one deploy that retires the
+>    chain, then put it back.
+> 2. **Escrows on that chain stop being actionable.** With no adapter there is
+>    nothing to build or verify a transaction with, so accept, submit, approve,
+>    cancel, refund and dispute all fail while the listings still display. Funds
+>    already escrowed remain claimable **directly on-chain** via the Safe, but
+>    not through the app. A chain with no unsettled escrows retires cleanly;
+>    one with them does not, so check before you unset.

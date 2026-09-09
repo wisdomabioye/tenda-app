@@ -46,6 +46,8 @@ import {
   TENDA_RELAY_SCHEME,
   X402_VERSION,
   type AgentTaskBody,
+  type AgentTaskCreated,
+  type AgentTaskPaymentRequired,
   type PlatformConfig,
 } from '@tenda/shared'
 import { expectStatus, makeApi, newOperationId, registerAgent, type Api } from '../agent-hire-e2e/actors'
@@ -55,6 +57,7 @@ import { GIG_BOOK, type GigSeed } from './gigs'
 import { withRateLimitRetry, type RetryOptions } from './rate-limit'
 import { selectGigs } from './select'
 import { appendReceipt, defaultReceiptPath } from './receipts'
+import { evmTermsFrom } from './terms'
 
 /**
  * How many times one leg may be re-sent through the limiter. Five covers a
@@ -114,11 +117,18 @@ async function postOne(
   if (quote.status !== 402) {
     throw new Error(`expected 402 with terms, got ${quote.status} — ${JSON.stringify(quote.json)}`)
   }
-  const terms = quote.json as unknown as {
-    task_id: string
-    accepts: [{ payment: { typed_data: Record<string, unknown> } }]
-  }
-  const typed = terms.accepts[0].payment.typed_data as Parameters<typeof account.signTypedData>[0]
+  const quoted = quote.json as unknown as AgentTaskPaymentRequired
+  const payment = evmTermsFrom(quoted, body.chain_id)
+  // Three casts survive in this function and they are two different kinds.
+  // `quote.json` and `created.json` above and below narrow what the shared
+  // helper hands back — it types every body as `Record<string, unknown>`
+  // (agent-hire-e2e/actors.ts) — to the DOCUMENT's own types, which is the
+  // improvement: they used to narrow to shapes hand-written here. This one is
+  // a LIBRARY boundary instead: viem's signTypedData takes a generic over its
+  // own type map, which `ReceiveAuthorizationTypedData` satisfies structurally
+  // but cannot be assigned to. The MESSAGE below needs no cast at all any
+  // more — it is read straight off the typed wire value.
+  const typed = payment.typed_data as unknown as Parameters<typeof account.signTypedData>[0]
   const signature = await account.signTypedData(typed)
 
   const header = Buffer.from(
@@ -126,10 +136,7 @@ async function postOne(
       x402Version: X402_VERSION,
       scheme: TENDA_RELAY_SCHEME,
       network: body.chain_id,
-      payload: {
-        signature,
-        authorization: (typed as unknown as { message: unknown }).message,
-      },
+      payload: { signature, authorization: payment.typed_data.message },
     }),
   ).toString('base64')
 
@@ -142,8 +149,8 @@ async function postOne(
   }
   return {
     title: body.title,
-    taskId: terms.task_id,
-    txRef: (created.json as { tx_ref: string }).tx_ref,
+    taskId: quoted.task_id,
+    txRef: (created.json as unknown as AgentTaskCreated).tx_ref,
     amountRaw: body.amount_raw,
   }
 }

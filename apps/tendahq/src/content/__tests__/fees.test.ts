@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ASSET_META } from '@tenda/shared/constants/assets'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
+import { ESCROW_LIMITS } from '@tenda/shared/constants/escrow'
 import { GIG_ASSET_IDS } from '../chains'
 import {
   FEE_EXAMPLE,
   FEE_EXAMPLE_RAW,
   FEE_PCT,
+  MAX_FEE_PCT,
   SEEKER_FEE_PCT,
 } from '../fees'
 
@@ -19,6 +21,19 @@ describe('fee facts', () => {
   it('derives the display percentages from the shared platform defaults', () => {
     expect(FEE_PCT).toBe(String(PLATFORM_CONFIG_DEFAULTS.fee_bps / 100))
     expect(SEEKER_FEE_PCT).toBe(String(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps / 100))
+  })
+
+  /**
+   * The CAP is the contract's, not a tunable — and the FAQ's trust answer
+   * states it as a fact about TendaEscrow. It was typed as "10%" beside prose
+   * that derives everything else, which is the one way that sentence could
+   * outlive the bound it describes.
+   */
+  it('derives the contract fee ceiling rather than typing it into the trust answer', () => {
+    expect(MAX_FEE_PCT).toBe(String(ESCROW_LIMITS.maxPlatformFeeBps / 100))
+    // A ceiling below the configured rate would mean the default fee is one the
+    // contract's own `setFeeBps` would reject.
+    expect(Number(MAX_FEE_PCT)).toBeGreaterThanOrEqual(Number(FEE_PCT))
   })
 
   /** The Seeker rate is a DISCOUNT; the contracts reject seekerFee > fee. */

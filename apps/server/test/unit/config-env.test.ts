@@ -10,6 +10,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
+import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { knownSlackEnvKeys, slackEnvKey } from '@server/lib/slack'
 import { buildOtpSenders, type OtpSenderHost } from '@server/lib/onboarding-deps'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
@@ -42,6 +43,7 @@ const OPTIONAL = [
   'OPENROUTER_MODERATION_TIMEOUT_MS',
   'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS',
   'AGENT_DEMO_DRAFT_CAP',
+  'PLATFORM_FEE_BPS',
 ]
 
 beforeEach(() => {
@@ -111,6 +113,34 @@ test('AGENT_DEMO_DRAFT_CAP (#147): defaults to the ring module\'s constant, take
   for (const bad of ['0', '-1', '2.5', 'many']) {
     process.env.AGENT_DEMO_DRAFT_CAP = bad
     assert.match(loadError().message, /AGENT_DEMO_DRAFT_CAP must be a positive integer/, `'${bad}' must be refused`)
+  }
+})
+
+test('PLATFORM_FEE_BPS: zero is a legal fee, the CONTRACT\'s ceiling is the bound, and NaN never reaches the fallback', () => {
+  // It was the ONE numeric optional with no boot check, and its failure is
+  // quiet: lib/platform.ts uses it as `fee_bps` when platform_config has no row
+  // yet, and caches that for five minutes — so `Number('2.5%')` puts NaN into
+  // every fee computation on an unseeded deployment.
+  assert.strictEqual(loadConfig().PLATFORM_FEE_BPS, PLATFORM_CONFIG_DEFAULTS.fee_bps)
+  // Zero is why this cannot use the positive-integer list: a deployment may
+  // legitimately charge nothing.
+  process.env.PLATFORM_FEE_BPS = '0'
+  assert.strictEqual(loadConfig().PLATFORM_FEE_BPS, 0)
+  process.env.PLATFORM_FEE_BPS = String(ESCROW_LIMITS.maxPlatformFeeBps)
+  assert.strictEqual(loadConfig().PLATFORM_FEE_BPS, ESCROW_LIMITS.maxPlatformFeeBps)
+  // The bound is the on-chain MAX_PLATFORM_FEE_BPS, which `ESCROW_LIMITS`
+  // mirrors and the admin route caps at — NOT the column's wider 0-10000 CHECK.
+  // 10000 is the case that tells the two apart: it satisfies the column and the
+  // contract would revert on it, so an unseeded deployment reading it from env
+  // would quote a 100% fee no escrow could ever be created with.
+  const ceiling = ESCROW_LIMITS.maxPlatformFeeBps
+  for (const bad of ['2.5%', 'free', '2.5', '-1', String(ceiling + 1), '10000']) {
+    process.env.PLATFORM_FEE_BPS = bad
+    assert.match(
+      loadError().message,
+      new RegExp(`PLATFORM_FEE_BPS must be an integer between 0 and ${ceiling}`),
+      `'${bad}' must be refused by name`,
+    )
   }
 })
 
