@@ -49,7 +49,7 @@ export function pairedScheme(
  * the docs site. A header that hardcoded one of them would tell a reader of
  * the other file to run the command that rewrites somebody else's tokens.
  */
-export function renderTendahq(regen: string = 'pnpm --filter tendahq gen:tokens'): string {
+export function renderTendahq(regen: string): string {
   const colours = pairedScheme()
     .map(([property, light, dark]) => `    ${property}: light-dark(${light}, ${dark});`)
     .join('\n')

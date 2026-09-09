@@ -10,6 +10,7 @@
 import { typography } from '../../../mobile/theme/tokens'
 import { render } from '../gen-web-tokens/core'
 import { renderTendahq } from '../gen-web-tokens/tendahq'
+import { TARGETS } from '../gen-web-tokens/targets'
 import {
   fontRoleOf,
   TYPE_CLASS_PREFIX,
@@ -102,10 +103,12 @@ describe('typeUtilities', () => {
   it('reaches both targets, safelist first', () => {
     const block = typeBlock()
     expect(block.indexOf('@source inline')).toBeLessThan(block.indexOf('@utility'))
-    expect(render()).toContain(block)
-    expect(renderTendahq()).toContain(block)
+    // Each renderer stamps the command that rewrites its own file, so it takes
+    // one; the target map is where those live.
+    expect(render(TARGETS.web.regen)).toContain(block)
+    expect(renderTendahq(TARGETS.tendahq.regen)).toContain(block)
     // top-level in tendahq's sheet: an @utility inside @layer is not compiled
-    const tendahq = renderTendahq()
+    const tendahq = renderTendahq(TARGETS.tendahq.regen)
     expect(tendahq.lastIndexOf('}\n}\n')).toBeLessThan(tendahq.indexOf('@utility'))
   })
 })

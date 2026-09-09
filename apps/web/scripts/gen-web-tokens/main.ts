@@ -9,60 +9,19 @@
  *   pnpm --filter tendahq gen:tokens:check
  *   pnpm --filter tenda-docs gen:tokens       # and for docs/src/styles/tokens.css
  *
- * `--target web|tendahq|docs` picks the output (default web, the original). Web's
+ * `--target web|tendahq|docs` picks the output (default web, the original) —
+ * the map of what each one renders and where lives in ./targets. Web's
  * theme shape follows the ui-ux brief: full light palette on bare :root,
  * system dark behind prefers-color-scheme guarded by :root:not([data-theme=
  * "light"]), and an explicit :root[data-theme="dark"] block so a toggle wins
  * in both directions. tendahq's is one light-dark() block — see tendahq.ts.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { render } from './core'
-import { renderTendahq } from './tendahq'
-
-const HERE = dirname(fileURLToPath(import.meta.url))
-
-interface Target {
-  render(): string
-  out: string
-  regen: string
-}
-
-const TARGETS: Record<string, Target> = {
-  web: {
-    render,
-    out: join(HERE, '../../styles/tokens.css'),
-    regen: 'pnpm --filter web gen:tokens',
-  },
-  tendahq: {
-    render: () => renderTendahq('pnpm --filter tendahq gen:tokens'),
-    out: join(HERE, '../../../tendahq/src/styles/tokens.css'),
-    regen: 'pnpm --filter tendahq gen:tokens',
-  },
-  // The agent docs site (#157 stage 2). Same renderer as the landing, not a
-  // second one: both are Vite + Tailwind v4 and want the one light-dark()
-  // block, so a docs-specific shape would be a copy of tendahq.ts that could
-  // drift from it.
-  docs: {
-    render: () => renderTendahq('pnpm --filter tenda-docs gen:tokens'),
-    out: join(HERE, '../../../docs/src/styles/tokens.css'),
-    regen: 'pnpm --filter tenda-docs gen:tokens',
-  },
-}
-
-function targetFromArgv(argv: readonly string[]): Target {
-  const at = argv.indexOf('--target')
-  const name = at === -1 ? 'web' : argv[at + 1]
-  if (name === undefined || !Object.hasOwn(TARGETS, name)) {
-    console.error(`tokens: unknown --target "${name ?? ''}" (expected ${Object.keys(TARGETS).join(' | ')})`)
-    process.exit(2)
-  }
-  return TARGETS[name]
-}
+import { dirname, relative } from 'node:path'
+import { targetFromArgv } from './targets'
 
 const target = targetFromArgv(process.argv)
-const css = target.render()
+const css = target.render(target.regen)
 const shown = relative(process.cwd(), target.out)
 if (process.argv.includes('--check')) {
   let existing = ''

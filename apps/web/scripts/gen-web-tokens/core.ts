@@ -151,12 +151,19 @@ ${lines.join('\n')}
 `
 }
 
-export function render(): string {
+/**
+ * `regen` is the command that rewrites THIS target's file, named in its own
+ * header. A PARAMETER for the reason tendahq's renderer takes one: the string
+ * belongs to the target, and a copy inside the renderer is one the target map
+ * cannot correct — it would keep telling a reader to run a command that
+ * rewrites a different app's tokens.
+ */
+export function render(regen: string): string {
   const light = colourLines(colors.light)
   const dark = colourLines(colors.dark)
   return `/* GENERATED from apps/mobile/theme/tokens.ts — do not edit.
- * Regenerate: pnpm --filter web gen:tokens
- * CI guard:   pnpm --filter web gen:tokens:check
+ * Regenerate: ${regen}
+ * CI guard:   ${regen}:check
  */
 
 /* ── Colour: light ─────────────────────────────────────────── */

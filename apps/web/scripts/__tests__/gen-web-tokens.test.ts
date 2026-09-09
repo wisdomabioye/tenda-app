@@ -12,6 +12,7 @@
 import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
 import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
 import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'
+import { TARGETS } from '../gen-web-tokens/targets'
 
 describe('kebab', () => {
   it('splits camelCase and lowercases', () => {
@@ -115,11 +116,11 @@ describe('scheme flattening', () => {
 })
 
 describe('tendahq target', () => {
-  const css = renderTendahq()
+  const css = renderTendahq('pnpm --filter tendahq gen:tokens')
   const light = flattenScheme(colors.light)
 
   it('is deterministic', () => {
-    expect(renderTendahq()).toBe(css)
+    expect(renderTendahq('pnpm --filter tendahq gen:tokens')).toBe(css)
   })
 
   it('pairs every colour token as light-dark(light, dark), in mobile order', () => {
@@ -162,11 +163,13 @@ describe('tendahq target', () => {
   })
 })
 
+const WEB_REGEN = 'pnpm --filter web gen:tokens'
+
 describe('render', () => {
-  const css = render()
+  const css = render(WEB_REGEN)
 
   it('is deterministic', () => {
-    expect(render()).toBe(css)
+    expect(render(WEB_REGEN)).toBe(css)
   })
 
   it('emits all three theme blocks with color-scheme hints', () => {
@@ -196,5 +199,49 @@ describe('render', () => {
     expect(schemePairs(colors.light)).toHaveLength(
       flattenScheme(colors.light).length - flattenScheme(colors.light).filter(([p]) => p.startsWith('--accent-')).length,
     )
+  })
+})
+
+describe('the target map', () => {
+  it('declares the three outputs the repo generates', () => {
+    expect(Object.keys(TARGETS).sort()).toEqual(['docs', 'tendahq', 'web'])
+  })
+
+  it('stamps each file with the command that rewrites THAT file', () => {
+    // The drift gate compares a fresh render against the file on disk, so a
+    // header naming another app's command is written consistently and passes
+    // the gate for ever. Nothing else would catch it — which is why the
+    // command is declared once per target and read from there.
+    for (const [name, target] of Object.entries(TARGETS)) {
+      // `name` is in the loop so a failure's diff shows which target it was.
+      const header = `${name}\n${target.render(target.regen).split('\n').slice(0, 3).join('\n')}`
+      expect(header).toContain(`Regenerate: ${target.regen}`)
+      expect(header).toContain(`CI guard:   ${target.regen}:check`)
+    }
+  })
+
+  it('DERIVES that header rather than carrying its own copy of the command', () => {
+    // The case above passes just as well against a renderer that hardcodes the
+    // string its target happens to declare — which is what web's did. Handing
+    // in a command no target uses is what separates the two: a header that
+    // still names a real app is a copy, and a copy is what drifts.
+    const sentinel = 'pnpm --filter nothing-at-all gen:tokens'
+    for (const [name, target] of Object.entries(TARGETS)) {
+      const header = `${name}\n${target.render(sentinel).split('\n').slice(0, 3).join('\n')}`
+      expect(header).toContain(`Regenerate: ${sentinel}`)
+    }
+  })
+
+  it('writes every target to a different file', () => {
+    const outputs = Object.values(TARGETS).map((target) => target.out)
+    expect(new Set(outputs).size).toBe(outputs.length)
+  })
+
+  it('gives the docs site the landing’s renderer, byte for byte apart from the header', () => {
+    // Same palette, same shape — the only difference a reader should find
+    // between the two files is which command regenerates it.
+    const landing = TARGETS.tendahq.render('X')
+    const docs = TARGETS.docs.render('X')
+    expect(docs).toBe(landing)
   })
 })
