@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ASSET_META, hasGigBudget, type ModerationPreviewResponse } from '@tenda/shared'
+import { getAssetMeta, hasGigBudget, type ModerationPreviewResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 
 const DEBOUNCE_MS = 800
@@ -56,7 +56,12 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
           country: country,
           asset,
           amount_raw: paymentRaw,
-          asset_decimals: ASSET_META[asset]?.decimals ?? 9,
+          // Through the accessor, never a bracket index into the registry: a
+          // bracket read answers an inherited FUNCTION for a prototype key
+          // ('toString'), whose `.decimals` is undefined — so the fallback
+          // fires as if the asset were merely unknown. Same spelling as web's
+          // twin, and now held there by a guard test (#154).
+          asset_decimals: getAssetMeta(asset)?.decimals ?? 9,
         })
         .then((v) => {
           // Drop stale responses, only the latest input's verdict counts.

@@ -7,7 +7,7 @@ import { DeadlineCountdown } from '@/components/shared'
 import {
   chainLabel,
   formatDate,
-  ASSET_META,
+  assetSymbol,
   computeRelevantDeadline,
   formatAssetAmount,
   formatPaymentWindow,
@@ -50,7 +50,7 @@ export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
   // A rate keeps its decimals; the amount rows below it do not — whole units
   // are right for a total and wrong for the figure offers are compared on.
   const rate = formatRate(Number(offer.rate), offer.fiat_currency)
-  const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  const symbol = assetSymbol(offer.asset)
 
   // Projection of the contract's settlement math for THIS escrow's fee tier.
   const { feeRaw, netRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)

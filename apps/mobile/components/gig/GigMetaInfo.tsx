@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { ASSET_META, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
+import { getAssetMeta, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
@@ -19,7 +19,7 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   const currency = useSettingsStore((s) => s.currency)
   const rate = rates?.[currency] ?? null
 
-  const assetMeta = ASSET_META[gig.asset]
+  const assetMeta = getAssetMeta(gig.asset)
   const amount = amountRawToDisplay(gig.amount_raw, gig.asset)
   const symbol = assetMeta?.symbol ?? gig.asset
 

@@ -7,7 +7,7 @@ import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import {
-  ASSET_META,
+  getAssetMeta,
   CURRENCY_META,
   gigBudgetRangeLabel,
   gigBudgetToRaw,
@@ -60,7 +60,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
   const currency = useSettingsStore((s) => s.currency)
   const currencyMeta = CURRENCY_META[currency]
 
-  const meta = ASSET_META[asset]
+  const meta = getAssetMeta(asset)
   const symbol = meta?.symbol ?? asset
 
   const rate = fiatRatePerUnit(rates, currency, asset)

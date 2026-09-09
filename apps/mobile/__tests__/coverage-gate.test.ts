@@ -58,6 +58,8 @@ const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
   '__tests__/harness-smoke.test.ts': 'about the harness itself, not about any module of the app',
   '__tests__/lint-scope.test.ts':
     "about the lint gate's own reach — package.json's script and the directory layout it has to cover. Neither is a module of the app",
+  'lib/__tests__/asset-registry-access.guard.test.ts':
+    'asserts a CONVENTION over seven source directories (#154) — how the shared asset registry may be read. Its subject is the tree, not a module',
   'stores/__tests__/account-scope.guard.test.ts':
     'asserts a CONVENTION over the whole stores directory (#65) — its subject IS the directory, so there is no module to name',
 }
