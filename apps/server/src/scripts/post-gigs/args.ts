@@ -54,8 +54,9 @@ export interface PostArgs {
 
 export type Args = WriteBookArgs | PostArgs
 
-const VALUE_FLAGS = ['--api', '--chain', '--book', '--only', '--skip', '--limit', '--amount', '--name', '--out', '--write-book'] as const
-const BOOLEAN_FLAGS = ['--dry-run'] as const
+/** Exported so the runbook beside this script can be held to the real set. */
+export const VALUE_FLAGS = ['--api', '--chain', '--book', '--only', '--skip', '--limit', '--amount', '--name', '--out', '--write-book'] as const
+export const BOOLEAN_FLAGS = ['--dry-run'] as const
 type ValueFlag = (typeof VALUE_FLAGS)[number]
 
 function isValueFlag(token: string): token is ValueFlag {
