@@ -57,11 +57,12 @@ describe('Operation', () => {
     expect(error).toContain('"code": "GIG_NOT_FOUND"')
   })
 
-  it('renders a request body only when the document recorded one', () => {
+  it('renders no request body for an operation that takes none', () => {
     const without = render(<Operation method="GET" path="/v1/sample" operation={base} schemas={schemas} />)
     expect(within(without.container).queryByText('Request body')).toBeNull()
-    without.unmount()
+  })
 
+  it('renders the recorded request body when the document has one', () => {
     const withBody: OperationObject = {
       ...base,
       requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' }, example: { title: 'Paint the fence' } } } },
@@ -69,6 +70,73 @@ describe('Operation', () => {
     render(<Operation method="POST" path="/v1/sample" operation={withBody} schemas={schemas} />)
     expect(screen.getByText('Request body')).toBeTruthy()
     expect(screen.getByText(/Paint the fence/)).toBeTruthy()
+    expect(screen.getAllByText(/Recorded from a real exchange/i).length).toBeGreaterThan(0)
+  })
+
+  it('SHAPES a request body the document records no example for', () => {
+    // Two of the three write operations record none — including
+    // POST /v1/agent/register, step one of the guide. The page used to show
+    // them nothing at all, which reads as "this endpoint takes no body".
+    const unrecorded: OperationObject = {
+      ...base,
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/AgentRegisterBody' } } },
+      },
+    }
+    const { container } = render(<Operation method="POST" path="/v1/sample" operation={unrecorded} schemas={schemas} />)
+    expect(screen.getByText('Request body')).toBeTruthy()
+    // Three shaped labels: the two responses, and now the request — and it must
+    // say SHAPED, because a sketch presented as a recording is the lie this
+    // whole labelling exists to prevent.
+    expect(screen.getAllByText(/Shaped from the schema/i)).toHaveLength(3)
+
+    const shaped = [...container.querySelectorAll('pre')].map((pre) => pre.textContent ?? '')
+    const request = shaped.find((text) => text.includes('signature')) ?? ''
+    expect(request).not.toBe('')
+    // Every property the schema declares, not just the ones with examples.
+    for (const field of Object.keys(schemas.AgentRegisterBody.properties ?? {})) {
+      expect(request).toContain(`"${field}"`)
+    }
+  })
+
+  it('renders the response HEADERS the document declares', () => {
+    // POST /v1/agent/tasks declares x-payment-response on its 201, and the
+    // document declares it because two reviewers could not confirm from prose
+    // that the settlement receipt comes back (#111). A page that drops it
+    // re-opens exactly that question.
+    const withHeader: OperationObject = {
+      ...base,
+      responses: {
+        ...base.responses,
+        '201': {
+          description: 'Created',
+          content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string' } } } } },
+          headers: {
+            'x-payment-response': { description: 'The relay receipt, base64.', schema: { type: 'string' } },
+          },
+        },
+      },
+    }
+    render(<Operation method="POST" path="/v1/sample" operation={withHeader} schemas={schemas} />)
+    expect(screen.getByText('x-payment-response')).toBeTruthy()
+    expect(screen.getByText('The relay receipt, base64.')).toBeTruthy()
+  })
+
+  it('renders the recorded value a parameter carries', () => {
+    // The task operation's X-PAYMENT header carries the one recorded example of
+    // what a signed authorisation actually looks like on the wire (#109).
+    const withExample: OperationObject = {
+      ...base,
+      parameters: [{
+        name: 'x-payment', in: 'header', required: true,
+        description: 'The signed authorisation.',
+        schema: { type: 'string' },
+        example: 'eyJ4NDAyVmVyc2lvbiI6MX0=',
+      }],
+    }
+    render(<Operation method="POST" path="/v1/sample" operation={withExample} schemas={schemas} />)
+    expect(screen.getByText('eyJ4NDAyVmVyc2lvbiI6MX0=')).toBeTruthy()
   })
 
   it('renders no Parameters section when there are none, and the required mark when there are', () => {

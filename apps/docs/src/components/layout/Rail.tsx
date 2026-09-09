@@ -4,12 +4,14 @@
  * A reference is used by someone who already knows what they came for, so the
  * whole surface is visible at once and one click away. It is a sticky column
  * beside the text on a wide screen and a list above it on a narrow one — the
- * rule moves with it, rather than leaving a border down the side of a phone. The rail is the page's
- * table of contents — it is generated from the document, so an endpoint cannot
- * exist in the JSON and be missing from the navigation.
+ * rule moves with it, rather than leaving a border down the side of a phone.
+ *
+ * It is generated from the document, so an endpoint cannot exist in the JSON
+ * and be missing from the navigation.
  */
 import { anchorFor, type TaggedOperations } from '@/lib/document'
 import { Chip } from '@/components/ui/Chip'
+import { SectionLabel } from '@/components/ui/SectionLabel'
 
 export function Rail({ tags }: { tags: readonly TaggedOperations[] }) {
   return (
@@ -20,12 +22,7 @@ export function Rail({ tags }: { tags: readonly TaggedOperations[] }) {
     >
       {tags.map((tag) => (
         <div key={tag.name} className="grid gap-1.5">
-          <span
-            className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]"
-            style={{ color: 'var(--content-tertiary)' }}
-          >
-            {tag.name}
-          </span>
+          <SectionLabel>{tag.name}</SectionLabel>
           <ul className="grid gap-1 pl-0" style={{ listStyle: 'none', margin: 0 }}>
             {tag.operations.map(({ operation, method, path }) => (
               <li key={operation.operationId} className="flex items-baseline gap-2">

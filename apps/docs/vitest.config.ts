@@ -31,8 +31,6 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
-      // The generated document is data, and main.tsx is the DOM handshake —
-      // neither carries logic a test could hold to anything.
       // Generated data, the DOM handshake, and the harness's own stubs —
       // none of them carry logic a test could hold to anything.
       exclude: ['src/generated/**', 'src/main.tsx', 'src/test-support/**'],

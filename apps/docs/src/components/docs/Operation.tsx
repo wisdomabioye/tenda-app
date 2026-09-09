@@ -7,9 +7,11 @@
 import type { OperationObject } from '@tenda/api-doc'
 import { DOCS_COPY } from '@/content'
 import { anchorFor } from '@/lib/document'
-import type { SchemaBook } from '@/lib/sample'
+import { sampleForContent, type SchemaBook } from '@/lib/sample'
 import { Chip } from '@/components/ui/Chip'
 import { CodeBlock } from '@/components/ui/CodeBlock'
+import { FieldList } from '@/components/ui/FieldList'
+import { SectionLabel } from '@/components/ui/SectionLabel'
 import { Markdown } from './Markdown'
 import { ResponseList } from './ResponseList'
 import { RunPanel } from './RunPanel'
@@ -31,7 +33,11 @@ export function Operation({
   operation: OperationObject
   schemas: SchemaBook
 }) {
-  const body = operation.requestBody?.content['application/json']
+  // Every operation that takes a body shows one — recorded where the document
+  // has an exchange to quote, otherwise shaped from the schema it references.
+  // Two of the three write operations record no example, and step one of the
+  // guide is one of them: without this the page said they take nothing.
+  const body = sampleForContent(operation.requestBody?.content, schemas)
   return (
     <article
       id={anchorFor(operation.operationId)}
@@ -54,34 +60,25 @@ export function Operation({
 
       {operation.parameters !== undefined && operation.parameters.length > 0 && (
         <section className="grid gap-2">
-          <h4 className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]" style={{ color: 'var(--content-tertiary)' }}>
-            {DOCS_COPY.parameters}
-          </h4>
-          <dl className="grid gap-1.5">
-            {operation.parameters.map((parameter) => (
-              <div key={`${parameter.in}:${parameter.name}`} className="grid gap-0.5">
-                <dt className="flex items-baseline gap-2">
-                  <code className="font-mono text-[12.5px]">{parameter.name}</code>
-                  <span className="text-[11px]" style={{ color: 'var(--content-tertiary)' }}>
-                    {parameter.in}
-                    {parameter.required === true ? ' · required' : ''}
-                  </span>
-                </dt>
-                {parameter.description !== undefined && (
-                  <dd className="m-0 text-[13px]" style={{ color: 'var(--content-secondary)' }}>{parameter.description}</dd>
-                )}
-              </div>
-            ))}
-          </dl>
+          <SectionLabel as="h4">{DOCS_COPY.parameters}</SectionLabel>
+          <FieldList
+            fields={operation.parameters.map((parameter) => ({
+              name: parameter.name,
+              meta: `${parameter.in}${parameter.required === true ? ' · required' : ''}`,
+              description: parameter.description,
+              example: parameter.example,
+            }))}
+          />
         </section>
       )}
 
-      {body?.example !== undefined && (
+      {body !== null && (
         <section className="grid gap-2">
-          <h4 className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]" style={{ color: 'var(--content-tertiary)' }}>
-            {DOCS_COPY.requestBody}
-          </h4>
-          <CodeBlock value={body.example} label={DOCS_COPY.sampleRecorded} />
+          <SectionLabel as="h4">{DOCS_COPY.requestBody}</SectionLabel>
+          <CodeBlock
+            value={body.value}
+            label={body.source === 'recorded' ? DOCS_COPY.sampleRecorded : DOCS_COPY.sampleDerived}
+          />
         </section>
       )}
 

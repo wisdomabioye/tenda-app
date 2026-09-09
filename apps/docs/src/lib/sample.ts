@@ -1,33 +1,25 @@
 /**
- * A sample body for EVERY response code, derived from the document.
+ * A sample body for EVERY documented body — every response code, and every
+ * request the operations take.
  *
- * The reference lists eight statuses on the task operation and the document
- * carries a recorded example for two of them. Showing a body only where one
- * happens to exist teaches a reader that a 409 has no shape — so the rest are
- * SHAPED from the schema the response already references, and each sample says
+ * The document records an example for a handful of them: two of the task
+ * operation's eight statuses, and one of the three request bodies. Showing a
+ * body only where one happens to exist teaches a reader that a 409 has no
+ * shape and that `POST /v1/agent/register` takes nothing — so the rest are
+ * SHAPED from the schema the document already references, and each sample says
  * which of the two it is. Nothing here is a written-out example: a hand-typed
  * body is the copy of the API that this package exists to prevent.
  *
  * Two facts the document knows about an error are filled in from the response
  * itself rather than from the schema: the status (it is the key the response
  * is filed under) and the message (it is the description the document wrote).
- * A code named in that description is used as `code`, because the document
- * naming `AUTH_NONCE_UNKNOWN` in prose is the document stating it.
+ * A code named in that description becomes `code` — but only when the
+ * `ApiError` enum actually declares it, so a header or a standard named in
+ * passing cannot be presented as an error the API can send.
  */
-import type { ExampleValue, ResponseObject, SchemaObject } from '@tenda/api-doc'
-import { COMPONENT_REF_PREFIX } from './document'
-
-/**
- * A JSON object, or null for anything else — the narrowing both callers need.
- * Written as a type predicate because `Array.isArray` on its own does not
- * narrow a union whose other branch is a ReadonlyArray.
- */
-const isRecord = (value: ExampleValue): value is Readonly<Record<string, ExampleValue>> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-export function asRecord(value: ExampleValue): Readonly<Record<string, ExampleValue>> | null {
-  return isRecord(value) ? value : null
-}
+import type { ExampleValue, JsonContent, ResponseObject, SchemaObject } from '@tenda/api-doc'
+import { COMPONENT_REF_PREFIX, JSON_MEDIA_TYPE } from './document'
+import { asRecord, lookup } from './json'
 
 /** Where a sample came from — the page says which, so neither is mistaken for the other. */
 export type SampleSource = 'recorded' | 'derived'
@@ -85,7 +77,7 @@ function resolve(schema: SchemaObject, schemas: SchemaBook, seen: ReadonlySet<st
   if (schema.$ref === undefined) return { resolved: schema, seen, cycle: null }
   const name = schema.$ref.slice(COMPONENT_REF_PREFIX.length)
   if (seen.has(name)) return { resolved: schema, seen, cycle: name }
-  const target = schemas[name]
+  const target = lookup(schemas, name)
   if (target === undefined) return { resolved: schema, seen, cycle: name }
   return { resolved: target, seen: new Set([...seen, name]), cycle: null }
 }
@@ -160,8 +152,24 @@ export function codeNamedIn(description: string, allowed: readonly string[]): st
 
 /** The codes an ApiError may carry, from the schema that declares them. */
 export function errorCodesIn(schemas: SchemaBook): readonly string[] {
-  const enumerated = schemas.ApiError?.properties?.code.enum ?? []
+  const enumerated = lookup(schemas, 'ApiError')?.properties?.code?.enum ?? []
   return enumerated.filter((value): value is string => typeof value === 'string')
+}
+
+/**
+ * The sample for any documented body — a request's or a response's.
+ *
+ * The recorded example when the document has one, otherwise a body shaped from
+ * the schema it already references. A REQUEST body needs this as much as a
+ * response does: only one of the three operations that take a body carries a
+ * recorded example, so without it the page tells a reader that
+ * `POST /v1/agent/register` — step one of the guide — takes nothing.
+ */
+export function sampleForContent(content: JsonContent | undefined, schemas: SchemaBook): Sample | null {
+  const body = content?.[JSON_MEDIA_TYPE]
+  if (body === undefined) return null
+  if (body.example !== undefined) return { source: 'recorded', value: body.example }
+  return { source: 'derived', value: shape(body.schema, schemas, 'value', 0, new Set()) }
 }
 
 /**
@@ -176,12 +184,12 @@ export function sampleForResponse(
   response: ResponseObject,
   schemas: SchemaBook,
 ): Sample | null {
-  const content = response.content?.['application/json']
-  if (content === undefined) return null
-  if (content.example !== undefined) return { source: 'recorded', value: content.example }
+  const declared = response.content?.[JSON_MEDIA_TYPE]
+  const sample = sampleForContent(response.content, schemas)
+  if (sample === null || sample.source === 'recorded' || declared === undefined) return sample
 
-  const value = shape(content.schema, schemas, 'value', 0, new Set())
-  const { resolved } = resolve(content.schema, schemas, new Set())
+  const value = sample.value
+  const { resolved } = resolve(declared.schema, schemas, new Set())
   const body = asRecord(value)
   if (!isErrorSchema(resolved) || body === null) return { source: 'derived', value }
 
@@ -191,7 +199,7 @@ export function sampleForResponse(
     value: {
       ...body,
       statusCode: Number(status),
-      error: REASON_PHRASE[status] ?? body.error,
+      error: lookup(REASON_PHRASE, status) ?? body.error,
       message: response.description,
       ...(named === null ? {} : { code: named }),
     },

@@ -15,6 +15,7 @@ import { apiDocument, operationsByTag } from '@/lib/document'
 import { useTheme } from '@/theme/useTheme'
 import { Header } from '@/components/layout/Header'
 import { Rail } from '@/components/layout/Rail'
+import { SectionLabel } from '@/components/ui/SectionLabel'
 import { Markdown } from '@/components/docs/Markdown'
 import { Operation } from '@/components/docs/Operation'
 
@@ -41,12 +42,7 @@ export function App() {
           <Markdown>{apiDocument.info.description}</Markdown>
 
           <section className="mt-10" style={{ maxWidth: 'var(--measure)' }}>
-            <h2
-              className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]"
-              style={{ color: 'var(--content-tertiary)' }}
-            >
-              {DOCS_COPY.guarantees}
-            </h2>
+            <SectionLabel as="h2">{DOCS_COPY.guarantees}</SectionLabel>
             <ul className="mt-3 grid gap-2 pl-0" style={{ listStyle: 'none', margin: '12px 0 0' }}>
               {apiDocument.info['x-tenda-stability'].map((line) => (
                 <li

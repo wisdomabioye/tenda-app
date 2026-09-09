@@ -25,7 +25,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, COMPONENT_REF_PREFIX } from '@tenda/api-doc'
+import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, COMPONENT_REF_PREFIX, JSON_MEDIA_TYPE } from '@tenda/api-doc'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -36,10 +36,10 @@ const HEADER = `/**
  * GENERATED — do not edit, and do not commit (see .gitignore).
  *
  * Written by scripts/generate-document.ts from @tenda/api-doc: the same object
- * the server serves at /v1/openapi.json, plus the one constant the renderer
+ * the server serves at /v1/openapi.json, plus the few constants the renderer
  * needs to read it. Edit the package, not this file.
  *
- * The prefix comes through here rather than being imported at runtime: a
+ * Those constants come through here rather than being imported at runtime: a
  * VALUE import of @tenda/api-doc would pull the CommonJS package — and the
  * @tenda/shared/db/schema it reads its enums from, and drizzle-orm behind
  * that — into a browser bundle. Types are erased, so those stay imports.
@@ -51,6 +51,9 @@ export const COMPONENT_REF_PREFIX = ${JSON.stringify(COMPONENT_REF_PREFIX)}
 
 /** Where the API serves this document, so the page can link to the JSON. */
 export const AGENT_API_DOCUMENT_PATH = ${JSON.stringify(AGENT_API_DOCUMENT_PATH)}
+
+/** The one media type this API speaks — the key every \`content\` map is filed under. */
+export const JSON_MEDIA_TYPE = ${JSON.stringify(JSON_MEDIA_TYPE)}
 
 export const AGENT_API_DOCUMENT: OpenApiDocument = `
 

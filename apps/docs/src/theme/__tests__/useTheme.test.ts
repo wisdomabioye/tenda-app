@@ -8,7 +8,7 @@
  */
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { installMatchMedia, type FakeMedia } from '../test-support/match-media'
+import { installMatchMedia, type FakeMedia } from '@/test-support/match-media'
 import { storedTheme, useTheme } from '@/theme/useTheme'
 
 let media: FakeMedia
@@ -33,6 +33,25 @@ describe('useTheme', () => {
     act(() => { media.setSystem('dark') })
     expect(result.current.theme).toBe('dark')
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
+  })
+
+  it('opens dark when the reader’s system is already dark, and still stamps nothing', () => {
+    // The commonest un-stamped case, and the one a light-only harness never
+    // reaches: first load, no stored choice, an OS set to dark.
+    media.restore()
+    media = installMatchMedia('dark')
+    const { result } = renderHook(() => useTheme())
+    expect(result.current.theme).toBe('dark')
+    expect(result.current.chosen).toBe(false)
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
+  })
+
+  it('follows the system back to light, not only into dark', () => {
+    media.restore()
+    media = installMatchMedia('dark')
+    const { result } = renderHook(() => useTheme())
+    act(() => { media.setSystem('light') })
+    expect(result.current.theme).toBe('light')
   })
 
   it('a choice wins over the system, in both directions', () => {

@@ -1,15 +1,18 @@
 /**
- * Every response code gets a body, and neither kind of body lies about itself.
+ * Every documented body — response AND request — gets a sample, and neither
+ * kind of sample lies about itself.
  *
  * The failures worth catching: a status the document answers with that the
  * reason-phrase register has never heard of (the sample then says `undefined`
  * where the wire says "Conflict"), a recorded example quietly replaced by a
- * shaped one, and a schema that nests into itself taking the renderer with it.
+ * shaped one, a request body shaped as nothing at all, and a schema that nests
+ * into itself taking the renderer with it.
  */
 import { describe, expect, it } from 'vitest'
-import type { SchemaObject } from '@tenda/api-doc'
+import type { ResponseObject, SchemaObject } from '@tenda/api-doc'
 import { apiDocument } from '@/lib/document'
-import { codeNamedIn, errorCodesIn, REASON_PHRASE, sampleForResponse } from '@/lib/sample'
+import { asRecord } from '@/lib/json'
+import { codeNamedIn, errorCodesIn, REASON_PHRASE, sampleForContent, sampleForResponse } from '@/lib/sample'
 
 const schemas = apiDocument.components.schemas
 
@@ -62,6 +65,54 @@ describe('sampleForResponse', () => {
   it('answers null when a response declares no body', () => {
     expect(sampleForResponse('204', { description: 'No content' }, schemas)).toBeNull()
   })
+
+  it('does not let the prototype answer for a status the register has never heard of', () => {
+    // `REASON_PHRASE['toString']` is a FUNCTION, and the fallback behind it
+    // never fires — the sample would carry a method where the wire carries a
+    // reason phrase, and JSON.stringify would then drop the field entirely.
+    const error: ResponseObject = {
+      description: 'Something went wrong',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+    }
+    const sample = sampleForResponse('toString', error, schemas)
+    expect(typeof asRecord(sample?.value ?? null)?.error).toBe('string')
+  })
+})
+
+describe('sampleForContent', () => {
+  it('answers null when there is no content at all', () => {
+    expect(sampleForContent(undefined, schemas)).toBeNull()
+  })
+
+  it('shapes a REQUEST body the document records no example for', () => {
+    // Two of the three write operations record none, and the page renders what
+    // this returns — so a null here is an endpoint documented as taking nothing.
+    const register = apiDocument.paths['/v1/agent/register'].post?.requestBody
+    expect(register).toBeDefined()
+    const sample = sampleForContent(register!.content, schemas)
+    expect(sample?.source).toBe('derived')
+    expect(Object.keys(asRecord(sample?.value ?? null) ?? {})).toEqual(
+      Object.keys(schemas.AgentRegisterBody.properties ?? {}),
+    )
+  })
+
+  it('passes a recorded REQUEST example through as recorded', () => {
+    const task = apiDocument.paths['/v1/agent/tasks'].post?.requestBody
+    expect(task).toBeDefined()
+    const sample = sampleForContent(task!.content, schemas)
+    expect(sample?.source).toBe('recorded')
+    expect(sample?.value).toEqual(task!.content['application/json'].example)
+  })
+})
+
+describe('errorCodesIn', () => {
+  it('answers an empty list when nothing declares ApiError codes, rather than throwing', () => {
+    // `properties` present with no `code` used to read `.code.enum` and throw,
+    // which would blank the whole page rather than drop one sample's `code`.
+    const bare: SchemaObject = { type: 'object', properties: { message: { type: 'string' } } }
+    expect(errorCodesIn({ ApiError: bare })).toEqual([])
+    expect(errorCodesIn({})).toEqual([])
+  })
 })
 
 describe('shaping a schema', () => {
@@ -99,6 +150,36 @@ describe('shaping a schema', () => {
     }
     const sample = sampleForResponse('200', { description: 'x', content: { 'application/json': { schema } } }, book())
     expect(sample?.value).toEqual({ city: '<city>' })
+  })
+
+  it('names a $ref the book does not hold, instead of rendering nothing', () => {
+    // The document's own $refs are typed to names it registers, so this cannot
+    // happen from the package — but the sampler takes ANY book, and a page that
+    // threw here would go blank over one missing component.
+    const schema: SchemaObject = { $ref: '#/components/schemas/AuthNonce' }
+    const bookWithout: Record<string, SchemaObject> = {}
+    const sample = sampleForResponse('200', { description: 'x', content: { 'application/json': { schema } } }, bookWithout)
+    expect(sample?.value).toBe('<AuthNonce>')
+  })
+
+  it('renders a null-typed field as null', () => {
+    const schema: SchemaObject = { type: 'object', properties: { nothing: { type: 'null' } } }
+    const sample = sampleForResponse('200', { description: 'x', content: { 'application/json': { schema } } }, book())
+    expect(sample?.value).toEqual({ nothing: null })
+  })
+
+  it('falls back to the first branch when a oneOf offers nothing but null', () => {
+    const schema: SchemaObject = { type: 'object', properties: { gone: { oneOf: [{ type: 'null' }] } } }
+    const sample = sampleForResponse('200', { description: 'x', content: { 'application/json': { schema } } }, book())
+    expect(sample?.value).toEqual({ gone: null })
+  })
+
+  it('renders an array that declares no item type as an empty list', () => {
+    // Nothing is known about the element, and inventing one would describe a
+    // shape the document never stated.
+    const schema: SchemaObject = { type: 'object', properties: { rows: { type: 'array' } } }
+    const sample = sampleForResponse('200', { description: 'x', content: { 'application/json': { schema } } }, book())
+    expect(sample?.value).toEqual({ rows: [] })
   })
 
   it('stops at a cycle instead of recursing forever', () => {
@@ -141,13 +222,19 @@ describe('depth', () => {
   it('stops describing rather than nesting forever', () => {
     // Six levels is enough to show a shape and short enough to read; past it
     // the sample names the field instead of unfolding another object.
+    //
+    // The floor is an INTEGER, not a string: a string leaf named `down`
+    // renders as `<down>` too, so an assertion on that placeholder alone
+    // passed whether or not the limit was ever applied.
     const deep = (level: number): SchemaObject =>
-      level === 0 ? { type: 'string' } : { type: 'object', properties: { down: deep(level - 1) } }
+      level === 0 ? { type: 'integer', minimum: 77 } : { type: 'object', properties: { down: deep(level - 1) } }
     const sample = sampleForResponse(
       '200',
       { description: 'x', content: { 'application/json': { schema: deep(9) } } },
       schemas,
     )
-    expect(JSON.stringify(sample?.value)).toContain('<down>')
+    const rendered = JSON.stringify(sample?.value)
+    expect(rendered, 'the nesting was never cut short').toContain('<down>')
+    expect(rendered, 'nine levels unfolded — the depth limit did nothing').not.toContain('77')
   })
 })

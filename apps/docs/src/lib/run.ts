@@ -16,7 +16,8 @@
  */
 import { apiRoutes } from '@tenda/shared/api-routes'
 import type { ExampleValue, OperationObject } from '@tenda/api-doc'
-import { asRecord } from './sample'
+import { JSON_MEDIA_TYPE } from './document'
+import { asRecord } from './json'
 
 export interface RunResult {
   status: number
@@ -32,9 +33,26 @@ export interface RunFailure {
 
 export type RunOutcome = { ok: true; result: RunResult } | { ok: false; failure: RunFailure }
 
-/** A path the console can send as it stands — one with no `{param}` left to fill. */
-export function isRunnable(path: string): boolean {
-  return !path.includes('{')
+/**
+ * Why the console cannot send this operation, or null when it can.
+ *
+ * Two things stop it, and a reader is owed WHICH. A path parameter has no value
+ * the page can invent. A request body the document records no example for has
+ * none either — and offering Run there sent an EMPTY body, so the reader was
+ * shown a 400 that says more about the console than about the API. The reason
+ * is an id rather than a sentence: the words live in the content layer with
+ * every other label.
+ */
+export type RunBlocker = 'path-parameter' | 'no-recorded-body'
+
+/** The body this operation is sent with — the document's recording, or none. */
+const recordedBody = (operation: OperationObject): ExampleValue | undefined =>
+  operation.requestBody?.content[JSON_MEDIA_TYPE].example
+
+export function runBlocker(path: string, operation: OperationObject): RunBlocker | null {
+  if (path.includes('{')) return 'path-parameter'
+  if (operation.requestBody !== undefined && recordedBody(operation) === undefined) return 'no-recorded-body'
+  return null
 }
 
 /** Does this operation demand a token? `security` absent means anonymous. */
@@ -71,7 +89,7 @@ export async function runOperation(args: {
   const started = clock()
 
   try {
-    const headers: Record<string, string> = { accept: 'application/json' }
+    const headers: Record<string, string> = { accept: JSON_MEDIA_TYPE }
 
     if (needsBearer(operation)) {
       const session = await send(`${api}${apiRoutes.agent.demoSession}`, { method: 'POST' })
@@ -88,8 +106,8 @@ export async function runOperation(args: {
       headers.authorization = `Bearer ${token}`
     }
 
-    const example = operation.requestBody?.content['application/json'].example
-    if (method === 'POST' && example !== undefined) headers['content-type'] = 'application/json'
+    const example = recordedBody(operation)
+    if (method === 'POST' && example !== undefined) headers['content-type'] = JSON_MEDIA_TYPE
 
     const response = await send(`${api}${path}`, {
       method,

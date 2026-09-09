@@ -1,10 +1,11 @@
 /**
  * The Run control, driven.
  *
- * Three states a reader can actually reach: a path the console cannot fill on
- * its own, a successful send, and a refusal. The last one is the reason this
- * file exists — a console that swallowed a CORS failure would leave the reader
- * staring at a button that appears to do nothing.
+ * Every state a reader can actually reach: the two reasons the control is off
+ * — a path the console cannot fill and a body it cannot sign — then a
+ * successful send, then a refusal. The refusal is the reason this file exists:
+ * a console that swallowed a CORS failure would leave the reader staring at a
+ * button that appears to do nothing.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -25,6 +26,17 @@ describe('RunPanel', () => {
     const button = screen.getByRole('button')
     expect(button.hasAttribute('disabled')).toBe(true)
     expect(button.getAttribute('title')).toMatch(/needs an id/i)
+  })
+
+  it('will not send a body it cannot sign, and says so rather than posting an empty one', () => {
+    const unsendable: OperationObject = {
+      ...operation,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AgentRegisterBody' } } } },
+    }
+    render(<RunPanel method="POST" path="/v1/agent/register" operation={unsendable} />)
+    const button = screen.getByRole('button')
+    expect(button.hasAttribute('disabled')).toBe(true)
+    expect(button.getAttribute('title')).toMatch(/signed body/i)
   })
 
   it('sends, then shows the status and the body that came back', async () => {

@@ -14,6 +14,8 @@
  */
 import { useMemo, useState } from 'react'
 import type { ExampleValue } from '@tenda/api-doc'
+import { DOCS_COPY, showAllLines } from '@/content'
+import { SectionLabel } from './SectionLabel'
 
 /** Longer than this and a body opens collapsed. Twelve lines shows the shape. */
 export const COLLAPSE_OVER_LINES = 12
@@ -27,25 +29,22 @@ export function CodeBlock({ value, label }: { value: ExampleValue; label?: strin
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-sm)] border" style={{ borderColor: 'var(--border-default)' }}>
-      {label !== undefined && (
+      {/* The bar carries the caption, the expand control, or both — a long body
+          with no label must still be openable, or it is silently truncated. */}
+      {(label !== undefined || collapsible) && (
         <div
-          className="flex items-center justify-between gap-3 border-b px-3 py-1.5"
+          className="flex items-center gap-3 border-b px-3 py-1.5"
           style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-inset)' }}
         >
-          <span
-            className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]"
-            style={{ color: 'var(--content-tertiary)' }}
-          >
-            {label}
-          </span>
+          {label !== undefined && <SectionLabel>{label}</SectionLabel>}
           {collapsible && (
             <button
               type="button"
               onClick={() => { setOpen(!open) }}
-              className="font-mono text-[10px] font-semibold"
+              className="ml-auto font-mono text-[10px] font-semibold"
               style={{ color: 'var(--content-link)' }}
             >
-              {open ? 'Collapse' : `Show all ${lines} lines`}
+              {open ? DOCS_COPY.collapse : showAllLines(lines)}
             </button>
           )}
         </div>

@@ -3,14 +3,15 @@
  *
  * Sits on the operation, not in a separate playground: the request a reader
  * wants to send is the one they are reading about. The thinking is in
- * lib/run.ts; this holds the button, the three states it can be in, and the
- * body it renders.
+ * lib/run.ts — including WHY a control is off, which the button says in its
+ * tooltip rather than leaving a reader to guess; this holds the button, its
+ * states, and the body that comes back.
  */
 import { useCallback, useState } from 'react'
 import type { OperationObject } from '@tenda/api-doc'
-import { DOCS_COPY } from '@/content'
+import { DOCS_COPY, RUN_BLOCKED } from '@/content'
 import { apiBaseUrl } from '@/env'
-import { isRunnable, runOperation, type RunOutcome } from '@/lib/run'
+import { runBlocker, runOperation, type RunOutcome } from '@/lib/run'
 import { Chip } from '@/components/ui/Chip'
 import { toneForStatus } from '@/components/ui/status-tone'
 import { CodeBlock } from '@/components/ui/CodeBlock'
@@ -26,7 +27,7 @@ export function RunPanel({
 }) {
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<RunOutcome | null>(null)
-  const runnable = isRunnable(path)
+  const blocked = runBlocker(path, operation)
 
   const run = useCallback(() => {
     setBusy(true)
@@ -40,8 +41,8 @@ export function RunPanel({
       <button
         type="button"
         onClick={run}
-        disabled={busy || !runnable}
-        title={runnable ? DOCS_COPY.runHint : 'Needs an id in the path — read one from the feed first.'}
+        disabled={busy || blocked !== null}
+        title={blocked === null ? DOCS_COPY.runHint : RUN_BLOCKED[blocked]}
         className="ml-auto rounded-[var(--radius-xs)] border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-45"
         style={{
           borderColor: 'var(--brand-primary-border)',
@@ -62,7 +63,7 @@ export function RunPanel({
                   {outcome.result.ms} ms · {apiBaseUrl()}
                 </span>
               </div>
-              <CodeBlock value={outcome.result.body} label="Live response" />
+              <CodeBlock value={outcome.result.body} label={DOCS_COPY.liveResponse} />
             </>
           ) : (
             <p

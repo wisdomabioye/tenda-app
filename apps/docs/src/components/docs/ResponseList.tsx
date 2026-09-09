@@ -6,11 +6,17 @@
  * example where it has one, otherwise a body shaped from the schema the
  * response already references (lib/sample.ts). The row says which, because a
  * shaped body is a truthful sketch and a recorded one is what the wire sent.
+ *
+ * A row also carries the HEADERS its status declares. Only one response has
+ * any — the 201's settlement receipt — and it is declared there because prose
+ * alone left two reviewers unable to confirm it comes back (#111).
  */
 import type { ResponseObject } from '@tenda/api-doc'
 import { DOCS_COPY } from '@/content'
 import { sampleForResponse, type SchemaBook } from '@/lib/sample'
 import { Chip } from '@/components/ui/Chip'
+import { FieldList } from '@/components/ui/FieldList'
+import { SectionLabel } from '@/components/ui/SectionLabel'
 import { toneForStatus } from '@/components/ui/status-tone'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 
@@ -23,12 +29,7 @@ export function ResponseList({
 }) {
   return (
     <section className="grid gap-3">
-      <h4
-        className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]"
-        style={{ color: 'var(--content-tertiary)' }}
-      >
-        {DOCS_COPY.responses}
-      </h4>
+      <SectionLabel as="h4">{DOCS_COPY.responses}</SectionLabel>
       {Object.entries(responses).map(([status, response]) => {
         const sample = sampleForResponse(status, response, schemas)
         return (
@@ -39,6 +40,15 @@ export function ResponseList({
                 {response.description}
               </span>
             </div>
+            {response.headers !== undefined && (
+              <FieldList
+                fields={Object.entries(response.headers).map(([name, header]) => ({
+                  name,
+                  meta: DOCS_COPY.responseHeader,
+                  description: header.description,
+                }))}
+              />
+            )}
             {sample !== null && (
               <CodeBlock
                 value={sample.value}

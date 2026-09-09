@@ -7,13 +7,13 @@
  * describes the API; it only arranges what the document already says.
  */
 import type { OpenApiDocument, OperationObject } from '@tenda/api-doc'
-import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, COMPONENT_REF_PREFIX } from '../generated/agent-api'
+import { AGENT_API_DOCUMENT, AGENT_API_DOCUMENT_PATH, COMPONENT_REF_PREFIX, JSON_MEDIA_TYPE } from '../generated/agent-api'
 
 export const apiDocument = AGENT_API_DOCUMENT
 
 /** Re-exported from the generated module, never imported from the package at
  *  runtime — see the generator's header for why. */
-export { COMPONENT_REF_PREFIX, AGENT_API_DOCUMENT_PATH }
+export { COMPONENT_REF_PREFIX, AGENT_API_DOCUMENT_PATH, JSON_MEDIA_TYPE }
 
 /** One operation, with the two facts the document keeps outside it. */
 export interface ListedOperation {

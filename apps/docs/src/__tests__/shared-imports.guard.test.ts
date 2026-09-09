@@ -17,19 +17,47 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const SRC = join(__dirname, '..')
-const BARREL = /from\s+'@tenda\/shared'/g
+/**
+ * NOT global. `RegExp.prototype.test` on a `/g` regex advances `lastIndex`, so
+ * reusing one object across files makes the second call start mid-file — this
+ * guard would have stopped counting offenders at the first one it found.
+ */
+const BARREL = /from\s+'@tenda\/shared'/
 const SUBPATH = /from\s+'@tenda\/shared\/[a-z-]+'/
+
+/**
+ * This file, which the walk must skip: its regex controls below contain the
+ * very import they refuse, so a guard that read itself would report itself.
+ * Named rather than pattern-excluded — one exemption, stated.
+ */
+const SELF = 'shared-imports.guard.test.ts'
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = join(dir, entry.name)
     if (entry.isDirectory()) return ['generated', 'test-support'].includes(entry.name) ? [] : sourceFiles(full)
-    return /\.tsx?$/.test(entry.name) ? [full] : []
+    return /\.tsx?$/.test(entry.name) && entry.name !== SELF ? [full] : []
   })
 }
 
 describe('shared imports', () => {
   const files = sourceFiles(SRC)
+
+  it('matches a barrel import and only a barrel import', () => {
+    const barrel = "import { x } from '@tenda/shared'"
+    expect(BARREL.test(barrel), 'a barrel import must be caught').toBe(true)
+    expect(BARREL.test("import { x } from '@tenda/shared/app-info'"), 'a subpath is the allowed form').toBe(false)
+  })
+
+  it('gives the same answer twice — the walk asks it once per file', () => {
+    // A `/g` regex advances `lastIndex` on every match, so the SECOND file to
+    // offend would be tested from past its own import and reported clean. Two
+    // consecutive positives is the only shape that catches that; interleaving
+    // a negative hides it, because a failed test resets `lastIndex` to 0.
+    const barrel = "import { x } from '@tenda/shared'"
+    expect(BARREL.test(barrel)).toBe(true)
+    expect(BARREL.test(barrel), 'the pattern is stateful — it will skip offenders').toBe(true)
+  })
 
   it('walks a real tree — an empty walk would pass this vacuously', () => {
     expect(files.length).toBeGreaterThan(10)

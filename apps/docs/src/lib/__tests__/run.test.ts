@@ -1,7 +1,8 @@
 /**
  * The console sends real requests, so it is tested against a fake fetch rather
  * than a real one: what matters is the SEQUENCE (mint a demo bearer, then send
- * the documented body) and what a reader is told when it fails.
+ * the documented body), which operations it refuses to send at all, and what a
+ * reader is told when one fails.
  *
  * The failure case is the one worth the most: a cross-origin refusal arrives
  * as a bare network error, and a console that printed "failed" would send the
@@ -11,7 +12,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ExampleValue, OperationObject } from '@tenda/api-doc'
 import { apiRoutes } from '@tenda/shared/api-routes'
-import { isRunnable, runOperation } from '@/lib/run'
+import { runBlocker, runOperation } from '@/lib/run'
 
 const API = 'https://api.example.test'
 
@@ -29,10 +30,24 @@ const bearerScoped: OperationObject = {
 const jsonResponse = (status: number, body: ExampleValue): Response =>
   ({ status, text: () => Promise.resolve(JSON.stringify(body)) }) as Response
 
-describe('isRunnable', () => {
+describe('runBlocker', () => {
+  it('lets through an operation whose path is complete and whose body is recorded', () => {
+    expect(runBlocker('/v1/gigs', anonymous)).toBeNull()
+    expect(runBlocker('/v1/agent/tasks', bearerScoped)).toBeNull()
+  })
+
   it('refuses a path with a placeholder the console cannot fill', () => {
-    expect(isRunnable('/v1/gigs')).toBe(true)
-    expect(isRunnable('/v1/gigs/{id}')).toBe(false)
+    expect(runBlocker('/v1/gigs/{id}', anonymous)).toBe('path-parameter')
+  })
+
+  it('refuses a body the document records no example for, rather than sending an empty one', () => {
+    // POST /v1/agent/register is exactly this: a wallet proof the page cannot
+    // mint. Offering Run there sent {} and showed a 400 the API never meant.
+    const unsendable: OperationObject = {
+      ...bearerScoped,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AgentRegisterBody' } } } },
+    }
+    expect(runBlocker('/v1/agent/register', unsendable)).toBe('no-recorded-body')
   })
 })
 
@@ -85,6 +100,16 @@ describe('runOperation', () => {
     const outcome = await runOperation({ api: API, method: 'GET', path: '/v1/gigs', operation: anonymous, fetchImpl, now: () => 0 })
 
     expect(outcome).toMatchObject({ ok: true, result: { status: 502, body: '<html>bad gateway</html>' } })
+  })
+
+  it('shows an EMPTY answer as null rather than as a parse failure', async () => {
+    // A 401 from a proxy, or any 204, answers no body. `JSON.parse('')` throws,
+    // so without the empty check the console would report the body as the
+    // empty string it never received.
+    const fetchImpl = vi.fn().mockResolvedValue({ status: 401, text: () => Promise.resolve('') } as Response)
+    const outcome = await runOperation({ api: API, method: 'GET', path: '/v1/gigs', operation: anonymous, fetchImpl, now: () => 0 })
+
+    expect(outcome).toMatchObject({ ok: true, result: { status: 401, body: null } })
   })
 
   it('reports the round trip, so a reader sees how fast the 402 is', async () => {
