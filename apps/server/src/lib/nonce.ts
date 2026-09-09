@@ -26,11 +26,11 @@ import type { AppDatabase } from '@server/plugins/db'
 
 const NONCE_BYTES = 32 // 256 bits of entropy.
 
-// The TTL and the format are declared in `@tenda/shared`, because the document
+// The TTL and the format live in `@tenda/shared`, because the document
 // publishes this exact pattern rather than a second copy of it (#130, #157):
 // the validator below and the schema a reader signs against cannot disagree.
-// 256 bits base64url-encoded with no padding = exactly 43 chars.
-export { NONCE_TTL_SECONDS, NONCE_FORMAT }
+// 256 bits base64url-encoded with no padding = exactly 43 chars. Import them
+// from shared — they were re-exported here and nothing ever read them here.
 
 export interface IssuedNonce {
   /** base64url, 256 bits, exactly 43 chars. */

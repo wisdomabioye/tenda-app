@@ -11,11 +11,16 @@ import type { ChainNamespace, IdentityKind } from '@tenda/shared/db/schema'
 import { AUTH_METHODS, type AuthMethod } from '@tenda/shared'
 
 /**
- * The method list and its type are declared in `@tenda/shared` because
- * `GET /v1/auth/methods` publishes them in the agent document (#157). This
- * module still owns what a method RESOLVES to, below.
+ * `AUTH_METHODS` and `AuthMethod` now live in `@tenda/shared` — the agent
+ * document publishes them (#157) and builds without importing the server.
+ * IMPORT THEM FROM THERE, as `isAuthMethod` below does; this module owns what
+ * a method RESOLVES to, not the list itself.
+ *
+ * They were re-exported here at first, to keep this the place the policy was
+ * read from. Nothing ever read it here — proved by deleting the re-export and
+ * type-checking src and test — so it was a getter no caller invoked, and it
+ * showed up as this file's missing half of its function coverage.
  */
-export { AUTH_METHODS, type AuthMethod }
 
 export function isAuthMethod(value: unknown): value is AuthMethod {
   return typeof value === 'string' && (AUTH_METHODS as readonly string[]).includes(value)
