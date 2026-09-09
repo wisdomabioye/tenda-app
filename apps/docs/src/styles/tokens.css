@@ -1,6 +1,6 @@
 /* GENERATED from apps/mobile/theme/tokens.ts — do not edit.
- * Regenerate: pnpm --filter tendahq gen:tokens
- * CI guard:   pnpm --filter tendahq gen:tokens:check
+ * Regenerate: pnpm --filter tenda-docs gen:tokens
+ * CI guard:   pnpm --filter tenda-docs gen:tokens:check
  *
  * Every colour once, as light-dark(light, dark). `color-scheme` on the root
  * picks the side; the stamps in styles/base.css override it either way.

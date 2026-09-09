@@ -225,6 +225,12 @@ jobs:
       # (run by every script below) imports the package in Node.
       - name: Build the packages the document is made of
         run: pnpm --filter @tenda/shared build && pnpm --filter @tenda/api-doc build
+      # The palette is GENERATED from apps/mobile/theme/tokens.ts, like the
+      # landing's. A hand-edit, or a mobile token change without regenerating,
+      # is unmergeable rather than a silent divergence between two surfaces.
+      - name: Design-token drift gate
+        working-directory: apps/docs
+        run: pnpm gen:tokens:check
       - name: Lint
         working-directory: apps/docs
         run: pnpm lint

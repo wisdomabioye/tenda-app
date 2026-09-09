@@ -4,30 +4,34 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "generate": "tsx scripts/generate-document.ts",
-    "dev": "pnpm generate && vite",
     "build": "pnpm generate && tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "pnpm generate && vite",
+    "gen:tokens": "pnpm --filter web exec tsx scripts/gen-web-tokens/main.ts --target docs",
+    "gen:tokens:check": "pnpm --filter web exec tsx scripts/gen-web-tokens/main.ts --target docs --check",
+    "generate": "pnpm gen:tokens && tsx scripts/generate-document.ts",
     "lint": "eslint .",
-    "type-check": "pnpm generate && tsc -b",
+    "preview": "vite preview",
     "test": "pnpm generate && vitest run",
-    "test:coverage": "pnpm generate && vitest run --coverage"
+    "test:coverage": "pnpm generate && vitest run --coverage",
+    "type-check": "pnpm generate && tsc -b"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/manrope": "5.3.0",
     "@tenda/api-doc": "workspace:*",
+    "@tenda/shared": "workspace:*",
     "marked": "^18.0.12",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^10.9.0",

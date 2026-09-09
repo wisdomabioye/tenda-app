@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AGENT_API_DOCUMENT } from '@tenda/api-doc'
 import { DOCUMENT_PATH, generateDocument } from '../scripts/generate-document'
-import { apiDocument as rendered } from '@/document'
+import { apiDocument as rendered } from '@/lib/document'
 
 describe('the generated document', () => {
   it('is the one the package builds today, byte for byte', () => {

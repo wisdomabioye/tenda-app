@@ -6,7 +6,7 @@
  * send a reader to the wrong endpoint.
  */
 import { describe, expect, it } from 'vitest'
-import { anchorFor, apiDocument as rendered, operationsByTag } from '@/document'
+import { anchorFor, apiDocument as rendered, operationsByTag } from '@/lib/document'
 
 describe('operationsByTag', () => {
   const tags = operationsByTag()

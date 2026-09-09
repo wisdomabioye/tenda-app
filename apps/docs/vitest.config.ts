@@ -10,7 +10,21 @@ import { defineConfig } from 'vitest/config'
  * here as a resolution failure rather than as a silently different bundle.
  */
 export default defineConfig({
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // The landing's rule, for the landing's reason: import the shared module
+      // you need, from SOURCE, rather than the package barrel. The barrel is
+      // CommonJS (no Vite interop for a linked workspace package) and reaches
+      // `db/schema`, which would put drizzle-orm in a page that reads two
+      // constants.
+      '@tenda/shared/app-info': fileURLToPath(new URL('../../packages/shared/src/constants/app-info.ts', import.meta.url)),
+      '@tenda/shared/api-routes': fileURLToPath(new URL('../../packages/shared/src/api/routes.ts', import.meta.url)),
+    },
+    // pnpm can give a linked dependency its own React copy; two copies break
+    // hooks with a null dispatcher. The landing dedupes for the same reason.
+    dedupe: ['react', 'react-dom'],
+  },
   test: {
     environment: 'jsdom',
     globals: true,
@@ -19,7 +33,9 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       // The generated document is data, and main.tsx is the DOM handshake —
       // neither carries logic a test could hold to anything.
-      exclude: ['src/generated/**', 'src/main.tsx'],
+      // Generated data, the DOM handshake, and the harness's own stubs —
+      // none of them carry logic a test could hold to anything.
+      exclude: ['src/generated/**', 'src/main.tsx', 'src/test-support/**'],
       thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },
     },
   },

@@ -42,7 +42,14 @@ export function pairedScheme(
     })
 }
 
-export function renderTendahq(): string {
+/**
+ * The command that regenerates a given output, named in its own header.
+ *
+ * A PARAMETER because two apps share this renderer (#157): the landing and
+ * the docs site. A header that hardcoded one of them would tell a reader of
+ * the other file to run the command that rewrites somebody else's tokens.
+ */
+export function renderTendahq(regen: string = 'pnpm --filter tendahq gen:tokens'): string {
   const colours = pairedScheme()
     .map(([property, light, dark]) => `    ${property}: light-dark(${light}, ${dark});`)
     .join('\n')
@@ -50,13 +57,13 @@ export function renderTendahq(): string {
     .map(([property, value]) => `    ${property}: ${value};`)
     .join('\n')
   return `/* GENERATED from apps/mobile/theme/tokens.ts — do not edit.
- * Regenerate: pnpm --filter tendahq gen:tokens
- * CI guard:   pnpm --filter tendahq gen:tokens:check
+ * Regenerate: ${regen}
+ * CI guard:   ${regen}:check
  *
  * Every colour once, as light-dark(light, dark). \`color-scheme\` on the root
  * picks the side; the stamps in styles/base.css override it either way.
- * The type atoms (\`type-*\`) follow the root block; styles/type.css applies
- * them to the landing's class names.
+ * The type atoms (\`type-*\`) follow the root block; the consuming app maps
+ * them to its own class names.
  */
 @layer base {
   :root {

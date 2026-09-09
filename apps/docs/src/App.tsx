@@ -1,60 +1,59 @@
 /**
- * The whole site: one page, rendered from the document.
+ * The reference: a rail of every operation, and one reading column.
  *
- * ONE PAGE ON PURPOSE. A client router would need a rewrite rule on whichever
- * host serves `dist/`, and that rule is the platform coupling this site is
- * built to avoid. In-page anchors do the same job for a reference document and
- * survive being served from a bare directory.
+ * The page states nothing about the API on its own account — the guide, the
+ * guarantees, the endpoints and every sample body come from the document that
+ * `scripts/generate-document.ts` bakes in from `@tenda/api-doc`. Editing the
+ * docs means editing the package.
+ *
+ * ONE PAGE with in-page anchors, deliberately: `dist/` has to serve from any
+ * static host, and a client router would need a rewrite rule to survive a
+ * refresh — the platform coupling this build avoids.
  */
-import { anchorFor, apiDocument, operationsByTag } from '@/document'
-import { Markdown } from './components/Markdown'
-import { Operation } from './components/Operation'
+import { DOCS_COPY } from '@/content'
+import { apiDocument, operationsByTag } from '@/lib/document'
+import { useTheme } from '@/theme/useTheme'
+import { Header } from '@/components/layout/Header'
+import { Rail } from '@/components/layout/Rail'
+import { Markdown } from '@/components/docs/Markdown'
+import { Operation } from '@/components/docs/Operation'
 
 const tags = operationsByTag()
 
 export function App() {
+  const { theme, toggle } = useTheme()
+
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-rule bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-baseline gap-x-4 gap-y-1 px-6 py-4">
-          <h1 className="text-base font-semibold">{apiDocument.info.title}</h1>
-          <span className="font-mono text-xs text-ink-faint">v{apiDocument.info.version}</span>
-          <span className="font-mono text-xs text-ink-faint">OpenAPI {apiDocument.openapi}</span>
-        </div>
-      </header>
+    <>
+      <Header
+        title={apiDocument.info.title}
+        version={apiDocument.info.version}
+        theme={theme}
+        onToggleTheme={toggle}
+      />
 
-      <div className="mx-auto grid max-w-5xl gap-10 px-6 py-10 lg:grid-cols-[14rem_1fr]">
-        <nav aria-label="Operations" className="lg:sticky lg:top-24 lg:self-start">
-          <ul className="space-y-4 text-sm">
-            {tags.map((tag) => (
-              <li key={tag.name}>
-                <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{tag.name}</span>
-                <ul className="mt-1 space-y-1">
-                  {tag.operations.map(({ operation }) => (
-                    <li key={operation.operationId}>
-                      <a className="text-ink-soft hover:text-accent" href={`#${anchorFor(operation.operationId)}`}>
-                        {operation.summary}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </nav>
+      <div className="mx-auto grid max-w-[var(--page-width)] gap-10 px-6 py-10 lg:grid-cols-[var(--rail-width)_minmax(0,1fr)]">
+        <Rail tags={tags} />
 
-        <main>
-          {/* The document's own description — since #157 stage 3 this carries
-              the integration guide, so the page needs no walkthrough of its own. */}
-          <Markdown className="max-w-3xl">{apiDocument.info.description}</Markdown>
+        <main className="min-w-0">
+          {/* The document's own description — the integration guide since #157
+              stage 3, so the page needs no walkthrough of its own. */}
+          <Markdown>{apiDocument.info.description}</Markdown>
 
-          <section className="mt-10 max-w-3xl">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">
-              What this contract guarantees
+          <section className="mt-10" style={{ maxWidth: 'var(--measure)' }}>
+            <h2
+              className="font-mono text-[10px] font-semibold uppercase tracking-[0.9px]"
+              style={{ color: 'var(--content-tertiary)' }}
+            >
+              {DOCS_COPY.guarantees}
             </h2>
-            <ul className="mt-3 space-y-2 text-sm text-ink-soft">
+            <ul className="mt-3 grid gap-2 pl-0" style={{ listStyle: 'none', margin: '12px 0 0' }}>
               {apiDocument.info['x-tenda-stability'].map((line) => (
-                <li key={line} className="border-l-2 border-rule pl-3">
+                <li
+                  key={line}
+                  className="border-l-2 pl-3 text-[13.5px] leading-[21px]"
+                  style={{ borderColor: 'var(--border-default)', color: 'var(--content-secondary)' }}
+                >
                   {line}
                 </li>
               ))}
@@ -62,21 +61,24 @@ export function App() {
           </section>
 
           {tags.map((tag) => (
-            <section key={tag.name} className="mt-12">
-              <h2 className="text-xl font-semibold">{tag.name}</h2>
-              <p className="mt-1 max-w-3xl text-sm text-ink-soft">{tag.description}</p>
+            <section key={tag.name} className="mt-14">
+              <h2 className="type-h2">{tag.name}</h2>
+              <p className="mt-1 text-[14px]" style={{ maxWidth: 'var(--measure)', color: 'var(--content-secondary)' }}>
+                {tag.description}
+              </p>
               {tag.operations.map((entry) => (
                 <Operation
                   key={entry.operation.operationId}
                   method={entry.method}
                   path={entry.path}
                   operation={entry.operation}
+                  schemas={apiDocument.components.schemas}
                 />
               ))}
             </section>
           ))}
         </main>
       </div>
-    </div>
+    </>
   )
 }

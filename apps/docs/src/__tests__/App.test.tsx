@@ -9,7 +9,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { App } from '@/App'
-import { anchorFor, apiDocument, operationsByTag } from '@/document'
+import { anchorFor, apiDocument, operationsByTag } from '@/lib/document'
 
 describe('the docs page', () => {
   it('names the document and the version an agent is integrating against', () => {
@@ -55,11 +55,11 @@ describe('the docs page', () => {
     }
   })
 
-  it('offers a working in-page link for each operation — the site has no router', () => {
+  it('lists every operation in the rail by PATH — what an integrator scans for', () => {
     const { container } = render(<App />)
     for (const { operation } of operationsByTag().flatMap((tag) => tag.operations)) {
       const anchor = anchorFor(operation.operationId)
-      expect(container.querySelector(`a[href="#${anchor}"]`), `no nav link to ${anchor}`).not.toBeNull()
+      expect(container.querySelector(`a[href="#${anchor}"]`), `no rail link to ${anchor}`).not.toBeNull()
       expect(container.querySelector(`[id="${anchor}"]`), `no target for ${anchor}`).not.toBeNull()
     }
   })

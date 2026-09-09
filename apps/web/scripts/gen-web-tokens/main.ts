@@ -7,8 +7,9 @@
  *   pnpm --filter web gen:tokens:check        # exit 1 if regenerating would diff (CI)
  *   pnpm --filter tendahq gen:tokens          # the same, for tendahq/src/styles/tokens.css
  *   pnpm --filter tendahq gen:tokens:check
+ *   pnpm --filter tenda-docs gen:tokens       # and for docs/src/styles/tokens.css
  *
- * `--target web|tendahq` picks the output (default web, the original). Web's
+ * `--target web|tendahq|docs` picks the output (default web, the original). Web's
  * theme shape follows the ui-ux brief: full light palette on bare :root,
  * system dark behind prefers-color-scheme guarded by :root:not([data-theme=
  * "light"]), and an explicit :root[data-theme="dark"] block so a toggle wins
@@ -35,9 +36,18 @@ const TARGETS: Record<string, Target> = {
     regen: 'pnpm --filter web gen:tokens',
   },
   tendahq: {
-    render: renderTendahq,
+    render: () => renderTendahq('pnpm --filter tendahq gen:tokens'),
     out: join(HERE, '../../../tendahq/src/styles/tokens.css'),
     regen: 'pnpm --filter tendahq gen:tokens',
+  },
+  // The agent docs site (#157 stage 2). Same renderer as the landing, not a
+  // second one: both are Vite + Tailwind v4 and want the one light-dark()
+  // block, so a docs-specific shape would be a copy of tendahq.ts that could
+  // drift from it.
+  docs: {
+    render: () => renderTendahq('pnpm --filter tenda-docs gen:tokens'),
+    out: join(HERE, '../../../docs/src/styles/tokens.css'),
+    regen: 'pnpm --filter tenda-docs gen:tokens',
   },
 }
 
