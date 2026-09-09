@@ -27,21 +27,20 @@ import {
   formatAssetAmount,
   formatDuration,
   gigShareMessage,
+  type EscrowTxType,
+  type GigDetail,
 } from '@tenda/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
 import { DetailChrome, EscrowTransactionMonitor, TxConfirmDialog } from '@/components/escrow'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { useOnboardingStore } from '@/stores/onboarding.store'
-import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
-import { useGigsStore } from '@/stores'
+import { useGigsStore, useOnboardingStore, useNotificationPromptStore } from '@/stores'
 import { getEnv } from '@/lib/env'
 import { api } from '@/api/client'
 import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()

@@ -294,11 +294,18 @@ jest.mock('@/hooks/useEscrowLiveRefresh', () => ({
     mockLiveRefresh(escrowId, refresh, status),
 }))
 jest.mock('@/hooks/useEscrowFee', () => ({ useEscrowFee: () => mockFee }))
-jest.mock('@/stores', () => ({ useGigsStore: () => ({ fetchGigDetail: mockFetchGigDetail }) }))
-jest.mock('@/stores/onboarding.store', () => ({
+/**
+ * Every store this screen reads, mocked at the BARREL rather than at three
+ * internal paths. `@/stores` is the surface — mocking the files behind it ties
+ * the suite to which path the screen happens to import from, and the screen
+ * switching between the two forms (both legal, both used here before) made all
+ * 29 cases fail with `useOnboardingStore is not a function`. A store the
+ * screen starts reading and this map omits fails the same way, loudly, which
+ * is the right failure.
+ */
+jest.mock('@/stores', () => ({
+  useGigsStore: () => ({ fetchGigDetail: mockFetchGigDetail }),
   useOnboardingStore: () => ({ dismissedNudges: mockDismissedNudges }),
-}))
-jest.mock('@/stores/notification-prompt.store', () => ({
   useNotificationPromptStore: { getState: () => ({ recordCommitment: mockRecordCommitment }) },
 }))
 jest.mock('@/stores/platform-config.store', () => ({
