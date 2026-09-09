@@ -10,17 +10,14 @@
 import type { ChainNamespace, IdentityKind } from '@tenda/shared/db/schema'
 import { AUTH_METHODS, type AuthMethod } from '@tenda/shared'
 
-/**
- * `AUTH_METHODS` and `AuthMethod` now live in `@tenda/shared` — the agent
- * document publishes them (#157) and builds without importing the server.
- * IMPORT THEM FROM THERE, as `isAuthMethod` below does; this module owns what
- * a method RESOLVES to, not the list itself.
- *
- * They were re-exported here at first, to keep this the place the policy was
- * read from. Nothing ever read it here — proved by deleting the re-export and
- * type-checking src and test — so it was a getter no caller invoked, and it
- * showed up as this file's missing half of its function coverage.
- */
+// `AUTH_METHODS` and `AuthMethod` live in `@tenda/shared` — the agent document
+// publishes them (#157) and builds without importing the server. IMPORT THEM
+// FROM THERE, as the guard below does; this module owns what a method RESOLVES
+// to, not the list itself. They were re-exported here at first, to keep this
+// the place the policy was read from; nothing ever read it here (proved by
+// deleting the re-export and type-checking src and test), so it was a getter no
+// caller invoked. Line comments, not a docblock: a `/** */` here would attach
+// itself to the guard and describe the wrong thing on hover.
 
 export function isAuthMethod(value: unknown): value is AuthMethod {
   return typeof value === 'string' && (AUTH_METHODS as readonly string[]).includes(value)
