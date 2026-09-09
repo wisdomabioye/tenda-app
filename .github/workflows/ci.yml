@@ -210,6 +210,33 @@ jobs:
           VITE_WEB_APP_URL: http://127.0.0.1:3200
         run: pnpm build
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The site renders @tenda/api-doc, which builds against @tenda/shared, so
+      # both dists must exist before anything here compiles. `pnpm generate`
+      # (run by every script below) imports the package in Node.
+      - name: Build the packages the document is made of
+        run: pnpm --filter @tenda/shared build && pnpm --filter @tenda/api-doc build
+      - name: Lint
+        working-directory: apps/docs
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest)
+        working-directory: apps/docs
+        run: pnpm test:coverage
+      # Typecheck and a real static build — the artifact deploys as-is to any
+      # host, so a build that only works in dev is a deploy that fails later.
+      - name: Typecheck + build
+        working-directory: apps/docs
+        run: pnpm build
+
   mobile:
     runs-on: ubuntu-latest
     steps:
