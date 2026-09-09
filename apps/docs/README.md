@@ -52,10 +52,13 @@ redirect.
 
 ## Tests
 
-- `test/document-drift.test.ts` — the generated copy is what the package builds
-  today, byte for byte, and equals the object the server serves. Lives outside
-  `src/` because it is a Node test; everything under `src/` compiles as browser
-  code.
+- `test/document-drift.test.ts` — generation is a pure function of the package
+  (two runs, identical bytes), the emit survives its own JSON round trip, the
+  module the browser imports equals the object the server serves, and the
+  constants emitted beside it match the package's. Deliberately NOT "the file on
+  disk matches a fresh generation": every script above runs `pnpm generate`
+  first, so that comparison cannot fail — measured. Lives outside `src/` because
+  it is a Node test; everything under `src/` compiles as browser code.
 - `src/__tests__/` — the views over the document: every operation is listed
   exactly once, an operation with an undeclared tag is collected rather than
   dropped, anchors are unique, the description renders as markup rather than

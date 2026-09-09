@@ -18,6 +18,7 @@
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/manrope": "5.3.0",
+    "@fontsource-variable/space-grotesk": "5.3.0",
     "@tenda/api-doc": "workspace:*",
     "@tenda/shared": "workspace:*",
     "marked": "^18.0.12",
