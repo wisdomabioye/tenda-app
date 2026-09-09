@@ -12,7 +12,7 @@
  * drift suite asserts the two paths answer identical bytes.
  */
 import type { FastifyPluginAsync } from 'fastify'
-import { AGENT_API_CACHE_SECONDS, AGENT_API_DOCUMENT, type OpenApiDocument } from '@server/agent-api/openapi'
+import { AGENT_API_CACHE_SECONDS, AGENT_API_DOCUMENT, type OpenApiDocument } from '@tenda/api-doc'
 
 const agentOpenapiAliasRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Reply: OpenApiDocument }>('/', async (_request, reply) => {

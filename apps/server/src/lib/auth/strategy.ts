@@ -8,12 +8,14 @@
  */
 
 import type { ChainNamespace, IdentityKind } from '@tenda/shared/db/schema'
-import { identityKindValues } from '@tenda/shared/db/schema'
+import { AUTH_METHODS, type AuthMethod } from '@tenda/shared'
 
-/** A login method on the generic routes. `IdentityKind` ∪ wallet. */
-export type AuthMethod = IdentityKind | 'wallet'
-
-export const AUTH_METHODS: readonly AuthMethod[] = [...identityKindValues, 'wallet']
+/**
+ * The method list and its type are declared in `@tenda/shared` because
+ * `GET /v1/auth/methods` publishes them in the agent document (#157). This
+ * module still owns what a method RESOLVES to, below.
+ */
+export { AUTH_METHODS, type AuthMethod }
 
 export function isAuthMethod(value: unknown): value is AuthMethod {
   return typeof value === 'string' && (AUTH_METHODS as readonly string[]).includes(value)

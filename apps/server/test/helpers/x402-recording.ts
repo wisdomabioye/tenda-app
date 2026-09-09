@@ -13,7 +13,7 @@
  */
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { RecordedExchange } from '@server/agent-api/examples'
+import type { RecordedExchange } from '@tenda/api-doc'
 
 /**
  * Dotted paths whose VALUE differs every run and is therefore compared only
@@ -116,7 +116,13 @@ export function sameShape(recorded: RecordedExchange, live: RecordedExchange, vo
   return out
 }
 
-const RECORDING_PATH = join(__dirname, '..', '..', 'src', 'agent-api', 'recorded-exchange.ts')
+// The document lives in `packages/api-doc` since #157, so the writer reaches
+// OUT of this package. A stale path here would not fail anything: `pnpm
+// record:x402` would happily create `apps/server/src/agent-api/` again and
+// write a recording nothing imports.
+export const RECORDING_PATH = join(
+  __dirname, '..', '..', '..', '..', 'packages', 'api-doc', 'src', 'recorded-exchange.ts',
+)
 
 /**
  * Re-write the published recording from a live capture.

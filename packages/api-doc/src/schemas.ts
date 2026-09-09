@@ -31,9 +31,9 @@ import {
   type PaginatedResponse,
   type Review,
   type UserRef,
+  FEATURED_RAIL_LIMIT,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema'
-import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
 import { allKeys, closed, closedFor, nullable, ref, type SchemaObject, type V0ComponentName } from './schema-types'
 import { COUNTRY_CODES, chainId, isoInstant, latitude, longitude, rawAmount, uuid } from './scalars'
 import { escrowProof, proofParams } from './schemas-proofs'

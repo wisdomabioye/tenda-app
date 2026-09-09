@@ -34,9 +34,10 @@ import {
   AGENT_API_DOCUMENT_PATH,
   AGENT_API_STABILITY,
   AGENT_API_VERSION,
-} from '@server/agent-api/openapi'
-import { operationsOf } from '@server/agent-api/paths'
-import { PLATFORM_COMPONENT_NAMES, type SchemaObject } from '@server/agent-api/schema-types'
+  operationsOf,
+  PLATFORM_COMPONENT_NAMES,
+  type SchemaObject,
+} from '@tenda/api-doc'
 import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
 import { GIG_SUMMARY_COLS } from '@server/lib/gig-read'
 import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'

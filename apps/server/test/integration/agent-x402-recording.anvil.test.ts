@@ -7,7 +7,7 @@
  * fixed that. And it is a RECORDING rather than a hand-written sample for one
  * reason: a sample is a second implementation of the wire, and it starts
  * drifting the day it is written. Everything published in
- * `src/agent-api/examples.ts` came out of an actual exchange this file drove,
+ * `@tenda/api-doc`'s `examples.ts` came out of an actual exchange this file drove,
  * and every run re-drives it and compares.
  *
  * WHY ANVIL AND NOT THE ORDINARY HARNESS. The fake eip155 relay answers
@@ -50,8 +50,7 @@ import {
 } from '../helpers/test-app'
 import { agentTaskBody, registerAgent, signRelayTerms } from '../helpers/agent'
 import { VOLATILE, sameShape, writeRecording } from '../helpers/x402-recording'
-import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
-import type { RecordedExchange } from '@server/agent-api/examples'
+import { RECORDED_EXCHANGE, type RecordedExchange } from '@tenda/api-doc'
 
 /**
  * RECORD MODE MUST NEVER SKIP. `pnpm record:x402` is an explicit instruction to

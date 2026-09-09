@@ -1,5 +1,5 @@
 /**
- * GET /v1/openapi.json — the Agent API v0 document (src/agent-api).
+ * GET /v1/openapi.json — the Agent API v0 document (`@tenda/api-doc`).
  *
  * Public and unauthenticated by design: the document describes an anonymous
  * surface, and an agent must be able to discover it before it has anything
@@ -8,7 +8,7 @@
  * (AGENT_API_DOCUMENT_PATH) — the drift test asserts the two agree.
  */
 import type { FastifyPluginAsync } from 'fastify'
-import { AGENT_API_CACHE_SECONDS, AGENT_API_DOCUMENT, type OpenApiDocument } from '@server/agent-api/openapi'
+import { AGENT_API_CACHE_SECONDS, AGENT_API_DOCUMENT, type OpenApiDocument } from '@tenda/api-doc'
 
 const openapiRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Reply: OpenApiDocument }>('/', async (_request, reply) => {

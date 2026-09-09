@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { ErrorCode, apiRoutes } from '@tenda/shared'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
+import { AGENT_API_DOCUMENT } from '@tenda/api-doc'
 
 test('#143: the two relay refusals carry two codes, and the document assigns each to exactly one status', () => {
   assert.strictEqual(ErrorCode.RELAY_UNAVAILABLE, 'RELAY_UNAVAILABLE')

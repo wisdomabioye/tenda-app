@@ -27,7 +27,7 @@ import {
   X_PAYMENT_RESPONSE_HEADER,
   apiRoutes,
 } from '@tenda/shared'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
+import { AGENT_API_DOCUMENT } from '@tenda/api-doc'
 import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
 
 const { components } = AGENT_API_DOCUMENT

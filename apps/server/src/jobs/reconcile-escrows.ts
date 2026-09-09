@@ -21,6 +21,7 @@ import { EVENT_BY_TX_TYPE, type ChainRegistry, type EscrowTxType } from '@server
 import type { AppDatabase } from '@server/plugins/db'
 import type { JobPayload, QueueService } from '@server/plugins/queue'
 import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { RECONCILE_INTERVAL_MS, RECONCILE_GIVE_UP_MS } from '@tenda/shared'
 
 // ---------- policy constants ---------------------------------------------
 
@@ -30,11 +31,12 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
  * both: a timeout is stamped at the first tick AT OR AFTER the give-up age, so
  * "resendable" arrives up to one tick later than the horizon alone says.
  */
-export const RECONCILE_INTERVAL_MS = 5 * 60_000
+export { RECONCILE_INTERVAL_MS, RECONCILE_GIVE_UP_MS }
 /** Don't probe attempts younger than this, the normal path is still live. */
 export const RECONCILE_MIN_AGE_MS = 5 * 60_000
-/** Unknown on chain past this age → failed_at = TIMEOUT (blockhash expired). */
-export const RECONCILE_GIVE_UP_MS = 30 * 60_000
+// `RECONCILE_GIVE_UP_MS` — unknown on chain past this age → failed_at =
+// TIMEOUT (blockhash expired) — is re-exported above, beside the interval it
+// is read with.
 /** Rows per tick; overflow is logged and swept next tick. */
 export const RECONCILE_BATCH_LIMIT = 100
 

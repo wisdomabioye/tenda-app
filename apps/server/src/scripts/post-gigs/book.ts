@@ -17,7 +17,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { findChain, type AgentTaskBody } from '@tenda/shared'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
+import { AGENT_API_DOCUMENT } from '@tenda/api-doc'
 import {
   validateCreateEscrow,
   type ValidatedCreateEscrow,

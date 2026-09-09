@@ -19,8 +19,12 @@
 
 // ---------- policy constants ---------------------------------------------
 
-/** Same cadence as the Solana listener; block time never beats it usefully. */
-export const EVM_POLL_INTERVAL_MS = 15_000
+/**
+ * Same cadence as the Solana listener; block time never beats it usefully.
+ * Declared in `@tenda/shared` because the agent document publishes it (#157) —
+ * re-exported here so this module stays the place the policy is read from.
+ */
+export { EVM_POLL_INTERVAL_MS } from '@tenda/shared'
 
 /**
  * Per-endpoint RPC timeout for the listener's OWN client. The default

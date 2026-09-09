@@ -8,9 +8,15 @@
  * NOTHING (#108): a demo bearer, for the reader who has no wallet to prove and
  * would otherwise meet a 401 at the only endpoint that matters.
  */
-import { X402_VERSION, X_PAYMENT_HEADER, X_PAYMENT_RESPONSE_HEADER, apiRoutes } from '@tenda/shared'
-import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
-import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
+import {
+  X402_VERSION,
+  X_PAYMENT_HEADER,
+  X_PAYMENT_RESPONSE_HEADER,
+  apiRoutes,
+  EVM_POLL_INTERVAL_MS,
+  RECONCILE_GIVE_UP_MS,
+  RECONCILE_INTERVAL_MS,
+} from '@tenda/shared'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
 import { ref } from './schema-types'
 

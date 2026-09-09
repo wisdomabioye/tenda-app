@@ -15,10 +15,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
-import { recordedPaymentHeader, withRecordedExamples } from '@server/agent-api/examples'
-import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
-import { JSON_MEDIA_TYPE } from '@server/agent-api/paths'
+import {
+  AGENT_API_DOCUMENT,
+  recordedPaymentHeader,
+  withRecordedExamples,
+  RECORDED_EXCHANGE,
+  JSON_MEDIA_TYPE,
+} from '@tenda/api-doc'
 
 /** The gig detail's key in the document — OpenAPI's spelling, not Fastify's. */
 const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')

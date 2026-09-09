@@ -7,12 +7,18 @@
  */
 import { and, asc, eq, gt, gte, isNull, lte, or, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users, featured_slots } from '@tenda/shared/db/schema'
-import type { GigSummary } from '@tenda/shared'
+import { FEATURED_RAIL_LIMIT, type GigSummary } from '@tenda/shared'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
 import type { AppDatabase } from '@server/plugins/db'
 
-/** Rail size cap, a carousel, not a second feed. */
-export const FEATURED_RAIL_LIMIT = 10
+/**
+ * Rail size cap — a carousel, not a second feed. Re-exported, not declared:
+ * the published document quotes this number, so it lives in
+ * `@tenda/shared/constants/published-operations`, where the document builder
+ * reads it without importing the server (#157). The rail's behaviour is still
+ * this module's.
+ */
+export { FEATURED_RAIL_LIMIT }
 
 const CACHE_TTL_MS = 60_000
 

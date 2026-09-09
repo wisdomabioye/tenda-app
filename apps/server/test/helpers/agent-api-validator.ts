@@ -8,8 +8,7 @@
  * copy could quietly loosen.
  */
 import Ajv from 'ajv'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
-import { COMPONENT_REF_PREFIX } from '@server/agent-api/schema-types'
+import { AGENT_API_DOCUMENT, COMPONENT_REF_PREFIX } from '@tenda/api-doc'
 
 export { COMPONENT_REF_PREFIX }
 

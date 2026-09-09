@@ -13,10 +13,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { apiRoutes } from '@tenda/shared'
-import { AGENT_API_DOCUMENT } from '@server/agent-api/openapi'
-import { withRecordedExamples, type RecordedExchange } from '@server/agent-api/examples'
-import { RECORDED_EXCHANGE } from '@server/agent-api/recorded-exchange'
-import { JSON_MEDIA_TYPE } from '@server/agent-api/paths'
+import {
+  AGENT_API_DOCUMENT,
+  withRecordedExamples,
+  type RecordedExchange,
+  RECORDED_EXCHANGE,
+  JSON_MEDIA_TYPE,
+} from '@tenda/api-doc'
 import { agentApiAjv } from '../helpers/agent-api-validator'
 
 const ajv = agentApiAjv()

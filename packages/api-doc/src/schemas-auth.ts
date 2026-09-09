@@ -20,9 +20,13 @@
  * `VerifyResponse` and `AgentRegisterResponse` are the same
  * `{ token, user, is_new }`, and registration's schema is already registered.
  */
-import type { AuthNonceResponse, VerifyBody } from '@tenda/shared'
-import { AUTH_METHODS } from '@server/lib/auth/strategy'
-import { NONCE_FORMAT, NONCE_TTL_SECONDS } from '@server/lib/nonce'
+import {
+  type AuthNonceResponse,
+  type VerifyBody,
+  AUTH_METHODS,
+  NONCE_FORMAT,
+  NONCE_TTL_SECONDS,
+} from '@tenda/shared'
 import { WALLET_PROOF } from './schemas-agent'
 import { COUNTRY_CODES } from './scalars'
 import { allKeys, closedFor, nullable, type AuthComponentName, type SchemaObject } from './schema-types'

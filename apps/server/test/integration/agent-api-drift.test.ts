@@ -25,7 +25,9 @@ import {
   AGENT_API_AGENT_PATH,
   AGENT_API_DOCUMENT_PATH,
   AGENT_API_STABILITY,
-} from '@server/agent-api/openapi'
+  JSON_MEDIA_TYPE,
+  type HttpStatus,
+} from '@tenda/api-doc'
 import {
   TEST_CHAIN_ID_ALT,
   TEST_DB_CONFIGURED,
@@ -39,7 +41,6 @@ import {
 } from '../helpers/test-app'
 import { servedPaths } from '../helpers/route-table'
 import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
-import { JSON_MEDIA_TYPE, type HttpStatus } from '@server/agent-api/paths'
 import { agentTaskBody, registerAgent } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED

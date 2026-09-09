@@ -1,0 +1,28 @@
+{
+  "name": "@tenda/api-doc",
+  "version": "0.0.1",
+  "license": "BUSL-1.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run clean && tsc",
+    "prepare": "pnpm run build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tenda/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.13",
+    "typescript": "~5.9.3"
+  }
+}
