@@ -2,11 +2,11 @@
  * The shared validator behaves the way the drift guarantee assumes.
  *
  * `agent-api-drift.test.ts` validates LIVE bodies against the document's closed
- * schemas, and everything it proves rests on three ajv options in
+ * schemas, and everything it proves rests on four ajv options in
  * test/helpers/agent-api-validator.ts. Those options had no test of their own:
- * flipping `removeAdditional` to 'all', `coerceTypes` to true, or `strict` off
- * left every unit suite green — measured — because the only thing exercising
- * them needs a database.
+ * flipping `removeAdditional` to 'all', `coerceTypes` to true, `strict` off or
+ * `allErrors` off left every unit suite green — measured — because the only
+ * thing exercising them needs a database.
  *
  * So the guarantee is stated here, cheaply, in terms of what must FAIL. A
  * validator that quietly strips an undocumented field or coerces a string into
