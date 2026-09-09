@@ -9,14 +9,20 @@
 #          (@tenda/api-doc has no suite of its own yet — the server's document
 #           tests exercise it; see #160)
 #        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
+#        - web / tendahq / docs → vitest v8, thresholds in each vitest.config.ts
 #   2. contract tests   → live in the tenda-escrow repo's own CI
-#   3. tsc --noEmit     → server + shared (both src AND test) + admin + mobile
-#   4. lint             → server + admin (eslint) + mobile (expo lint)
+#   3. tsc              → server + shared (both src AND test) + admin + web +
+#                         tendahq + docs + mobile. tendahq and docs typecheck as
+#                         the first half of their build step, not separately.
+#   4. lint             → server + admin + web + tendahq + docs (eslint) +
+#                         mobile (expo lint, over the WHOLE tree since #153)
 #   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
 #   6. docker image     → build-only assembly check of apps/server/Dockerfile
 #   7. scripts          → unit tests for scripts/ + the app-version drift gate
-#   8. tendahq          → token drift gate (generated from mobile) + eslint +
-#                         vitest coverage + tsc/vite build
+#   8. token drift      → web, tendahq and docs each regenerate their palette
+#                         from apps/mobile/theme/tokens.ts and fail on a diff
+#   9. static builds    → tendahq and docs produce the artifact they deploy, so
+#                         a build that only works in dev fails here instead
 #
 # Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
 # stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
