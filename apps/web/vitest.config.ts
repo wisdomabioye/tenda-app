@@ -108,7 +108,9 @@ export default defineConfig({
       // components (not renderable under jsdom) and excluded like admin's.
       // scripts/gen-web-tokens/main.ts is excluded with reason: a thin CLI
       // (fs + argv + process.exit) whose full pipeline the CI drift gate runs
-      // for real; the transforms it calls live in core.ts, which IS gated.
+      // for real. Everything it decides is gated — the transforms in core.ts,
+      // and since #157 the target map in targets.ts, which moved OUT of the CLI
+      // precisely so a suite could read it without running the writer.
       include: [
         // Money math on a public page: it answers what the chain will charge,
         // so it is gated like any other fee path (joined during the #13 review).
@@ -223,7 +225,7 @@ export default defineConfig({
         'app/(app)/settings/page.tsx',
         'app/(app)/wallet/buy-sell/page.tsx',
         'app/(app)/wallet/intents/\\[id\\]/page.tsx',
-        'scripts/gen-web-tokens/{core,tendahq,naming,typography,faces}.ts',
+        'scripts/gen-web-tokens/{core,tendahq,naming,typography,faces,targets}.ts',
         // The gate's OWN machinery (#80). These decide what everything above is
         // measured against, and nothing measured them: the resolver's suite
         // sits directly under the app root, so it resolves to no subject and

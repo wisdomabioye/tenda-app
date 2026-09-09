@@ -12,7 +12,7 @@
 import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
 import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
 import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'
-import { TARGETS } from '../gen-web-tokens/targets'
+import { TARGETS, targetFromArgv } from '../gen-web-tokens/targets'
 
 describe('kebab', () => {
   it('splits camelCase and lowercases', () => {
@@ -243,5 +243,72 @@ describe('the target map', () => {
     const landing = TARGETS.tendahq.render('X')
     const docs = TARGETS.docs.render('X')
     expect(docs).toBe(landing)
+  })
+})
+
+describe('targetFromArgv', () => {
+  it('defaults to web — the original output, and what a bare `gen:tokens` means', () => {
+    expect(targetFromArgv([])).toBe(TARGETS.web)
+    expect(targetFromArgv(['node', 'main.ts', '--check'])).toBe(TARGETS.web)
+  })
+
+  it('takes the target named after --target, wherever it sits in argv', () => {
+    expect(targetFromArgv(['--target', 'docs'])).toBe(TARGETS.docs)
+    expect(targetFromArgv(['node', 'main.ts', '--target', 'tendahq', '--check'])).toBe(TARGETS.tendahq)
+  })
+
+  it('exits 2 on a name nothing declares, rather than writing somewhere unintended', () => {
+    // A typo'd target must not silently fall back to web and overwrite its
+    // tokens — the failure mode this exit code exists for.
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit')
+    }) as never)
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(() => targetFromArgv(['--target', 'landing'])).toThrow('exit')
+      expect(exit).toHaveBeenCalledWith(2)
+      expect(String(err.mock.calls[0]?.[0])).toContain('unknown --target "landing"')
+      // And --target with nothing after it is the same refusal, not a default.
+      expect(() => targetFromArgv(['--target'])).toThrow('exit')
+    } finally {
+      exit.mockRestore()
+      err.mockRestore()
+    }
+  })
+
+  it('refuses a PROTOTYPE key — `toString` is not a target', () => {
+    // The repo's named hazard, on a CLI flag: `'toString' in TARGETS` is true,
+    // so a membership test would pass the guard and hand the writer
+    // `Object.prototype.toString` — a function it would then call `.render()`
+    // on. `Object.hasOwn` is what makes `--target toString` a refusal.
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit')
+    }) as never)
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      for (const inherited of ['toString', 'constructor', 'valueOf', 'hasOwnProperty']) {
+        expect(() => targetFromArgv(['--target', inherited])).toThrow('exit')
+      }
+      expect(exit).toHaveBeenCalledTimes(4)
+    } finally {
+      exit.mockRestore()
+      err.mockRestore()
+    }
+  })
+
+  it('names the legal targets in its error, so the fix is in the message', () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit')
+    }) as never)
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(() => targetFromArgv(['--target', 'nope'])).toThrow('exit')
+      for (const name of Object.keys(TARGETS)) {
+        expect(String(err.mock.calls[0]?.[0])).toContain(name)
+      }
+    } finally {
+      exit.mockRestore()
+      err.mockRestore()
+    }
   })
 })
