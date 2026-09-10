@@ -50,7 +50,7 @@ export function SupportNav({ current }: { current: string | null }) {
           )
         })}
       </div>
-      {/* Plain <a>, not <Link>: `mailto:` and the WhatsApp invite leave the
+      {/* Plain <a>, not <Link>: `mailto:` and the two group invites leave the
           app, and routing them through the client router would do nothing but
           add a hydration cost to a link that never navigates in-app. */}
       <div className="mt-6 border-t border-border-subtle pt-5 type-body-small text-content-tertiary">
@@ -69,6 +69,18 @@ export function SupportNav({ current }: { current: string | null }) {
             target="_blank"
           >
             WhatsApp group
+          </a>
+          {/* `social.telegram` rather than a `support.*` sibling: ONE constant
+              per URL, and this group is already the contact channel Terms and
+              Privacy send a reader to. Where it is filed in the brand object
+              does not change what it is for. */}
+          <a
+            href={APP_INFO.social.telegram}
+            className="font-semibold text-content-link"
+            rel="noreferrer"
+            target="_blank"
+          >
+            Telegram group
           </a>
         </p>
       </div>

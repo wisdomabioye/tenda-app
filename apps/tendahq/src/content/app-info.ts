@@ -72,8 +72,6 @@ export const APP_INFO = {
     networksLine: CHAIN_NAMES_LINE,
     /** Release stage qualifier shown next to the network line. */
     stage: releaseStage(RELEASE.version),
-    /** Where to read the contracts. */
-    contractsUrl: 'https://github.com/wisdomabioye/tenda-app/tree/main/contracts',
   },
 
   /** The Agent API reference (apps/docs) — brand truth, one source. */
@@ -84,7 +82,6 @@ export const APP_INFO = {
   /** The community group anyone can join — the support channel, same source the apps ship. */
   whatsappUrl: BRAND.support.whatsapp,
   discordUrl: '#',
-  githubUrl: 'https://github.com/wisdomabioye/tenda-app',
   telegramUrl: BRAND.social.telegram,
 } as const
 

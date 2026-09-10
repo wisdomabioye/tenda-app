@@ -15,6 +15,13 @@ import type { FaqCategory } from '../types'
  *     completed gigs, and this page claimed it did.
  *   - The review-window payout is LIVE and is a worker PULL
  *     (`claimStalledPayment`), never an automatic release.
+ *   - Q.04 answered "how do I verify?" with "Read them", and named the licence,
+ *     the languages and the test suites — an instruction the reader could not
+ *     follow, because no surface of this site links a repository. It now
+ *     answers with what a reader can actually do unaided: resolve the contract
+ *     address from the public API and read the chain. Same class as the
+ *     published-addresses claim the guard already retires — a promise the page
+ *     cannot keep costs more than the sentence buys.
  */
 export const TRUST_CATEGORY: FaqCategory = {
   title: 'Trust & safety',
@@ -111,16 +118,15 @@ export const TRUST_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Read them. The escrow programs are open source under Apache-2.0 — the Solana program
-            in Rust/Anchor, the EVM contracts in Solidity/Foundry — and both ship with their full
-            test suites, so you can run the behaviour rather than take our word for it.
+            On-chain, before you deposit anything. The escrow contract address for each chain
+            comes from our public API, so you can look up the exact contract your money would go
+            to and read its state for yourself.
           </p>
           <p>
             Every state change is a transaction. Lock, proof, approval, settlement and refund
             each leave a receipt you can open in the block explorer for the chain it happened on,
-            with the amounts and addresses in plain sight. The escrow contract address for each
-            chain comes from our public API, so you can confirm the contract your money went to
-            is the one whose source you just read.
+            with the amounts and addresses in plain sight — so you can watch a real escrow run
+            all the way to payout before you open one of your own.
           </p>
           <p>
             A third-party security audit is on our roadmap and we&apos;ll publish the firm, the

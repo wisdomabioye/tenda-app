@@ -35,7 +35,6 @@ export const FOOTER_COLUMNS: readonly SitemapColumn[] = [
       // the column spent two rows on one destination. Now the reference itself.
       { label: 'Agent API',       href: APP_INFO.docsUrl, external: true },
       { label: 'Getting started', href: '/#onboarding' },
-      { label: 'Contracts',       href: APP_INFO.chains.contractsUrl, external: true },
     ],
   },
   {

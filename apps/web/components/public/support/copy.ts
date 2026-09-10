@@ -31,11 +31,13 @@ export const SUPPORT_COPY = {
    * feature the product does not have — behaviour wins, including on which
    * surfaces exist at all.
    *
-   * The real channels are the two in shared `APP_INFO.support`, and they are
-   * named here rather than only on the FAQ page: someone stuck on the wallet
-   * guide is exactly as stuck as someone stuck on the FAQ, and this rail is on
-   * every support page. (The FAQ page carried the email before #13 and the
-   * port dropped it — this is where it comes back.)
+   * The real channels are the three the brand actually staffs — the two in
+   * shared `APP_INFO.support` plus the Telegram group, which is filed under
+   * `social` but is the same channel Terms and Privacy tell a reader to ask on.
+   * They are named here rather than only on the FAQ page: someone stuck on the
+   * wallet guide is exactly as stuck as someone stuck on the FAQ, and this rail
+   * is on every support page. (The FAQ page carried the email before #13 and
+   * the port dropped it — this is where it comes back.)
    */
   stuckNote: 'Still stuck? No account needed to ask a person:',
 } as const

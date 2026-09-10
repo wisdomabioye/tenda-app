@@ -1,6 +1,6 @@
 import { View, ScrollView, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { MessageCircle, Mail, Globe, Hash, Camera } from 'lucide-react-native'
+import { MessageCircle, Send, Mail, Globe, Hash, Camera } from 'lucide-react-native'
 import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { InfoCard, ContactRow } from '@/components/support'
@@ -50,6 +50,17 @@ export default function FaqScreen() {
             value="Chat with us"
             url={APP_INFO.support.whatsapp}
             tone="success"
+          />
+          {/* Beside WhatsApp, not with the social rows below it: this group is
+              a place to ask for help, and it is the channel Terms and Privacy
+              already point a reader at. It reads from `social.telegram`
+              because that is where the URL lives — one constant per link. */}
+          <ContactRow
+            Icon={Send}
+            label="Telegram"
+            value="Ask in the group"
+            url={APP_INFO.social.telegram}
+            tone="brand"
           />
           <ContactRow
             Icon={Mail}

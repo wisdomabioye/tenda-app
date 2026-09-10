@@ -62,7 +62,7 @@ describe('SupportNav', () => {
   it('sends a stuck reader to a channel that EXISTS', () => {
     // The comp says "open a support thread from Settings". There is no such
     // thread — Settings' only support affordance links back to /support, so
-    // following it walks the reader in a circle. These two are real.
+    // following it walks the reader in a circle. These three are real.
     render(<SupportNav current={null} />)
     expect(screen.getByRole('link', { name: APP_INFO.support.email })).toHaveAttribute(
       'href',
@@ -72,6 +72,31 @@ describe('SupportNav', () => {
       'href',
       APP_INFO.support.whatsapp,
     )
+    expect(screen.getByRole('link', { name: 'Telegram group' })).toHaveAttribute(
+      'href',
+      APP_INFO.social.telegram,
+    )
+  })
+
+  /**
+   * Every channel in the block leaves the app, so every one of them needs the
+   * new-tab pair — a reader mid-guide must not lose the guide to open a chat.
+   * Asserted over the rendered anchors rather than a list this test writes, so
+   * a fourth channel added without them fails here.
+   */
+  it('opens each outbound channel in a new tab, safely', () => {
+    render(<SupportNav current={null} />)
+    // The note's own parent — the contact block. One level higher is the whole
+    // nav, whose in-app topic links are correctly NOT new-tab.
+    const block = screen.getByText(SUPPORT_COPY.stuckNote).parentElement
+    const outbound = Array.from(block?.querySelectorAll('a') ?? []).filter(
+      (a) => !a.getAttribute('href')?.startsWith('mailto:'),
+    )
+    expect(outbound.length).toBeGreaterThan(1)
+    for (const a of outbound) {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a).toHaveAttribute('rel', 'noreferrer')
+    }
   })
 
   it('never points a stuck reader back at /support or at Settings', () => {

@@ -9,7 +9,9 @@ import { FAQ_CATEGORIES } from '../index'
  * reaches the DOM.
  *
  * The absent-list is not a style guide. Each entry is a specific claim that was
- * on this page and was false against the contracts or the server:
+ * on this page and was either false against the contracts or the server, or a
+ * promise this site does not keep — the last two are that second kind, and the
+ * reason string says which:
  *
  *   - the platform fee was said to be borne by posters, with "workers and
  *     buyers pay 0%", while `_settleToCounterparty` pays the worker
@@ -22,7 +24,10 @@ import { FAQ_CATEGORIES } from '../index'
  *   - disputes were said to "release SOL", wrong on every chain;
  *   - the dispute bond was promised back to a good-faith raiser; the contract
  *     pays it to the WINNER;
- *   - Google/Apple sign-in was offered while neither provider is configured.
+ *   - Google/Apple sign-in was offered while neither provider is configured;
+ *   - "Read them" answered the verify-the-contracts question, naming the
+ *     licence, the languages and the test suites, while no surface of the site
+ *     links a repository — an instruction with nowhere to go.
  *
  * A hit here means the page has started lying again in a way that already cost
  * one audit to find.
@@ -52,6 +57,8 @@ const RETIRED_CLAIMS: ReadonlyArray<readonly [string, string]> = [
   ['comes back to you', 'dispute bond promised back to its raiser'],
   ['google or apple', 'sign-in providers that are not configured'],
   ['address for each chain is published', 'contract addresses the page does not publish'],
+  ['open source under apache-2.0', 'source the page gives a reader no way to open'],
+  ['source you just read', 'a read the page never offered'],
 ]
 
 const REQUIRED_CLAIMS: ReadonlyArray<readonly [string, string]> = [

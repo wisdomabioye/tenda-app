@@ -54,14 +54,4 @@ describe('release facts', () => {
     expect(APP_INFO.chains.networksLine).toBe(CHAIN_NAMES_LINE)
     expect(APP_INFO.about).toContain(CHAIN_NAMES_LINE)
   })
-
-  /**
-   * The FAQ tells readers the source is open and forkable, which is only true
-   * with somewhere to read it. '#' was the value that made that a dead promise.
-   */
-  it('points the source links somewhere real', () => {
-    for (const url of [APP_INFO.githubUrl, APP_INFO.chains.contractsUrl]) {
-      expect(url).toMatch(/^https:\/\//)
-    }
-  })
 })
