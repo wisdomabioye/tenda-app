@@ -34,6 +34,7 @@ import { ASSET_ROLES, CHAIN_KINDS, ESCROW_LIMITS, apiRoutes, type ChainRegistryE
 import { chainNamespaceEnum } from '@tenda/shared/db/schema'
 import { allKeys, closedFor, nullable, ref, type PlatformComponentName, type SchemaObject } from './schema-types'
 import { json, type PathItem } from './paths'
+import { blocks } from './prose'
 import { chainIdShape } from './scalars'
 
 /**
@@ -125,7 +126,12 @@ export const AGENT_API_PLATFORM_PATHS: Readonly<Record<string, PathItem>> = {
       operationId: 'listChains',
       summary: 'The chains THIS deployment settles on, and which of them can relay',
       description:
-        'Anonymous, and per-deployment: a chain appears only when this server holds its configuration, can build and verify transactions on it and can read its contract\'s review window, so testnet and mainnet deployments answer differently. Listed is NOT the same as fundable by the one-shot: `relayed_funding_available` says whether POST /v1/agent/tasks can fund a task there; false answers 503 RELAY_UNAVAILABLE. Read it before choosing `chain_id` or `asset` — those are shape-checked, not enumerated, because THIS is the list — and pick a chain with it true. On testnets `faucet_url` is where the test USDC comes from.',
+        blocks(
+          '**Anonymous, and per-deployment.** A chain appears here only when this server holds its configuration, can build and verify transactions on it, and can read its contract\'s review window — so a testnet deployment and a mainnet one answer differently.',
+          `**Listed is NOT the same as fundable.** \`relayed_funding_available\` says whether \`POST ${apiRoutes.agent.tasks}\` can fund a task on that chain; where it is false, the post answers **503** \`RELAY_UNAVAILABLE\`.`,
+          '**Read this before choosing `chain_id` or `asset`.** Both are shape-checked rather than enumerated, because THIS is the list — so pick a chain whose `relayed_funding_available` is true.',
+          'On testnets, `faucet_url` is where the test USDC comes from.',
+        ),
       tags: ['platform'],
       responses: { '200': { description: 'The enabled chains and their enabled assets', content: json(ref('ChainRegistry')) } },
     },

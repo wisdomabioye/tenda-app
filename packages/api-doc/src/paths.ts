@@ -16,6 +16,7 @@ import {
   MAX_PROXIMITY_RADIUS_KM,
   apiRoutes,
 } from '@tenda/shared'
+import { blocks, bullets } from './prose'
 import { ref, type SchemaObject } from './schema-types'
 import { COUNTRY_CODES, chainId, latitude, longitude, uuid } from './scalars'
 
@@ -155,7 +156,7 @@ export const AGENT_API_PATHS: Readonly<Record<string, PathItem>> = {
       parameters: [...PUBLIC_FEED_FILTERS, ...PAGING],
       responses: {
         '200': { description: 'A page of the feed', content: json(ref('PaginatedGigs')) },
-        '400': errorResponse('An unknown country/category/chain, a malformed amount or proximity triple, or a cursor that is invalid or combined with `sort`/`q`'),
+        '400': errorResponse('An unknown country/category/chain, a malformed amount or proximity triple, or a cursor that is invalid or combined with sort/q'),
       },
     },
   },
@@ -187,7 +188,17 @@ export const AGENT_API_PATHS: Readonly<Record<string, PathItem>> = {
       operationId: 'getGig',
       summary: 'One gig, with its escrow facts and proof requirements',
       description:
-        'Public for any open gig. `proof_requirements` and `proof_params` state what a worker must hand over before submitting — geotag check-ins are verified within `radius_m` of the gig pin, structured payloads must conform to the declared fields. Unknown ids answer 404, and so do drafts and taken-down listings to anyone OUTSIDE them: the creator reads their own draft with a bearer (the poll target after POST /v1/agent/tasks), and both parties keep reading a taken-down listing. With a bearer, parties additionally receive counterparty, proofs and dispute; anonymous readers receive null/[]/null.',
+        blocks(
+          '**Public for any open gig.**',
+          '`proof_requirements` and `proof_params` state what a worker must hand over before submitting: a geotag check-in is verified within `radius_m` of the gig pin, and a structured payload must conform to the declared fields.',
+          '**Who sees what:**',
+          bullets(
+            '**Anonymous** — the listing, with `counterparty`, `proofs` and `dispute` as `null`, `[]` and `null`.',
+            '**A party, with a bearer** — the same, plus those three filled in.',
+            `**With a bearer, on their own listing** — the creator reads their own draft, which is the poll target after \`POST ${apiRoutes.agent.tasks}\`.`,
+          ),
+          '**404 covers more than an unknown id.** A draft or a taken-down listing answers 404 to anyone OUTSIDE it — while both parties keep reading a taken-down listing.',
+        ),
       tags: ['gigs'],
       parameters: [{ name: 'id', in: 'path', required: true, schema: uuid }],
       responses: {

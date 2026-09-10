@@ -31,6 +31,23 @@ pnpm --filter tenda-docs lint
 pnpm --filter tenda-docs type-check
 ```
 
+## Configuration
+
+One variable, read in `src/env.ts`:
+
+| Variable | Effect |
+|---|---|
+| `VITE_API_BASE_URL` | The origin every documented path hangs off. The page PRINTS it under **Base URL**, the copy control beside each endpoint builds a full URL from it, and the Run console sends there. Trailing slashes are stripped. |
+
+**Unset it falls back to `http://localhost:3000`** — right for `pnpm dev`, wrong
+for a deployed page, which would otherwise tell every reader the API is at
+their own machine. That failure is not silent: a build with no configured
+origin renders a warning under Base URL naming the variable to set. If you see
+that warning on a deployed page, the host is missing the variable.
+
+Vite reads it at BUILD time, not at run time, so changing it on the host means
+a rebuild — `dist/` has the value baked in.
+
 ## Deploying it
 
 `dist/` is a plain static site with **relative** asset URLs and no server-side
@@ -45,6 +62,8 @@ Point the host at:
 - output directory: `apps/docs/dist`
 - install command: `pnpm install --frozen-lockfile` (the build needs
   `@tenda/shared` and `@tenda/api-doc` from the workspace)
+- environment: `VITE_API_BASE_URL` (see **Configuration** — without it the
+  published page advertises `http://localhost:3000` as the API and says so)
 
 It is one page with in-page anchors, so it needs **no rewrite rules**: a deep
 link is a fragment, and a refresh cannot land on a path the host has to

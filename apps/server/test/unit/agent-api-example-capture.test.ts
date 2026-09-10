@@ -20,13 +20,17 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { apiRoutes, findChain } from '@tenda/shared'
 import { AGENT_API_DOCUMENT, RECORDED_EXCHANGE } from '@tenda/api-doc'
+import { plainProse } from '../helpers/document-prose'
 
 test('#133: the operation labels the example as a local-node capture and points at the registry for live addresses', () => {
-  const description = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post?.description ?? ''
-  assert.match(description, /CAPTURE, not defaults/)
+  // Read through `plainProse`: the label is now a bold sentence and the four
+  // field names are code spans, and a guard that matched the raw string would
+  // be asserting the markdown rather than the warning.
+  const description = plainProse(AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post?.description ?? '')
+  assert.match(description, /capture, not defaults/)
   assert.match(description, /local node/)
-  assert.match(description, /token and escrow ADDRESSES are that node's/)
-  assert.match(description, new RegExp(`escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}`))
+  assert.match(description, /token and escrow addresses are that node's/)
+  assert.match(description, new RegExp(`escrow_address for this deployment from get ${apiRoutes.platform.chains}`))
 })
 
 test('#133: the recorded addresses are NOT the manifest\'s for the chain id they carry — which is why the label exists', () => {

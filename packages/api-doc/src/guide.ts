@@ -23,8 +23,14 @@ import {
   X_PAYMENT_RESPONSE_HEADER,
 } from '@tenda/shared'
 
-/** OpenAPI spells a path parameter `{id}`; the route constants spell it `:id`. */
-const documented = (route: string): string => route.replace(/:([A-Za-z_]+)/g, '{$1}')
+/**
+ * OpenAPI spells a path parameter `{id}`; the route constants spell it `:id`.
+ *
+ * Exported because the operation descriptions send a reader to paths too, and
+ * a second copy of this rule is how one of the two starts spelling a parameter
+ * the way the document does not.
+ */
+export const documented = (route: string): string => route.replace(/:([A-Za-z_]+)/g, '{$1}')
 
 /**
  * The guide's ITINERARY — the paths a reader is sent to act on, in the

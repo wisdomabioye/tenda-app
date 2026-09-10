@@ -9,7 +9,24 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { App } from '@/App'
-import { anchorFor, apiDocument, operationsByTag } from '@/lib/document'
+import { DOCS_COPY } from '@/content'
+import { apiBaseUrl } from '@/env'
+import { STABILITY_FIELD, anchorFor, apiDocument, operationsByTag } from '@/lib/document'
+import { splitGuarantee } from '@/lib/guarantee'
+
+/**
+ * The document's markdown as the PAGE renders it. `**` and backticks are
+ * markers, not text, so the rendered row carries the words and neither of
+ * them — but ONLY as delimiters: the auth guarantee contains
+ * `POST /v1/agent/*`, whose asterisk is part of the path. Code spans are
+ * unwrapped FIRST for exactly that reason, so what they hold is text by the
+ * time emphasis is looked for.
+ *
+ * Compared whole rather than by fragment, so a promise that silently fails to
+ * render cannot pass by containing one matching word.
+ */
+const asRendered = (markdown: string): string =>
+  markdown.replace(/`([^`]*)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1')
 
 describe('the docs page', () => {
   it('names the document and the version an agent is integrating against', () => {
@@ -43,15 +60,33 @@ describe('the docs page', () => {
     expect(prose?.textContent ?? '').not.toContain('**')
   })
 
+  it('tells a reader WHERE to send the paths it lists', () => {
+    // Every path on this page is relative. Without the origin a reader has the
+    // whole contract and nowhere to send it — which is how the page shipped.
+    render(<App />)
+    expect(screen.getByRole('heading', { name: DOCS_COPY.baseUrl })).toBeTruthy()
+    expect(screen.getByText(apiBaseUrl())).toBeTruthy()
+  })
+
   it('shows the guide itself, not just the purpose line', () => {
     render(<App />)
     expect(screen.getByRole('heading', { name: /Posting a task, end to end/i })).toBeTruthy()
   })
 
   it('states every stability guarantee the document publishes', () => {
+    // Asserted through the SPLIT, because the page no longer prints the raw
+    // string: each guarantee's subject is lifted into a label and its promise
+    // rendered as markup. Both halves must still be on the page — a guarantee
+    // that renders as a label with nothing under it, or a promise with its
+    // subject dropped, is a guarantee the reader half has.
     render(<App />)
-    for (const line of apiDocument.info['x-tenda-stability']) {
-      expect(screen.getByText(line)).toBeTruthy()
+    for (const line of apiDocument.info[STABILITY_FIELD]) {
+      const { subject, body } = splitGuarantee(line)
+      expect(screen.getByText(subject ?? ''), `no subject for "${line}"`).toBeTruthy()
+      expect(
+        screen.getByText((_content, element) => element?.textContent === asRendered(body)),
+        `no promise for "${subject ?? ''}"`,
+      ).toBeTruthy()
     }
   })
 

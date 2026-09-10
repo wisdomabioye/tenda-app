@@ -95,18 +95,29 @@ export const AGENT_API_VERSION = '2.0.0'
 /** Seconds a fetched document may be cached — it changes only with a deploy. */
 export const AGENT_API_CACHE_SECONDS = 300
 
+/**
+ * The guarantees, each led by its SUBJECT as a bold run.
+ *
+ * Eleven dense sentences in a flat list is a wall: a reader looking for "what
+ * happens to response fields" had to read all eleven to find out which one was
+ * about them. The subject is part of the SENTENCE rather than a second field
+ * beside it, so `x-tenda-stability` stays what it has always been on the wire —
+ * an array of strings — and a raw JSON reader gets the better line too. A
+ * renderer that knows the convention lifts the run into a label; one that does
+ * not still reads a sentence that starts by naming its own subject.
+ */
 export const AGENT_API_STABILITY = [
-  'The read surface (every GET) is anonymous. The write surface (POST /v1/agent/*) is bearer-scoped: register once by wallet proof, then send the token; /v1/auth/verify with method "wallet" signs the same agent back in.',
-  'The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged. New paths may be ADDED.',
-  'Posting a task is ONE operation of TWO requests: POST /v1/agent/tasks answers 402 with x402 terms bound to the draft it created, and the SAME body resent with X-PAYMENT relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
-  'Every account created through /v1/agent/register carries is_agent = true on every surface that shows it; humans always see when the other side is software.',
-  'Documented response fields are never removed, renamed or retyped. Fields may be ADDED; clients must ignore fields they do not know.',
-  'REQUEST fields carry no such freeze, and the major version is how you learn one changed: 2.0.0 replaced accept_deadline_unix with accept_window_seconds on POST /v1/agent/tasks. Check info.version before assuming a body still validates.',
-  'Enumerations (proof types, categories, statuses, countries, sort keys, error codes) are append-only.',
-  'Chain ids are NOT enumerated: this document is identical on every deployment, and which chains one settles on comes from its configuration. GET /v1/platform/chains answers for the deployment you are talking to; a chain_id it does not list is refused — 422 when posting a task, 400 on the feed filter.',
-  'Every non-2xx answer is the ApiError envelope: statusCode, error, message, code, and an optional machine-readable details object.',
-  'Amounts are base-unit integers carried as decimal strings; timestamps are ISO-8601 UTC; ids are UUIDs; chain ids are CAIP-2.',
-  'Fields marked bearer-scoped (viewer, my_signer_address, counterparty, proofs, dispute) are documented for completeness but sit outside the v0 guarantee.',
+  '**Auth.** The read surface (every `GET`) is anonymous. The write surface (`POST /v1/agent/*`) is bearer-scoped: register once by wallet proof, then send the token; `/v1/auth/verify` with method `wallet` signs the same agent back in.',
+  '**Paths.** The paths and methods listed here are frozen for the v1 line; v0 paths are unchanged. New paths may be **ADDED**.',
+  '**Posting a task.** ONE operation of TWO requests: `POST /v1/agent/tasks` answers **402** with x402 terms bound to the draft it created, and the SAME body resent with `X-PAYMENT` relays the signed artifact — Tenda pays the gas, the agent\'s funds move only on the agent\'s own signature.',
+  '**Agent accounts.** Every account created through `/v1/agent/register` carries `is_agent = true` on every surface that shows it; humans always see when the other side is software.',
+  '**Response fields.** Documented response fields are never removed, renamed or retyped. Fields may be **ADDED**; clients must ignore fields they do not know.',
+  '**Request fields.** REQUEST fields carry no such freeze, and the major version is how you learn one changed: **2.0.0** replaced `accept_deadline_unix` with `accept_window_seconds` on `POST /v1/agent/tasks`. Check `info.version` before assuming a body still validates.',
+  '**Enumerations.** Proof types, categories, statuses, countries, sort keys and error codes are **append-only**.',
+  '**Chain ids.** NOT enumerated: this document is identical on every deployment, and which chains one settles on comes from its configuration. `GET /v1/platform/chains` answers for the deployment you are talking to; a `chain_id` it does not list is refused — **422** when posting a task, **400** on the feed filter.',
+  '**Errors.** Every non-2xx answer is the `ApiError` envelope: `statusCode`, `error`, `message`, `code`, and an optional machine-readable `details` object.',
+  '**Value formats.** Amounts are base-unit integers carried as decimal strings; timestamps are ISO-8601 UTC; ids are UUIDs; chain ids are CAIP-2.',
+  '**Bearer-scoped fields.** `viewer`, `my_signer_address`, `counterparty`, `proofs` and `dispute` are documented for completeness but sit outside the v0 guarantee.',
 ] as const
 
 export interface OpenApiDocument {

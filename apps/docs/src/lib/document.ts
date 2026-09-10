@@ -29,6 +29,12 @@ export interface TaggedOperations {
   operations: readonly ListedOperation[]
 }
 
+/**
+ * Where the guarantees live in the document — named once, so the page can tell
+ * a reader which field to read in the JSON without a second copy of the key.
+ */
+export const STABILITY_FIELD = 'x-tenda-stability'
+
 /** An anchor a reader can link to and a heading can carry. */
 export const anchorFor = (operationId: string): string => `op-${operationId}`
 

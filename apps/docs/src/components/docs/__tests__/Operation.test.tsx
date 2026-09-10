@@ -3,11 +3,20 @@
  * an operation with no parameters, one that needs a token, and — the point of
  * this redesign — a body under EVERY status it can answer with.
  */
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OperationObject } from '@tenda/api-doc'
+import { DOCS_COPY } from '@/content'
+import { apiBaseUrl } from '@/env'
 import { Operation } from '@/components/docs/Operation'
-import { apiDocument } from '@/lib/document'
+import { anchorFor, apiDocument } from '@/lib/document'
+
+/** jsdom exposes no clipboard; the copy case installs the one it needs. */
+function installClipboard(writeText: (text: string) => Promise<void>): void {
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+}
+
+afterEach(() => { Reflect.deleteProperty(navigator, 'clipboard') })
 
 const schemas = apiDocument.components.schemas
 
@@ -156,7 +165,33 @@ describe('Operation', () => {
       />,
     )
     expect(screen.getByText('Parameters')).toBeTruthy()
-    expect(screen.getByText(/query · required/)).toBeTruthy()
+    // Two marks, not one pre-joined string: a reader scanning for the required
+    // parameters should not have to read each qualifier to find them.
+    expect(screen.getByText('query')).toBeTruthy()
+    expect(screen.getByText(DOCS_COPY.required)).toBeTruthy()
     expect(screen.getByText('Where to resume')).toBeTruthy()
+  })
+
+  it('copies the FULL URL, not the path a reader cannot send anything to', async () => {
+    // The complaint this answers: the endpoint was selectable text and nothing
+    // more. A path alone is useless in the other window — it needs the host
+    // this build is pointed at, which is what the console uses too.
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+    installClipboard(writeText)
+
+    render(<Operation method="POST" path="/v1/sample" operation={base} schemas={schemas} />)
+    fireEvent.click(screen.getByRole('button', { name: DOCS_COPY.copyEndpoint }))
+
+    await waitFor(() => { expect(writeText).toHaveBeenCalledWith(`${apiBaseUrl()}/v1/sample`) })
+  })
+
+  it('offers a link to this operation alone, so one endpoint can be handed to someone', () => {
+    const { container } = render(<Operation method="GET" path="/v1/sample" operation={base} schemas={schemas} />)
+    const anchor = anchorFor(base.operationId)
+    const link = container.querySelector(`a[href="#${anchor}"]`)
+    expect(link, 'no permalink to this operation').not.toBeNull()
+    // Named for the operation, not "#": a screen reader reading a page of
+    // these hears the same character over and over otherwise.
+    expect(link?.getAttribute('aria-label') ?? '').toContain(base.summary)
   })
 })

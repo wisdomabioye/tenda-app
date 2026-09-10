@@ -10,12 +10,12 @@
  * static host, and a client router would need a rewrite rule to survive a
  * refresh — the platform coupling this build avoids.
  */
-import { DOCS_COPY } from '@/content'
-import { apiDocument, operationsByTag } from '@/lib/document'
+import { STABILITY_FIELD, apiDocument, operationsByTag } from '@/lib/document'
 import { useTheme } from '@/theme/useTheme'
 import { Header } from '@/components/layout/Header'
 import { Rail } from '@/components/layout/Rail'
-import { SectionLabel } from '@/components/ui/SectionLabel'
+import { BaseUrl } from '@/components/docs/BaseUrl'
+import { Guarantees } from '@/components/docs/Guarantees'
 import { Markdown } from '@/components/docs/Markdown'
 import { Operation } from '@/components/docs/Operation'
 
@@ -37,24 +37,15 @@ export function App() {
         <Rail tags={tags} />
 
         <main className="min-w-0">
+          {/* Before the guide: the guide's very first step is a POST, and a
+              reader who does not know the origin cannot take it. */}
+          <BaseUrl />
+
           {/* The document's own description — the integration guide since #157
               stage 3, so the page needs no walkthrough of its own. */}
-          <Markdown>{apiDocument.info.description}</Markdown>
+          <Markdown className="mt-8">{apiDocument.info.description}</Markdown>
 
-          <section className="mt-10" style={{ maxWidth: 'var(--measure)' }}>
-            <SectionLabel as="h2">{DOCS_COPY.guarantees}</SectionLabel>
-            <ul className="mt-3 grid gap-2 pl-0" style={{ listStyle: 'none', margin: '12px 0 0' }}>
-              {apiDocument.info['x-tenda-stability'].map((line) => (
-                <li
-                  key={line}
-                  className="border-l-2 pl-3 text-[13.5px] leading-[21px]"
-                  style={{ borderColor: 'var(--border-default)', color: 'var(--content-secondary)' }}
-                >
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Guarantees lines={apiDocument.info[STABILITY_FIELD]} />
 
           {tags.map((tag) => (
             <section key={tag.name} className="mt-14">

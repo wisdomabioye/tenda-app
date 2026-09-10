@@ -7,6 +7,14 @@
  * Two of them take a body and mint or spend a session (#19). The third takes
  * NOTHING (#108): a demo bearer, for the reader who has no wallet to prove and
  * would otherwise meet a 401 at the only endpoint that matters.
+ *
+ * An operation's `description` is CommonMark — OpenAPI says so, and both
+ * consumers render it as such. It is written as steps and branches rather than
+ * as one paragraph, because these three descriptions carry the whole posting
+ * flow and a reader who has to parse a slab of prose to find the resend rule
+ * will not find it. The RESPONSE descriptions stay plain sentences on purpose:
+ * they are quoted verbatim into the `message` of each sample error body, and
+ * markdown there would put backticks on the wire.
  */
 import {
   X402_VERSION,
@@ -17,7 +25,9 @@ import {
   RECONCILE_GIVE_UP_MS,
   RECONCILE_INTERVAL_MS,
 } from '@tenda/shared'
+import { documented } from './guide'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
+import { blocks, bullets, steps } from './prose'
 import { ref } from './schema-types'
 
 const BEARER = [{ bearer: [] as const }] as const
@@ -31,14 +41,19 @@ const BEARER = [{ bearer: [] as const }] as const
  * would poll a dead create forever. The cadence and the horizon are the
  * server's own constants, spelled from them so the sentence cannot drift from
  * the jobs it describes.
+ *
+ * One bullet per outcome: this is the part a caller writes a retry loop
+ * against, and a retry loop written from a paragraph gets the 409 wrong.
  */
-const LIFECYCLE_AFTER_201 =
-  `Poll no faster than every ${EVM_POLL_INTERVAL_MS / 1000} s, the cadence the server's own EVM listener polls at. ` +
-  `The relayed create can FAIL (the chain rejects it) or TIME OUT (not seen on chain within ${RECONCILE_GIVE_UP_MS / 60_000} minutes of the resend, ` +
-  `stamped by a sweep that runs every ${RECONCILE_INTERVAL_MS / 60_000} minutes — so allow up to ${(RECONCILE_GIVE_UP_MS + RECONCILE_INTERVAL_MS) / 60_000}); ` +
-  `in both cases the task stays status draft and becomes resendable: the SAME body WITHOUT ${X_PAYMENT_HEADER} answers a fresh 402 with fresh terms, ` +
-  `so a draft still reading draft past that horizon means resend, not wait. A resend WHILE the create is in flight is 409 — inside the horizon that means wait, past it retry after the next sweep. ` +
-  `The terms themselves lapse first — see accepts[0].expires_at_unix.`
+const LIFECYCLE_AFTER_201 = blocks(
+  `**After the 201.** Poll no faster than every ${EVM_POLL_INTERVAL_MS / 1000} s — the cadence the server's own EVM listener runs at.`,
+  bullets(
+    `The relayed create can **fail** (the chain rejects it) or **time out** (not seen on chain within ${RECONCILE_GIVE_UP_MS / 60_000} minutes of the resend, stamped by a sweep that runs every ${RECONCILE_INTERVAL_MS / 60_000} minutes — so allow up to ${(RECONCILE_GIVE_UP_MS + RECONCILE_INTERVAL_MS) / 60_000}).`,
+    `In both cases the task stays \`status: draft\` and becomes resendable: the **same body without** \`${X_PAYMENT_HEADER}\` answers a fresh 402 with fresh terms. A task still reading \`draft\` past that horizon means resend, not wait.`,
+    'A resend **while** the create is in flight is **409** — inside the horizon that means wait, past it retry after the next sweep.',
+    'The terms themselves lapse first: see `accepts[0].expires_at_unix`.',
+  ),
+)
 
 const paymentHeader: ParameterObject = {
   name: X_PAYMENT_HEADER,
@@ -49,14 +64,49 @@ const paymentHeader: ParameterObject = {
   schema: { type: 'string' },
 }
 
+const DEMO_SESSION_DESCRIPTION = blocks(
+  'No body, no signature, no account needed. Answers the same `{ token, user, is_new }` a registration does, so the very next call can carry `Authorization: Bearer <token>` and see the real 402 terms straight away.',
+  '**What this bearer can do:** be quoted terms, and hold drafts. That is the whole of it.',
+  '**Where it stops:**',
+  bullets(
+    '**It cannot fund anything.** The 201 needs an EIP-3009 signature from the key behind the demo address, and this server does not hold that key.',
+    '**It cannot keep your drafts.** The account is SHARED and rate-limited, and it keeps only its most recent ones — past the cap the oldest is discarded, so a `task_id` you were quoted may stop answering once other callers have posted.',
+    '**It cannot reach the public feed.** A task stays a draft until a confirmed on-chain create, and the feed shows only open ones.',
+  ),
+  `To post work a person can actually accept, register your own wallet with \`POST ${apiRoutes.agent.register}\`. Answers **503** where a deployment offers no demo.`,
+)
+
+const REGISTER_DESCRIPTION = blocks(
+  steps(
+    `\`POST ${apiRoutes.auth.nonce}\` for a nonce, and build the auth message it describes.`,
+    "Sign that message with the agent's key.",
+    'Send the proof here with a display name.',
+  ),
+  'What the wallet already is decides the answer:',
+  bullets(
+    '**Linked to no account** — creates an `is_agent` account and links the wallet as primary (`is_new: true`).',
+    '**Already linked to an agent** — signs it in (`is_new: false`).',
+    '**Belongs to a person** — refused with **409** `IDENTITY_ALREADY_LINKED`.',
+  ),
+  `The token is the bearer for every write. Later, \`POST ${apiRoutes.auth.verify}\` with method \`wallet\` signs the agent back in.`,
+)
+
+const TASK_DESCRIPTION = blocks(
+  '**The escrow terms and the listing in one body — quoted by one request, settled by the next.**',
+  `**1 — Quote.** Send the body without \`${X_PAYMENT_HEADER}\`. The server mints the draft (idempotent on \`creation_operation_id\`), attaches and moderates the listing, and answers **402** with \`task_id\` and \`accepts[0]\`: what to sign — EVM \`eth_signTypedData_v4\` over \`typed_data\`, or Solana one ed25519 signature over \`transaction\`.`,
+  `**2 — Settle.** Resend the **same body** with \`${X_PAYMENT_HEADER}\`. The server verifies the artifact against the terms the draft yields now, simulates, relays with its own wallet paying the gas, records the attempt, and answers **201**. \`${X_PAYMENT_RESPONSE_HEADER}\` carries base64 \`{ success, transaction, network, payer }\`.`,
+  `**3 — Poll until open.** The task is a draft until the chain confirms it. Read it back at \`GET ${documented(apiRoutes.gigs.get)}\` with that \`task_id\` and the bearer — that endpoint answers the creator's own draft — until \`status\` is \`open\`, when the listing is public.`,
+  LIFECYCLE_AFTER_201,
+  'Agent accounts only.',
+  `**The example is a CAPTURE, not defaults.** It was recorded on a local node presenting the chain id it shows, so its token and escrow ADDRESSES are that node's, not that chain's. Take \`chain_id\`, \`asset\`, \`token_address\` and \`escrow_address\` for THIS deployment from \`GET ${apiRoutes.platform.chains}\`.`,
+)
+
 export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
   [apiRoutes.agent.demoSession]: {
     post: {
       operationId: 'agentDemoSession',
       summary: 'START HERE if you have no wallet: a bearer for the shared demo agent',
-      description:
-        'No body, no signature, no account needed. Answers the same { token, user, is_new } a registration does, so the very next call can carry `Authorization: Bearer <token>` and see the real 402 terms straight away. That is as far as this bearer goes: the 201 needs an EIP-3009 signature from the key behind the demo address, and this server does not hold that key. The account is SHARED and rate-limited, and it is a demo in one specific sense: it can be quoted terms and it can hold drafts, but it cannot fund anything. It keeps only its most recent drafts: when a new task is minted past the cap the oldest is discarded, so a task_id you were quoted may stop answering once other callers have posted. Nothing it posts reaches the public feed either — a task stays a draft until a confirmed on-chain create, and the feed shows only open ones. To post work that a person can actually accept, register your own wallet with POST ' +
-        `${apiRoutes.agent.register}. Answers 503 where a deployment offers no demo.`,
+      description: DEMO_SESSION_DESCRIPTION,
       tags: ['agent'],
       responses: {
         '200': { description: 'A bearer for the shared demo agent', content: json(ref('AgentRegisterResponse')) },
@@ -68,8 +118,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
     post: {
       operationId: 'registerAgent',
       summary: 'Create (or sign in) an agent account by wallet proof',
-      description:
-        `POST ${apiRoutes.auth.nonce} for a nonce and build the auth message it describes, sign it with the agent's key, then send that proof here with a display name. A wallet linked to no account creates an is_agent account and links the wallet as primary (is_new: true); a wallet already linked to an agent signs it in (is_new: false); a wallet that belongs to a person is refused with 409 IDENTITY_ALREADY_LINKED. The token is the bearer for every write; POST ${apiRoutes.auth.verify} with method "wallet" signs the agent back in later.`,
+      description: REGISTER_DESCRIPTION,
       tags: ['agent'],
       requestBody: { required: true, content: json(ref('AgentRegisterBody')) },
       responses: {
@@ -85,8 +134,7 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
     post: {
       operationId: 'postAgentTask',
       summary: 'Post a task: mint the draft, take the 402 terms, resend signed, poll until open',
-      description:
-        `The escrow terms and the listing in one body. Without ${X_PAYMENT_HEADER} the server mints the draft (idempotent on creation_operation_id), attaches and moderates the listing, and answers 402 with accepts[0]: what to sign (EVM: eth_signTypedData_v4 over typed_data; Solana: one ed25519 signature over transaction) and task_id. Resend the SAME body with ${X_PAYMENT_HEADER} and the server verifies the artifact against the terms the draft yields now, simulates, relays with its own wallet paying gas, records the attempt and answers 201; ${X_PAYMENT_RESPONSE_HEADER} carries base64 { success, transaction, network, payer }. The task is a draft until the chain confirms — poll GET /v1/gigs/{id} with that task_id and the bearer (it answers the creator's own draft) until status is open, when the listing is public. ${LIFECYCLE_AFTER_201} Agent accounts only. The example is a CAPTURE, not defaults: recorded on a local node presenting the chain id it shows, so its token and escrow ADDRESSES are that node's, not that chain's. Take chain_id, asset, token_address and escrow_address for THIS deployment from GET ${apiRoutes.platform.chains}.`,
+      description: TASK_DESCRIPTION,
       tags: ['agent'],
       security: BEARER,
       parameters: [paymentHeader],

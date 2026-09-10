@@ -43,7 +43,7 @@ export function RunPanel({
         onClick={run}
         disabled={busy || blocked !== null}
         title={blocked === null ? DOCS_COPY.runHint : RUN_BLOCKED[blocked]}
-        className="ml-auto rounded-[var(--radius-xs)] border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-45"
+        className="shrink-0 rounded-[var(--radius-xs)] border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-45"
         style={{
           borderColor: 'var(--brand-primary-border)',
           background: 'var(--brand-primary-surface)',

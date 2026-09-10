@@ -10,15 +10,17 @@
  * A row also carries the HEADERS its status declares. Only one response has
  * any — the 201's settlement receipt — and it is declared there because prose
  * alone left two reviewers unable to confirm it comes back (#111).
+ *
+ * The rows are ruled and boxed as ONE table rather than stacked with a gap
+ * between them: seven answers with a sample each is the longest thing on the
+ * page, and the reader scanning for the one they got needs the statuses to
+ * line up. ResponseRow owns what a single row does.
  */
 import type { ResponseObject } from '@tenda/api-doc'
 import { DOCS_COPY } from '@/content'
-import { sampleForResponse, type SchemaBook } from '@/lib/sample'
-import { Chip } from '@/components/ui/Chip'
-import { FieldList } from '@/components/ui/FieldList'
+import type { SchemaBook } from '@/lib/sample'
 import { SectionLabel } from '@/components/ui/SectionLabel'
-import { toneForStatus } from '@/components/ui/status-tone'
-import { CodeBlock } from '@/components/ui/CodeBlock'
+import { ResponseRow } from './ResponseRow'
 
 export function ResponseList({
   responses,
@@ -28,36 +30,16 @@ export function ResponseList({
   schemas: SchemaBook
 }) {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2">
       <SectionLabel as="h4">{DOCS_COPY.responses}</SectionLabel>
-      {Object.entries(responses).map(([status, response]) => {
-        const sample = sampleForResponse(status, response, schemas)
-        return (
-          <div key={status} className="grid gap-2">
-            <div className="flex flex-wrap items-baseline gap-2.5">
-              <Chip tone={toneForStatus(status)}>{status}</Chip>
-              <span className="text-[13px]" style={{ color: 'var(--content-secondary)' }}>
-                {response.description}
-              </span>
-            </div>
-            {response.headers !== undefined && (
-              <FieldList
-                fields={Object.entries(response.headers).map(([name, header]) => ({
-                  name,
-                  meta: DOCS_COPY.responseHeader,
-                  description: header.description,
-                }))}
-              />
-            )}
-            {sample !== null && (
-              <CodeBlock
-                value={sample.value}
-                label={sample.source === 'recorded' ? DOCS_COPY.sampleRecorded : DOCS_COPY.sampleDerived}
-              />
-            )}
-          </div>
-        )
-      })}
+      <div
+        className="ruled-rows grid overflow-hidden rounded-[var(--radius-sm)] border"
+        style={{ borderColor: 'var(--border-default)' }}
+      >
+        {Object.entries(responses).map(([status, response]) => (
+          <ResponseRow key={status} status={status} response={response} schemas={schemas} />
+        ))}
+      </div>
     </section>
   )
 }

@@ -19,6 +19,7 @@ import { RELAY_QUOTE_TTL_SECONDS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, X_PAYMENT_H
 import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
 import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
 import { AGENT_API_DOCUMENT, AGENT_API_POST, AGENT_API_STABILITY } from '@tenda/api-doc'
+import { plainProse } from '../helpers/document-prose'
 
 const task = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
 assert.ok(task !== undefined, 'the task operation is documented')
@@ -51,12 +52,17 @@ test('#146 (3): the operation names the poll cadence and the give-up horizon, fr
 })
 
 test('#144 document half: the failure branch after the 201 is stated — fail, time out, resend fresh, 409 in flight', () => {
-  const text = task.description
-  assert.match(text, /can FAIL \(the chain rejects it\) or TIME OUT/)
-  assert.match(text, /stays status draft and becomes resendable/)
-  assert.match(text, new RegExp(`SAME body WITHOUT ${X_PAYMENT_HEADER} answers a fresh 402`))
+  // Read through `plainProse`. Every clause below is the SAME clause this
+  // guard has always asserted; what changed is that the description is now
+  // written as CommonMark, so the emphasis these phrases carried in capitals
+  // is carried by `**` instead. The phrases stay whole — a fact dropped still
+  // fails here — but whether a word is bold is not this test's business.
+  const text = plainProse(task.description)
+  assert.match(text, /can fail \(the chain rejects it\) or time out/)
+  assert.match(text, /stays status: draft and becomes resendable/)
+  assert.match(text, new RegExp(`same body without ${X_PAYMENT_HEADER} answers a fresh 402`))
   assert.match(text, /resend, not wait/)
-  assert.match(text, /WHILE the create is in flight is 409/)
+  assert.match(text, /while the create is in flight is 409/)
   assert.match(text, /expires_at_unix/, 'it points at the terms\' own lapse')
 })
 
