@@ -17,15 +17,16 @@ import {
   classifyTransactionGateError,
   errorMessage,
   isTakedownRefusal,
+  isUserRejection,
   TAKEDOWN_REFUSED_MESSAGE,
   TRANSACTION_GATE_MESSAGE,
+  TX_FAILURE_FALLBACK,
+  transactionFailureMessage,
   transactionGateRoute,
   WalletError,
+  WC_CANCELLED_MESSAGE,
 } from '@tenda/shared'
 import { showToast } from '@/components/ui'
-
-/** The generic last resort, when the failure named nothing of its own. */
-const FALLBACK = 'Transaction failed, please try again'
 
 // Not exported: nothing outside names it, and the two hook-argument interfaces
 // next door (`UseApplicationsArgs`, `UseGigApprovalFlowArgs`) are unexported for
@@ -62,10 +63,14 @@ export function surfaceTransitionFailure(
     navigate(transactionGateRoute(gate))
     return false
   }
-  // Guard exits (Cancel button / lost wallet response) are expected paths, not
-  // failures — the message already says whether the tx may still sync.
-  if (error instanceof WalletError && (error.code === 'declined' || error.code === 'timeout')) {
-    showToast('info', error.message)
+  // Guard exits (Cancel button / lost wallet response) and a wallet-side
+  // refusal are expected paths, not failures — the message already says
+  // whether the tx may still sync. `isUserRejection` answers for BOTH the
+  // typed WalletError('declined') and the raw EIP-1193 4001 the provider
+  // throws: only the network SWITCH mapped that one, so declining the
+  // transaction ITSELF used to fall through to the generic line below.
+  if (isUserRejection(error) || (error instanceof WalletError && error.code === 'timeout')) {
+    showToast('info', transactionFailureMessage(error) || WC_CANCELLED_MESSAGE)
     return false
   }
   // Taken down (CO1) while this screen was open: the refusal is the FIRST the
@@ -87,6 +92,9 @@ export function surfaceTransitionFailure(
     onStale?.()
     return false
   }
-  showToast('error', errorMessage(error) || FALLBACK)
+  // `transactionFailureMessage`, not `errorMessage`: a wallet rejects with a
+  // plain JSON-RPC object, so the reason it gave is not carried on an Error
+  // and was being dropped for the generic fallback.
+  showToast('error', transactionFailureMessage(error) || TX_FAILURE_FALLBACK)
   return false
 }

@@ -214,6 +214,7 @@ export {
 export { APP_INFO, GUARANTEE_WITHOUT_HOURS, guaranteeAfter, guaranteeForWindows, type AppInfo } from './app-info'
 export {
   TX_PROGRESS_LABEL,
+  TX_FAILURE_FALLBACK,
   WALLET_OPEN_NOTE,
   isGatedTxAction,
   txConfirmCopy,

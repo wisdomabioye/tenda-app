@@ -17,15 +17,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   PROOF_COPY,
-  TAKEDOWN_REFUSED_MESSAGE,
-  TRANSACTION_GATE_MESSAGE,
-  WalletError,
-  classifyTransactionGateError,
   errorMessage,
   findChain,
-  isTakedownRefusal,
   requiredWalletOf,
-  transactionGateRoute,
   type EscrowTxType,
   type EscrowProofUpload,
   type TransactionProgressPhase,
@@ -42,6 +36,7 @@ import { connectAsWallet } from '@/wallet/send'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { showToast } from '@/components/ui/Toast'
+import { surfaceTransitionFailure } from '@/features/escrow/transition-failure'
 import { attachedProofUrls, persistEscrowProofs } from '@/lib/uploads/escrow-proofs'
 import { proofHashFor } from './proof-hash'
 
@@ -170,29 +165,11 @@ export function useEscrowActions({
       return true
     } catch (e) {
       setPhase('idle')
-      // First-transaction gate (9D): route to link-wallet / verify-contact
-      // instead of a dead-end toast.
-      const gate = classifyTransactionGateError(e)
-      if (gate !== null) {
-        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
-        return false
-      }
-      // Guard exits (Cancel / lost wallet response) are expected paths.
-      if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
-        showToast('info', e.message)
-        return false
-      }
-      // Taken down (CO1) while this screen was open: re-read so the button
-      // the user just pressed stops being offered. The server's message is
-      // preferred; the fallback is the SHARED constant the server sends.
-      if (isTakedownRefusal(e)) {
-        showToast('error', errorMessage(e) || TAKEDOWN_REFUSED_MESSAGE)
-        onStale?.()
-        return false
-      }
-      showToast('error', errorMessage(e) || 'Transaction failed, please try again')
-      return false
+      // One decision, in one place — and the same one mobile makes.
+      return surfaceTransitionFailure(e, {
+        navigate: (route) => router.push(route),
+        ...(onStale !== undefined ? { onStale } : {}),
+      })
     } finally {
       setBusyAction(null)
     }

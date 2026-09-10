@@ -217,6 +217,18 @@ function buildCopy(action: EscrowTxType, ctx: TxConfirmContext): TxConfirmCopy |
  */
 const SUCCESS_FALLBACK = 'Transaction confirmed'
 
+/**
+ * The last resort when a transition failed and the thrown value named no
+ * reason of its own — the failure twin of SUCCESS_FALLBACK.
+ *
+ * HERE rather than in each client because it is the one line in
+ * `surfaceTransitionFailure` that was NOT shared: that function's two other
+ * fallbacks (`WC_CANCELLED_MESSAGE`, `TAKEDOWN_REFUSED_MESSAGE`) already come
+ * from this package, so web and mobile each declared this sentence themselves
+ * and could drift on it with nothing to catch the miss.
+ */
+export const TX_FAILURE_FALLBACK = 'Transaction failed, please try again'
+
 const GIG_SUCCESS: Partial<Record<EscrowTxType, string>> = {
   create: 'Gig posted, it goes live once the escrow confirms.',
   accept: 'Gig accepted!',

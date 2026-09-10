@@ -121,7 +121,7 @@ export default defineConfig({
         // shared cannot prove.
         'api/client/**/*.ts',
         'lib/**/*.ts',
-        'hooks/**/*.ts',
+        '{hooks,features}/**/*.ts',
         'stores/**/*.ts',
         'wallet/**/*.ts',
         'components/create/**/*.{ts,tsx}',

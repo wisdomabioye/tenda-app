@@ -46,7 +46,7 @@ jest.mock('@/stores/escrow.store', () => ({
 // the wrong reason (or fail for one).
 jest.mock('@/api/client', () => ({ ...jest.requireActual('@/api/client'), api: {} }))
 
-import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
+import { TAKEDOWN_REFUSED_MESSAGE, TX_FAILURE_FALLBACK } from '@tenda/shared'
 import { ApiClientError } from '@tenda/shared'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 
@@ -154,7 +154,40 @@ test('a thrown NON-error still reaches the user rather than crashing the handler
     await result.current.accept()
     const [tone, message] = mockShowToast.mock.calls[0]
     expect(tone).toBe('error')
-    expect(message).toBe('Transaction failed, please try again')
+    expect(message).toBe(TX_FAILURE_FALLBACK)
+  })
+})
+
+test('a WALLET refusal reaches the user with the reason the wallet gave', () => {
+  // A wallet rejects with a plain JSON-RPC object, not an Error, so
+  // `errorMessage` answered '' and the generic fallback spoke instead — losing
+  // the one sentence that tells the user what to do about it.
+  mockRequestAccept.mockRejectedValue({
+    code: -32000,
+    message: 'insufficient funds for gas * price + value',
+  })
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  return act(async () => {
+    await result.current.accept()
+    const [tone, message] = mockShowToast.mock.calls[0]
+    expect(tone).toBe('error')
+    expect(message).toBe('insufficient funds for gas * price + value')
+  })
+})
+
+test('a raw EIP-1193 rejection (4001) is an info exit, like the typed decline', () => {
+  // Only the network SWITCH mapped 4001 to WalletError('declined'); the send
+  // itself threw the provider object straight through, so declining in the
+  // wallet was reported to the user as a failure.
+  mockRequestAccept.mockRejectedValue({ code: 4001, message: 'User rejected the request.' })
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  return act(async () => {
+    await result.current.accept()
+    const [tone, message] = mockShowToast.mock.calls[0]
+    expect(tone).toBe('info')
+    expect(message).toBe('User rejected the request.')
   })
 })
 
@@ -169,6 +202,6 @@ test('an ORDINARY failure with a blank message still says something', () => {
     await result.current.accept()
     const [tone, message] = mockShowToast.mock.calls[0]
     expect(tone).toBe('error')
-    expect(message).toBe('Transaction failed, please try again')
+    expect(message).toBe(TX_FAILURE_FALLBACK)
   })
 })

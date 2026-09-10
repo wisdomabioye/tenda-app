@@ -2,6 +2,7 @@ export { WalletError, type WalletErrorCode } from './errors'
 export type { WalletAccount, SignMessageResult, AuthenticateResult } from './types'
 export { connectThenSign, isUserRejection, type ConnectSignParts } from './connect-then-sign'
 export { classifyConnectError, type ConnectErrorCopy } from './connect-error'
+export { transactionFailureMessage } from './provider-error'
 export * from './balances'
 export { evmRpc, evmRpcString, hexToDecimalString, addressWord, amountWord } from './evm-rpc'
 export {

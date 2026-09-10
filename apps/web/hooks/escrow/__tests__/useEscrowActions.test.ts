@@ -6,7 +6,15 @@
  */
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { ApiClientError, PROOF_COPY, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
+import {
+  ApiClientError,
+  PROOF_COPY,
+  TAKEDOWN_REFUSED_MESSAGE,
+  TRANSACTION_GATE_MESSAGE,
+  TX_FAILURE_FALLBACK,
+  WC_CANCELLED_MESSAGE,
+  WalletError,
+} from '@tenda/shared'
 import { proofHashFor } from '@/hooks/escrow/proof-hash'
 import { useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
@@ -257,8 +265,63 @@ describe('dispatch lifecycle', () => {
     await act(async () => {
       expect(await result.current.cancel()).toBe(false)
     })
-    expect(mockToast).toHaveBeenCalledWith('error', 'Transaction failed, please try again')
+    expect(mockToast).toHaveBeenCalledWith('error', TX_FAILURE_FALLBACK)
     expect(result.current.phase).toBe('idle')
+  })
+
+  test('a WALLET refusal reaches the user with the reason the wallet gave', async () => {
+    // A browser wallet rejects with a plain JSON-RPC object, not an Error, so
+    // `errorMessage` answered '' and this said "Transaction failed, please try
+    // again" — throwing away the one sentence that explains what to do.
+    mockSign.mockRejectedValue({
+      code: -32000,
+      message: 'insufficient funds for gas * price + value',
+    })
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.approve()).toBe(false)
+    })
+    expect(mockToast).toHaveBeenCalledWith('error', 'insufficient funds for gas * price + value')
+    expect(result.current.phase).toBe('idle')
+  })
+
+  test('a raw EIP-1193 rejection (4001) is an info exit, like the typed decline', async () => {
+    // Only the network SWITCH mapped 4001 to WalletError('declined'); the send
+    // itself threw the provider object straight through, so declining in the
+    // wallet was reported as a red failure.
+    mockSign.mockRejectedValue({ code: 4001, message: 'User rejected the request.' })
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.approve()).toBe(false)
+    })
+    expect(mockToast).toHaveBeenCalledWith('info', 'User rejected the request.')
+    expect(result.current.phase).toBe('idle')
+  })
+
+  test('a wallet rejection with NO words still says it was cancelled', async () => {
+    // The `|| WC_CANCELLED_MESSAGE` fallback: an empty info toast is
+    // indistinguishable from the button having done nothing at all.
+    mockSign.mockRejectedValue({ code: 4001 })
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.approve()).toBe(false)
+    })
+    expect(mockToast).toHaveBeenCalledWith('info', WC_CANCELLED_MESSAGE)
+  })
+
+  test('a takedown refusal with a BLANK message still explains itself', async () => {
+    // It must fall back to the takedown line, NOT to the generic "try again" —
+    // retrying a taken-down listing is refused every time.
+    const onStale = vi.fn()
+    storeMocks.requestAccept.mockRejectedValue(
+      new ApiClientError(409, 'Conflict', '', 'ESCROW_TAKEN_DOWN'),
+    )
+    const { result } = renderHook(() => useEscrowActions({ ...ARGS, onStale }))
+    await act(async () => {
+      await result.current.accept()
+    })
+    expect(mockToast).toHaveBeenCalledWith('error', TAKEDOWN_REFUSED_MESSAGE)
+    expect(onStale).toHaveBeenCalledTimes(1)
   })
 
   test('refund passes the exact recovery kind through as the PING action', async () => {
