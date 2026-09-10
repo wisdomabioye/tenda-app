@@ -24,7 +24,9 @@ import { Period, SectionHead, SectionRule } from '@/components/ui/SectionRule'
 import { useIntersect } from '@/hooks/useIntersect'
 import { FLOW_LANES } from '@/content/agent-flow'
 import { cn } from '@/lib/cn'
+import { DOCS_LINK } from '@/components/layout/nav-content'
 import {
+  AGENT_DOCS_CTA,
   AGENT_FLOW_HEADER,
   AGENT_FLOW_STEPS_LABEL,
   LANE_GROUP_LABEL,
@@ -146,6 +148,19 @@ export function AgentFlow({ surface }: LandingSectionProps) {
             </li>
           ))}
         </ol>
+
+        {/* The way OUT of this section for the reader it just convinced. The
+            agent rail is the differentiator the whole section argues for, and
+            until now the only route to the reference was the footer. */}
+        <p className="mt-[clamp(18px,2.4vw,28px)] text-[14px] text-[var(--content-secondary)]">
+          {AGENT_DOCS_CTA.lead}{' '}
+          <a
+            href={DOCS_LINK.href}
+            className="font-semibold text-[var(--content-primary)] underline underline-offset-4"
+          >
+            {AGENT_DOCS_CTA.label}
+          </a>
+        </p>
       </div>
     </SectionShell>
   )

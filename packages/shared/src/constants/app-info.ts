@@ -105,6 +105,25 @@ export const APP_INFO = {
   external: {
     website: 'https://tendahq.com',
     /**
+     * The Agent API reference (`apps/docs`), on its own subdomain because it
+     * is its own deployment.
+     *
+     * A CONSTANT, not per-app env, and the distinction is the one this file's
+     * siblings already draw: `legal.terms` and `tendaPlayStore` are constants
+     * because they are the same URL everywhere, while tendahq's
+     * `ENV.webAppUrl` is env-driven "because it differs per deployment —
+     * production points at the production app, Vercel previews at the dev
+     * app". The docs site has no such variance: it renders one document, and
+     * its only per-deployment value (`VITE_API_BASE_URL`) is resolved INSIDE
+     * it. Env would also mean four prefixed spellings of one fact —
+     * VITE_/NEXT_PUBLIC_/EXPO_PUBLIC_ plus a server var — three of which can
+     * silently go unset and render a dead link on a public page. The SERVER is
+     * the case that settles it: `agent-card/card.ts` already builds ERC-8004
+     * registration entries from `external.website` and `support.email`, and it
+     * can read neither a Vite nor a Next env.
+     */
+    docs: 'https://docs.tendahq.com',
+    /**
      * The brand mark, as an absolute URL.
      *
      * ABSOLUTE ON PURPOSE: the agent card (#105) is an ERC-8004 registration

@@ -4,14 +4,15 @@ import { ChevronRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useTheme } from '@/theme/theme-context'
-import { NAV_LABELS, NAV_LINKS, WEB_APP_LINK } from './nav-content'
+import { DOCS_LINK, NAV_LABELS, NAV_LINKS, WEB_APP_LINK } from './nav-content'
 import { cn } from '@/lib/cn'
 
 /**
  * The nav is a sticky paper bar: the wordmark, five section links, the theme
- * switch, and two controls — the APK as an outline, the web app as the
- * page's one filled button. It never floats transparent over the hero; the
- * page has no dark ground for it to sit on, so it is always the bar.
+ * switch, and three controls — the Agent API reference and the APK as
+ * outlines, the web app as the page's one filled button. It never floats
+ * transparent over the hero; the page has no dark ground for it to sit on, so
+ * it is always the bar.
  */
 export function Navbar() {
   const { pathname } = useLocation()
@@ -51,7 +52,13 @@ export function Navbar() {
           <ThemeToggle resolved={resolved} onToggle={toggle} />
           {/* The web app is the primary way in; the APK is the alternative.
               Reversed 2026-09-01 — a visitor who cannot try the product
-              without sideloading an Android build mostly does not try it. */}
+              without sideloading an Android build mostly does not try it.
+              The Agent API sits FIRST of the two outlines: it is the product's
+              differentiator, and the reader who wants it is not the reader
+              scanning for a download. Both stay outline — one filled button. */}
+          <Button href={DOCS_LINK.href} variant="outline" size="sm">
+            {DOCS_LINK.label}
+          </Button>
           <Button href="/#download" variant="outline" size="sm">
             {NAV_LABELS.ctaDownload}
           </Button>
@@ -118,10 +125,13 @@ function MobileSheet({
       inert={!open}
       className={cn(
         'overflow-hidden transition-[max-height,opacity] duration-300 ease-out lg:hidden',
-        // The ceiling must clear the sheet's tallest state (~560px: eyebrow +
-        // 5 rows + toggle + two CTAs + a two-line tagline) or overflow-hidden
-        // clips the bottom.
-        open ? 'max-h-[640px] opacity-100' : 'pointer-events-none max-h-0 opacity-0',
+        // The ceiling must clear the sheet's tallest state or overflow-hidden
+        // clips the bottom. Was ~560px / 640px for eyebrow + 5 rows + toggle +
+        // TWO CTAs + a two-line tagline; the Agent API button makes it three,
+        // adding one 44px control plus its 8px margin, so the content tops out
+        // near 615px and the ceiling moves with it rather than eating the
+        // headroom that was there for the tagline wrapping.
+        open ? 'max-h-[720px] opacity-100' : 'pointer-events-none max-h-0 opacity-0',
       )}
     >
       <div className="container-page py-3">
@@ -147,6 +157,9 @@ function MobileSheet({
             <ThemeToggle resolved={resolved} onToggle={onToggleTheme} />
             <Button href={WEB_APP_LINK.href} variant="primary" size="md" fullWidth className="mt-3">
               {WEB_APP_LINK.label}
+            </Button>
+            <Button href={DOCS_LINK.href} variant="outline" size="md" fullWidth className="mt-2">
+              {DOCS_LINK.label}
             </Button>
             <Button href="/#download" variant="outline" size="md" fullWidth className="mt-2">
               {NAV_LABELS.ctaDownload}

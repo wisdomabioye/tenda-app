@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { APP_INFO } from '@tenda/shared'
 import { cn } from '@/lib/cn'
 import { BrandMark } from './BrandMark'
 import { HeaderSessionAction } from './HeaderSessionAction'
@@ -20,6 +21,19 @@ const NAV = [
   { href: '/', label: 'Browse gigs' },
   { href: '/support', label: 'Support' },
 ] as const
+
+/**
+ * The Agent API reference (docs.tendahq.com) — outbound, so it is an `<a>`
+ * rather than a `next/link` route, and it lives beside NAV rather than in it.
+ *
+ * PHONE-HIDDEN, and that is not a style choice. This row cannot wrap and
+ * nothing in it shrinks, so a third item pushes the session action past the
+ * viewport and scrolls the whole document sideways — measured at 360px and
+ * 390px before the rule below the wordmark landed, and now guarded by
+ * `e2e/public-discovery.spec.ts` asserting scrollWidth === clientWidth at
+ * 320/360/390. The footer carries the same link for phone readers.
+ */
+const DOCS_NAV = { href: APP_INFO.external.docs, label: 'Agent API' } as const
 
 export function SiteHeader() {
   return (
@@ -54,6 +68,12 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <a
+            href={DOCS_NAV.href}
+            className="hidden shrink-0 rounded-sm px-3 py-2 text-sm font-semibold text-content-secondary hover:bg-surface-inset hover:text-content-primary sm:block"
+          >
+            {DOCS_NAV.label}
+          </a>
         </nav>
         <HeaderSessionAction />
       </div>

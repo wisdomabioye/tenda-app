@@ -60,5 +60,20 @@ export const LANE_PIN_HINT = {
 /** The play/pause control's accessible names. */
 export const PLAY_LABELS = { pause: 'Pause the sequence', play: 'Play the sequence' } as const
 
+/**
+ * The hand-off out of this section, for the reader the agent lane just
+ * convinced. Here rather than typed in the renderer for the same reason
+ * NO_GAS_LABEL is: `rendered.test.tsx` asserts it, and the guard is only worth
+ * having if the test and the component read the same words.
+ *
+ * Lane-agnostic on purpose — the section cycles both lanes, so a line that
+ * only made sense while the agent lane was lit would read as a non-sequitur
+ * half the time.
+ */
+export const AGENT_DOCS_CTA = {
+  lead: 'Hiring with software?',
+  label: 'Read the Agent API',
+} as const
+
 /** The lane control's accessible name. */
 export const LANE_GROUP_LABEL = 'Choose a lane'

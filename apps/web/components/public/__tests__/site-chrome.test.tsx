@@ -66,6 +66,18 @@ describe('SiteHeader', () => {
     expect(screen.queryByRole('link', { name: /foundations/i })).not.toBeInTheDocument()
   })
 
+  it('promotes the Agent API, and hides it on the narrow row like Browse gigs', () => {
+    // The reference is the product's differentiator, so it earns a place in
+    // the public chrome. But this row cannot wrap and nothing in it shrinks —
+    // a third always-on item is exactly what pushed the sign-in button
+    // off-screen at 360px before. Phone readers get it from the footer.
+    render(<SiteHeader />)
+    const docs = screen.getByRole('link', { name: 'Agent API' })
+    expect(docs).toHaveAttribute('href', APP_INFO.external.docs)
+    expect(docs.className).toContain('hidden')
+    expect(docs.className).toContain('sm:block')
+  })
+
   it('carries the way in', () => {
     render(<SiteHeader />)
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
@@ -108,6 +120,17 @@ describe('SiteFooter', () => {
     )
     // The comp's "404 example" is a prototype affordance, not a page.
     expect(screen.queryByRole('link', { name: /404/ })).not.toBeInTheDocument()
+  })
+
+  it('carries the Agent API for the phone reader the header hides it from', () => {
+    // The header's copy is `hidden sm:block`, so below 640px this is the ONLY
+    // route to the reference. It is outbound (its own deployment, its own
+    // subdomain), so it must render as a plain anchor, not a next/link route.
+    render(<SiteFooter />)
+    const reference = within(screen.getByRole('navigation', { name: 'Reference' }))
+    const docs = reference.getByRole('link', { name: 'Agent API' })
+    expect(docs).toHaveAttribute('href', APP_INFO.external.docs)
+    expect(docs.className).not.toContain('hidden')
   })
 
   it('takes its legal links from shared APP_INFO', () => {

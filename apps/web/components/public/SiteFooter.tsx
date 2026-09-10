@@ -19,6 +19,11 @@ const HELP_LINKS = [
 const REFERENCE_LINKS = [
   { href: '/support/faq', label: 'FAQ' },
   { href: '/support/glossary', label: 'Glossary' },
+  // Outbound: apps/docs is its own deployment on its own subdomain, so this
+  // row is an <a>, not a next/link route. It is ALSO the only route to the
+  // reference for a phone reader — the header hides its copy below `sm` to
+  // keep that row from scrolling the document sideways.
+  { href: APP_INFO.external.docs, label: 'Agent API', external: true },
 ] as const
 
 export function SiteFooter() {
@@ -60,15 +65,21 @@ function FooterNav({
   links,
 }: {
   label: string
-  links: readonly { href: string; label: string }[]
+  links: readonly { href: string; label: string; external?: boolean }[]
 }) {
   return (
     <nav aria-label={label} className="flex flex-col gap-2">
-      {links.map((link) => (
-        <Link key={link.href} href={link.href} className={FOOTER_LINK_CLASS}>
-          {link.label}
-        </Link>
-      ))}
+      {links.map((link) =>
+        link.external === true ? (
+          <a key={link.href} href={link.href} className={FOOTER_LINK_CLASS}>
+            {link.label}
+          </a>
+        ) : (
+          <Link key={link.href} href={link.href} className={FOOTER_LINK_CLASS}>
+            {link.label}
+          </Link>
+        ),
+      )}
     </nav>
   )
 }

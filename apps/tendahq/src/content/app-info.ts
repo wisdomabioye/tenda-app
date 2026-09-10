@@ -76,6 +76,9 @@ export const APP_INFO = {
     contractsUrl: 'https://github.com/wisdomabioye/tenda-app/tree/main/contracts',
   },
 
+  /** The Agent API reference (apps/docs) — brand truth, one source. */
+  docsUrl: BRAND.external.docs,
+
   /** Social — brand truth, one source. */
   twitterUrl: BRAND.social.twitter,
   /** The community group anyone can join — the support channel, same source the apps ship. */

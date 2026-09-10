@@ -32,6 +32,24 @@ export const WEB_APP_LINK: NavLink = {
   href: ENV.webAppUrl,
 }
 
+/**
+ * The Agent API reference (docs.tendahq.com). NOT a member of NAV_LINKS for
+ * the same reason WEB_APP_LINK is not: those are same-page section anchors,
+ * and `src/__tests__/page-rhythm.test.tsx` asserts every one of them resolves
+ * to a section that actually renders — an outbound href there would fail it.
+ *
+ * Rendered as the SECOND outline control, beside the APK: the agent rail is
+ * the product's differentiator and belongs in the bar rather than only the
+ * footer, but "Open the web app" stays the page's ONE filled button.
+ *
+ * The href is a brand constant (shared APP_INFO), not env like `webAppUrl` —
+ * the docs site is one deployment with no per-environment variance.
+ */
+export const DOCS_LINK: NavLink = {
+  label: 'Agent API',
+  href: APP_INFO.docsUrl,
+}
+
 export const NAV_LABELS = {
   brandAlt: 'Tenda',
   primaryNav: 'Primary',
