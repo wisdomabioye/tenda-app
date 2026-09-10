@@ -26,6 +26,7 @@ export {
   FIAT_ENTRY_DECIMALS,
 } from './gig-budget'
 export { truncateWallet } from './wallet'
+export { prose } from './prose'
 export {
   partyRoleLabel,
   winnerLabel,

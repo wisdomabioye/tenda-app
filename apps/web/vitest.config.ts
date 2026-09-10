@@ -111,9 +111,9 @@ export default defineConfig({
       // for real. What it DECIDES is gated: core.ts's transforms, and the
       // target map, which moved into targets.ts so a suite could read it.
       include: [
-        // Money math on a public page: it answers what the chain will charge,
-        // so it is gated like any other fee path (joined during the #13 review).
-        'app/(public)/support/escrow/FeeCalculator.tsx',
+        // The two public support pages that DECIDE something: what the chain
+        // will charge, and which chain a reader meets first. Braced to hold 300.
+        'app/(public)/support/{escrow/FeeCalculator,wallet/page}.tsx',
         'api/request.ts',
         // Since #42 this is a barrel: the endpoint descriptions moved to
         // @tenda/shared and are gated there. What remains gated HERE is the

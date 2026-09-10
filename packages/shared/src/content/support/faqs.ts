@@ -1,8 +1,10 @@
 /**
  * FAQ copy (multichain rewrite 2026-08-16): Tenda settles gigs in USDC on
- * the chain the poster picks — Solana, Base or Celo — so the answers name
- * USDC and networks, never a single chain. ONE wording, every surface.
+ * the chain the poster picks — so the answers name USDC and networks, never
+ * a single chain. The list itself is DERIVED (`SUPPORT_CHAIN_PROSE`): it said
+ * three chains while four were live. ONE wording, every surface.
  */
+import { SUPPORT_CHAIN_PROSE } from './chains'
 import type { SupportFaq } from './types'
 
 export const SUPPORT_FAQS: readonly SupportFaq[] = [
@@ -14,7 +16,7 @@ export const SUPPORT_FAQS: readonly SupportFaq[] = [
   {
     question: 'Will my money be safe?',
     answer:
-      "Yes. Payment is locked in a smart contract on the blockchain your gig runs on — Solana, Base or Celo — not held by Tenda. We can't touch your money. It's released only when you (the poster) approve the work, or returned to you if the gig expires or a dispute is resolved in your favour.",
+      `Yes. Payment is locked in a smart contract on the blockchain your gig runs on — ${SUPPORT_CHAIN_PROSE} — not held by Tenda. We can't touch your money. It's released only when you (the poster) approve the work, or returned to you if the gig expires or a dispute is resolved in your favour.`,
   },
   {
     question: 'What if the client never approves?',
@@ -39,7 +41,7 @@ export const SUPPORT_FAQS: readonly SupportFaq[] = [
   {
     question: 'Which networks does Tenda support?',
     answer:
-      'Solana, Base and Celo. A gig is pinned to one network when it is published; the escrow, the payout and the tiny network fee (usually under a cent) all live on that network. You only need a wallet for the networks you use.',
+      `${SUPPORT_CHAIN_PROSE}. A gig is pinned to one network when it is published; the escrow, the payout and the tiny network fee (usually under a cent) all live on that network. You only need a wallet for the networks you use.`,
   },
   {
     question: 'Can I both post gigs and work on gigs?',

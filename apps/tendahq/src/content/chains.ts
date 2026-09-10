@@ -17,7 +17,7 @@ import {
   type GasPolicy,
 } from '@tenda/shared/chains'
 import { ASSET_META } from '@tenda/shared/constants/assets'
-import { prose } from '@/lib/prose'
+import { prose } from '@tenda/shared/utils/prose'
 
 export interface ChainDisplay {
   /** Marketing-cased name (manifest displayName is UPPER for some chains). */

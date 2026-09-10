@@ -28,7 +28,7 @@ import {
   CATEGORY_LABELS,
   type GigCategory,
 } from '@tenda/shared/constants/categories'
-import { prose } from '@/lib/prose'
+import { prose } from '@tenda/shared/utils/prose'
 
 export { GIG_CATEGORIES }
 

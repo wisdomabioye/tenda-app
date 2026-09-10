@@ -5,7 +5,7 @@
  */
 
 import type { GasPolicy } from '@tenda/shared/chains'
-import { prose } from '@/lib/prose'
+import { prose } from '@tenda/shared/utils/prose'
 import { ACTIVE_GAS_POLICIES, chainsByGasPolicy } from '../chains'
 import {
   contextFor,

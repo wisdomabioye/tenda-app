@@ -5,6 +5,7 @@ import {
   APP_INFO,
   SUPPORT_WALLET_GUIDE,
   SUPPORT_WALLET_INTRO,
+  SUPPORT_WALLET_NETWORK_LABEL,
   SUPPORT_WALLET_TROUBLESHOOTING,
   type WalletGuideEntry,
 } from '@tenda/shared'
@@ -22,10 +23,14 @@ const WALLET_VISUALS: Record<
   walletconnect: { colors: ['#3B99FC', '#1A6DF0'], initial: 'W' },
 }
 
-const NETWORK_LABEL: Record<WalletGuideEntry['network'], string> = {
-  solana: 'Solana wallets',
-  evm: 'EVM wallets (Base & Celo)',
-}
+/**
+ * Printed whenever the network CHANGES between entries, so the shared array
+ * must stay grouped — pinned by the shared content suite, which also pins EVM
+ * as the group that leads. The labels come from shared because the EVM one
+ * names the chains, and that list is derived from CHAIN_MANIFEST: typed here
+ * it was one of the two places that still said "Base & Celo" after 0G shipped.
+ */
+const NETWORK_LABEL: Record<WalletGuideEntry['network'], string> = SUPPORT_WALLET_NETWORK_LABEL
 
 export default function WalletGuideScreen() {
   const { theme } = useUnistyles()

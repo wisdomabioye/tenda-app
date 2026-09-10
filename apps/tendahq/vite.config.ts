@@ -15,6 +15,17 @@ export default defineConfig({
       '@tenda/shared/chains': fileURLToPath(
         new URL('../../packages/shared/src/chains/index.ts', import.meta.url),
       ),
+      // Shared utils, as a PREFIX and never the barrel. `prose` — the
+      // list-to-sentence joiner — moved into shared when the support pages
+      // became its second consumer, and two things rule out the alternatives:
+      // the root '@tenda/shared' export is CJS, so rollup cannot trace a named
+      // export through its nested `export *`; and aliasing `utils/index.ts`
+      // pulls the whole barrel into THIS app's `erasableSyntaxOnly` check,
+      // which `api/client-error.ts` fails on a parameter property. Both were
+      // measured as build failures. One module per import, like `constants/`.
+      '@tenda/shared/utils/': fileURLToPath(
+        new URL('../../packages/shared/src/utils/', import.meta.url),
+      ),
       // Same source-not-dist rule for the shared brand facts.
       '@tenda/shared/app-info': fileURLToPath(
         new URL('../../packages/shared/src/constants/app-info.ts', import.meta.url),

@@ -1,8 +1,15 @@
 /**
  * Glossary copy (multichain rewrite 2026-08-16): chain-neutral first —
- * USDC/network/gas-fee entries replace the Solana-only SOL/Lamports set;
- * chain names appear only as examples.
+ * USDC/network/gas-fee entries replace the Solana-only SOL/Lamports set. Every
+ * chain list is DERIVED (`./chains`), so the order is the support order — EVM
+ * first, Celo leading — and a newly-shipped chain cannot be missing from a
+ * definition that claims to list them all.
  */
+import {
+  SUPPORT_CHAIN_PROSE,
+  SUPPORT_FEE_CURRENCY_PROSE,
+  SUPPORT_GAS_TOKEN_PROSE,
+} from './chains'
 import type { GlossaryTerm } from './types'
 
 export const SUPPORT_GLOSSARY: readonly GlossaryTerm[] = [
@@ -19,7 +26,7 @@ export const SUPPORT_GLOSSARY: readonly GlossaryTerm[] = [
   {
     term: 'Gas fee',
     definition:
-      "The tiny fee a blockchain charges to process a transaction — usually less than $0.01 on the networks Tenda supports. It's paid in the network's native token: SOL on Solana, ETH on Base, CELO on Celo.",
+      `The tiny fee a blockchain charges to process a transaction — usually less than $0.01 on the networks Tenda supports. It's paid in the network's native token: ${SUPPORT_GAS_TOKEN_PROSE}. On ${SUPPORT_FEE_CURRENCY_PROSE} a fee-currency-aware wallet such as Valora can pay it in USDC instead.`,
   },
   {
     term: 'Native token',
@@ -29,7 +36,7 @@ export const SUPPORT_GLOSSARY: readonly GlossaryTerm[] = [
   {
     term: 'Network',
     definition:
-      'The blockchain a gig or trade settles on. Tenda supports Solana, Base and Celo; every gig is pinned to one network when it is published.',
+      `The blockchain a gig or trade settles on. Tenda supports ${SUPPORT_CHAIN_PROSE}; every gig is pinned to one network when it is published.`,
   },
   {
     term: 'Seed Phrase',
@@ -59,6 +66,6 @@ export const SUPPORT_GLOSSARY: readonly GlossaryTerm[] = [
   {
     term: 'Wallet',
     definition:
-      'Your digital identity and payment account on Tenda. Think of it like a bank account, but only you control it. Tenda works with Solana wallets like Phantom and Solflare, and EVM wallets like MetaMask through WalletConnect.',
+      'Your digital identity and payment account on Tenda. Think of it like a bank account, but only you control it. Tenda works with EVM wallets like Valora, Trust Wallet, Rainbow and SafePal through WalletConnect, and with Solana wallets like Phantom and Solflare.',
   },
 ]

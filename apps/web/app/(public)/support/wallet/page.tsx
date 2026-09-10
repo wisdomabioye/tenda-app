@@ -1,7 +1,13 @@
 /**
  * Wallet setup guide — public SSR over the SHARED multichain wallet copy:
- * Solana wallets (Phantom/Solflare/MWA) + EVM wallets via WalletConnect
- * for Base and Celo, plus the shared troubleshooting Q&A.
+ * EVM wallets via WalletConnect for Celo and Base first, then the Solana side
+ * (Phantom/Solflare/MWA), plus the shared troubleshooting Q&A. The order is
+ * the shared array's, and the first card opens by default — so which chain
+ * leads is decided in `guide-wallet.ts`, not here.
+ *
+ * The badge is rendered because it is the only place the guide says a wallet
+ * is TESTED rather than merely compatible; mobile has always shown it and web
+ * dropped it, so the same content made a weaker claim on this surface.
  */
 import type { Metadata } from 'next'
 import {
@@ -16,6 +22,7 @@ import {
   SupportTopicPage,
   supportTopicMetadata,
 } from '@/components/public/support'
+import { Badge } from '@/components/ui/Badge'
 
 export const metadata: Metadata = supportTopicMetadata('wallet')
 
@@ -26,6 +33,7 @@ export default function WalletGuidePage() {
       <InfoCard label={SUPPORT_WALLET_INTRO.label} body={SUPPORT_WALLET_INTRO.body} />
       {SUPPORT_WALLET_GUIDE.map((wallet, i) => (
         <SupportAccordion key={wallet.id} title={wallet.name} defaultOpen={i === 0}>
+          <Badge variant={wallet.badge.tone} label={wallet.badge.label} />
           {wallet.note !== undefined && (
             <p className="rounded-control bg-feedback-warning-surface p-2.5 text-xs text-feedback-warning-text">
               {wallet.note}

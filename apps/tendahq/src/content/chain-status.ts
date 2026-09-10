@@ -18,7 +18,7 @@
  */
 
 import { CHAIN_MANIFEST, type ChainStatus } from '@tenda/shared/chains'
-import { prose } from '@/lib/prose'
+import { prose } from '@tenda/shared/utils/prose'
 import { LANDING_CHAINS, type LandingChain } from './chains'
 
 /**

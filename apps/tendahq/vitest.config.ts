@@ -21,6 +21,7 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@tenda/shared/chains': shared('chains/index.ts'),
+      '@tenda/shared/utils/': shared('utils/'),
       '@tenda/shared/app-info': shared('constants/app-info.ts'),
       '@tenda/shared/fiat/payout': shared('fiat/payout/index.ts'),
       // Prefix alias, not one entry per constant: every shared constants module

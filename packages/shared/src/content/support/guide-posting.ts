@@ -3,6 +3,7 @@
  * mobile screen so web can't drift): payment is USDC on the network the
  * poster picks; the gas warning names no single chain.
  */
+import { SUPPORT_CHAIN_PROSE } from './chains'
 import type { GuideSection } from './types'
 
 export const SUPPORT_GUIDE_POSTING: readonly GuideSection[] = [
@@ -14,7 +15,7 @@ export const SUPPORT_GUIDE_POSTING: readonly GuideSection[] = [
       {
         title: 'Set the payment',
         description:
-          'Pick the network (Solana, Base or Celo) and enter the amount in USDC. The equivalent in your local currency is shown for reference.',
+          `Pick the network (${SUPPORT_CHAIN_PROSE}) and enter the amount in USDC. The equivalent in your local currency is shown for reference.`,
       },
       {
         title: 'Review your draft',

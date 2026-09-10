@@ -20,7 +20,7 @@
  * Import from `@/content/features`.
  */
 
-import { prose } from '@/lib/prose'
+import { prose } from '@tenda/shared/utils/prose'
 import type { LandingChain } from '../chains'
 import { chainStatus } from '../chain-status'
 
