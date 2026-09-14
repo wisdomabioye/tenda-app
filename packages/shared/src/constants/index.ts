@@ -16,6 +16,8 @@ export { ErrorCode } from './errors'
 export {
   SESSION_CLIENT_HEADER,
   SESSION_CLIENTS,
+  DEMO_TOKEN_LIFETIME_MINUTES,
+  DEMO_TOKEN_EXPIRES_IN,
   parseSessionClient,
   type SessionClient,
 } from './session'

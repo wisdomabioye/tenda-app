@@ -15,6 +15,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { AppDatabase } from '../plugins/db'
 import type { SessionClient } from '@tenda/shared'
+import type { TokenScope } from '../lib/auth/scope'
 // `UserRole` is intentionally NOT imported here. v1's enum and v2's
 // `user_role_v2` enum differ (v2 renames 'dispute_resolver' → 'dispute_admin'
 // + new values). Until #34 cutover removes the v1 schema, JWT.role is typed
@@ -93,11 +94,22 @@ declare module '@fastify/jwt' {
        * gas-seed hook: it survives the removal of any feature that reads it.
        */
       client?: SessionClient
+      /**
+       * Restricts what this token may reach (`lib/auth/scope.ts`). Present ONLY
+       * on a demo session; absent means unrestricted, so every token minted
+       * before this claim existed keeps working exactly as it did.
+       *
+       * Unlike `client` above — which a caller supplies by header and which its
+       * own docblock calls "NOT a security boundary on its own" — this is
+       * asserted by the server and signed, so `authenticate` may trust it.
+       */
+      scope?: TokenScope
     }
     user: {
       id: string
       role: string
       client?: SessionClient
+      scope?: TokenScope
     }
   }
 }

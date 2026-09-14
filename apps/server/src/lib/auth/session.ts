@@ -5,11 +5,24 @@
  */
 
 import type { AuthResponse, User } from '@tenda/shared'
-import { ErrorCode, SESSION_CLIENT_HEADER, parseSessionClient } from '@tenda/shared'
+import { DEMO_TOKEN_EXPIRES_IN, ErrorCode, SESSION_CLIENT_HEADER, parseSessionClient } from '@tenda/shared'
 import type { SessionClient } from '@tenda/shared'
 import type { IncomingHttpHeaders } from 'node:http'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
+import type { TokenScope } from '@server/lib/auth/scope'
+
+/**
+ * What minting actually needs from the app: something that signs.
+ *
+ * Narrow rather than `FastifyInstance`, matching `OtpSenderHost` one directory
+ * over — a real instance satisfies it structurally, so no call site changes,
+ * and a test can assert on the CLAIMS without standing up a server. Signing is
+ * the whole of this module's contact with Fastify.
+ */
+export interface TokenSigner {
+  jwt: { sign(payload: object, options: { expiresIn: string }): string }
+}
 
 /**
  * @param client Which client is minting this session, from the request's
@@ -25,30 +38,33 @@ import { getConfig } from '@server/config'
  *   NOT a security boundary on its own — a caller can send any header. Surfaces
  *   that care pair it with facts a caller cannot assert (a registered device, a
  *   verified phone). See shared constants/session.ts.
- */
-/**
- * What minting actually needs from the app: something that signs.
  *
- * Narrow rather than `FastifyInstance`, matching `OtpSenderHost` one directory
- * over — a real instance satisfies it structurally, so no call site changes,
- * and a test can assert on the CLAIMS without standing up a server. Signing is
- * the whole of this module's contact with Fastify.
+ * @param scope Restricts what the token may reach (`lib/auth/scope.ts`). Passed
+ *   ONLY by the demo session; every other mint site omits it and the token is
+ *   unrestricted, which is what keeps a real agent's session a full one.
+ *
+ *   A scoped token also gets its OWN lifetime, `DEMO_TOKEN_EXPIRES_IN`, which
+ *   is SHARED because the published document states it in words. Both facts
+ *   travel together because they answer one question: how much this particular
+ *   bearer is trusted.
  */
-export interface TokenSigner {
-  jwt: { sign(payload: object, options: { expiresIn: string }): string }
-}
-
 export function mintAuthResponse(
   fastify: TokenSigner,
   user: User,
   client: SessionClient | null = null,
+  scope: TokenScope | null = null,
 ): AuthResponse {
   if (user.status === 'suspended') {
     throw new AppError(403, ErrorCode.USER_SUSPENDED, 'account suspended')
   }
   const token = fastify.jwt.sign(
-    { id: user.id, role: user.role, ...(client !== null ? { client } : {}) },
-    { expiresIn: getConfig().JWT_EXPIRES_IN },
+    {
+      id: user.id,
+      role: user.role,
+      ...(client !== null ? { client } : {}),
+      ...(scope !== null ? { scope } : {}),
+    },
+    { expiresIn: scope !== null ? DEMO_TOKEN_EXPIRES_IN : getConfig().JWT_EXPIRES_IN },
   )
   return { token, user }
 }

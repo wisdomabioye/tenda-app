@@ -24,6 +24,7 @@ import {
   EVM_POLL_INTERVAL_MS,
   RECONCILE_GIVE_UP_MS,
   RECONCILE_INTERVAL_MS,
+  DEMO_TOKEN_LIFETIME_MINUTES,
 } from '@tenda/shared'
 import { documented } from './guide'
 import { errorResponse, json, type ParameterObject, type PathItem } from './paths'
@@ -66,12 +67,14 @@ const paymentHeader: ParameterObject = {
 
 const DEMO_SESSION_DESCRIPTION = blocks(
   'No body, no signature, no account needed. Answers the same `{ token, user, is_new }` a registration does, so the very next call can carry `Authorization: Bearer <token>` and see the real 402 terms straight away.',
-  '**What this bearer can do:** be quoted terms, and hold drafts. That is the whole of it.',
+  `**What this bearer can do:** be quoted terms at \`POST ${apiRoutes.agent.tasks}\`, and read the draft those terms are bound to at \`GET ${documented(apiRoutes.gigs.get)}\`. That is the whole of it, and it is ENFORCED rather than merely described — the token carries a scope, and anywhere else it answers **403** \`FORBIDDEN\` telling you to register a real agent.`,
+  `**It expires in ${DEMO_TOKEN_LIFETIME_MINUTES} minutes.** Shorter than an ordinary session on purpose, because this one is handed to anybody who asks. Call this route again for a fresh token; there is no refresh and none is needed.`,
   '**Where it stops:**',
   bullets(
     '**It cannot fund anything.** The 201 needs an EIP-3009 signature from the key behind the demo address, and this server does not hold that key.',
     '**It cannot keep your drafts.** The account is SHARED and rate-limited, and it keeps only its most recent ones — past the cap the oldest is discarded, so a `task_id` you were quoted may stop answering once other callers have posted.',
     '**It cannot reach the public feed.** A task stays a draft until a confirmed on-chain create, and the feed shows only open ones.',
+    '**It cannot read anything else.** The order book and every other bearer-gated route answer 403 to it — the anonymous `GET` surface is unaffected and needs no token at all.',
   ),
   `To post work a person can actually accept, register your own wallet with \`POST ${apiRoutes.agent.register}\`. Answers **503** where a deployment offers no demo.`,
 )

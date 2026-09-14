@@ -39,3 +39,28 @@ export function parseSessionClient(value: string | undefined): SessionClient | n
   const found = SESSION_CLIENTS.find((client) => client === value)
   return found ?? null
 }
+
+/**
+ * How long a DEMO agent session lives, in minutes (#177).
+ *
+ * SHARED, unlike the scope claim it travels with — that one lives server-side
+ * in `apps/server/src/lib/auth/scope.ts` because a client never sends it and
+ * never sees it. This number is different in kind: the published Agent API
+ * document STATES it to readers, in words, on the demo-session operation. One
+ * value, read by the mint that enforces it and by the sentence that promises
+ * it, so the document cannot go on advertising a lifetime the server stopped
+ * honouring. (The figure is deliberately NOT repeated in this comment — that
+ * would be the very rot the constant exists to remove.)
+ *
+ * A count of MINUTES rather than a jwt duration string, so the prose and the
+ * `expiresIn` argument are both derived and neither has to parse the other.
+ *
+ * Short on purpose: an ordinary session is written for a person's phone, and a
+ * door that opens to anybody with no credential at all should not hand out a
+ * week. Not a control by itself — re-minting is rate-limited, not forbidden —
+ * but it bounds a token that leaks into a transcript, a log or a notebook.
+ */
+export const DEMO_TOKEN_LIFETIME_MINUTES = 30
+
+/** The same lifetime as a jsonwebtoken `expiresIn` spec. */
+export const DEMO_TOKEN_EXPIRES_IN = `${DEMO_TOKEN_LIFETIME_MINUTES}m`

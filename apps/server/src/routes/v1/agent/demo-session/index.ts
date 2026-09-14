@@ -21,6 +21,7 @@ import { ErrorCode, type AgentRegisterResponse } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { mintAuthResponse, sessionClientFromHeaders } from '@server/lib/auth/session'
 import { demoAgentSession } from '@server/features/agent/demoSession'
+import { DEMO_SCOPE } from '@server/lib/auth/scope'
 
 const route: FastifyPluginAsync = async (fastify) => {
   /**
@@ -59,8 +60,13 @@ const route: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const { user, isNew } = await demoAgentSession(fastify)
+      // SCOPED, and this is the only mint site that passes one. The account on
+      // the end of this token is shared and free to obtain, so the token reaches
+      // only the routes the document offers it — see `DEMO_SCOPE_ROUTES` for
+      // which those are and why, what it costs the demo (nothing) and what it
+      // stops (a keyless read of every gated route, measured on production).
       return {
-        ...mintAuthResponse(fastify, user, sessionClientFromHeaders(request.headers)),
+        ...mintAuthResponse(fastify, user, sessionClientFromHeaders(request.headers), DEMO_SCOPE),
         is_new: isNew,
       }
     },
