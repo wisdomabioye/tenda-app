@@ -10,7 +10,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { OFFER_DETAIL_COPY, TRADER_CARD_COPY, TraderCard } from '@/components/exchange/detail'
-import { makeExchangeDetail, makeUserRef } from '../../../../test/factories/exchange'
+import { makeExchangeDetail, makeExchangeParty } from '../../../../test/factories/exchange'
 
 // Standing is its own fetch and renders nothing until it lands; the card's
 // contract here is what IT draws.
@@ -22,7 +22,7 @@ describe('TraderCard', () => {
   it('shows the rating it has, as stars AND as the number', () => {
     render(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1', review_score: '4.70' })}
+        trader={makeExchangeParty({ id: 'seller-1', review_score: '4.70' })}
         offer={offer}
         currentUserId="me"
       />,
@@ -34,7 +34,7 @@ describe('TraderCard', () => {
   it('says a trader is UNRATED rather than scoring them zero', () => {
     render(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1', review_score: null })}
+        trader={makeExchangeParty({ id: 'seller-1', review_score: null })}
         offer={offer}
         currentUserId="me"
       />,
@@ -46,7 +46,7 @@ describe('TraderCard', () => {
 
   it('invents no reputation statistic', () => {
     const { container } = render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
     )
     const text = container.textContent ?? ''
     for (const invented of ['trades settled', 'completion rate', 'replies within', 'trading since']) {
@@ -56,7 +56,7 @@ describe('TraderCard', () => {
 
   it('offers the profile and a message in THIS escrow’s context', () => {
     render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
     )
     expect(screen.getByRole('link', { name: /View .* profile/ })).toHaveAttribute(
       'href',
@@ -69,14 +69,14 @@ describe('TraderCard', () => {
 
   it('counts the reviews left on THIS trade, worded for one and for many', () => {
     const { rerender } = render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
     )
     expect(screen.getByText('reviews on this trade')).toBeInTheDocument()
     expect(screen.getByText('0')).toBeInTheDocument()
 
     rerender(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1' })}
+        trader={makeExchangeParty({ id: 'seller-1' })}
         offer={makeExchangeDetail({
           reviews: [
             {
@@ -99,7 +99,7 @@ describe('TraderCard', () => {
   it('marks a Seeker trader, and nobody else', () => {
     const { rerender } = render(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1', is_seeker: true })}
+        trader={makeExchangeParty({ id: 'seller-1', is_seeker: true })}
         offer={offer}
         currentUserId="me"
       />,
@@ -108,7 +108,7 @@ describe('TraderCard', () => {
 
     rerender(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1', is_seeker: false })}
+        trader={makeExchangeParty({ id: 'seller-1', is_seeker: false })}
         offer={offer}
         currentUserId="me"
       />,
@@ -118,7 +118,7 @@ describe('TraderCard', () => {
 
   it('offers no way to message YOURSELF', () => {
     render(
-      <TraderCard trader={makeUserRef({ id: 'me' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'me' })} offer={offer} currentUserId="me" />,
     )
     expect(screen.queryByRole('link', { name: /^Message / })).toBeNull()
     expect(screen.getByText(TRADER_CARD_COPY.you)).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe('TraderCard — whose card is it', () => {
     // The card renders the escrow's CREATOR. For the seller that is themselves,
     // and it already says "You" — under a heading claiming it is someone else.
     render(
-      <TraderCard trader={makeUserRef({ id: 'me' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'me' })} offer={offer} currentUserId="me" />,
     )
     expect(screen.getByRole('heading', { name: TRADER_CARD_COPY.selfHeading })).toBeInTheDocument()
     expect(screen.queryByText(OFFER_DETAIL_COPY.trader)).toBeNull()
@@ -140,7 +140,7 @@ describe('TraderCard — whose card is it', () => {
 
   it('still names the counterparty that way for everyone else', () => {
     render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
+      <TraderCard trader={makeExchangeParty({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
     )
     expect(screen.getByRole('heading', { name: OFFER_DETAIL_COPY.trader })).toBeInTheDocument()
   })
@@ -152,7 +152,7 @@ describe('TraderCard — a trader with no printable name', () => {
     // the profile link and the message link with no accessible name at all.
     render(
       <TraderCard
-        trader={makeUserRef({ id: 'seller-1', first_name: '', last_name: '' })}
+        trader={makeExchangeParty({ id: 'seller-1', display_name: '' })}
         offer={makeExchangeDetail()}
         currentUserId="me"
       />,
@@ -161,5 +161,42 @@ describe('TraderCard — a trader with no printable name', () => {
     expect(
       screen.getByRole('link', { name: TRADER_CARD_COPY.message(TRADER_CARD_COPY.anonymous) }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('TraderCard — how much of the trader the viewer may see (#175)', () => {
+  it('shows the abbreviated label and no face while the server withholds them', () => {
+    const { container } = render(
+      <TraderCard
+        trader={makeExchangeParty({ id: 'seller-1', display_name: 'Wisdom A.' })}
+        offer={makeExchangeDetail()}
+        currentUserId="me"
+      />,
+    )
+    expect(screen.getAllByText('Wisdom A.').length).toBeGreaterThan(0)
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('shows the full name and the face once the server reveals them to a settled party', () => {
+    // `full_name` and `avatar_url` arrive filled ONLY for a party to this
+    // escrow (isEscrowPartyRow). The card renders whichever arrived rather than
+    // deciding entitlement itself, so this is the whole of its side of #175.
+    const { container } = render(
+      <TraderCard
+        trader={makeExchangeParty({
+          id: 'seller-1',
+          display_name: 'Wisdom A.',
+          full_name: 'Wisdom Abioye',
+          avatar_url: 'https://cdn.example.test/face.png',
+        })}
+        offer={makeExchangeDetail()}
+        currentUserId="me"
+      />,
+    )
+    expect(screen.getAllByText('Wisdom Abioye').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Wisdom A.')).toBeNull()
+    const face = container.querySelector('img')
+    expect(face).toHaveAttribute('src', 'https://cdn.example.test/face.png')
+    expect(face).toHaveAttribute('alt', 'Wisdom Abioye')
   })
 })

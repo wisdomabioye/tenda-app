@@ -31,6 +31,8 @@ export {
   partyRoleLabel,
   winnerLabel,
   partyAccent,
+  abbreviatedName,
+  exchangePartyName,
   displayName,
   formatFullName,
   hasCompleteName,

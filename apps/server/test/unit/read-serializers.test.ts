@@ -7,7 +7,11 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { toGigSummary, type GigSummaryRow } from '@server/lib/gig-read'
-import { toExchangeSummary, type ExchangeSummaryRow } from '@server/lib/exchange-read'
+import {
+  toExchangePartyRef,
+  toExchangeSummary,
+  type ExchangeSummaryRow,
+} from '@server/lib/exchange-read'
 import type { UserRef } from '@tenda/shared'
 
 const creator: UserRef = {
@@ -86,4 +90,64 @@ test('toExchangeSummary: serializes dates, keeps numeric strings raw', () => {
   // numeric(20,4)/(30,10) stay strings — no float coercion on money.
   assert.strictEqual(wire.fiat_amount, '150000.0000')
   assert.strictEqual(wire.rate, '150000.0000000000')
+})
+
+/**
+ * The list surface never reveals (#175): an OPEN offer has no settled party,
+ * so there is nobody browsing the book who is entitled to the seller's legal
+ * name or face. Asserted on the whole creator object rather than field by
+ * field — a `...row` spread that leaked a column would show up as an extra key
+ * here and nowhere else.
+ */
+test('toExchangeSummary: the book abbreviates the seller and withholds name and face', () => {
+  const wire = toExchangeSummary({
+    escrow_id: 'e-3',
+    chain_id: 'solana:devnet',
+    asset: 'SOL_DEVNET',
+    amount_raw: '1000000000',
+    status: 'open',
+    fiat_amount: '150000.0000',
+    fiat_currency: 'NGN',
+    rate: '150000.0000000000',
+    payment_window_seconds: 86_400,
+    accept_deadline: null,
+    created_at: CREATED,
+    creator: { ...creator, avatar_url: 'https://cdn.test/face.png' },
+  })
+  assert.deepStrictEqual(wire.creator, {
+    id: 'u-1',
+    display_name: 'Ada O.',
+    review_score: '4.50',
+    is_seeker: false,
+    is_agent: false,
+    country: 'NG',
+    full_name: null,
+    avatar_url: null,
+  })
+})
+
+test('toExchangePartyRef: reveals the legal name and the face to a settled party', () => {
+  // The other half of the same switch. Without it, a serializer hardwired to
+  // withhold would pass every other case in this file.
+  assert.deepStrictEqual(
+    toExchangePartyRef({ ...creator, avatar_url: 'https://cdn.test/face.png' }, true),
+    {
+      id: 'u-1',
+      display_name: 'Ada O.',
+      review_score: '4.50',
+      is_seeker: false,
+      is_agent: false,
+      country: 'NG',
+      full_name: 'Ada Obi',
+      avatar_url: 'https://cdn.test/face.png',
+    },
+  )
+})
+
+test('toExchangePartyRef: a party with no profile name reads as empty, never as punctuation', () => {
+  // `''` both ways, so a client's `|| 'Trader'` fallback fires. A naive
+  // implementation prints '.' for the initial or 'null null' for the name.
+  const nameless = toExchangePartyRef({ ...creator, first_name: '', last_name: '' }, true)
+  assert.strictEqual(nameless.display_name, '')
+  assert.strictEqual(nameless.full_name, '')
 })

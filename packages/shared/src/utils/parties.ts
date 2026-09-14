@@ -10,6 +10,7 @@ import type { EscrowKind } from '../types/escrow'
 // Type-only, and deliberately so: `types/dossier` imports `PartyRole` from
 // here, so a value import would close a runtime cycle. `import type` is erased.
 import type { DossierParty } from '../types/dossier'
+import type { ExchangePartyRef } from '../types/exchange'
 
 /** Structural party identity; mirrors the escrow columns and winner enum. */
 export type PartyRole = 'creator' | 'counterparty'
@@ -105,6 +106,56 @@ export function formatFullName(first_name: string | null, last_name: string | nu
  */
 export function hasCompleteName(first_name: string | null, last_name: string | null): boolean {
   return (first_name ?? '').trim() !== '' && (last_name ?? '').trim() !== ''
+}
+
+/**
+ * "Wisdom A." — the name a STRANGER may see, before anyone has committed.
+ *
+ * An exchange offer pairs whoever posted it with the money they are moving and
+ * a clock (#175). A full legal name beside that is a targeting list: P2P fraud
+ * works by approaching the seller off-platform mid-window. The first name plus
+ * one initial still reads as a person and still tells two sellers apart, which
+ * is what a counterparty is actually deciding on; the rest waits for an
+ * ACCEPTED intent, the same line `bank_accounts` already sits behind.
+ *
+ * Degrades rather than throws, because both columns are nullable:
+ *   ('Wisdom', 'Abioye') -> 'Wisdom A.'    ('Wisdom', null)  -> 'Wisdom'
+ *   (null, 'Abioye')     -> 'A.'           (null, null)      -> ''
+ *
+ * The initial is taken with `Array.from`, not `charAt(0)`: a name beginning
+ * with an astral character (an emoji, or a script outside the BMP) would
+ * otherwise be cut mid-surrogate and render as a replacement glyph.
+ *
+ * Whitespace-only counts as absent, matching `formatFullName` next door — the
+ * bug that helper exists to kill is exactly the one this would reintroduce.
+ */
+export function abbreviatedName(first_name: string | null, last_name: string | null): string {
+  const first = (first_name ?? '').trim()
+  const last = (last_name ?? '').trim()
+  const initial = last === '' ? '' : `${Array.from(last)[0]}.`
+  return [first, initial].filter((part) => part !== '').join(' ')
+}
+
+/**
+ * What to call an exchange party, from what the SERVER decided to send (#175).
+ *
+ * `full_name` is filled only for a settled party to that escrow and null for
+ * everyone else, who gets the abbreviated `display_name`. The choice is already
+ * made by then — this just reads it, in one place, so web and mobile cannot
+ * come to different conclusions about the same payload.
+ *
+ * `||`, never `??`: a revealed party who never set a profile name has
+ * `full_name: ''` (that is what `formatFullName` answers), and `??` would print
+ * the empty string instead of falling through.
+ *
+ * Returns `''` when there is no name at all, like `formatFullName` — the word
+ * to show instead is per-surface copy ("Trader" on the book, "Anonymous" on a
+ * person card), which is why it is not decided here.
+ */
+export function exchangePartyName(
+  party: Pick<ExchangePartyRef, 'full_name' | 'display_name'>,
+): string {
+  return party.full_name || party.display_name
 }
 
 /**

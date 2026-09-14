@@ -5,8 +5,8 @@
  * deadline show no row.
  */
 import { render, screen } from '@testing-library/react-native'
-import type { ExchangeDetail, EscrowStatus, UserRef } from '@tenda/shared'
-import { exchangeDetail } from '../__fixtures__/exchange-detail'
+import type { ExchangeDetail, EscrowStatus } from '@tenda/shared'
+import { exchangeDetail, exchangeParty } from '../__fixtures__/exchange-detail'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -52,9 +52,7 @@ const iso = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3_600
 /** The live clock renders as total-hours H:MM:SS ("5:23:04", "49:59:58"). */
 const CLOCK = /^\d+:\d{2}:\d{2}$/
 
-const user: UserRef = {
-  id: 'u1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, is_agent: false, country: 'NG',
-}
+const user = exchangeParty('u1')
 
 function makeOffer(
   status: EscrowStatus,

@@ -51,7 +51,7 @@ export type {
   AssignWorkerBody,
   ReleaseAssignmentResponse,
 } from './application'
-export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
+export type { ExchangeSummary, ExchangeDetail, ExchangePartyRef, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
 export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'

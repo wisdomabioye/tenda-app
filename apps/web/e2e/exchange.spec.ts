@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { signInToHome } from './fixtures/sign-in'
 import { EXISTING_EMAIL, TRADER_EMAIL } from './fixtures/auth'
+import { KES_SELLER_NAME, NGN_SELLER_NAME, kesSeller, ngnSeller } from './fixtures/exchange'
 import { EXCHANGE_COPY } from '../components/exchange/market/copy'
 import { OFFER_DETAIL_COPY } from '../components/exchange/detail/copy'
 
@@ -20,7 +21,7 @@ test('the book is open to a user with advanced mode OFF — the lock is gone (#5
   // Trade tab and the wire opens browse/accept to all (server decision #14).
   await signInToHome(page, EXISTING_EMAIL)
   await page.goto('/exchange')
-  await expect(page.getByText('Chioma Eze')).toBeVisible()
+  await expect(page.getByText(ngnSeller.display_name)).toBeVisible()
   // exact: substring matching would also catch the "My trades" tab link.
   await expect(page.getByRole('link', { name: 'Trade', exact: true })).toBeVisible()
 })
@@ -31,11 +32,32 @@ test('the order book lists open offers with their rate, chain and window', async
 
   const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
   await expect(book.getByRole('listitem')).toHaveCount(2)
-  await expect(book.getByText('Chioma Eze')).toBeVisible()
+  await expect(book.getByText(ngnSeller.display_name)).toBeVisible()
   await expect(book.getByText('₦1,500')).toBeVisible()
   // Scoped to the book: "Solana Devnet" is also a chain-filter chip.
   await expect(book.getByText('Solana Devnet')).toBeVisible()
   await expect(page.getByText(EXCHANGE_COPY.count(2, null))).toBeVisible()
+})
+
+test('the book names a seller without publishing their surname or their face (#175)', async ({
+  page,
+}) => {
+  // The row pairs a person with the money they are about to move, so what it
+  // may say about that person is exactly what the server decided to send: a
+  // first name and an initial, no legal surname, no photograph. Asserted on the
+  // rendered page rather than on the payload because it is the page that a
+  // scraper reads — and asserted for BOTH sellers, so a leak that only reaches
+  // one row cannot hide behind the other.
+  await signInToHome(page, TRADER_EMAIL)
+  await page.goto('/exchange')
+
+  const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
+  await expect(book.getByText(ngnSeller.display_name)).toBeVisible()
+  await expect(book.getByText(NGN_SELLER_NAME.last_name)).toHaveCount(0)
+  await expect(book.getByText(KES_SELLER_NAME.last_name)).toHaveCount(0)
+  // No face either: `avatar_url` is withheld with the name, so every row draws
+  // initials. An <img> here would mean a photograph reached an outsider.
+  await expect(book.locator('img')).toHaveCount(0)
 })
 
 test('a currency chip narrows the book, lands in the URL, and survives a reload', async ({
@@ -48,20 +70,20 @@ test('a currency chip narrows the book, lands in the URL, and survives a reload'
   await expect(page).toHaveURL(/\/exchange\?cur=KES/)
   const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
   await expect(book.getByRole('listitem')).toHaveCount(1)
-  await expect(page.getByText('Wanjiru Kamau')).toBeVisible()
+  await expect(page.getByText(kesSeller.display_name)).toBeVisible()
   await expect(page.getByText(EXCHANGE_COPY.count(1, 'KES'))).toBeVisible()
 
   // A cold load of the same address is the same book — which is the whole
   // reason the filter is in the URL and not in component state.
   await page.reload()
-  await expect(page.getByText('Wanjiru Kamau')).toBeVisible()
-  await expect(page.getByText('Chioma Eze')).toHaveCount(0)
+  await expect(page.getByText(kesSeller.display_name)).toBeVisible()
+  await expect(page.getByText(ngnSeller.display_name)).toHaveCount(0)
 })
 
 test('a filter set on the book survives opening an offer and coming back', async ({ page }) => {
   await signInToHome(page, TRADER_EMAIL)
   await page.goto('/exchange?cur=NGN')
-  await page.getByRole('link', { name: /Chioma Eze/ }).click()
+  await page.getByRole('link', { name: new RegExp(ngnSeller.display_name) }).click()
 
   await expect(page).toHaveURL(/\/exchange\/exch-ngn-1/)
   await page.getByRole('link', { name: OFFER_DETAIL_COPY.back }).click()
@@ -134,7 +156,7 @@ test('a chain the deployment DOES serve still narrows the book', async ({ page }
 
   const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
   await expect(book.getByRole('listitem')).toHaveCount(1)
-  await expect(page.getByText('Wanjiru Kamau')).toBeVisible()
+  await expect(page.getByText(kesSeller.display_name)).toBeVisible()
 })
 
 test('neither surface scrolls sideways, from a 320px phone to a wide desktop', async ({ page }) => {

@@ -4,23 +4,20 @@ import { Star } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
-import { formatRelativeShort, formatFullName } from '@tenda/shared'
+import { formatRelativeShort } from '@tenda/shared'
 import type { Review } from '@tenda/shared'
+import { cardPartyName, type CardParty } from './party-name'
 
 interface ReviewCardProps {
   review: Review
-  reviewer: {
-    first_name: string | null
-    last_name: string | null
-    avatar_url: string | null
-  }
+  reviewer: CardParty & { avatar_url: string | null }
   label: string
 }
 
 export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
-  const name = formatFullName(reviewer.first_name, reviewer.last_name) || 'Anonymous'
+  const name = cardPartyName(reviewer) || 'Anonymous'
   const time = formatRelativeShort(review.created_at)
 
   return (

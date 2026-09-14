@@ -5,8 +5,8 @@
  *
  * The comp's stat grid reads: average rating, trades settled, completion rate,
  * replies within 4 min — and a "verified" tick for anyone past 150 trades. One
- * of those five exists. `UserRef` carries `review_score`, `country` and
- * `is_seeker`; the offer carries its reviews. Trade counts, completion rates
+ * of those five exists. `ExchangePartyRef` carries `review_score`, `country`
+ * and `is_seeker`; the offer carries its reviews. Trade counts, completion rates
  * and reply times are not on any wire this page reads, and inventing them here
  * would be inventing a reputation (spec-correction #34).
  *
@@ -18,7 +18,12 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { MessageCircle, Star, ShieldCheck, Smartphone } from 'lucide-react'
-import { countryDisplayName, formatFullName, type ExchangeDetail, type UserRef } from '@tenda/shared'
+import {
+  countryDisplayName,
+  exchangePartyName,
+  type ExchangeDetail,
+  type ExchangePartyRef,
+} from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { RatingStars } from '@/components/ui/RatingStars'
@@ -50,11 +55,17 @@ export function TraderCard({
   offer,
   currentUserId,
 }: {
-  trader: UserRef
+  trader: ExchangePartyRef
   offer: Pick<ExchangeDetail, 'escrow_id' | 'reviews' | 'fiat_amount' | 'fiat_currency'>
   currentUserId: string
 }) {
-  const name = formatFullName(trader.first_name, trader.last_name) || TRADER_CARD_COPY.anonymous
+  // The server already decided how much of this person the viewer may see
+  // (#175): `full_name` is filled for a SETTLED party and null for everyone
+  // else, who gets the abbreviated `display_name` instead. `exchangePartyName`
+  // reads that decision — the card renders whichever arrived rather than
+  // re-deriving who is entitled to what — and `''` (a party with no profile
+  // name at all) falls through to this surface's own word for it.
+  const name = exchangePartyName(trader) || TRADER_CARD_COPY.anonymous
   const isSelf = trader.id === currentUserId
   const score = trader.review_score === null ? null : Number(trader.review_score)
   const country = countryDisplayName(trader.country)

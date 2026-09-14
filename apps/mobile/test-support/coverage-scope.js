@@ -249,6 +249,16 @@ module.exports = [
   // The review row, gated with its FIRST suite (#38) — it had no tests at all.
   // Measured before listing: 100/100/100/100.
   'components/shared/ReviewCard.tsx',
+  // Which of a party's two possible names the cards above print (#175). Both
+  // shapes are live at once — a gig party's name columns, and an exchange
+  // party whose label the server already decided — and this is the one place
+  // that fork is taken, so it is gated with its own suite rather than left to
+  // be exercised incidentally through the two cards.
+  // Measured before listing: the file reads 100/100/100/100 and the global
+  // figures RISE with it gated, 94.64 / 93.58 / 94.12 / 94.80 -> 94.64 /
+  // 93.60 / 94.13 / 94.80 (PersonCard's own branches go 60.86 -> 65.21,
+  // since the exchange fork is now driven as well as the gig one).
+  'components/shared/party-name.ts',
   'stores/gigs.store.ts',
   // CO1 takedown enforcement: the hooks that act on a refusal, where the
   // server is the first to know a listing was pulled and the screen has to

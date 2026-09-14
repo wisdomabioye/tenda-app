@@ -10,11 +10,16 @@
  *     and paginates, so row one is the newest offer, not the best rate — and
  *     sorting the page client-side would only rank the page.
  *   - trades settled, completion rate, reply time, and a "verified" tick
- *     derived from a trade count. `UserRef` carries an average review score
- *     and a country. Everything else on that list would be invented.
+ *     derived from a trade count. `ExchangePartyRef` carries an average review
+ *     score and a country. Everything else on that list would be invented.
  *   - the seller's payment rails. `payout_account` is party-scoped: the server
  *     nulls it for anyone who is not in the trade, so a public row advertising
  *     the rails would be publishing the one field it withholds.
+ *
+ * And since #175 the seller's own identity is scoped the same way: the book
+ * sends `display_name` ("Wisdom A.") with `full_name` and `avatar_url` withheld,
+ * so the row draws an abbreviated label over initials. This card renders what
+ * arrived and reconstructs nothing — the entitlement decision is the server's.
  *
  * What IS drawn is every fact the row carries, laid out as the comp lays it
  * out: identity, then the rate, then the commitment.
@@ -26,7 +31,6 @@ import {
   formatAssetAmount,
   formatDurationShort,
   formatFiat,
-  formatFullName,
   formatRate,
   type ExchangeSummary,
 } from '@tenda/shared'
@@ -52,7 +56,11 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
   // A RATE, not an amount: `formatFiat` would round 15.49 and 15.40 to the
   // same "GH₵15" in the column this card exists to be compared down.
   const rate = formatRate(Number(offer.rate), currency)
-  const sellerName = formatFullName(offer.creator.first_name, offer.creator.last_name) || OFFER_CARD_COPY.anonymous
+  // `display_name` is the server's answer, already abbreviated to "Wisdom A."
+  // (#175) — the card must not try to rebuild a name from parts it no longer
+  // receives. Empty means the seller set no profile name, which is what the
+  // `anonymous` fallback is for; `||` not `??`, because '' is falsy-but-present.
+  const sellerName = offer.creator.display_name || OFFER_CARD_COPY.anonymous
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
   const country = countryDisplayName(offer.creator.country)
 

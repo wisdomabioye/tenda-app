@@ -21,6 +21,7 @@ import {
 } from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
+import { toExchangePartyRef } from '@server/lib/exchange-read'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = ExchangeContract['get']
@@ -74,6 +75,12 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     // NOT included (they read the dossier); see escrow-detail-scope. Derived
     // before the reads because it decides whether the evidence is read at all.
     const isParty = isEscrowPartyOrAssignedRow(escrow, request.user.id)
+    // The NARROWER of the two party questions: the creator and an ACCEPTED
+    // counterparty, with a pending direct-offer assignee excluded. Two things
+    // sit behind this one line — the seller's bank details, and since #175
+    // their legal name and face — and they must never drift apart, so the
+    // question is asked once and named rather than repeated at each use.
+    const isSettledParty = isEscrowPartyRow(escrow, request.user.id)
 
     const [userRows, evidence, offerReviews] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
@@ -86,16 +93,18 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     if (creator === undefined) {
       throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'escrow creator row missing')
     }
+    // The counterparty keeps its FULL `UserRef`: `scopeEscrowPrivateFields`
+    // below already withholds it from everyone but the parties, so narrowing it
+    // would take identity from the people entitled to it rather than from a
+    // stranger. #175's surface is the CREATOR, whom everyone can see.
     const counterparty =
       escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
 
     // Payout account is PII: reveal the full details only to the offer's
-    // SETTLED parties (creator + accepted counterparty), so a matched buyer
-    // knows where to pay. Absent to everyone else, and before an account is
-    // linked. Narrower than `isParty` above on purpose: a pending assignee has
-    // not accepted, so the seller's bank details are not theirs to read yet.
+    // settled parties, so a matched buyer knows where to pay. Absent to
+    // everyone else, and before an account is linked.
     let payout_account: ExchangePayoutAccount | null = null
-    if (isEscrowPartyRow(escrow, request.user.id) && details.payout_account_id !== null) {
+    if (isSettledParty && details.payout_account_id !== null) {
       const [acct] = await fastify.db
         .select({
           kind: bank_accounts.kind,
@@ -125,7 +134,11 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       payment_window_seconds: details.payment_window_seconds,
       accept_deadline: iso(escrow.accept_deadline),
       created_at: escrow.created_at.toISOString(),
-      creator,
+      // The creator's LEGAL NAME and FACE sit behind the same line as the
+      // payout account above, and are handed the same answer (#175) — not the
+      // broader `isParty` used for the private half, because a pending assignee
+      // has not accepted and the other side's identity is not theirs yet.
+      creator: toExchangePartyRef(creator, isSettledParty),
       is_seeker: escrow.is_seeker,
       // The buyer's fiat receipt — evidence, not terms. Scoped with `proofs`
       // below rather than shipped beside the price.

@@ -4,7 +4,8 @@
  * trade, rate, and the payment window — plus the optional status badge.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import type { ExchangeSummary, UserRef } from '@tenda/shared'
+import { abbreviatedName } from '@tenda/shared'
+import type { ExchangePartyRef, ExchangeSummary } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -34,8 +35,17 @@ jest.mock('../ExchangeStatusBadge', () => {
 import { useRouter } from 'expo-router'
 import { ExchangeOfferCard } from '../ExchangeOfferCard'
 
-const creator: UserRef = {
-  id: 'u1', first_name: 'Ada', last_name: 'Obi', avatar_url: null, review_score: '4.7',
+/**
+ * The seller's real name columns, and the seller as the BOOK serves them
+ * (#175): the label abbreviated, the legal name and the face withheld. Built
+ * with the serializer's own helper so the fixture cannot drift from the rule.
+ */
+const SELLER_FIRST = 'Ada'
+const SELLER_LAST = 'Obi'
+const SELLER_LABEL = abbreviatedName(SELLER_FIRST, SELLER_LAST)
+
+const creator: ExchangePartyRef = {
+  id: 'u1', display_name: SELLER_LABEL, full_name: null, avatar_url: null, review_score: '4.7',
   is_seeker: false, is_agent: false, country: 'NG',
 }
 
@@ -56,12 +66,33 @@ const offer: ExchangeSummary = {
 
 test('shows seller name, network, the trade, rate and window', () => {
   render(<ExchangeOfferCard offer={offer} />)
-  expect(screen.getByText('Ada Obi')).toBeTruthy()
+  expect(screen.getByText(SELLER_LABEL)).toBeTruthy()
   expect(screen.getByText('Solana')).toBeTruthy() // network pill
   expect(screen.getByText(/2\.5.*USDC/)).toBeTruthy() // asset amount
-  expect(screen.getByText(/@ada/)).toBeTruthy() // handle
   expect(screen.getByText(/4\.7/)).toBeTruthy() // rating
   expect(screen.getByText('Pay within 12h')).toBeTruthy() // payment window
+})
+
+test('names the seller without publishing their surname, and draws no face (#175)', () => {
+  // The row pairs a person with the money they are about to move. What it may
+  // say about that person is what the server sent: a first name and an initial.
+  const { toJSON } = render(<ExchangeOfferCard offer={offer} />)
+  expect(screen.getByText(SELLER_LABEL)).toBeTruthy()
+  expect(JSON.stringify(toJSON())).not.toContain(SELLER_LAST)
+  // And no `@handle` under it — it only ever lower-cased the name above.
+  expect(screen.queryByText(/^@/)).toBeNull()
+})
+
+test('shows the LEGAL name once the server reveals it to a settled party', () => {
+  // The same card, the same wire field: entitlement is decided server-side and
+  // read here. Without this case a card that ignored `full_name` would pass.
+  const revealed: ExchangeSummary = {
+    ...offer,
+    creator: { ...creator, full_name: `${SELLER_FIRST} ${SELLER_LAST}` },
+  }
+  render(<ExchangeOfferCard offer={revealed} />)
+  expect(screen.getByText(`${SELLER_FIRST} ${SELLER_LAST}`)).toBeTruthy()
+  expect(screen.queryByText(SELLER_LABEL)).toBeNull()
 })
 
 test('hides the status badge on the market variant (showStatus defaults false)', () => {
@@ -75,36 +106,18 @@ test('shows the status badge when showStatus is set', () => {
 })
 
 test('falls back to "Seller" when the creator has no name', () => {
+  // Built through `abbreviatedName` rather than by typing '' here, so this one
+  // case covers BOTH ways a seller arrives nameless: empty name columns, and
+  // columns holding only whitespace. There used to be a separate whitespace
+  // test against this card; the distinction moved upstream with the
+  // abbreviation — `abbreviated-name.test.ts` pins it there — and once it had,
+  // the second case was feeding this card the identical '' the first did.
   const anon: ExchangeSummary = {
     ...offer,
-    creator: { ...creator, first_name: '', last_name: '' },
+    creator: { ...creator, display_name: abbreviatedName('  ', '   ') },
   }
   render(<ExchangeOfferCard offer={anon} />)
   expect(screen.getByText('Seller')).toBeTruthy()
-})
-
-test('a WHITESPACE-only name falls back too, and shows no bare "@" handle', () => {
-  // ONE bug here, not two — established by mutation, not assumed. The name line
-  // was already correct: it used `\`${f ?? ''} ${l ?? ''}\`.trim()`, which
-  // collapses whitespace to '' and fires the fallback. (Reverting it to that
-  // form still passes this test; the switch to formatFullName is a consistency
-  // change, behaviour-identical on every input.) The HANDLE beside it was the
-  // bug: it tested `first_name` for truthiness, so '  ' rendered the string
-  // '@  ' — an at-sign with nothing after it, plus a separator dot.
-  //
-  // The name assertion stays as a regression guard for the half that worked.
-  const blank: ExchangeSummary = {
-    ...offer,
-    creator: { ...creator, first_name: '  ', last_name: '   ' },
-  }
-  render(<ExchangeOfferCard offer={blank} />)
-
-  expect(screen.getByText('Seller')).toBeTruthy()
-  // The regex, not `queryByText('@  ')`. Measured: either one alone kills the
-  // mutant, so keeping both was decoration — and this one is the stronger of
-  // the two, catching '@', '@ ' and any other empty-handle variant rather than
-  // the single literal this bug happened to produce.
-  expect(screen.queryByText(/^@/)).toBeNull()
 })
 
 test('omits the rating when the seller is unrated', () => {
@@ -143,7 +156,7 @@ test('tapping the row opens THAT offer', () => {
   const push = jest.fn()
   ;(useRouter as jest.Mock).mockReturnValue({ push })
   render(<ExchangeOfferCard offer={{ ...offer, escrow_id: 'esc-42' }} />)
-  fireEvent.press(screen.getByText('Ada Obi'))
+  fireEvent.press(screen.getByText(SELLER_LABEL))
   expect(push).toHaveBeenCalledWith('/exchange/esc-42')
 })
 

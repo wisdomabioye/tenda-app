@@ -10,7 +10,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { OFFER_CARD_COPY, OfferCard } from '@/components/exchange/market'
-import { makeExchangeDetail, makeUserRef } from '../../../../test/factories/exchange'
+import { makeExchangeDetail, makeExchangeParty } from '../../../../test/factories/exchange'
 
 const offer = (over: Parameters<typeof makeExchangeDetail>[0] = {}) => makeExchangeDetail(over)
 
@@ -46,36 +46,36 @@ describe('OfferCard', () => {
 
   it('shows a rating only when the trader HAS one', () => {
     const { rerender } = render(
-      <OfferCard offer={offer({ creator: makeUserRef({ id: 's', review_score: '4.70' }) })} />,
+      <OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', review_score: '4.70' }) })} />,
     )
     expect(screen.getByRole('img', { name: '4.7 out of 5' })).toBeInTheDocument()
     expect(screen.getByText('4.7')).toBeInTheDocument()
 
     // Not "0.0 stars", which reads as a bad trader rather than a new one.
-    rerender(<OfferCard offer={offer({ creator: makeUserRef({ id: 's', review_score: null }) })} />)
+    rerender(<OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', review_score: null }) })} />)
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.getByText(OFFER_CARD_COPY.unrated)).toBeInTheDocument()
   })
 
   it('names the trader’s country, falling back to the raw code', () => {
     const { rerender } = render(
-      <OfferCard offer={offer({ creator: makeUserRef({ id: 's', country: 'NG' }) })} />,
+      <OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', country: 'NG' }) })} />,
     )
     expect(screen.getByText('Nigeria')).toBeInTheDocument()
 
-    rerender(<OfferCard offer={offer({ creator: makeUserRef({ id: 's', country: 'ZW' }) })} />)
+    rerender(<OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', country: 'ZW' }) })} />)
     expect(screen.getByText('ZW')).toBeInTheDocument()
   })
 
   it('renders no country line at all when the account carries none', () => {
-    render(<OfferCard offer={offer({ creator: makeUserRef({ id: 's', country: null }) })} />)
+    render(<OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', country: null }) })} />)
     expect(screen.queryByText('—')).toBeNull()
   })
 
   it('falls back to a neutral noun rather than an empty name', () => {
     render(
       <OfferCard
-        offer={offer({ creator: makeUserRef({ id: 's', first_name: '', last_name: '' }) })}
+        offer={offer({ creator: makeExchangeParty({ id: 's', display_name: '' }) })}
       />,
     )
     expect(screen.getByText(OFFER_CARD_COPY.anonymous)).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('OfferCard', () => {
   })
 
   it('marks a Seeker seller, which IS on the wire', () => {
-    render(<OfferCard offer={offer({ creator: makeUserRef({ id: 's', is_seeker: true }) })} />)
+    render(<OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', is_seeker: true }) })} />)
     expect(screen.getByText(OFFER_CARD_COPY.seeker)).toBeInTheDocument()
   })
 })
@@ -137,5 +137,22 @@ describe('OfferCard — the rate is compared, not just displayed', () => {
   it('leaves a whole rate whole — most NGN rates are, and ₦1,500.00 is noise', () => {
     render(<OfferCard offer={offer()} />)
     expect(screen.getByText('₦1,500')).toBeInTheDocument()
+  })
+})
+
+describe('OfferCard — how much of the seller a public row shows (#175)', () => {
+  it('prints the label the server chose and draws no face beside it', () => {
+    // The book serves `display_name` already abbreviated and `avatar_url` null
+    // for every reader, so the row has no full name and no photograph to draw.
+    // A card that reached for one would be re-inventing the identity the
+    // serializer just withheld.
+    const { container } = render(
+      <OfferCard offer={offer({ creator: makeExchangeParty({ id: 's', display_name: 'Wisdom A.' }) })} />,
+    )
+    expect(screen.getByText('Wisdom A.')).toBeInTheDocument()
+    expect(container.querySelector('img')).toBeNull()
+    // Initials, from the abbreviated label — the surname's initial is all the
+    // row ever had, so this cannot spell the surname out.
+    expect(screen.getByText('WA')).toBeInTheDocument()
   })
 })

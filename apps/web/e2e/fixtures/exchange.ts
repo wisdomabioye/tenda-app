@@ -1,11 +1,3 @@
-import type {
-  EscrowListRow,
-  ExchangeDetail,
-  ExchangeSummary,
-  PaginatedResponse,
-} from '@tenda/shared'
-import { TRADER_USER_ID } from './auth'
-
 /**
  * The order book, as two offers a reader can tell apart.
  *
@@ -18,27 +10,58 @@ import { TRADER_USER_ID } from './auth'
  * because the fixture served its seeded conversation to any bearer, so the
  * probe measured the fixture rather than the app.
  */
-const seller = {
-  id: 'seller-ngn',
-  first_name: 'Chioma',
-  last_name: 'Eze',
-  avatar_url: null,
-  review_score: '4.70',
-  is_seeker: false,
-  is_agent: false,
-  country: 'NG',
+import { abbreviatedName } from '@tenda/shared'
+import type {
+  EscrowListRow,
+  ExchangeDetail,
+  ExchangePartyRef,
+  ExchangeSummary,
+  PaginatedResponse,
+} from '@tenda/shared'
+import { TRADER_USER_ID } from './auth'
+
+/**
+ * What the sellers are CALLED in the database, kept apart from what the book
+ * serves so a spec can assert the surname never reaches the page (#175).
+ */
+export const NGN_SELLER_NAME = { first_name: 'Chioma', last_name: 'Eze' } as const
+export const KES_SELLER_NAME = { first_name: 'Wanjiru', last_name: 'Kamau' } as const
+
+/**
+ * A seller as the exchange surface serves them (#175): an abbreviated label,
+ * with the legal name and the face withheld from everyone who is not a settled
+ * party to the escrow — which, on an OPEN offer, is every reader there is.
+ *
+ * `display_name` is built with the same helper the server serializes with
+ * rather than typed out, so this stub cannot go on answering a shape the real
+ * route stopped producing.
+ */
+function bookSeller(
+  id: string,
+  name: { first_name: string; last_name: string },
+  rest: Pick<ExchangePartyRef, 'review_score' | 'country'>,
+): ExchangePartyRef {
+  return {
+    id,
+    display_name: abbreviatedName(name.first_name, name.last_name),
+    full_name: null,
+    avatar_url: null,
+    review_score: rest.review_score,
+    is_seeker: false,
+    is_agent: false,
+    country: rest.country,
+  }
 }
 
-const kenyanSeller = {
-  id: 'seller-kes',
-  first_name: 'Wanjiru',
-  last_name: 'Kamau',
-  avatar_url: null,
+export const ngnSeller = bookSeller('seller-ngn', NGN_SELLER_NAME, {
+  review_score: '4.70',
+  country: 'NG',
+})
+
+export const kesSeller = bookSeller('seller-kes', KES_SELLER_NAME, {
   review_score: null,
-  is_seeker: false,
-  is_agent: false,
   country: 'KE',
-}
+})
 
 export const ngnOffer: ExchangeSummary = {
   escrow_id: 'exch-ngn-1',
@@ -52,7 +75,7 @@ export const ngnOffer: ExchangeSummary = {
   payment_window_seconds: 3600,
   accept_deadline: null,
   created_at: '2026-08-15T10:00:00.000Z',
-  creator: seller,
+  creator: ngnSeller,
 }
 
 export const kesOffer: ExchangeSummary = {
@@ -64,7 +87,7 @@ export const kesOffer: ExchangeSummary = {
   fiat_currency: 'KES',
   rate: '129.0000000000',
   payment_window_seconds: 5400,
-  creator: kenyanSeller,
+  creator: kesSeller,
 }
 
 export const OFFERS: ExchangeSummary[] = [ngnOffer, kesOffer]
