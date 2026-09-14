@@ -142,11 +142,25 @@ function page<T>(data: T[]): PaginatedResponse<T> {
 /**
  * `/v1/exchange`, `/v1/exchange/:id` and the caller's own exchange escrows.
  * Returns null for anything else so the caller falls through.
+ *
+ * THE TWO HALVES ARE GATED DIFFERENTLY SINCE #179, which is why the router now
+ * tests them in two conditions rather than one. The book and a single offer are
+ * ANONYMOUS, like the real routes; `/v1/users/:id/escrows` still needs a bearer.
+ * They shared a condition — and a 401 — until the server stopped agreeing with
+ * it, and a stub that goes on demanding a bearer does not merely drift: it keeps
+ * telling the next reader that the server gates a feed it no longer gates, while
+ * every e2e run passes because the app happens to sign in first.
  */
 export function handleExchange(
   url: URL,
   method: string,
-  userId: string,
+  /**
+   * The caller, or NULL when they are anonymous — which the exchange paths now
+   * allow (#179) and `/v1/users/:id/escrows` still does not. The caller gates
+   * that second path before reaching here; a null arriving on it would match no
+   * id and fall through to the 403, which is the honest answer either way.
+   */
+  userId: string | null,
   enabledChainIds: readonly string[],
 ): StubReply | null {
   /**

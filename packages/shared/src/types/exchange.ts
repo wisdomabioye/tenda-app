@@ -1,9 +1,12 @@
 /**
  * Exchange READ surface (post-cutover). P2P exchanges are escrows with
  * kind='exchange' — creation and transitions go through /v1/escrows.
- * This file types the order-book browse surface: /v1/exchange (listing,
- * gated by advanced_mode_enabled per decision #14) and /v1/exchange/:id,
- * both served from escrows ⨝ exchange_details.
+ * This file types the order-book browse surface: /v1/exchange and
+ * /v1/exchange/:id, both served from escrows ⨝ exchange_details and both
+ * ANONYMOUS since #179. The old note here said the listing was "gated by
+ * advanced_mode_enabled", which was wrong in both halves even before that:
+ * that flag has only ever gated offer CREATION, and the listing's gate was
+ * plain authentication.
  */
 import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'

@@ -1,9 +1,17 @@
 /**
  * Exchange order-book surface (cutover §3 rewrite): escrows kind='exchange'
  * ⨝ exchange_details ⨝ users.
- *   GET  /, the order book (auth required to keep it off public scrapers).
- *            Browsing/accepting is open to ALL users; advanced_mode_enabled
- *            gates offer CREATION only (decision #14, settled 2026-06-05).
+ *   GET  /, the order book — ANONYMOUS, exactly like GET /v1/gigs (#179).
+ *            This REVERSES the signed-in-only gate that decision #14 implied
+ *            and #112 pinned, knowingly: the gate cost a scraper about two
+ *            minutes (`POST /v1/agent/register` mints a bearer from a fresh
+ *            wallet at 10/min, and MAX_PAGINATION_LIMIT is 100), so it was not
+ *            doing the job its old docblock claimed. What made the exposure
+ *            real was the money-movement PAIRING on each row, and #175 removed
+ *            that — the book now carries an abbreviated label, never a legal
+ *            name or a face. Ship order matters: #175 first, then this.
+ *            Accepting still requires a session; only READING is open.
+ *            `advanced_mode_enabled` gates offer CREATION only.
  *   POST /, attach exchange_details to the caller's DRAFT escrow (CO4
  *            advanced-mode offer creation, mirror of the gig create-detail
  *            step). Transitions live under /v1/escrows. The data carries no
@@ -12,7 +20,7 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { eq, and, gt, isNull, or, desc, sql, type SQL } from 'drizzle-orm'
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
@@ -31,6 +39,7 @@ import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
+import { publicExchangeConditions } from './public-feed'
 import { chainFilterCondition } from '@server/lib/chain-filter'
 import { amountWindowConditions } from '@server/lib/amount-window'
 
@@ -38,26 +47,23 @@ type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
 
 const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/exchange, order book (auth required to prevent scraping)
+  // GET /v1/exchange, the order book. NO preHandler — anonymous, like the gig
+  // feed. Nothing here reads `request.user`, which is what makes that safe:
+  // the rows are chosen by `publicExchangeConditions` alone and serialized by
+  // `toExchangeSummary`, which never reveals an identity on this surface.
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
+  }>('/', async (request) => {
     const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
+    // ONE `now` for both queries below — the rule's own docblock explains why
+    // the book and its `total` must judge the deadline against one instant.
     const now = new Date()
-    const conditions: SQL[] = [
-      eq(escrows.kind, 'exchange'),
-      // Market feed: open offers whose accept window hasn't passed,
-      // display-correct even between expire-escrows job ticks. Taken-down
-      // offers (CO1) never surface here.
-      eq(escrows.status, 'open'),
-      eq(escrows.hidden, false),
-      or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
-    ]
+    const conditions: SQL[] = publicExchangeConditions(now)
 
     if (currency) conditions.push(eq(exchange_details.fiat_currency, currency.toUpperCase()))
 

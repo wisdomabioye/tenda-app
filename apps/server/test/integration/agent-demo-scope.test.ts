@@ -7,6 +7,16 @@
  * pairing a real person's name, avatar and country with the money they were
  * moving, to a caller who had proved nothing.
  *
+ * THE EXAMPLE ROUTE MOVED, and the reason is worth reading before changing it
+ * back. These cases used the exchange book as their stand-in for "a gated
+ * route". #179 made that book ANONYMOUS, so `authenticate` no longer runs on it
+ * and the scope check never fires — a demo bearer now reads it exactly as a
+ * caller with no token does, which is correct: there is no authority left to
+ * withhold. Refusing a public document to a valid token would be worse than
+ * anonymous. So the gated example is now `GET /v1/gigs?mine=`, whose handler
+ * calls `fastify.authenticate` MID-HANDLER — which also keeps proving that the
+ * scope check rides along there and not merely on preHandlers.
+ *
  * These cases pin the two halves that make the fix worth having:
  *   - the demo still does everything the document offers it (the 402, and the
  *     draft read-back that follows), so scoping costs the feature nothing;
@@ -60,37 +70,62 @@ async function liveOffer(seller: TestUser): Promise<void> {
   await attachExchangeDetails(getApp(), escrow.id)
 }
 
-test('the demo bearer is REFUSED the exchange book, and told where to get a real session', { skip }, async () => {
+const MINE_URL = `${apiRoutes.gigs.list}?mine=created`
+
+test('the demo bearer is REFUSED a gated read, and told where to get a real session', { skip }, async () => {
+  // `?mine=` calls `authenticate` INSIDE the handler, so this also proves the
+  // check rides along there rather than only on a preHandler.
   const app = getApp()
-  await liveOffer(await createUser(app))
-  const res = await app.inject({ method: 'GET', url: apiRoutes.exchange.list, headers: authHeader(await demoToken()) })
+  const res = await app.inject({ method: 'GET', url: MINE_URL, headers: authHeader(await demoToken()) })
 
   assert.strictEqual(res.statusCode, 403, res.body)
   const body = res.json<{ code: string; message: string }>()
   assert.strictEqual(body.code, ErrorCode.FORBIDDEN)
   // A dead end is what round one scored badly. The refusal has to say the way on.
   assert.match(body.message, new RegExp(apiRoutes.agent.register))
-  // And no offer may ride out on the refusal.
-  assert.ok(!res.body.includes('fiat_currency'), 'an offer field leaked through the refusal')
+  // And no listing may ride out on the refusal.
+  assert.ok(!res.body.includes('"data"'), 'a listing leaked through the refusal')
+
+  // The public feed sends no token, so nothing about it changes.
+  const open = await app.inject({ method: 'GET', url: apiRoutes.gigs.list })
+  assert.strictEqual(open.statusCode, 200, open.body)
 })
 
 test('an ordinary user is unaffected — the check discriminates by SCOPE, not by who is asking', { skip }, async () => {
   const app = getApp()
-  const seller = await createUser(app)
-  await liveOffer(seller)
   const human = await createUser(app)
-  const res = await app.inject({ method: 'GET', url: apiRoutes.exchange.list, headers: authHeader(human.token) })
+  const res = await app.inject({ method: 'GET', url: MINE_URL, headers: authHeader(human.token) })
+  // 200 rather than 403 IS the discrimination; an empty list is a real answer.
   assert.strictEqual(res.statusCode, 200, res.body)
-  assert.ok(res.json<{ data: unknown[] }>().data.length > 0, 'the book must still serve a signed-in reader')
 })
 
 test('a REAL agent from /v1/agent/register is unrestricted', { skip }, async () => {
   const app = getApp()
-  await liveOffer(await createUser(app))
   const agent = await registerAgent(app)
-  const res = await app.inject({ method: 'GET', url: apiRoutes.exchange.list, headers: authHeader(agent.token) })
+  const res = await app.inject({ method: 'GET', url: MINE_URL, headers: authHeader(agent.token) })
   // The case a blanket "agents cannot read" bug would fail.
   assert.strictEqual(res.statusCode, 200, res.body)
+})
+
+/**
+ * The book is PUBLIC since #179, so the scope neither grants nor withholds it.
+ * Pinned anyway: a future preHandler put back on that route would silently make
+ * the demo session worse than anonymous, and nothing else would notice.
+ */
+test('the demo bearer reads the now-public exchange book, exactly as anonymous does', { skip }, async () => {
+  const app = getApp()
+  await liveOffer(await createUser(app))
+  const token = await demoToken()
+
+  const withToken = await app.inject({ method: 'GET', url: apiRoutes.exchange.list, headers: authHeader(token) })
+  const anonymous = await app.inject({ method: 'GET', url: apiRoutes.exchange.list })
+  assert.strictEqual(withToken.statusCode, 200, withToken.body)
+  assert.strictEqual(anonymous.statusCode, 200, anonymous.body)
+  assert.deepStrictEqual(
+    withToken.json<{ data: unknown[] }>().data,
+    anonymous.json<{ data: unknown[] }>().data,
+    'a demo bearer must read the public book neither better nor worse than anonymous',
+  )
 })
 
 test('the demo bearer still REACHES THE 402 — the step every round-one reviewer missed', { skip }, async () => {
@@ -135,23 +170,6 @@ test('the demo bearer still reads its OWN draft back — the documented poll aft
   assert.strictEqual(draft.statusCode, 200, draft.body)
   const anon = await app.inject({ method: 'GET', url: detailUrl })
   assert.strictEqual(anon.statusCode, 404, 'a draft must stay invisible to strangers')
-})
-
-/**
- * The one capability the scope takes away that a reviewer might reach for. It
- * is the `?mine=` branch, which calls `authenticate` INSIDE the handler — so
- * this also proves the check rides along there rather than only on preHandlers.
- */
-test('the demo bearer cannot list its own drafts with ?mine=, and anonymous browsing is untouched', { skip }, async () => {
-  const app = getApp()
-  const token = await demoToken()
-  const mine = await app.inject({ method: 'GET', url: `${apiRoutes.gigs.list}?mine=created`, headers: authHeader(token) })
-  assert.strictEqual(mine.statusCode, 403, mine.body)
-  assert.strictEqual(mine.json<{ code: string }>().code, ErrorCode.FORBIDDEN)
-
-  // The public feed sends no token, so nothing about it changes.
-  const open = await app.inject({ method: 'GET', url: apiRoutes.gigs.list })
-  assert.strictEqual(open.statusCode, 200, open.body)
 })
 
 test('the demo token carries the scope claim and a SHORT life, not the 7-day default', { skip }, async () => {
