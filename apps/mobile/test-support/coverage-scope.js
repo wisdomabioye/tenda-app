@@ -46,6 +46,7 @@
  * stopped being true.
  */
 module.exports = [
+  ...require('./coverage-scope-profile'),
   // The notification centre: the feed store and the screen that reads it.
   // Added in #57 with the cases that fix the empty-state blink; measured
   // before listing, and the gate holds (branches 90.57 -> 90.46, still above
@@ -221,13 +222,6 @@ module.exports = [
   // sibling `amount.ts` DOES hold logic and is gated by the pattern above,
   // exercised through all three variants.
   '!components/gig/GigCardCompact/shared.ts',
-  // The theme's font declarations and the assets they name. Both are data, and
-  // the seam between them is exactly where JetBrains Mono went missing for
-  // months — an unregistered family does not error, it silently renders as the
-  // platform sans. Measured before listing, per the rule above: both read
-  // 100/100/100/100 and the global figures are unmoved.
-  'theme/fonts.ts',
-  'theme/tokens.ts',
   'hooks/escrow/proof-hash.ts',
   'features/escrow/transition-failure.ts', // 100/100/100/100
   'components/gig/GigDetailGate.tsx',
@@ -240,25 +234,6 @@ module.exports = [
   // and jest's own collector both match it, which the coverage table confirms
   // by reporting a `mobile/app/gig/[id]` row.
   'app/gig/[id]/index.tsx',
-  'components/shared/ReviewScore.tsx',
-  // The counterparty card, gated with its first suite (#19: the agent badge).
-  // Measured before listing: the file reads 77.77 / 60.86 / 66.66 / 77.77 (the
-  // message press is the dark part) and the global thresholds hold at
-  // 94.36 / 93.29 / 93.76 / 94.51.
-  'components/shared/PersonCard.tsx',
-  // The review row, gated with its FIRST suite (#38) — it had no tests at all.
-  // Measured before listing: 100/100/100/100.
-  'components/shared/ReviewCard.tsx',
-  // Which of a party's two possible names the cards above print (#175). Both
-  // shapes are live at once — a gig party's name columns, and an exchange
-  // party whose label the server already decided — and this is the one place
-  // that fork is taken, so it is gated with its own suite rather than left to
-  // be exercised incidentally through the two cards.
-  // Measured before listing: the file reads 100/100/100/100 and the global
-  // figures RISE with it gated, 94.64 / 93.58 / 94.12 / 94.80 -> 94.64 /
-  // 93.60 / 94.13 / 94.80 (PersonCard's own branches go 60.86 -> 65.21,
-  // since the exchange fork is now driven as well as the gig one).
-  'components/shared/party-name.ts',
   'stores/gigs.store.ts',
   // CO1 takedown enforcement: the hooks that act on a refusal, where the
   // server is the first to know a listing was pulled and the screen has to
@@ -293,17 +268,6 @@ module.exports = [
   // what #128 gated this file for, and neither is worth a fixture that only
   // exists to colour a line green.
   'app.config.ts',
-  // Which API host the binary talks to, and the guard that is supposed to shout
-  // when that was never decided. Listed with its first suite in #128 — the
-  // module had none, which is how it came to call an APP_ENV that WAS set "not
-  // set", and how the same conflation survived being ported to web (#127).
-  // Measured with it listed: 100/100/100/100, so it moves the global figures up
-  // rather than down.
-  'lib/env.ts',
-  // Build identity. Small, but it is the surface that spent months telling
-  // users the app was v1.0.0 when it had never been.
-  'lib/app-version.ts',
-  'components/ui/AppVersion.tsx',
   // Escrow convergence. Include the orchestration itself so tests cannot
   // pass by merely asserting mocked callbacks around the former race.
   'hooks/escrow-sync/*.ts',
@@ -314,14 +278,6 @@ module.exports = [
   // `lib/escrow-sync.ts` was listed below this line. 623a79c moved it to
   // packages/shared/src/utils, which grew its own suite for it in the same
   // commit; the mobile pattern stayed and matched nothing (#58).
-  // The per-chain balance rows (#64). Added with their first suite: the
-  // component printed '0 USDC' for a chain it had NO reading for, which is
-  // the conflation web's grid has always avoided. Measured before listing —
-  // the file reads 100/100/100/100 and every global figure went up.
-  'components/wallet/WalletBalanceRows.tsx',
-  // The signer preview and its hook. Both 100/100/100/100.
-  'components/wallet/{SigningWalletRow,sell/SellWalletNotice}.tsx',
-  'hooks/wallet/useSigningWallet.ts',
   'components/feedback/TransactionMonitor.tsx',
   // The gate's OWN machinery (#75). These three decide what everything above
   // is measured against, and until now nothing measured THEM: the resolver has
@@ -335,10 +291,4 @@ module.exports = [
   // './test-support/' its own threshold, which SUBTRACTS these from the global
   // ones. The reasoning, and the measurement behind it, are recorded there.
   'test-support/*.ts',
-  // The settings store, which gained its first suite with #88. It reads theme
-  // and currency back out of SecureStore, and the currency it admits is what
-  // every CURRENCY_META lookup downstream indexes with — an unlisted one throws
-  // on the next property read rather than merely displaying oddly, so the
-  // parsing is worth measuring.
-  'stores/settings.store.ts',
 ]
