@@ -16,7 +16,7 @@ export const exchange_details = pgTable('exchange_details', {
   /**
    * The seller's payout account the accepted buyer pays fiat into. Nullable:
    * older offers predate it and a deleted account nulls out (set null) rather
-   * than cascading the whole offer. Revealed only to the offer's parties.
+   * than cascading the whole offer. Revealed only to the offer's settled parties.
    */
   payout_account_id: uuid('payout_account_id').references(() => bank_accounts.id, {
     onDelete: 'set null',

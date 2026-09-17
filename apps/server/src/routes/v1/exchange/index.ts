@@ -50,7 +50,8 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /v1/exchange, the order book. NO preHandler — anonymous, like the gig
   // feed. Nothing here reads `request.user`, which is what makes that safe:
   // the rows are chosen by `publicExchangeConditions` alone and serialized by
-  // `toExchangeSummary`, which never reveals an identity on this surface.
+  // `toExchangeSummary`, which reveals only the scoped public identity — never
+  // the seller's legal name or avatar — on this surface.
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError

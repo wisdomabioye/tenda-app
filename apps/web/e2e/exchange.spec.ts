@@ -14,6 +14,18 @@ import { KES_SELLER_NAME, NGN_SELLER_NAME, kesSeller, ngnSeller } from './fixtur
 import { EXCHANGE_COPY } from '../components/exchange/market/copy'
 import { OFFER_DETAIL_COPY } from '../components/exchange/detail/copy'
 
+const STUB_URL = `http://127.0.0.1:${process.env.STUB_API_PORT ?? 3210}`
+
+test('the exchange read API answers a caller with no session', async ({ request }) => {
+  const book = await request.get(`${STUB_URL}/v1/exchange`)
+  expect(book.status()).toBe(200)
+  expect((await book.json()).data).toHaveLength(2)
+
+  const detail = await request.get(`${STUB_URL}/v1/exchange/exch-ngn-1`)
+  expect(detail.status()).toBe(200)
+  expect((await detail.json()).escrow_id).toBe('exch-ngn-1')
+})
+
 test('the book is open to a user with advanced mode OFF — the lock is gone (#50)', async ({
   page,
 }) => {

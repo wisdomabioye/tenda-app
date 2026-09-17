@@ -10,10 +10,10 @@
  * reverts. Withholding a field is not always the safe default; withholding it
  * without saying it exists is how the client ends up guessing.
  *
- * `/v1/gigs/:id` is public (optionally authenticated) and `/v1/exchange/:id`
- * is readable by any signed-in user — both by design, a listing has to survive
- * a share link and a push deep-link. But "the listing is public" was silently
- * being read as "everything hanging off it is public too": the counterparty's
+ * `/v1/gigs/:id` and `/v1/exchange/:id` are public (optionally authenticated)
+ * by design: a listing has to survive a share link and a push deep-link. But
+ * "the listing is public" was silently being read as "everything hanging off
+ * it is public too": the counterparty's
  * profile, the proof-of-work files, and the dispute reason all shipped to
  * anyone holding the id, at every status. Those describe the WORK RELATIONSHIP,
  * not the listing, so they are scoped to the parties.

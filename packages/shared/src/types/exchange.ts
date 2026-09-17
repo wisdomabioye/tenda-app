@@ -73,7 +73,7 @@ export interface ExchangeSummary {
  * The seller's payout account, as revealed to an accepted buyer so they can
  * pay the fiat off-platform. Carries the FULL account_number (unlike the
  * owner-facing masked BankAccountSummary) — a matched buyer needs it to
- * transfer. Server exposes it ONLY to the offer's parties; null otherwise.
+ * transfer. Server exposes it ONLY to the offer's settled parties; null otherwise.
  */
 export interface ExchangePayoutAccount {
   kind: PayoutRailKind
@@ -133,7 +133,7 @@ export interface ExchangeDetail extends ExchangeSummary {
   dispute: Dispute | null
   /** Public: the same rows a profile serves. Reputation is public by design. */
   reviews: Review[]
-  /** Seller's payout account — present only for the offer's parties. */
+  /** Seller's payout account — present only for the offer's settled parties. */
   payout_account: ExchangePayoutAccount | null
 }
 
