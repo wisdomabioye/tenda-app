@@ -1,4 +1,5 @@
 import type { LinkedWallet, MeResponse, PublicUser, User } from '@tenda/shared'
+import { abbreviatedName } from '@tenda/shared'
 
 /**
  * Fully-typed User row for tests and the e2e stub — typed against the REAL
@@ -56,20 +57,20 @@ export function makeMeResponse(wallets: LinkedWallet[]): MeResponse {
 export function makePublicUser(overrides: Partial<PublicUser> = {}): PublicUser {
   return {
     id: 'them',
-    first_name: 'Ada',
-    last_name: 'Okafor',
+    // Defaults to the WITHHELD shape (#180) — what a reader who shares no
+    // settled escrow receives, so a test that forgets gets the strict case.
+    display_name: abbreviatedName('Ada', 'Okafor'),
+    full_name: null,
     bio: null,
     avatar_url: null,
     country: 'NG',
     city: 'Lagos',
-    latitude: null,
-    longitude: null,
     role: 'user',
     is_seeker: false,
     is_agent: false,
     review_score: null,
     phone_verified_at: null,
-    created_at: new Date('2026-08-01T10:00:00.000Z'),
+    created_at: '2026-08-01T10:00:00.000Z',
     ...overrides,
   }
 }

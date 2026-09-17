@@ -143,26 +143,5 @@ export function handleChat(
     chat.conversation = { ...chat.conversation, status: 'closed' }
     return { statusCode: 200, payload: chat.conversation }
   }
-  if (url.pathname === `/v1/users/${OTHER_USER_ID}` && method === 'GET') {
-    return {
-      statusCode: 200,
-      payload: {
-        id: OTHER_USER_ID,
-        first_name: 'Bola',
-        last_name: 'Ade',
-        bio: null,
-        avatar_url: null,
-        country: 'NG',
-        city: 'Lagos',
-        latitude: null,
-        longitude: null,
-        role: 'user',
-        is_seeker: false,
-        review_score: null,
-        phone_verified_at: null,
-        created_at: '2026-08-01T10:00:00.000Z',
-      },
-    }
-  }
   return null
 }

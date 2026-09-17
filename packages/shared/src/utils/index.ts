@@ -31,8 +31,6 @@ export {
   partyRoleLabel,
   winnerLabel,
   partyAccent,
-  abbreviatedName,
-  exchangePartyName,
   displayName,
   formatFullName,
   hasCompleteName,
@@ -44,6 +42,7 @@ export {
   type DisputeSender,
   type DisputeSenderArgs,
 } from './parties'
+export { abbreviatedName, scopedName, type ScopedNameFields } from './scoped-name'
 export {
   normalizeChainAddress,
   sameChainAddress,

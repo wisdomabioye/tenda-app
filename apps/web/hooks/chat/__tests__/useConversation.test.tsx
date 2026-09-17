@@ -32,7 +32,7 @@ test('resolves the conversation, the other user, and the first page', async () =
   expect(result.current.loading).toBe(true)
   await waitFor(() => expect(result.current.loading).toBe(false))
   expect(result.current.conversationId).toBe('c1')
-  expect(result.current.otherUser?.first_name).toBe('Ada')
+  expect(result.current.otherUser?.display_name).toBe('Ada O.')
   expect(result.current.initError).toBe(false)
   expect(fetchMessages).toHaveBeenCalledWith('c1')
 })

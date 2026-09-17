@@ -6,7 +6,7 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { chainLabel, formatDurationShort, formatAssetAmount, assetSymbol, exchangePartyName, formatFiat, formatRate } from '@tenda/shared'
+import { chainLabel, formatDurationShort, formatAssetAmount, assetSymbol, scopedName, formatFiat, formatRate } from '@tenda/shared'
 import type { ExchangeSummary } from '@tenda/shared'
 
 interface Props {
@@ -37,7 +37,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   // was built from. It was never a handle anybody owns — it lower-cased the
   // first name the row already printed above it — so there is nothing to
   // reconstruct from `display_name` and nothing lost by dropping it.
-  const sellerName = exchangePartyName(offer.creator) || 'Seller'
+  const sellerName = scopedName(offer.creator) || 'Seller'
   // numeric(3,2), string on the wire, null when unrated.
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
 

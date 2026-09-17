@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Another user's profile (auth-gated — GET /v1/users/:id requires a
- * bearer): identity, standing chip, their public reviews. Reviews are
+ * Another user's public profile: viewer-scoped identity, standing chip, and
+ * their public reviews. Reviews are
  * PUBLIC ON PURPOSE (deliberate exemption from party scoping — do not
  * "fix"); the list endpoint serves bare rows, so reviewers render
  * anonymously here.
@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
-import { AGENT_BADGE_LABEL, formatFullName, type PublicUser } from '@tenda/shared'
+import { AGENT_BADGE_LABEL, scopedName, type PublicUser } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
@@ -77,7 +77,9 @@ export default function UserProfilePage() {
   }
 
   const { user } = state
-  const fullName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
+  // The server decides how much of this person we may show (#180): the legal
+  // name only when we share a settled escrow, the abbreviation otherwise.
+  const fullName = scopedName(user) || 'Anonymous'
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">

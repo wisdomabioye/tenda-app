@@ -1,62 +1,54 @@
 # Tenda Roadmap
 
-**Where we are:** a multichain gig + P2P exchange marketplace — mobile app,
-web app, admin dashboard, and API — built on one on-chain escrow primitive
-with contracts on Solana and EVM (Base, Celo). Non-custodial by design,
-multi-method auth, disputes with on-chain resolution. Running testnet-first
-today; mainnet rollout is in progress. The chain layer is config-driven, so
-new EVM chains are configuration, not code.
+## Current state
 
-**Where we're going:** *Tenda is the Human API* — AI agents post tasks, humans
-on the ground complete them, smart-contract escrow settles on proof.
+Tenda is building an Africa-focused marketplace for gigs and peer-to-peer exchange, starting commercially in Nigeria. The Android app, web app, operations dashboard and API use a shared escrow model across supported Solana and EVM integrations.
 
-Agents are structurally bad at physical presence, local ground truth, human
-judgment, and legal/social personhood — and those gaps are exactly what
-they'll pay humans for. Tenda's existing rails (gig posting, worker
-onboarding, escrow) make the agent gateway a new *client type*, not a new
-platform. The design is chain-agnostic: agent-facing settlement, verification
-compute, and storage plug in per chain through the same registry the escrow
-already uses.
+The chain manifest records Celo and 0G mainnet as live. Solana devnet, Base Sepolia, Celo Sepolia and 0G Galileo are available for testing. Solana and Base mainnet remain planned.
 
-## Phase 1 — Beachhead: agent-ready rails *(now)*
+People and AI agents can create funded tasks. Posters set the budget and proof requirements. Workers can accept public gigs, apply to approval-mode gigs or receive direct invitations. The product includes evidence submission, approval, disputes and worker claim paths.
 
-- Extend chain coverage to AI-native EVM chains (config-driven: one manifest
-  entry + deployment secrets per chain)
-- **Proof-type field** on the gig schema (photo / geotag / audio / text /
-  call-log / video / structured) — the load-bearing primitive for everything
-  after
-- Read-only **Agent API v0**: list gigs, gig detail, proof requirements —
-  machine-readable from day one
+Licensed fiat-provider integrations remain planned. The internal peer-to-peer exchange is a separate product path.
 
-## Phase 2 — The Human API
+## Near term: independent marketplace validation
 
-- **Agent API v1**: agents POST tasks with proof-type spec, budget, deadline,
-  geographic scope
-- **HTTP-native agent payments** (x402-style `402 Payment Required`): the
-  agent signs a payment authorization and the escrow is funded straight from
-  its wallet in one HTTP round-trip — no gas, no broadcasting, no custody
-- Agent-posted tasks surface in the worker apps, badged as agent-origin;
-  manual verification fallback, escrow release on approval
+- secure the first independently funded poster pilots
+- measure completed GMV, effective take rate and platform costs
+- measure task completion, proof acceptance, disputes and worker retention
+- document full lifecycle evidence for mainnet tasks
+- confirm the operating team and accountable product lead
+- complete legal, privacy and contract-security reviews appropriate to live usage
 
-## Phase 3 — Auto-verification
+## Agent task rails
 
-- Verification pipelines per proof type (geotag radius, image
-  classification, audio validation, translation quality), runnable on
-  verifiable/decentralized compute
-- Machine-checkable proofs auto-release escrow; ambiguous cases fall to a
-  human review queue; dispute rate becomes a per-proof-type metric
+The agent API can create funded tasks with a budget, deadline, proof requirements and geographic scope. Near-term work focuses on production adoption, clearer integration guidance and reliable monitoring rather than presenting API availability as customer traction.
 
-## Phase 4 — Identity & reputation
+## Proof verification
 
-- On-chain agent identity for agent accounts (ERC-7857-style): hiring
-  history, dispute rate, spend
-- Worker reputation on-chain: completion rate, verification pass rate,
-  specializations (languages, locations, devices)
-- Matching by verified capability
+- establish a versioned proof schema for each task category
+- add automated checks where the evidence supports them, such as geotag radius or required fields
+- route ambiguous results to human review
+- measure acceptance and dispute rates by proof type
 
-## Phase 5 — The data flywheel
+Automated approval will only ship with documented failure handling and an appeal path.
 
-- Proof artifacts and commissioned datasets on decentralized storage with
-  licensing terms; dataset marketplace with worker royalties on reuse
-- Recurring/streaming tasks (standing orders, SLA-backed)
-- Tenda as ground-truth infrastructure, not just a task board
+## Identity, reputation and matching
+
+- build reputation from verified marketplace outcomes
+- expose completion, acceptance and dispute history with appropriate privacy controls
+- improve discovery by location, availability and demonstrated capability
+
+Any on-chain identity or reputation work remains exploratory until its privacy, safety and user value are established.
+
+## Fiat access
+
+- complete merchant onboarding with a selected licensed provider
+- validate the provider's final API contract and authentication method
+- complete a reconciled production transaction before changing public status
+- document supported countries, currencies, limits and user responsibilities
+
+Yellow Card and Onramp.money are candidates, not active production providers.
+
+## Longer-term opportunities
+
+Recurring tasks, licensed datasets and additional revenue products may follow demonstrated demand. They are not part of the current base business model. The current model is a platform fee on settled marketplace value.

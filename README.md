@@ -1,93 +1,99 @@
 # Tenda
 
-Tenda is a trustless mobile-first micro-task gig marketplace. Workers and
-posters transact through on-chain escrow — multichain (Solana + EVM), no
-middlemen, no custodial risk.
+Tenda is an Africa-focused marketplace for tasks and peer-to-peer exchange, with Nigeria as its commercial starting point. People and AI agents can fund gigs through on-chain escrow, workers submit the required proof, and approval releases payment. The platform also provides moderation and dispute-resolution workflows.
+
+Tenda supports Solana and EVM integrations. The chain manifest is the source of truth for which networks are live, in test, or planned.
 
 **Website:** [tendahq.com](https://tendahq.com) · **Roadmap:** [ROADMAP.md](ROADMAP.md)
 
+## Current product boundaries
+
+- Posters set each gig budget; Tenda does not set a universal task price.
+- Autonomous agents can create and fund tasks through an x402-compatible HTTP flow. Tenda relays task funding, so an agent does not need to manage RPC or hold native gas to create a task.
+- The standard runtime fee default is 2.5%, with a 1% Seeker tier. Operators can change these values through platform configuration.
+- Celo and 0G mainnet deployments are live in the chain manifest. Solana and Base mainnet remain planned.
+- Yellow Card and Onramp.money integrations remain on the roadmap. Merchant onboarding, credentials and production validation are outstanding.
+- The platform does not hold escrowed gig funds, but it operates application services, moderation and dispute workflows. “Non-custodial” does not mean the marketplace has no intermediating role.
+
 ## Monorepo structure
 
-```
+```text
 apps/
-  mobile/       React Native (Expo) — the Tenda app (Android)
-  web/          Next.js web app — browser version of mobile, port 3200
-  server/       Fastify API — REST backend, workers, chain adapters, port 3000
-  admin/        Next.js admin dashboard (disputes, reports, ops), port 3100
-  tendahq/      Vite landing page — tendahq.com
+  mobile/       React Native app for Android
+  web/          Next.js browser application, port 3200
+  server/       Fastify API, workers and chain adapters, port 3000
+  admin/        Next.js operations dashboard, port 3100
+  tendahq/      Vite public website
 packages/
-  shared/       Shared types, DB schema, API contracts, chain manifest, ABI/IDL
+  shared/       Shared types, schemas, contracts, chain manifest and ABI/IDL
 contracts/
-  solana/       Anchor escrow program (source of truth for the shared IDL)
-  evm/          Foundry TendaEscrow.sol (source of truth for the shared ABI)
+  solana/       Anchor escrow program
+  evm/          Foundry escrow contract
 ```
 
-Each app's README covers its own setup and scripts.
+Each application README covers its own setup and scripts.
 
 ## Prerequisites
 
-- Node.js ≥ 22, pnpm 10
-- PostgreSQL ≥ 16
-- Redis (queues/workers): `docker compose -f docker-compose.dev.yml up -d`
-- Contracts only: Foundry (`forge`), Anchor 0.32.1
+- Node.js 22 or later and pnpm 10
+- PostgreSQL 16 or later
+- Redis for queues and workers
+- Foundry and Anchor 0.32.1 for contract development
+
+Start Redis with `docker compose -f docker-compose.dev.yml up -d`.
 
 ## Getting started
 
 ```bash
 pnpm install
-pnpm build:shared          # required before anything else (compiles @tenda/shared)
+pnpm build:shared
 
 cd apps/server
-cp .env.example .env       # fill in — required vs optional is documented inline
-pnpm db:migrate && pnpm db:seed
+cp .env.example .env
+pnpm db:migrate
+pnpm db:seed
 
 cd ../..
-pnpm dev:server            # then dev:mobile, or per-app: pnpm --filter web dev
+pnpm dev:server
 ```
+
+Start the mobile or web client with the relevant package script after the server is running.
 
 ## Root scripts
 
-| Command | Description |
-|---|---|
-| `pnpm build` / `pnpm build:shared` | Build all packages / shared only |
-| `pnpm dev:server` / `pnpm dev:mobile` | Start the API / the Expo dev client |
-| `pnpm type-check` / `pnpm lint` | Check all packages |
-| `pnpm sync:abi` / `pnpm sync:idl` | Regenerate shared contract artifacts |
-| `pnpm build:apk` / `pnpm build:aab` | Android builds via EAS (testnet / production profile) |
-| `pnpm bump:version` / `pnpm check:app-version` | App version management |
+| Command                                        | Description                              |
+| ---------------------------------------------- | ---------------------------------------- |
+| `pnpm build` / `pnpm build:shared`             | Build all packages or the shared package |
+| `pnpm dev:server` / `pnpm dev:mobile`          | Start the API or Expo client             |
+| `pnpm type-check` / `pnpm lint`                | Run repository checks                    |
+| `pnpm sync:abi` / `pnpm sync:idl`              | Regenerate shared contract artifacts     |
+| `pnpm build:apk` / `pnpm build:aab`            | Build Android packages through EAS       |
+| `pnpm bump:version` / `pnpm check:app-version` | Manage app versions                      |
 
-Note: `pnpm build:shared` does `rm -rf dist` first — never run it while
-another package's test suite is running.
+`pnpm build:shared` removes the shared `dist` directory first. Do not run it while another package test suite depends on that directory.
 
-## Tech stack
+## Technology
 
-| Layer | Tech |
-|---|---|
-| Mobile | React Native, Expo Router, Zustand, WalletConnect/Reown |
-| Web | Next.js (App Router), Tailwind v4 |
-| Server | Fastify v5, TypeScript, Drizzle ORM, PostgreSQL, BullMQ + Redis |
-| Blockchain | Solana (Anchor) + EVM (Foundry), config-driven chain registry |
-| Auth | Multi-method: wallet signature, email/phone OTP, Google/Apple — JWT |
-| Storage | Cloudinary (avatars, proofs, chat attachments) |
-| Push | FCM / APNs with Expo Push fallback |
-| Infra | pnpm workspaces, Turbo, EAS Build, GitHub Actions, lefthook |
+| Layer          | Technology                                                                |
+| -------------- | ------------------------------------------------------------------------- |
+| Mobile         | React Native, Expo Router, Zustand, WalletConnect/Reown                   |
+| Web            | Next.js App Router, Tailwind CSS                                          |
+| Server         | Fastify, TypeScript, Drizzle ORM, PostgreSQL, BullMQ and Redis            |
+| Blockchain     | Solana Anchor and EVM Foundry, selected through a chain registry          |
+| Authentication | Wallet signature, email or phone OTP, Google and Apple, with JWT sessions |
+| Storage        | Cloudinary for avatars, proofs and chat attachments                       |
+| Push           | FCM/APNs with Expo Push fallback                                          |
+| Tooling        | pnpm workspaces, Turbo, EAS Build, GitHub Actions and lefthook            |
 
 ## Smart contracts
 
-In-repo under [`contracts/`](contracts/README.md) — the shared ABI/IDL in
-`packages/shared` are generated artifacts guarded against drift by CI and
-pre-commit hooks. EVM deploy runbook: `contracts/evm/DEPLOY.md`.
+Contract source lives under [`contracts/`](contracts/README.md). The generated ABI and IDL in `packages/shared` are checked for drift in CI and pre-commit hooks. See [`contracts/evm/DEPLOY.md`](contracts/evm/DEPLOY.md) for the EVM deployment runbook.
 
 ## Licence
 
-Two licences, split by directory:
+| Path                              | Licence                                                               |
+| --------------------------------- | --------------------------------------------------------------------- |
+| [`contracts/`](contracts/LICENSE) | Apache-2.0                                                            |
+| Everything else                   | [BUSL-1.1](LICENSE), converting to Apache-2.0 two years after release |
 
-| Path | Licence |
-|---|---|
-| [`contracts/`](contracts/LICENSE) | Apache-2.0 — open source, no strings |
-| Everything else | [BUSL-1.1](LICENSE) — source-available; each version becomes Apache-2.0 two years after release |
-
-BUSL permits reading, auditing, modifying and running the code, including
-inside your own organisation; it does not permit offering it to third parties
-as a hosted escrow, payments or dispute-resolution service. Full explanation in
-[LICENSING.md](LICENSING.md); trademark terms in [TRADEMARK.md](TRADEMARK.md).
+BUSL permits reading, auditing, modifying and running the code, including inside an organisation. It does not permit offering the non-contract code to third parties as a hosted escrow, payments or dispute-resolution service. See [LICENSING.md](LICENSING.md) and [TRADEMARK.md](TRADEMARK.md).

@@ -1,4 +1,4 @@
-import { exchangePartyName, formatFullName } from '@tenda/shared'
+import { scopedName, formatFullName } from '@tenda/shared'
 
 /**
  * A person as the cards in this folder take them.
@@ -34,7 +34,7 @@ export interface CardParty {
 export function cardPartyName(party: CardParty): string {
   const { display_name } = party
   if (display_name !== undefined) {
-    return exchangePartyName({ display_name, full_name: party.full_name ?? null })
+    return scopedName({ display_name, full_name: party.full_name ?? null })
   }
   return formatFullName(party.first_name ?? null, party.last_name ?? null)
 }

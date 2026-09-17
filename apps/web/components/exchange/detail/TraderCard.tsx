@@ -20,7 +20,7 @@ import Link from 'next/link'
 import { MessageCircle, Star, ShieldCheck, Smartphone } from 'lucide-react'
 import {
   countryDisplayName,
-  exchangePartyName,
+  scopedName,
   type ExchangeDetail,
   type ExchangePartyRef,
 } from '@tenda/shared'
@@ -61,11 +61,11 @@ export function TraderCard({
 }) {
   // The server already decided how much of this person the viewer may see
   // (#175): `full_name` is filled for a SETTLED party and null for everyone
-  // else, who gets the abbreviated `display_name` instead. `exchangePartyName`
+  // else, who gets the abbreviated `display_name` instead. `scopedName`
   // reads that decision — the card renders whichever arrived rather than
   // re-deriving who is entitled to what — and `''` (a party with no profile
   // name at all) falls through to this surface's own word for it.
-  const name = exchangePartyName(trader) || TRADER_CARD_COPY.anonymous
+  const name = scopedName(trader) || TRADER_CARD_COPY.anonymous
   const isSelf = trader.id === currentUserId
   const score = trader.review_score === null ? null : Number(trader.review_score)
   const country = countryDisplayName(trader.country)

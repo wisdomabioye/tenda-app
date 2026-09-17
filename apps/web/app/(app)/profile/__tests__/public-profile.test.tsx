@@ -35,11 +35,18 @@ import UserProfilePage from '@/app/(app)/profile/[id]/page'
 import { AGENT_BADGE_LABEL, type Review, type User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { makePublicUser } from '@/test/factories/user'
+import { abbreviatedName } from '@tenda/shared'
 
 // The REAL wire row (typed factory), not a hand-picked subset the page happens
 // to read today: a field the page starts reading is then present as the server
 // sends it, never invented here.
-const USER = makePublicUser({ id: 'u2', first_name: 'Grace', last_name: 'Hopper', review_score: '4.80' })
+// A profile the viewer shares no settled escrow with — the common case, and
+// what the server sends most readers (#180): the abbreviation, no legal name.
+const USER = makePublicUser({
+  id: 'u2',
+  display_name: abbreviatedName('Grace', 'Hopper'),
+  review_score: '4.80',
+})
 
 /**
  * Typed as the real row on purpose. This fixture claimed `rating` and a nested
@@ -170,18 +177,29 @@ test('shows the stranger their completed work, in the third person', async () =>
 test('names an agent account as one, beside the name (#19)', async () => {
   // The page a human opens from a party card to check who they are dealing
   // with: the flag GET /v1/users/:id carries has to reach the screen here too.
-  getMock.mockResolvedValue({ ...USER, first_name: 'Dispatch', last_name: 'Bot', is_agent: true })
+  getMock.mockResolvedValue({
+    ...USER,
+    display_name: abbreviatedName('Dispatch', 'Bot'),
+    is_agent: true,
+  })
   reviewsMock.mockResolvedValue({ data: [], total: 0 })
   render(<UserProfilePage />)
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Dispatch Bot' })).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Dispatch B.' })).toBeInTheDocument())
   expect(screen.getByText(AGENT_BADGE_LABEL)).toBeInTheDocument()
 })
 
 test('says nothing of the kind for a person', async () => {
   reviewsMock.mockResolvedValue({ data: [], total: 0 })
   render(<UserProfilePage />)
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Grace Hopper' })).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Grace H.' })).toBeInTheDocument())
   expect(screen.queryByText(AGENT_BADGE_LABEL)).not.toBeInTheDocument()
+})
+
+test('shows the legal name when the server reveals it to a settled counterparty', async () => {
+  getMock.mockResolvedValue({ ...USER, full_name: 'Grace Hopper' })
+  reviewsMock.mockResolvedValue({ data: [], total: 0 })
+  render(<UserProfilePage />)
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Grace Hopper' })).toBeInTheDocument())
 })
 
 test('a stranger with no completed work gets no block at all', async () => {

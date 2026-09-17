@@ -20,11 +20,11 @@ import { ENABLED_CHAIN_IDS } from './chains'
 import { handleFiat, resetFiatWorld } from './fiat'
 import { handleReviews } from './reviews'
 import { handleCompletedWork } from './completed-work'
+import { handleProfile } from './profiles'
 import { errorEnvelope, json, type StubResponse } from './reply'
 const world = createAuthWorld()
 const chatWorld = createChatWorld()
 const notificationsWorld = createNotificationsWorld()
-
 export function handleAuthed(url: URL, method: string, authorization: string | undefined, body: string): StubResponse | null {
   if (url.pathname === '/v1/auth/challenge' && method === 'POST') {
     const challenge = JSON.parse(body) as ChallengeBody
@@ -255,8 +255,6 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     const disputes = handleDisputes(url, method, user.id)
     if (disputes !== null) return json(disputes.payload, disputes.statusCode)
   }
-  // Exchange (S5.4): ANONYMOUS since #179; own trades stay gated. Two
-  // conditions, and `handleExchange`'s docblock says why they had to split.
   if (url.pathname.startsWith('/v1/exchange')) {
     const book = handleExchange(url, method, userForBearer(world, authorization)?.id ?? null, ENABLED_CHAIN_IDS)
     if (book !== null) return json(book.payload, book.statusCode)
@@ -267,8 +265,10 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     const mine = handleExchange(url, method, user.id, ENABLED_CHAIN_IDS)
     if (mine !== null) return json(mine.payload, mine.statusCode)
   }
+  const profile = handleProfile(url, method)
+  if (profile !== null) return json(profile)
   // Chat (S5.2): conversations + messages, auth-gated like the real routes.
-  if (url.pathname.startsWith('/v1/conversations') || /^\/v1\/users\/[^/]+$/.test(url.pathname)) {
+  if (url.pathname.startsWith('/v1/conversations')) {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const chat = handleChat(chatWorld, url, method, user.id, body)

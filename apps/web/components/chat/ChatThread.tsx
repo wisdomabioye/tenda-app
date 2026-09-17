@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { buildMessageFeed, isDivider, isTimestamp, formatFullName } from '@tenda/shared'
+import { buildMessageFeed, isDivider, isTimestamp, scopedName } from '@tenda/shared'
 import { useChatStore, type LocalMessage } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConversation } from '@/hooks/chat/useConversation'
@@ -131,7 +131,7 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
   }
 
   const displayName = otherUser
-    ? formatFullName(otherUser.first_name, otherUser.last_name) || 'Anonymous'
+    ? scopedName(otherUser) || 'Anonymous'
     : 'User'
 
   return (
