@@ -221,7 +221,11 @@ for (const width of [390, 1280]) {
       await expect(page).toHaveURL(new RegExp(`${href}$`))
       await expect(page.locator('[data-list]')).toHaveCount(0)
       // The half that made it a blank page rather than a wrong column.
-      await expect(page.locator('[data-detail]').first()).toBeVisible()
+      if (href === '/exchange') {
+        await expect(page.getByRole('main').getByRole('heading', { name: /Buy crypto/ })).toBeVisible()
+      } else {
+        await expect(page.locator('[data-detail]').first()).toBeVisible()
+      }
     }
   })
 }

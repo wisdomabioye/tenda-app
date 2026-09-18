@@ -10,7 +10,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DetailLoadError, ExchangeDetail } from '@tenda/shared'
-import ExchangePage from '@/app/(app)/exchange/page'
+import ExchangePage from '@/components/exchange/ExchangePageClient'
 import { ExchangeDetailRoute } from '@/components/exchange/ExchangeDetailRoute'
 import { EXCHANGE_COPY } from '@/components/exchange/market'
 import { OFFER_DETAIL_COPY } from '@/components/exchange/detail'
@@ -18,6 +18,7 @@ import { sellHref } from '@/components/wallet/sell/copy'
 import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../../../test/factories/user'
 import { makeExchangeDetail } from '../../../../test/factories/exchange'
+import type { ExchangeScreenFilters } from '@/hooks/exchange/useExchangeScreen'
 
 const search = vi.hoisted(() => ({ current: new URLSearchParams() }))
 vi.mock('next/navigation', () => ({
@@ -26,10 +27,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/exchange',
   useParams: () => ({ id: 'exch-1' }),
 }))
+vi.mock('@/hooks/auth/useSessionBootstrap', () => ({ useSessionBootstrap: () => undefined }))
 
-const screenState = vi.hoisted(() => ({ calls: [] as unknown[] }))
+const screenState = vi.hoisted(() => ({ calls: [] as ExchangeScreenFilters[] }))
 vi.mock('@/hooks/exchange/useExchangeScreen', () => ({
-  useExchangeScreen: (filters: unknown) => {
+  useExchangeScreen: (filters: ExchangeScreenFilters) => {
     screenState.calls.push(filters)
     const list = {
       items: [],
@@ -66,14 +68,14 @@ const registry = vi.hoisted(() => ({
   chains: null as { id: string; display_name: string }[] | null,
   status: 'loading' as string,
 }))
+interface RegistryState {
+  chains: { id: string; display_name: string }[] | null
+  status: string
+  ensureLoaded: () => void
+}
 vi.mock('@/stores/chain-registry.store', () => ({
-  useChainRegistryStore: (
-    select: (s: {
-      chains: { id: string; display_name: string }[] | null
-      status: string
-      ensureLoaded: () => void
-    }) => unknown,
-  ) => select({ ...registry, ensureLoaded: () => undefined }),
+  useChainRegistryStore: <T,>(select: (state: RegistryState) => T): T =>
+    select({ ...registry, ensureLoaded: () => undefined }),
   selectChainById: (
     chains: { id: string }[] | null,
     id: string,
@@ -94,13 +96,13 @@ beforeEach(() => {
 
 describe('/exchange', () => {
   it('shows the order book', () => {
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     expect(screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') })).toBeInTheDocument()
   })
 
   it('renders before the user record lands — a null user is not a lock', () => {
     useAuthStore.setState({ user: null })
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     expect(
       screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') }),
     ).toBeInTheDocument()
@@ -111,7 +113,7 @@ describe('/exchange', () => {
     // an id it does not serve. Firing before the registry answers would turn a
     // stale link into "Offers could not be loaded" over a dead Try-again.
     search.current = new URLSearchParams('chain=solana:devnet')
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     expect(screenState.calls).toEqual([expect.objectContaining({ enabled: false })])
   })
 
@@ -119,7 +121,7 @@ describe('/exchange', () => {
     search.current = new URLSearchParams('chain=eip155:99999')
     registry.chains = [{ id: 'solana:devnet', display_name: 'Solana Devnet' }]
     registry.status = 'ready'
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     expect(screenState.calls).toEqual([
       expect.objectContaining({ enabled: true, chainId: null }),
     ])
@@ -128,10 +130,29 @@ describe('/exchange', () => {
   it('offers Post offer as a plain LINK to the sell surface — no nested button', () => {
     // Button's own contract: links that look like buttons use buttonVariants()
     // on the anchor. A real <button> inside <a> is invalid interactive nesting.
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     const post = screen.getByRole('link', { name: EXCHANGE_COPY.postOffer })
     expect(post).toHaveAttribute('href', sellHref('offer'))
     expect(post.querySelector('button')).toBeNull()
+  })
+
+  it('sends an anonymous Post offer action through sign-in to the composer', () => {
+    useAuthStore.setState({ user: null, isLoading: false })
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
+    expect(screen.getByRole('link', { name: EXCHANGE_COPY.postOffer })).toHaveAttribute(
+      'href',
+      `/signin?next=${encodeURIComponent(sellHref('offer'))}`,
+    )
+  })
+
+  it('keeps an anonymous My trades destination through sign-in', () => {
+    useAuthStore.setState({ user: null, isLoading: false })
+    search.current = new URLSearchParams('tab=mine')
+    render(<ExchangePage initialRoute={{ tab: 'mine', currency: null, chainId: null }} initialPage={null} />)
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      `/signin?next=${encodeURIComponent('/exchange?tab=mine')}`,
+    )
   })
 
   it('serves the book to a user with advanced mode OFF — the lock is gone (#50)', () => {
@@ -140,7 +161,7 @@ describe('/exchange', () => {
     registry.chains = [{ id: 'solana:devnet', display_name: 'Solana Devnet' }]
     registry.status = 'ready'
     useAuthStore.setState({ user: makeUser({ id: 'me', advanced_mode_enabled: false }) })
-    render(<ExchangePage />)
+    render(<ExchangePage initialRoute={{ tab: 'market', currency: null, chainId: null }} initialPage={null} />)
     expect(
       screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') }),
     ).toBeInTheDocument()
@@ -150,6 +171,13 @@ describe('/exchange', () => {
 
 describe('/exchange/[id]', () => {
   it('renders the offer when it loads', () => {
+    detail.offer = makeExchangeDetail()
+    render(<ExchangeDetailRoute id="exch-1" />)
+    expect(screen.getByText('offer body')).toBeInTheDocument()
+  })
+
+  it('renders a public offer for an anonymous reader', () => {
+    useAuthStore.setState({ user: null, isLoading: false })
     detail.offer = makeExchangeDetail()
     render(<ExchangeDetailRoute id="exch-1" />)
     expect(screen.getByText('offer body')).toBeInTheDocument()

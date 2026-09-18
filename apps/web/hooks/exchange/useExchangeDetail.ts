@@ -11,9 +11,13 @@ import { api } from '@/api/client'
 import { classifyDetailLoadError, type DetailLoadError } from '@tenda/shared'
 import type { ExchangeDetail } from '@tenda/shared'
 
-export function useExchangeDetail(id: string | undefined) {
-  const [offer, setOffer] = useState<ExchangeDetail | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function useExchangeDetail(
+  id: string | undefined,
+  initialOffer: ExchangeDetail | null = null,
+  initialLoaded = false,
+) {
+  const [offer, setOffer] = useState<ExchangeDetail | null>(initialOffer)
+  const [isLoading, setIsLoading] = useState(!initialLoaded)
   const [error, setError] = useState<DetailLoadError | null>(null)
 
   // Which fetch may write — one router.replace between two offer ids and a

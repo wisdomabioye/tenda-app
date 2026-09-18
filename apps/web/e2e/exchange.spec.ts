@@ -26,6 +26,56 @@ test('the exchange read API answers a caller with no session', async ({ request 
   expect((await detail.json()).escrow_id).toBe('exch-ngn-1')
 })
 
+test('an anonymous reader can browse the book and open an offer', async ({ page }) => {
+  await page.goto('/exchange')
+  await expect(page.getByText(ngnSeller.display_name)).toBeVisible()
+  await page.getByRole('link', { name: new RegExp(ngnSeller.display_name) }).click()
+  await expect(page).toHaveURL(/\/exchange\/exch-ngn-1/)
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('₦1,500')
+})
+
+test('the public pages publish canonical metadata and noindex a missing offer', async ({
+  page,
+}) => {
+  await page.goto('/exchange?cur=NGN')
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    /\/exchange\?cur=NGN$/,
+  )
+
+  await page.goto('/exchange/exch-nope')
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    /\/exchange\/exch-nope$/,
+  )
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
+})
+
+test('a stale bearer token cannot close the public book', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('jwt_token', 'stale-bearer'))
+  await page.goto('/exchange')
+  await expect(page.getByText(ngnSeller.display_name)).toBeVisible()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('jwt_token'))).toBeNull()
+  await page.goto('/exchange/exch-ngn-1')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('₦1,500')
+})
+
+test('public exchange content is present with JavaScript disabled', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  await page.goto('/exchange')
+  await expect(page.getByText(ngnSeller.display_name)).toBeVisible()
+  await page.goto('/exchange/exch-ngn-1')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('₦1,500')
+  await context.close()
+})
+
+test('an anonymous accept returns to the same offer after sign-in', async ({ page }) => {
+  await page.goto('/exchange/exch-ngn-1')
+  await page.getByRole('link', { name: 'Sign in to accept' }).click()
+  await expect(page).toHaveURL(`/signin?next=${encodeURIComponent('/exchange/exch-ngn-1')}`)
+})
+
 test('the book is open to a user with advanced mode OFF — the lock is gone (#50)', async ({
   page,
 }) => {
@@ -34,8 +84,7 @@ test('the book is open to a user with advanced mode OFF — the lock is gone (#5
   await signInToHome(page, EXISTING_EMAIL)
   await page.goto('/exchange')
   await expect(page.getByText(ngnSeller.display_name)).toBeVisible()
-  // exact: substring matching would also catch the "My trades" tab link.
-  await expect(page.getByRole('link', { name: 'Trade', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Exchange', exact: true })).toBeVisible()
 })
 
 test('the order book lists open offers with their rate, chain and window', async ({ page }) => {
@@ -118,13 +167,15 @@ test('the tab carries the filters with it, and shows the reader’s own trades',
   await expect(page.getByText('25 USDC')).toBeVisible()
 })
 
-test('the offer page states the rate, the terms and what the reader would pay', async ({ page }) => {
+test('the offer page states the rate, the terms and what the reader would pay', async ({
+  page,
+}) => {
   await signInToHome(page, TRADER_EMAIL)
   await page.goto('/exchange/exch-ngn-1')
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('₦1,500')
   await expect(page.getByText(OFFER_DETAIL_COPY.trader)).toBeVisible()
-  await expect(page.getByText(OFFER_DETAIL_COPY.terms)).toBeVisible()
+  await expect(page.getByRole('heading', { name: OFFER_DETAIL_COPY.terms })).toBeVisible()
   // Exact: the order-of-events list also contains the words "you pay".
   await expect(page.getByText(OFFER_DETAIL_COPY.youPay, { exact: true })).toBeVisible()
   await expect(page.getByText('₦75,000').first()).toBeVisible()
@@ -171,15 +222,16 @@ test('a chain the deployment DOES serve still narrows the book', async ({ page }
   await expect(page.getByText(kesSeller.display_name)).toBeVisible()
 })
 
-test('neither surface scrolls sideways, from a 320px phone to a wide desktop', async ({ page }) => {
+test('neither public surface scrolls sideways, from a 320px phone to a wide desktop', async ({
+  page,
+}) => {
   // The order-book row is a three-column grid and the offer page is a
   // two-column read; both carry unbreakable figures and a chain label. The
   // feed learned this the hard way (`break-words` is inert without a
   // `min-w-0` on the grid item), and a class-presence check cannot tell an
   // effective rule from a dead one — only a laid-out page can.
-  await signInToHome(page, TRADER_EMAIL)
   for (const path of ['/exchange', '/exchange/exch-ngn-1']) {
-    for (const width of [320, 390, 900, 1280]) {
+    for (const width of [320, 360, 390, 900, 1280]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(path)
       const box = await page.evaluate(() => ({

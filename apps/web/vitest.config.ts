@@ -215,8 +215,8 @@ export default defineConfig({
         // Brackets ESCAPED (see the notifications entry above): a Next dynamic
         // segment is otherwise a glob character class that matches nothing.
         'app/(app)/dispute/\\[escrowId\\]/page.tsx',
-        'app/(app)/exchange/\\[id\\]/page.tsx',
-        'app/(app)/exchange/page.tsx',
+        'app/(public)/exchange/\\[id\\]/page.tsx',
+        'app/(public)/exchange/page.tsx',
         'app/(app)/home/page.tsx',
         'app/(app)/profile/\\[id\\]/page.tsx',
         'app/(app)/profile/edit/page.tsx',

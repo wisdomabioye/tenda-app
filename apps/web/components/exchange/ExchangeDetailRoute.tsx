@@ -9,10 +9,25 @@ import { OFFER_DETAIL_COPY } from '@/components/exchange/detail'
 import { EXCHANGE_COPY } from '@/components/exchange/market'
 import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
 import { Spinner } from '@/components/ui/Spinner'
+import type { ExchangeDetail } from '@tenda/shared'
+import { useSessionBootstrap } from '@/hooks/auth/useSessionBootstrap'
 
-export function ExchangeDetailRoute({ id }: { id: string }) {
+export function ExchangeDetailRoute({
+  id,
+  initialOffer = null,
+  initialGone = false,
+  initialLoaded = false,
+  backHref = '/exchange',
+}: {
+  id: string
+  initialOffer?: ExchangeDetail | null
+  initialGone?: boolean
+  initialLoaded?: boolean
+  backHref?: string
+}) {
+  useSessionBootstrap()
   const userId = useAuthStore((state) => state.user?.id ?? null)
-  const { offer, isLoading, error, refresh } = useExchangeDetail(id)
+  const { offer, isLoading, error, refresh } = useExchangeDetail(id, initialOffer, initialLoaded)
 
   if (isLoading) {
     return (
@@ -22,8 +37,8 @@ export function ExchangeDetailRoute({ id }: { id: string }) {
     )
   }
 
-  if (offer === null || userId === null) {
-    const gone = error?.gone === true
+  if (offer === null) {
+    const gone = initialGone || error?.gone === true
     return (
       <div className="mx-auto w-full max-w-[720px] px-8 py-10">
         <AlertPanel
@@ -31,7 +46,7 @@ export function ExchangeDetailRoute({ id }: { id: string }) {
           body={gone ? OFFER_DETAIL_COPY.unavailableBody : OFFER_DETAIL_COPY.loadFailedBody}
           action={
             gone ? (
-              <Link href="/exchange" className={ALERT_ACTION_CLASS}>
+              <Link href={backHref} className={ALERT_ACTION_CLASS}>
                 {OFFER_DETAIL_COPY.back}
               </Link>
             ) : (
@@ -41,7 +56,7 @@ export function ExchangeDetailRoute({ id }: { id: string }) {
                   {OFFER_DETAIL_COPY.retry}
                 </button>
                 <Link
-                  href="/exchange"
+                  href={backHref}
                   className="mt-5 text-sm font-semibold text-feedback-danger-text underline"
                 >
                   {EXCHANGE_COPY.market.label}
@@ -54,5 +69,5 @@ export function ExchangeDetailRoute({ id }: { id: string }) {
     )
   }
 
-  return <ExchangeDetailApp offer={offer} userId={userId} refresh={refresh} />
+  return <ExchangeDetailApp offer={offer} userId={userId} refresh={refresh} backHref={backHref} />
 }

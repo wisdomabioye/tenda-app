@@ -6,7 +6,6 @@ import { usePageCursor } from './usePageCursor'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
-
 export function usePaginatedList<TItem, TQuery extends object>({
   fetchPage,
   query,
@@ -16,21 +15,20 @@ export function usePaginatedList<TItem, TQuery extends object>({
   cacheQueries = false,
   cache,
   cursorPagination = false,
+  initialPage,
 }: UsePaginatedListOptions<TItem, TQuery>): PaginatedListState<TItem> {
-  // Page-zero caching and offset/cursor traversal each own their own hook; see
-  // those files for the reasoning this one no longer carries.
+  // Page-zero caching and traversal each own their own hook.
   const pageCache = usePageCache<TItem>({ cacheQueries, cache })
   // Computed once and shared by the seed below and the query effect, which
   // always agreed — being the same call on the same input — but were free not to.
   const queryKey = createQueryKey(query)
 
-  /**
-   * The cache-hit branch below runs in an EFFECT, after paint — so the whole
-   * first render has to be seeded from the cache, not just the spinner. Seeding
-   * `isLoading` alone traded a frame of skeleton for a frame of the EMPTY state,
-   * which is a worse lie: measured as ["rows:1", "rows:0", "rows:1"].
-   */
-  const seed = pageCache.read(queryKey)
+  // Seed before the cache-hit effect: an empty frame between remembered rows is
+  // a worse lie than a skeleton (measured as ["rows:1", "rows:0", "rows:1"]).
+  const initialQueryKey = useRef(queryKey)
+  const serverSeed =
+    initialQueryKey.current === queryKey && initialPage !== undefined ? { items: initialPage.data, total: initialPage.total } : undefined
+  const seed = pageCache.read(queryKey) ?? serverSeed
 
   const [items, setItems] = useState<TItem[]>(() => seed?.items ?? [])
   const [total, setTotal] = useState(() => seed?.total ?? 0)
@@ -100,11 +98,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         totalRef.current = page.total
         // Every mode requests offset 0, so this response IS page 0 for
         // `requestedKey` regardless of which branch below renders it.
-        pageCacheRef.current.rememberForAccount(
-          requestedKey,
-          { items: page.data, total: page.total },
-          account,
-        )
+        pageCacheRef.current.rememberForAccount(requestedKey, { items: page.data, total: page.total }, account)
         if (mode === 'reload' && cursor.offset() > pageSize) {
           // Preserve later pages during heartbeat polling. Deleted later-page
           // rows reconcile on an authoritative refresh or their realtime event.
@@ -164,7 +158,11 @@ export function usePaginatedList<TItem, TQuery extends object>({
   useEffect(() => {
     if (!enabled) return
 
-    const cached = pageCache.read(queryKey)
+    const cached =
+      pageCache.read(queryKey) ??
+      (initialQueryKey.current === queryKey && initialPage !== undefined
+        ? { items: initialPage.data, total: initialPage.total }
+        : undefined)
     if (cached === undefined) {
       // The cursor is NOT pre-rewound here. `loadFirstPage` always requests
       // offset 0 and owns the cursor on both outcomes, so rewinding up front is
@@ -196,7 +194,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
     // `queryKey` (not `query`) is the dep on purpose: it is the serialised
     // shape, so a caller passing a fresh object literal each render doesn't
     // refetch. loadFirstPage reads the live query through a ref.
-  }, [queryKey, enabled, loadFirstPage, pageCache, cursor])
+  }, [queryKey, enabled, loadFirstPage, pageCache, cursor, initialPage])
 
   const loadMore = useCallback(() => {
     if (!enabled || inFlightRef.current) return

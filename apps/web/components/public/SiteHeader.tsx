@@ -19,6 +19,7 @@ const BRAND_HREF = '/'
 
 const NAV = [
   { href: '/', label: 'Browse gigs' },
+  { href: '/exchange', label: 'Exchange' },
   { href: '/support', label: 'Support' },
 ] as const
 

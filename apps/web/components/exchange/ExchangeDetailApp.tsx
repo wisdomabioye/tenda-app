@@ -58,15 +58,19 @@ import {
   shouldShowSellerPayout,
 } from './PayoutCards'
 import { DisputeNotice } from '@/components/escrow/DisputeNotice'
+import { buttonVariants } from '@/components/ui/Button'
+import { withReturnPath } from '@/lib/auth/return-path'
 
 export function ExchangeDetailApp({
   offer,
   userId,
   refresh,
+  backHref = '/exchange',
 }: {
   offer: ExchangeDetail
-  userId: string
+  userId: string | null
   refresh: () => Promise<void>
+  backHref?: string
 }) {
   const router = useRouter()
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
@@ -81,7 +85,8 @@ export function ExchangeDetailApp({
     // screen; `refresh` drops the offer on a 404.
     onStale: () => void refresh(),
   })
-  const isCreator = userId === offer.creator.id
+  const viewerId = userId ?? ''
+  const isCreator = viewerId === offer.creator.id
 
   // Buyer-net projection for the confirm dialogs (mirror-of-contract math).
   const { netRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
@@ -118,14 +123,14 @@ export function ExchangeDetailApp({
   return (
     <div className="mx-auto w-full max-w-[1080px] px-8 pb-20 pt-8">
       <Link
-        href="/exchange"
+        href={backHref}
         className="inline-flex items-center gap-2 type-body-small font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
       >
         <ChevronLeft size={16} aria-hidden />
         {OFFER_DETAIL_COPY.back}
       </Link>
 
-      <TakedownNotice escrow={offer} subject="offer" viewerId={userId} />
+      <TakedownNotice escrow={offer} subject="offer" viewerId={viewerId} />
 
       {/* The comp collapses `[data-two]` when the CONTENT area drops below
           1000px. Here the content area is the viewport minus the 64px rail —
@@ -147,7 +152,7 @@ export function ExchangeDetailApp({
               they were mid-transfer to. */}
           <OfferTerms offer={offer} />
 
-          {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
+          {shouldShowPaymentInstructions(offer, viewerId) && offer.payout_account !== null && (
             <div className="mt-6">
               <PaymentInstructionsCard
                 account={offer.payout_account}
@@ -158,7 +163,7 @@ export function ExchangeDetailApp({
               />
             </div>
           )}
-          {shouldShowSellerPayout(offer, userId) && offer.payout_account !== null && (
+          {shouldShowSellerPayout(offer, viewerId) && offer.payout_account !== null && (
             <div className="mt-6">
               <SellerPayoutCard account={offer.payout_account} />
             </div>
@@ -175,7 +180,7 @@ export function ExchangeDetailApp({
               <PersonCard
                 user={offer.counterparty}
                 label="Buyer"
-                currentUserId={userId}
+                currentUserId={viewerId}
                 context={exchangeChatContext(offer)}
               />
             </div>
@@ -197,20 +202,29 @@ export function ExchangeDetailApp({
               <DisputeNotice
                 reason={offer.dispute.reason}
                 escrowId={offer.escrow_id}
-                isParty={isCreator || userId === offer.counterparty?.id}
+                isParty={isCreator || viewerId === offer.counterparty?.id}
               />
             </div>
           )}
         </div>
 
         <OfferActionAside offer={offer} perspective={perspective}>
-          <ExchangeCTA
-            offer={offer}
-            userId={userId}
-            busy={actions.busyAction !== null}
-            onTxAction={setConfirmAction}
-            onSheet={setActiveSheet}
-          />
+          {userId === null ? (
+            <Link
+              href={withReturnPath('/signin', `/exchange/${offer.escrow_id}`)}
+              className={buttonVariants({ fullWidth: true })}
+            >
+              Sign in to accept
+            </Link>
+          ) : (
+            <ExchangeCTA
+              offer={offer}
+              userId={userId}
+              busy={actions.busyAction !== null}
+              onTxAction={setConfirmAction}
+              onSheet={setActiveSheet}
+            />
+          )}
         </OfferActionAside>
       </div>
 

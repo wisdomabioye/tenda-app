@@ -77,7 +77,7 @@ beforeEach(() => {
 
 test('renders the feed with day header, context divider and both bubbles', () => {
   render(<ChatThread userId="them" />)
-  expect(screen.getByText('Ada Okafor')).toBeInTheDocument()
+  expect(screen.getByText('Ada O.')).toBeInTheDocument()
   expect(screen.getByText('first')).toBeInTheDocument()
   expect(screen.getByText('second')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Open gig: Paint' })).toBeInTheDocument()

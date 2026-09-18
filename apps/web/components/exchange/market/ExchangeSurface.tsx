@@ -19,17 +19,20 @@ import { ExchangeFilters } from './ExchangeFilters'
 import { MyTradeCard } from './MyTradeCard'
 import { OfferCard } from './OfferCard'
 import { OfferCardSkeleton } from './OfferCardSkeleton'
-import { EXCHANGE_COPY, type ExchangeRouteState } from './copy'
+import { EXCHANGE_COPY, exchangeHref, exchangeOfferHref, type ExchangeRouteState } from './copy'
 import { sellHref } from '@/components/wallet/sell/copy'
+import { withReturnPath } from '@/lib/auth/return-path'
 
 export function ExchangeSurface({
   route,
   screen,
   userId,
+  readFailed = false,
 }: {
   route: ExchangeRouteState
   screen: ExchangeScreenState
-  userId: string
+  userId: string | null
+  readFailed?: boolean
 }) {
   const { market, myTrades } = screen
   const isMarket = route.tab === 'market'
@@ -49,7 +52,10 @@ export function ExchangeSurface({
             one composer for offers, never a second (spec-correction #50).
             buttonVariants on the anchor, per Button's own contract: a real
             <button> inside a link is invalid interactive nesting. */}
-        <Link href={sellHref('offer')} className={buttonVariants({ variant: 'outline' })}>
+        <Link
+          href={userId === null ? withReturnPath('/signin', sellHref('offer')) : sellHref('offer')}
+          className={buttonVariants({ variant: 'outline' })}
+        >
           <Plus size={15} aria-hidden /> {EXCHANGE_COPY.postOffer}
         </Link>
       </div>
@@ -67,10 +73,17 @@ export function ExchangeSurface({
 
       <div className="mt-5">
         {isMarket ? (
+          readFailed && market.items.length === 0 ? (
+            <EmptyPanel
+              icon={<ArrowLeftRight size={28} />}
+              title={EXCHANGE_COPY.market.errorTitle}
+              body={EXCHANGE_COPY.market.errorBody}
+            />
+          ) : (
           <PaginatedList
             list={market}
             keyOf={(offer) => offer.escrow_id}
-            renderItem={(offer) => <OfferCard offer={offer} />}
+            renderItem={(offer) => <OfferCard offer={offer} href={exchangeOfferHref(offer.escrow_id, route)} />}
             listLabel={EXCHANGE_COPY.market.label}
             skeleton={<OfferCardSkeleton />}
             errorTitle={EXCHANGE_COPY.market.errorTitle}
@@ -88,6 +101,21 @@ export function ExchangeSurface({
                     : EXCHANGE_COPY.market.emptyUnfilteredBody
                 }
               />
+            }
+          />
+          )
+        ) : userId === null ? (
+          <EmptyPanel
+            icon={<ArrowLeftRight size={28} />}
+            title="Sign in to see your trades"
+            body="The public market stays open. Your own trades are private to your account."
+            action={
+              <Link
+                href={withReturnPath('/signin', exchangeHref(route))}
+                className={buttonVariants()}
+              >
+                Sign in
+              </Link>
             }
           />
         ) : (

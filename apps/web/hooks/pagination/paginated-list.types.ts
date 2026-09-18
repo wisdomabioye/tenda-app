@@ -27,6 +27,8 @@ export interface UsePaginatedListOptions<TItem, TQuery extends object> {
   cache?: QueryCache<TItem>
   /** Use server next_cursor for stable traversal of a live, shifting list. */
   cursorPagination?: boolean
+  /** Server-rendered page zero for this hook's initial query. */
+  initialPage?: PaginatedResponse<TItem>
 }
 
 export interface PaginatedListState<TItem> {

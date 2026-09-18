@@ -15,6 +15,7 @@ import type {
   ExchangeListQuery,
   ExchangeSummary,
   SupportedCurrency,
+  PaginatedResponse,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
@@ -35,6 +36,7 @@ export interface ExchangeScreenFilters {
    * would turn a stale link into an error over a dead Try-again.
    */
   enabled?: boolean
+  initialPage?: PaginatedResponse<ExchangeSummary>
 }
 
 const offerKey = (offer: ExchangeSummary) => offer.escrow_id
@@ -43,6 +45,7 @@ export function useExchangeScreen({
   currency,
   chainId,
   enabled = true,
+  initialPage,
 }: ExchangeScreenFilters): ExchangeScreenState {
   const market = usePaginatedList<ExchangeSummary, ExchangeListQuery>({
     fetchPage: (params) => api.exchange.list(params),
@@ -53,6 +56,7 @@ export function useExchangeScreen({
     keyOf: offerKey,
     enabled,
     cache: offerBookCache,
+    initialPage,
   })
 
   // The reader's own side of the book, shared with the dashboard (#60).

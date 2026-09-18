@@ -7,6 +7,12 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
+import type { EscrowProofInput } from '@/hooks/escrow/useEscrowActions'
+
+type ToastArgs = Parameters<(typeof import('@/components/ui/Toast'))['showToast']>
+type LiveRefreshArgs = Parameters<
+  (typeof import('@/hooks/escrow/live'))['useEscrowLiveRefresh']
+>
 
 const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckApplied, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
   actionsState: {
@@ -32,8 +38,8 @@ const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckAppl
   // are the only ways an added proof or a converged tx reaches the screen.
   capturedDialogArgs: {
     current: null as null | {
-      onAddProofsReady?: (p: unknown[]) => Promise<void>
-      onProofsReady?: (p: unknown[]) => Promise<boolean>
+      onAddProofsReady?: (p: EscrowProofInput[]) => Promise<void>
+      onProofsReady?: (p: EscrowProofInput[]) => Promise<boolean>
     },
   },
   capturedCheckApplied: { current: null as null | (() => Promise<boolean>) },
@@ -43,7 +49,7 @@ const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckAppl
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush }) }))
-vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
+vi.mock('@/components/ui/Toast', () => ({ showToast: (...args: ToastArgs) => toastMock(...args) }))
 vi.mock('@/components/escrow/TransactionMonitor', () => ({
   TransactionMonitor: ({
     onConfirmed,
@@ -74,12 +80,12 @@ vi.mock('@/hooks/escrow/useEscrowFee', () => ({
   useEscrowFee: () => ({ feeBps: 250, feePct: '2.50', feeRaw: BigInt(1250000), netRaw: BigInt(48750000) }),
 }))
 vi.mock('@/hooks/escrow/live', () => ({
-  useEscrowLiveRefresh: (...a: unknown[]) => liveRefreshMock(...a),
+  useEscrowLiveRefresh: (...args: LiveRefreshArgs) => liveRefreshMock(...args),
 }))
 // The dialogs' internals are unit-tested with the gig hub; here they would
 // only drag in upload plumbing.
 vi.mock('@/components/gig/detail/action-dialogs', () => ({
-  GigActionDialogs: (args: { onAddProofsReady?: (p: unknown[]) => Promise<void> }) => {
+  GigActionDialogs: (args: { onAddProofsReady?: (p: EscrowProofInput[]) => Promise<void> }) => {
     capturedDialogArgs.current = args
     return null
   },
@@ -114,6 +120,16 @@ test('a stranger on an open offer: Accept gates behind the confirm dialog', asyn
   fireEvent.click(within(dialog).getByRole('button', { name: 'Accept Offer' }))
   expect(actionsState.accept).toHaveBeenCalledTimes(1)
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+})
+
+test('an anonymous reader sees the offer but signs in before accepting', () => {
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId={null} refresh={refresh} />)
+  expect(screen.getByText(OFFER_DETAIL_COPY.terms)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Accept Offer' })).toBeNull()
+  expect(screen.getByRole('link', { name: 'Sign in to accept' })).toHaveAttribute(
+    'href',
+    `/signin?next=${encodeURIComponent('/exchange/exch-1')}`,
+  )
 })
 
 test('a confirmed non-cancel tx toasts and re-reads; a confirmed CANCEL leaves for /exchange', () => {

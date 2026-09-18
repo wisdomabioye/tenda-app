@@ -30,6 +30,7 @@ import { RatingStars } from '@/components/ui/RatingStars'
 import { StandingBadge } from '@/components/profile'
 import { escrowChatHref } from '@/lib/chat-href'
 import { OFFER_DETAIL_COPY, exchangeChatContext } from './copy'
+import { withReturnPath } from '@/lib/auth/return-path'
 
 export const TRADER_CARD_COPY = {
   anonymous: 'Trader',
@@ -57,7 +58,7 @@ export function TraderCard({
 }: {
   trader: ExchangePartyRef
   offer: Pick<ExchangeDetail, 'escrow_id' | 'reviews' | 'fiat_amount' | 'fiat_currency'>
-  currentUserId: string
+  currentUserId: string | null
 }) {
   // The server already decided how much of this person the viewer may see
   // (#175): `full_name` is filled for a SETTLED party and null for everyone
@@ -66,12 +67,14 @@ export function TraderCard({
   // re-deriving who is entitled to what — and `''` (a party with no profile
   // name at all) falls through to this surface's own word for it.
   const name = scopedName(trader) || TRADER_CARD_COPY.anonymous
-  const isSelf = trader.id === currentUserId
+  const isSelf = currentUserId !== null && trader.id === currentUserId
   const score = trader.review_score === null ? null : Number(trader.review_score)
   const country = countryDisplayName(trader.country)
   const reviewCount = offer.reviews.length
 
-  const chatHref = escrowChatHref(trader.id, exchangeChatContext(offer))
+  const chatHref = currentUserId === null
+    ? withReturnPath('/signin', `/exchange/${offer.escrow_id}`)
+    : escrowChatHref(trader.id, exchangeChatContext(offer))
 
   return (
     <section className="mt-8 border-t border-border-subtle pt-6">

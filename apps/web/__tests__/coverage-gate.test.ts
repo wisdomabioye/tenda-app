@@ -1,8 +1,6 @@
 /**
  * @vitest-environment node
  *
- * The coverage gate measures what the suite exercises.
- *
  * `coverage.include` is an allow-list, so a file outside it contributes nothing
  * to the reported figures even with a full suite. Nothing failed when that
  * happened — which is how nine route pages under app/(app)/ came to have real
@@ -52,11 +50,14 @@ const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
     'the gate itself — the vitest config it reaches through vitest-gate, plus the three test-support modules this file imports. Naming any one of them as THE subject would be a fiction',
   '__tests__/coverage-resolver-parity.test.ts':
     "its subject is the RELATIONSHIP between this app's resolver and mobile's (#77), which is not a module",
+  'app/(app)/exchange/__tests__/exchange-routes.test.tsx':
+    'covers both public exchange route pages after their shell move; neither route is the single subject',
   'app/(public)/support/__tests__/support-routes.test.ts':
     'asserts a route manifest over a directory — the contract, not any one page',
   'stores/__tests__/account-scope.guard.test.ts':
     'asserts a CONVENTION over the whole stores directory (#65) — its subject IS the directory',
-  'styles/__tests__/motion-contract.test.ts': 'a style contract over generated tokens, not a module',
+  'styles/__tests__/motion-contract.test.ts':
+    'a style contract over generated tokens, not a module',
   'styles/__tests__/panes-contract.test.ts': 'a style contract over generated tokens, not a module',
   'styles/__tests__/type-atoms.guard.test.ts':
     'asserts a CONVENTION over the whole app tree (#63: every text size is a type-* atom, or registered with a reason) and a sort-order contract on the compiled stylesheet — its subject is the tree',
@@ -296,5 +297,4 @@ describe('coverage gate scope', () => {
       .map(([file, subject]) => `${file} -> ${subject}`)
     expect(broken).toEqual([])
   })
-
 })

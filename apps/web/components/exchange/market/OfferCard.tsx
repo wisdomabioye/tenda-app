@@ -50,7 +50,13 @@ export const OFFER_CARD_COPY = {
   anonymous: 'Trader',
 } as const
 
-export function OfferCard({ offer }: { offer: ExchangeSummary }) {
+export function OfferCard({
+  offer,
+  href = `/exchange/${offer.escrow_id}`,
+}: {
+  offer: ExchangeSummary
+  href?: string
+}) {
   const currency = offer.fiat_currency
   const fiat = formatFiat(Number(offer.fiat_amount), currency)
   // A RATE, not an amount: `formatFiat` would round 15.49 and 15.40 to the
@@ -66,7 +72,7 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
 
   return (
     <Link
-      href={`/exchange/${offer.escrow_id}`}
+      href={href}
       className={cn(EXCHANGE_ROW_CLASS, 'block')}
     >
       <div

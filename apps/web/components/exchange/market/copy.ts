@@ -45,6 +45,12 @@ export function exchangeHref({ tab, currency, chainId }: ExchangeRouteState): st
   return query === '' ? '/exchange' : `/exchange?${query}`
 }
 
+/** Offer URL carrying the exact book view its Back link must restore. */
+export function exchangeOfferHref(id: string, route: ExchangeRouteState): string {
+  const query = exchangeHref(route).split('?')[1]
+  return `/exchange/${encodeURIComponent(id)}${query === undefined ? '' : `?${query}`}`
+}
+
 /** The rate line under an offer's headline figure, e.g. "NGN / USDC". */
 export function rateUnitLabel(fiatCurrency: string, asset: string): string {
   return `${fiatCurrency} / ${assetSymbol(asset)}`
