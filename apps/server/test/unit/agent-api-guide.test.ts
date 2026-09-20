@@ -23,8 +23,16 @@ import {
   X402_VERSION,
   X_PAYMENT_HEADER,
   X_PAYMENT_RESPONSE_HEADER,
+  apiRoutes,
 } from '@tenda/shared'
-import { AGENT_API_DOCUMENT, GUIDE_PATHS, integrationGuide } from '@tenda/api-doc'
+import {
+  AGENT_API_DOCUMENT,
+  ASKBOTS_REVIEW_ASSET_ID,
+  ASKBOTS_REVIEW_CHAIN_ID,
+  ASKBOTS_REVIEW_ORIGIN,
+  GUIDE_PATHS,
+  integrationGuide,
+} from '@tenda/api-doc'
 
 const description = AGENT_API_DOCUMENT.info.description
 
@@ -65,4 +73,26 @@ test('every path the guide walks through is one the document defines', () => {
   assert.deepStrictEqual(dangling, [], 'the guide walks a reader to a path this document does not define')
   const unnamed = GUIDE_PATHS.filter((path) => !description.includes(path))
   assert.deepStrictEqual(unnamed, [], 'a path is listed in the itinerary but never appears in the guide')
+})
+
+test('the executable agent flow precedes catalogue reads for prefix-limited readers', () => {
+  assert.deepStrictEqual(Object.keys(AGENT_API_DOCUMENT.paths).slice(0, 3), [
+    apiRoutes.agent.demoSession,
+    apiRoutes.agent.tasks,
+    apiRoutes.agent.register,
+  ])
+  const serialized = JSON.stringify(AGENT_API_DOCUMENT)
+  const taskExample = serialized.indexOf('"example":{"creation_operation_id"')
+  const components = serialized.indexOf('"components"')
+  assert.ok(taskExample >= 0, 'the task request example is absent')
+  assert.ok(taskExample < components, 'the task example fell behind the component catalogue')
+})
+
+test('the temporary AskBots recipe points at the scored Celo mainnet deployment', () => {
+  assert.deepStrictEqual(AGENT_API_DOCUMENT.servers, [
+    { url: ASKBOTS_REVIEW_ORIGIN, description: 'Celo mainnet production API' },
+  ])
+  assert.ok(description.includes(ASKBOTS_REVIEW_ORIGIN))
+  assert.ok(description.includes(ASKBOTS_REVIEW_CHAIN_ID))
+  assert.ok(description.includes(ASKBOTS_REVIEW_ASSET_ID))
 })

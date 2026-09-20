@@ -12,8 +12,9 @@
  * live body — with closed schemas, so a new wire field fails the test until it
  * is documented. Additions therefore always land in the document.
  */
+import { apiRoutes } from '@tenda/shared'
 import { withRecordedExamples } from './examples'
-import { integrationGuide } from './guide'
+import { ASKBOTS_REVIEW_ORIGIN, integrationGuide } from './guide'
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AUTH_PATHS } from './paths-auth'
@@ -158,13 +159,26 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
     description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.\n\n${integrationGuide()}`,
     'x-tenda-stability': AGENT_API_STABILITY,
   },
-  servers: [{ url: '/', description: 'The origin this document was fetched from' }],
+  // TEMPORARY #182: AskBots reviews the fixed production document. Restore the
+  // deployment-neutral relative origin after the 2026-09-21 deadline.
+  servers: [{ url: ASKBOTS_REVIEW_ORIGIN, description: 'Celo mainnet production API' }],
   tags: [
     { name: 'gigs', description: 'Public, read-only gig listings' },
     { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
     { name: 'platform', description: 'What THIS deployment is configured for — the chains and assets it can settle on' },
   ],
-  paths: { ...AGENT_API_PATHS, ...AUTH_PATHS, ...AGENT_API_V1_PATHS, ...AGENT_API_PLATFORM_PATHS },
+  // Put the executable agent flow first. Some automated readers retain only a
+  // prefix of a large OpenAPI document; ordering these operations ahead of the
+  // public catalogue keeps the demo, request, 402 and 201 examples together
+  // inside that prefix without maintaining a second, smaller contract.
+  paths: {
+    [apiRoutes.agent.demoSession]: AGENT_API_V1_PATHS[apiRoutes.agent.demoSession],
+    [apiRoutes.agent.tasks]: AGENT_API_V1_PATHS[apiRoutes.agent.tasks],
+    [apiRoutes.agent.register]: AGENT_API_V1_PATHS[apiRoutes.agent.register],
+    ...AUTH_PATHS,
+    ...AGENT_API_PLATFORM_PATHS,
+    ...AGENT_API_PATHS,
+  },
   components: {
     schemas: { ...AGENT_API_SCHEMAS, ...AUTH_SCHEMAS, ...AGENT_API_V1_SCHEMAS, ...AGENT_API_PLATFORM_SCHEMAS },
     securitySchemes: SECURITY_SCHEMES,

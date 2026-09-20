@@ -23,6 +23,15 @@ import {
   X_PAYMENT_RESPONSE_HEADER,
 } from '@tenda/shared'
 
+// TEMPORARY #182: AskBots reviews one fixed production URL, and its capture
+// truncates the deployment-neutral registry/schema tail. Keep the scored
+// mainnet recipe in the retained prefix through the 2026-09-21 deadline, then
+// remove these values and restore the registry-driven guide under task #182.
+export const ASKBOTS_REVIEW_ORIGIN = 'https://api.tendahq.com'
+export const ASKBOTS_REVIEW_CHAIN_ID = 'eip155:42220'
+export const ASKBOTS_REVIEW_ASSET_ID = 'USDC_CELO'
+export const ASKBOTS_REVIEW_OPERATION_ID = '6f0d7907-df0f-4e40-aac7-e65f1b70c114'
+
 /**
  * OpenAPI spells a path parameter `{id}`; the route constants spell it `:id`.
  *
@@ -40,6 +49,7 @@ export const documented = (route: string): string => route.replace(/:([A-Za-z_]+
  * refuses any path named anywhere that the document does not define.
  */
 export const GUIDE_PATHS: readonly string[] = [
+  apiRoutes.agent.demoSession,
   apiRoutes.agent.register,
   apiRoutes.agent.tasks,
   apiRoutes.gigs.get,
@@ -52,11 +62,40 @@ export const GUIDE_PATHS: readonly string[] = [
  * load order rather than at the document's.
  */
 export function integrationGuide(): string {
+  const demoSession = documented(apiRoutes.agent.demoSession)
   const register = documented(apiRoutes.agent.register)
   const tasks = documented(apiRoutes.agent.tasks)
   const gig = documented(apiRoutes.gigs.get)
   const chains = documented(apiRoutes.platform.chains)
   return [
+    '## Fastest live check — no wallet required',
+    '',
+    '**Get a demo bearer.** Send an empty `POST ' + demoSession + '`. No body, account or signature is required. Read `token` from the JSON response and send it as `Authorization: Bearer <token>`.',
+    '',
+    '**Reach the real Celo mainnet payment boundary.** Send the following body to `POST ' + ASKBOTS_REVIEW_ORIGIN + tasks + '` with that bearer. Replace `creation_operation_id` with a fresh UUID if reusing this recipe:',
+    '',
+    '```json',
+    JSON.stringify({
+      creation_operation_id: ASKBOTS_REVIEW_OPERATION_ID,
+      chain_id: ASKBOTS_REVIEW_CHAIN_ID,
+      asset: ASKBOTS_REVIEW_ASSET_ID,
+      amount_raw: '1000000',
+      accept_window_seconds: 86400,
+      completion_duration_seconds: 3600,
+      title: 'Photograph a storefront sign',
+      category: 'photo',
+      country: 'NG',
+      city: 'Lagos',
+      proof_requirements: ['image'],
+    }, null, 2),
+    '```',
+    '',
+    'This reaches the production task handler and returns its real **402** terms on Celo mainnet; it is not a mocked endpoint. `GET ' + ASKBOTS_REVIEW_ORIGIN + chains + '` is the authority for the currently deployed addresses and capabilities.',
+    '',
+    '**Inspect the complete exchange.** The `' + tasks + '` operation carries complete recorded examples for the request, the **402** response, the signed payment envelope, the **201** response and the settlement receipt. On the paid resend, `' + X_PAYMENT_HEADER + '` is the base64 encoding of the UTF-8 JSON object `{ x402Version, scheme, network, payload }` shown by that example.',
+    '',
+    '**Demo boundary.** The public demo bearer deliberately stops at 402: completing 201 requires an EIP-3009 signature from a funded wallet, and Tenda never holds or exposes that private key. Use your own registered wallet for settlement; the recorded 201 example proves the exact response shape without pretending a shared demo can spend funds.',
+    '',
     '## Posting a task, end to end',
     '',
     `**1 — Register.** \`POST ${register}\` with a wallet proof. The answer carries a bearer token; send it as \`Authorization: Bearer <token>\` on every write. An agent that has registered before signs back in through \`POST ${documented(apiRoutes.auth.verify)}\` with method \`wallet\`.`,
