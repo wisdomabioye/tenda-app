@@ -1,6 +1,11 @@
 # Tenda
 
-**The human execution layer for people, businesses and AI agents.**
+**The escrow does the trusting.**
+
+Escrow-secured gigs and P2P cash trades, hired by people and AI agents. Money locks on-chain before work starts; proof releases it.
+
+Tenda is the payment, escrow and human-execution layer for work commissioned by
+people, businesses and autonomous agents.
 
 Tenda turns a request into funded work: a poster defines the outcome and proof,
 money locks in on-chain escrow, a worker completes the task, and approval—or a
@@ -16,12 +21,28 @@ point, Tenda also connects earnings to a protected peer-to-peer exchange path.
 
 ## Table of contents
 
-- [Why Tenda](#why-tenda) · [What Tenda enables](#what-tenda-enables) · [Human marketplace](#human-marketplace)
-- [Agent-to-human hiring](#agent-to-human-hiring) · [x402-compatible funding](#x402-compatible-funding) · [Gas abstraction](#gas-abstraction-and-relayers)
-- [Proof and disputes](#proof-settlement-and-disputes) · [P2P exchange](#p2p-exchange) · [Product surfaces](#product-surfaces)
-- [Networks](#networks-and-capability-status) · [Architecture](#architecture) · [End-to-end flows](#end-to-end-flows)
-- [Quick start](#quick-start) · [Agent integration](#agent-integration) · [Security](#security-and-trust-boundaries)
-- [Roadmap](#roadmap) · [Licensing](#licensing)
+- **Product**
+  - [Why Tenda](#why-tenda)
+  - [Built today, designed for more](#built-today-designed-for-more)
+  - [Human marketplace](#human-marketplace)
+  - [Agent-to-human hiring](#agent-to-human-hiring)
+  - [x402-compatible funding](#x402-compatible-funding)
+  - [Gas abstraction and relayers](#gas-abstraction-and-relayers)
+  - [Proof, settlement and disputes](#proof-settlement-and-disputes)
+  - [P2P exchange](#p2p-exchange)
+  - [Trust, safety and operations](#trust-safety-and-operations)
+  - [Mobile, web and API surfaces](#mobile-web-and-api-surfaces)
+- **Platform**
+  - [Networks and capability status](#networks-and-capability-status)
+  - [Architecture](#architecture)
+  - [End-to-end flows](#end-to-end-flows)
+  - [Security and trust boundaries](#security-and-trust-boundaries)
+- **Build and evaluate**
+  - [Quick start](#quick-start)
+  - [Agent integration](#agent-integration)
+  - [Where Tenda can go next](#where-tenda-can-go-next)
+  - [Root commands](#root-commands)
+  - [Licensing](#licensing)
 
 ## Why Tenda
 
@@ -38,7 +59,7 @@ The marketplace brings four pieces together:
 3. **Evidence:** task-defined proof, moderation, review and disputes.
 4. **Access:** Android, web and HTTP interfaces, plus local-value exchange.
 
-## What Tenda enables
+## Built today, designed for more
 
 | Audience | What they can do |
 |---|---|
@@ -48,9 +69,22 @@ The marketplace brings four pieces together:
 | AI agents | Register with a wallet, request exact funding terms, sign an asset authorization and commission human work through an API. |
 | Operators | Moderate content, investigate reports, resolve disputes and monitor marketplace and chain operations. |
 
-Potential task categories include retail price and availability checks, merchant or location
-verification, property inspection, local app and payment-flow testing, delivery or errand proof,
-and structured field-data collection. These are examples, not claims of customer volume.
+### Capability map
+
+| Built capability | Delivered surface | Evidence in this repository |
+|---|---|---|
+| Human work marketplace | Public gigs, applications, invitations, proof, reviews and recovery paths | [`apps/mobile`](apps/mobile/README.md), [`apps/web`](apps/web/README.md) |
+| Agent hiring | Wallet registration, public agent cards and one-call task creation/funding | [Agent registration](apps/server/src/features/agent/registerAgent.ts), [agent cards](apps/server/src/features/agent-card/index.ts) |
+| x402-compatible commerce | `402` quote, signed `X-PAYMENT` retry and relayed escrow funding | [Agent route](apps/server/src/routes/v1/agent/tasks/index.ts) |
+| Multichain escrow | Solana program, EVM contract and configuration-driven chain adapters | [`contracts`](contracts/README.md), [`CHAIN_MANIFEST`](packages/shared/src/chains/manifest.ts) |
+| Gas abstraction | Deployment-specific relayers, native-gas seeds and fee-currency paths; paymaster policy is modeled | [Chain adapter guide](apps/server/src/chains/README.md), [gas seeds](apps/server/src/features/gas-seed/index.ts) |
+| Local-value exchange | Protected crypto-to-fiat offers with evidence and disputes | [`apps/web`](apps/web/README.md), [`apps/mobile`](apps/mobile/README.md) |
+| Marketplace operations | Moderation, reports, roles, disputes, finance, metrics and reconciliation | [`apps/admin`](apps/admin/README.md), [`apps/server`](apps/server/README.md) |
+| Product access | Android, browser, public site, admin dashboard and agent API documentation | [Product surfaces](#mobile-web-and-api-surfaces) |
+
+The repository also includes a complete local agent-hire verification flow and
+[Bulk task-posting tooling](apps/server/src/scripts/post-gigs/README.md) with dry runs,
+reviewable task books, rate-limit recovery and durable receipts.
 
 ## Human marketplace
 
@@ -58,6 +92,10 @@ Posters choose the budget, deadline, location and required evidence. Workers can
 accept public gigs, apply to approval-mode gigs or receive a direct invitation.
 The product supports chat, proof submission, reviews, notifications, stalled
 payment claims, abandoned-task recovery, reports and disputes.
+
+Posters can publish open work, require applications before assignment or invite
+a specific worker. Each task carries its own budget, deadline, geographic scope
+and evidence requirements; Tenda is therefore more than a listing board.
 
 ```mermaid
 sequenceDiagram
@@ -120,6 +158,12 @@ Availability is chain-, asset- and deployment-specific. The public chain
 registry reports whether relayed funding is available; unsupported combinations
 fail explicitly rather than silently falling back to a custodial transfer.
 
+The server contains Solana and EVM relayer implementations. It also contains a
+paymaster sponsorship-reservation primitive, although its source marks live DB
+cutover and failed-attempt restoration as pending. Transaction verification and
+reconciliation are implemented separately. None of this promises that every
+transaction on every chain is free.
+
 ## Proof, settlement and disputes
 
 Escrow does not decide whether work is good. Tenda combines contract-enforced
@@ -147,7 +191,16 @@ liquidity. It is not a claim that Tenda itself provides licensed fiat custody.
 Yellow Card and Onramp.money integrations remain planned pending merchant
 onboarding, final API contracts and production reconciliation.
 
-## Product surfaces
+## Trust, safety and operations
+
+The operable marketplace includes content moderation, keyword and price checks,
+user/content reports, permission-scoped admin roles, suspension and standing
+controls, dispute resolution, financial and marketplace metrics, signed scoped
+uploads, chat, reviews, push notifications, realtime updates and transaction
+reconciliation workers. These controls connect contract settlement to accountable
+marketplace operations; their existence is not a claim of zero fraud or dispute.
+
+## Mobile, web and API surfaces
 
 | Surface | Role |
 |---|---|
@@ -267,11 +320,17 @@ task book. It handles real funds in live mode; begin with its documented dry run
 See [`contracts/`](contracts/README.md) for contract boundaries, artifact drift
 checks and deployment instructions.
 
-## Roadmap
+## Where Tenda can go next
 
-Near-term work focuses on independently funded pilots, complete agent lifecycle notifications,
-versioned proof schemas, outcome-based reputation, relayer operations and licensed fiat-provider
-validation. See [`ROADMAP.md`](ROADMAP.md) for current priorities and product boundaries.
+The platform can support agent fieldwork, retail audits, merchant/location
+verification, property inspection, local application testing and geographically
+distributed data collection. These are target use cases, not adoption claims.
+
+The next product layer is a complete agent feedback loop: signed lifecycle
+webhooks, programmatic review/dispute actions, SDKs that hide x402 and raw units,
+repeatable task templates, versioned proof schemas, outcome-based reputation and
+measured relayer economics. Independently funded pilots and licensed fiat-provider
+validation remain milestones. [`ROADMAP.md`](ROADMAP.md) is authoritative.
 
 ## Root commands
 
