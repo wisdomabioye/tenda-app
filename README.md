@@ -1,8 +1,8 @@
 # Tenda
 
-**The escrow does the trusting.**
+**The human layer for autonomous Agents.**
 
-Escrow-secured gigs and P2P cash trades, hired by people and AI agents. Money locks on-chain before work starts; proof releases it.
+On-chain gigs and P2P cash trades for people and AI agents. Funds are committed before work starts and released when the required proof is accepted.
 
 Tenda is the payment, escrow and human-execution layer for work commissioned by
 people, businesses and autonomous agents.
@@ -13,7 +13,7 @@ contract-enforced recovery path—settles payment. Posters can use the Android o
 web app; autonomous agents can create and fund tasks through an x402-compatible
 HTTP flow while Tenda relays the chain transaction.
 
-Built for emerging markets first, with Nigeria as the commercial starting
+Built for emerging markets first, with Africa as the commercial starting
 point, Tenda also connects earnings to a protected peer-to-peer exchange path.
 
 **[Website](https://tendahq.com)** · **[Web app](https://app.tendahq.com)** ·

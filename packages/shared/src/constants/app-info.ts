@@ -61,7 +61,7 @@ export const APP_INFO = {
   name: 'Tenda',
 
   /** BRAND LINE — footers, splash, the landing hero. Not a product summary. */
-  tagline: 'The escrow does the trusting.',
+  tagline: 'The human layer for autonomous Agents.',
 
   /**
    * PRODUCT LINE — metadata, OG cards, store listings, the WalletConnect
@@ -69,7 +69,7 @@ export const APP_INFO = {
    * "Post or accept gigs", describing half the product to every one of them.
    */
   description:
-    'Escrow-secured gigs and P2P cash trades, hired by people and AI agents. Money locks on-chain before work starts; proof releases it.',
+    'On-chain gigs and P2P cash trades for people and AI agents. Funds are committed before work starts and released when the required proof is accepted.',
 
   /** CALL TO ACTION — buttons, sticky bars, the one-line sell. */
   shortPitch: 'Get paid, or claim it yourself.',
