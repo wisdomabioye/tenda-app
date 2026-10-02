@@ -23,17 +23,17 @@ import {
   type VerifyAuthSigArgs,
   type VerifyTxArgs,
 } from '@server/chains/types'
-import { buildEvmCall, approvalHint } from './builders'
+import { buildEvmCall, approvalHint } from './build/builders'
 import { tagCalldata } from '@server/features/attribution'
-import { verifyEvmReceipt } from './verify-receipt'
+import { verifyEvmReceipt } from './verify/verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
-import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
+import { buildContext, fetchEscrowState, type EvmAdapterContext } from './build/state'
 import { cachedApprovalWindow } from '@server/chains/shared/approval-window'
-import { resolveEvmSigner } from './signer'
-import { buildPermitPayload } from './permit-payload'
-import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
+import { resolveEvmSigner } from './sender/signer'
+import { buildPermitPayload } from './build/permit-payload'
+import { ENTRY_POINT_V06, type PaymasterHttp } from './sender/paymaster'
 import { evmEscrowRelay } from './relay'
-import { evmEscrowSweep } from './sweep'
+import { evmEscrowSweep } from './sender/sweep'
 import type { EvmRelayer } from './relay/relayer'
 
 export interface EvmAdapterDeps {

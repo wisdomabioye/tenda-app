@@ -18,7 +18,7 @@ import {
   toBn,
   type FetchedEscrow,
   type SolanaBuilderDeps,
-} from '@server/chains/solana/builder-internals'
+} from '@server/chains/solana/build/builder-internals'
 import { buildSettleInstruction } from './settle'
 import { buildDisputeInstruction } from './dispute'
 

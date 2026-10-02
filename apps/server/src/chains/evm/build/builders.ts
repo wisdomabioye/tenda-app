@@ -26,7 +26,7 @@ import { DISPUTE_WINNER_CODE, encodeApprove, type PermitSignatureBody } from '@t
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { tagCalldata } from '@server/features/attribution'
-import { ESCROW_EVM_ABI } from './rpc'
+import { ESCROW_EVM_ABI } from '../rpc'
 import { parsePermitSignature } from './permit'
 import { buildCreateParams, escrowIdHex } from './create-params'
 import type { AmountRaw, BuildTxArgs } from '@server/chains/types'

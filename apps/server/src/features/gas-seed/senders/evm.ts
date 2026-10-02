@@ -32,7 +32,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { chainById } from '@tenda/shared'
 import type { GasSeedSender, GasSeedTransferStatus } from '../claim/grants'
 import type { GasSeedFunder } from './index'
-import { evmHotWallet } from '@server/chains/evm/hot-wallet'
+import { evmHotWallet } from '@server/chains/evm/sender/hot-wallet'
 
 /** The two states a receipt that EXISTS can be in. */
 export type EvmReceiptStatus = 'success' | 'reverted'

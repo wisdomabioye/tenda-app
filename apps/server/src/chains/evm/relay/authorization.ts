@@ -19,7 +19,7 @@ import {
 import { isRecord } from '@server/lib/http/validation'
 import { assertRelayEnvelope, relayRejected as reject } from '@server/lib/chain/x402'
 import { isAmountRaw } from '@server/chains/types'
-import { EIP712_DOMAIN_FIELDS, splitSignature } from '../permit'
+import { EIP712_DOMAIN_FIELDS, splitSignature } from '../build/permit'
 
 const RECEIVE_WITH_AUTHORIZATION_FIELDS = [
   { name: 'from', type: 'address' },

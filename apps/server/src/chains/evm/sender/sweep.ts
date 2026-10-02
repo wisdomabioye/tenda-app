@@ -8,9 +8,9 @@
  */
 import type { BuildTxArgs } from '@server/chains/types'
 import type { EscrowSweep, SweepArgs } from '@server/chains/types/sweep'
-import { buildEvmCall } from './builders'
+import { buildEvmCall } from '../build/builders'
 import { tagCalldata } from '@server/features/attribution'
-import type { EvmRelayer } from './relay/relayer'
+import type { EvmRelayer } from '../relay/relayer'
 
 /** Transition → the contract entry point, typed against the builder's own union. */
 const SWEEP_ACTION = {

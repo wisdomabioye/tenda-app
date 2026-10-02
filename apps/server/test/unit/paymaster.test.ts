@@ -9,7 +9,7 @@
 
 import { test, afterEach } from 'node:test'
 import * as assert from 'node:assert'
-import { fetchPaymasterHttp, ENTRY_POINT_V06 } from '@server/chains/evm/paymaster'
+import { fetchPaymasterHttp, ENTRY_POINT_V06 } from '@server/chains/evm/sender/paymaster'
 import { AppError } from '@server/lib/errors'
 import type { UserOperation } from '@server/chains/types'
 

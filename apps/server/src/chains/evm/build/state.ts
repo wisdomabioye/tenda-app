@@ -20,8 +20,8 @@ import { ErrorCode, ESCROW_STATUS_ORDER } from '@tenda/shared'
 import { bytesToUuid } from '@server/chains/shared/ids'
 import type { BuildTxArgs, EscrowState } from '@server/chains/types'
 import { escrowIdHex } from './create-params'
-import { ZERO_ADDRESS, type EvmRpc } from './rpc'
-import type { EvmAdapterArgs } from './index'
+import { ZERO_ADDRESS, type EvmRpc } from '../rpc'
+import type { EvmAdapterArgs } from '../index'
 
 /** What the extracted reads need from the adapter that owns them. */
 export interface EvmAdapterContext {

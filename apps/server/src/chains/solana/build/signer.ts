@@ -18,7 +18,7 @@ import { ErrorCode, sameWalletAddress } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs } from '@server/chains/types'
 import type { EscrowAccount } from '@server/chains/solana/pdas'
-import type { SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
+import type { SolanaBuilderDeps } from '@server/chains/solana/build/builder-internals'
 import { boundPartyAddress } from '@server/chains/shared/signer-role'
 
 /** The three fields the resolver reads — structural so tests need no full

@@ -23,9 +23,9 @@ import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/chai
 import type { EscrowRelay, RelayedCreateArgs } from '@server/chains/types'
 import { ESCROW_EVM_ABI } from '../rpc'
 import { evmChainNumericId } from '@tenda/shared'
-import { domainSeparatorMatches } from '../permit'
-import { authorizationNonce, buildCreateParams, createParamsWire, type EvmCreateParams } from '../create-params'
-import type { EvmAdapterContext } from '../state'
+import { domainSeparatorMatches } from '../build/permit'
+import { authorizationNonce, buildCreateParams, createParamsWire, type EvmCreateParams } from '../build/create-params'
+import type { EvmAdapterContext } from '../build/state'
 import {
   buildAuthorizationTypedData,
   validateAuthorizationPayment,

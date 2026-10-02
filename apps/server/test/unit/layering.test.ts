@@ -94,10 +94,10 @@ test('lib/ never imports features/ or routes/', () => {
  * exception. A fifth importer is a new upward edge: fail it, then decide.
  */
 const CHAINS_MAY_IMPORT_ATTRIBUTION = [
-  'chains/evm/builders.ts',
+  'chains/evm/build/builders.ts',
   'chains/evm/index.ts',
   'chains/evm/relay/index.ts',
-  'chains/evm/sweep.ts',
+  'chains/evm/sender/sweep.ts',
 ]
 
 test('chains/ imports features/ only through the attribution seam, from the four known files', () => {
@@ -162,30 +162,10 @@ function mixedFolders(dir = SRC, rel = ''): string[] {
   return found
 }
 
-/**
- * Folders still to be fixed. A RATCHET: it may only shrink, and an entry whose
- * folder no longer mixes must be deleted from here (the second test), so the
- * list can never quietly outlive the work it tracks.
- */
-const MIXED_FOLDERS_TO_FIX: string[] = [
-  'chains/evm',
-  'chains/solana',
-]
-
-test('no new folder mixes loose files with subfolders', () => {
-  const allowed = new Set(MIXED_FOLDERS_TO_FIX)
+test('no folder mixes loose files with subfolders', () => {
   assert.deepEqual(
-    mixedFolders().filter((folder) => !allowed.has(folder)),
+    mixedFolders(),
     [],
     'a folder holds files or folders, not both — put the loose files in a subfolder named for what they do',
-  )
-})
-
-test('every folder still listed as mixed really is — fixed ones leave the list', () => {
-  const mixed = new Set(mixedFolders())
-  assert.deepEqual(
-    MIXED_FOLDERS_TO_FIX.filter((folder) => !mixed.has(folder)),
-    [],
-    'these folders no longer mix files and subfolders — delete them from MIXED_FOLDERS_TO_FIX',
   )
 })

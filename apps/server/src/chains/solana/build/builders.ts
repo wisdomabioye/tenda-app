@@ -13,8 +13,8 @@ import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, UnsignedTx } from '@server/chains/types'
 import { buildInstruction } from '@server/chains/solana/instructions'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
-import { fetchEscrow, type SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
-import { resolveSolanaSigner } from '@server/chains/solana/signer'
+import { fetchEscrow, type SolanaBuilderDeps } from '@server/chains/solana/build/builder-internals'
+import { resolveSolanaSigner } from '@server/chains/solana/build/signer'
 
 export type { SolanaBuilderDeps }
 

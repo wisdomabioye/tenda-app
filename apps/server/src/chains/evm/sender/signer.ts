@@ -16,8 +16,8 @@
 import { ErrorCode, sameWalletAddress } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, EscrowState } from '@server/chains/types'
-import { escrowIdHex } from './create-params'
-import { fetchEscrowState, type EvmAdapterContext } from './state'
+import { escrowIdHex } from '../build/create-params'
+import { fetchEscrowState, type EvmAdapterContext } from '../build/state'
 import { boundPartyAddress } from '@server/chains/shared/signer-role'
 
 /** This chain's state, mapped into the SHARED role rule (signer-role.ts). */

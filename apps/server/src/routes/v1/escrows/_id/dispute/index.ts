@@ -22,7 +22,7 @@ import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/features/escrows/routes'
 import { assertCallerWallet, buildEscrowTx, partyCaller, readSignerPreference } from '@server/lib/escrow'
-import { validateWirePermit } from '@server/chains/evm/permit'
+import { validateWirePermit } from '@server/chains/evm/build/permit'
 import { isAmountRaw } from '@server/chains/types'
 
 interface Body {

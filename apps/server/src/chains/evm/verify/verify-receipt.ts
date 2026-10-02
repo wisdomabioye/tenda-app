@@ -10,7 +10,7 @@
 
 import type { VerifiedTx, VerifyTxArgs } from '@server/chains/types'
 import { decodeEscrowLogs } from './verify'
-import type { EvmRpc } from './rpc'
+import type { EvmRpc } from '../rpc'
 
 export interface VerifyReceiptDeps {
   rpc: Pick<EvmRpc, 'getTransactionReceipt' | 'getBlockNumber'>

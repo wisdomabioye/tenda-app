@@ -12,7 +12,7 @@
  * The second test is the one that has already earned its place. The first cut
  * of #83 attached the tag at two call sites and the barrel said "both places
  * the server produces EVM calldata" — there were three, and the sweep
- * (chains/evm/sweep.ts) broadcast untagged Celo transactions. A whole-file read
+ * (chains/evm/sender/sweep.ts) broadcast untagged Celo transactions. A whole-file read
  * caught it; this catches the NEXT one, at the moment a fourth call site is
  * added rather than whenever someone next reads the docblock.
  *
@@ -73,12 +73,12 @@ test('the tag is applied from exactly the places the removal recipe names', () =
     //        be tagged (#103). It was the one transaction in the flow the
     //        server did not build, and therefore the one that went out
     //        unattributed on every post of a token without EIP-2612.
-    'chains/evm/builders.ts',
+    'chains/evm/build/builders.ts',
     // 2b. createEscrowFor, signed by the relayer (#18 agent funding)
     'chains/evm/relay/index.ts',
     // 2c. refundExpired / reclaimAbandoned, also relayer-signed (#43). THIS is
     //     the one the first cut missed.
-    'chains/evm/sweep.ts',
+    'chains/evm/sender/sweep.ts',
     // 3. the boot assertion that turns a malformed code into a startup failure
     'plugins/chains.ts',
     // the read-back check; not in the recipe's delete list because it lives in

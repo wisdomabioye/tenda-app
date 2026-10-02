@@ -17,7 +17,7 @@ import {
   permitDomainMatches,
   validatePermitBody,
   validateWirePermit,
-} from '@server/chains/evm/permit'
+} from '@server/chains/evm/build/permit'
 
 const R = `0x${'11'.repeat(32)}`
 const S = `0x${'22'.repeat(32)}`

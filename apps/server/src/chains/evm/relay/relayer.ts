@@ -8,7 +8,7 @@
  * it pays gas from — the same ops class as the Solana gas-seed wallet.
  */
 import { type Abi } from 'viem'
-import { evmHotWallet } from '../hot-wallet'
+import { evmHotWallet } from '../sender/hot-wallet'
 import { RECEIVE_WITH_AUTHORIZATION_TYPEHASH } from './authorization'
 
 export interface EvmRelayCall {

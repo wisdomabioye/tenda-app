@@ -28,12 +28,12 @@
  *   2. `chains/evm/relay/index.ts` — `createEscrowFor`, which the RELAYER signs
  *      (#18 agent funding). Tagged before `simulate`, so what is simulated is
  *      what is sent.
- *   3. `chains/evm/sweep.ts` — `refundExpired` / `reclaimAbandoned`, which the
+ *   3. `chains/evm/sender/sweep.ts` — `refundExpired` / `reclaimAbandoned`, which the
  *      relayer also signs (#43 abandoned-escrow recovery). This one is easy to
  *      forget, and was: the first cut of #83 attached to the two above and this
  *      docblock said "both places". A sweep is a real transaction on a real
  *      chain, so an untagged one is volume that scores nothing.
- *   4. `chains/evm/builders.ts` `approvalHint` — the ERC-20 `approve` a client
+ *   4. `chains/evm/build/builders.ts` `approvalHint` — the ERC-20 `approve` a client
  *      sends before a plain (non-permit) create or dispute bond (#103). The
  *      server BUILDS that calldata now; see below for what changed and why.
  *
