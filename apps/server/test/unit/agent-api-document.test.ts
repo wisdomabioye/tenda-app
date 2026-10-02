@@ -272,9 +272,7 @@ test('no description hand-writes a chain or asset id — those are per-deploymen
     // integration guide — the longest prose in the file, and the piece most
     // likely to reach for a concrete example. It was outside this scan while
     // it was one sentence.
-    // TEMPORARY #182: the fixed AskBots URL is scored against Celo mainnet, so
-    // its retained prefix deliberately carries that deployment's executable
-    // recipe. Every reusable schema and operation description remains neutral.
+    { where: 'info.description', text: AGENT_API_DOCUMENT.info.description },
   ]
   for (const [name, schema] of Object.entries(components.schemas)) {
     walk(schema, (node) => {

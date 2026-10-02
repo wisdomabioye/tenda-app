@@ -27,9 +27,6 @@ import {
 } from '@tenda/shared'
 import {
   AGENT_API_DOCUMENT,
-  ASKBOTS_REVIEW_ASSET_ID,
-  ASKBOTS_REVIEW_CHAIN_ID,
-  ASKBOTS_REVIEW_ORIGIN,
   GUIDE_PATHS,
   integrationGuide,
 } from '@tenda/api-doc'
@@ -88,11 +85,9 @@ test('the executable agent flow precedes catalogue reads for prefix-limited read
   assert.ok(taskExample < components, 'the task example fell behind the component catalogue')
 })
 
-test('the temporary AskBots recipe points at the scored Celo mainnet deployment', () => {
+test('the document resolves operations to the origin it was fetched from, not a pinned deployment', () => {
   assert.deepStrictEqual(AGENT_API_DOCUMENT.servers, [
-    { url: ASKBOTS_REVIEW_ORIGIN, description: 'Celo mainnet production API' },
+    { url: '/', description: 'The origin this document was fetched from' },
   ])
-  assert.ok(description.includes(ASKBOTS_REVIEW_ORIGIN))
-  assert.ok(description.includes(ASKBOTS_REVIEW_CHAIN_ID))
-  assert.ok(description.includes(ASKBOTS_REVIEW_ASSET_ID))
+  assert.ok(!description.includes('https://'), 'the guide hard-codes an origin, so a second deployment would send readers to the first')
 })

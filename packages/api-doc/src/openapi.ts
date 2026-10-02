@@ -14,7 +14,7 @@
  */
 import { apiRoutes } from '@tenda/shared'
 import { withRecordedExamples } from './examples'
-import { ASKBOTS_REVIEW_ORIGIN, integrationGuide } from './guide'
+import { integrationGuide } from './guide'
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AUTH_PATHS } from './paths-auth'
@@ -159,9 +159,7 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
     description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.\n\n${integrationGuide()}`,
     'x-tenda-stability': AGENT_API_STABILITY,
   },
-  // TEMPORARY #182: AskBots reviews the fixed production document. Restore the
-  // deployment-neutral relative origin after the 2026-09-21 deadline.
-  servers: [{ url: ASKBOTS_REVIEW_ORIGIN, description: 'Celo mainnet production API' }],
+  servers: [{ url: '/', description: 'The origin this document was fetched from' }],
   tags: [
     { name: 'gigs', description: 'Public, read-only gig listings' },
     { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
