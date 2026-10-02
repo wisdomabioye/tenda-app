@@ -10,8 +10,8 @@
  */
 import { ErrorCode, type AttachmentInput, type MessageAttachmentType, type ScopedUploadType } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { UPLOAD_CONSTRAINTS } from '@server/lib/cloudinary'
-import { isValidScopedAttachmentUrl } from '@server/lib/uploads/scoped'
+import { UPLOAD_CONSTRAINTS } from '@server/features/uploads/cloudinary'
+import { isValidScopedAttachmentUrl } from '@server/features/uploads/scoped'
 
 export interface ValidatedAttachment {
   attachment_url: string

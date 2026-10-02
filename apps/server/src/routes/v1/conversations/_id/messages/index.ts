@@ -6,7 +6,7 @@ import { conversations, messages, escrows, gig_details, exchange_details } from 
 import { ErrorCode, MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { AppError, requireBody } from '@server/lib/errors'
-import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
+import { validateMessageAttachment } from '@server/features/uploads/validate-attachment'
 import { channelName } from '@server/lib/ws'
 import { messagePreview } from '@server/lib/chat'
 import type { ConversationsContract, ApiError } from '@tenda/shared'

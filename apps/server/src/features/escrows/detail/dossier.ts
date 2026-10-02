@@ -26,7 +26,7 @@ import type {
   DossierExchangeDetails,
 } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
-import { deriveDisputeParties, partyIdsOf } from '@server/lib/disputes/parties'
+import { deriveDisputeParties, partyIdsOf } from '@server/features/disputes/parties'
 
 const iso = (d: Date): string => d.toISOString()
 

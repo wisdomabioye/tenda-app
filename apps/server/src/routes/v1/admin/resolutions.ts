@@ -32,7 +32,7 @@ import {
   getResolutionEscrow,
   getResolutionQueue,
   toResolutionWire,
-} from '@server/lib/disputes/resolution-store'
+} from '@server/features/disputes/resolution-store'
 
 const RESOLUTION_STATUSES: readonly ResolutionStatus[] = ['pending', 'executing', 'confirmed', 'rejected']
 

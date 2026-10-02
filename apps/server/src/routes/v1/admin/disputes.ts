@@ -28,14 +28,14 @@ import {
   getResolutionEscrow,
   narrowWinner,
   toResolutionWire,
-} from '@server/lib/disputes/resolution-store'
-import { claimDispute, releaseDispute } from '@server/lib/disputes/claim-store'
+} from '@server/features/disputes/resolution-store'
+import { claimDispute, releaseDispute } from '@server/features/disputes/claim-store'
 import {
   narrowDisputeAssigned,
   narrowDisputeKind,
   narrowDisputeParty,
   narrowDisputeStatus,
-} from '@server/lib/disputes/list-query'
+} from '@server/features/disputes/list-query'
 
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())

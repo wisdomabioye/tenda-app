@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 
-import { scopedUploadFolder, isValidScopedAttachmentUrl } from '@server/lib/uploads/scoped'
+import { scopedUploadFolder, isValidScopedAttachmentUrl } from '@server/features/uploads/scoped'
 
 test('scopedUploadFolder: <base>/<scopeId>/<userId> per type', () => {
   assert.strictEqual(scopedUploadFolder('chat', 'conv-1', 'user-1'), 'tenda/chat/conv-1/user-1')

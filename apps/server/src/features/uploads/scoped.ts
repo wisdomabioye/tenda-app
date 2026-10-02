@@ -12,7 +12,7 @@ import { and, eq, or } from 'drizzle-orm'
 import { conversations } from '@tenda/shared/db/schema'
 import { ErrorCode, type ScopedUploadType } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertDisputeThreadAccess } from '@server/lib/disputes/thread-access'
+import { assertDisputeThreadAccess } from '@server/features/disputes/thread-access'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface UploadCaller {

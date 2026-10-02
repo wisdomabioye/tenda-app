@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { getConfig } from '@server/config'
 import { isScopedUploadType, type CloudinarySignature, type UploadType } from '@tenda/shared'
-import { scopedUploadFolder } from '@server/lib/uploads/scoped'
+import { scopedUploadFolder } from '@server/features/uploads/scoped'
 
 /** Folders for the unscoped upload types; scoped folders come from the registry. */
 const UNSCOPED_FOLDER: Record<'avatar' | 'proof', string> = {

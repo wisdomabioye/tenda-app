@@ -24,7 +24,7 @@ import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { channelName } from '@server/lib/ws'
-import { buildEscrowDossier } from '@server/lib/escrow/dossier'
+import { buildEscrowDossier } from '@server/features/escrows/detail/dossier'
 import { publishGigFeedChange } from '@server/features/gig-feed-realtime'
 
 

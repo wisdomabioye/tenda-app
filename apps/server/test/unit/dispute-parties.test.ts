@@ -10,7 +10,7 @@ import {
   deriveDisputeParties,
   type PartyEscrow,
   type PartyIdentity,
-} from '@server/lib/disputes/parties'
+} from '@server/features/disputes/parties'
 
 const CREATOR = '11111111-1111-1111-1111-111111111111'
 const WORKER = '22222222-2222-2222-2222-222222222222'
