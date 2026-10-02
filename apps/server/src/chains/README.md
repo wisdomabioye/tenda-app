@@ -1,11 +1,11 @@
 # chains/
 
 Per-chain adapter registry. Each chain implements `ChainAdapter` (see
-`types.ts`); the rest of the server routes by `escrow.chain_id` → adapter
+`types/`); the rest of the server routes by `escrow.chain_id` → adapter
 without knowing which protocol is underneath.
 
 Adapters are built **generically** from the active chain secrets against the
-shared `CHAIN_MANIFEST` (see `secrets.ts` + `index.ts#buildAdapters`):
+shared `CHAIN_MANIFEST` (see `secrets/` + `index.ts#buildAdapters`):
 `namespace` picks the adapter (`solana/` vs `evm/`), `gasPolicy` picks the dep
 wiring (paymaster / feeCurrency / plain), and confirmations + token addresses
 come from the manifest. **Adding a chain is one manifest entry plus its
@@ -57,4 +57,4 @@ Tests live under `apps/server/test/` (`unit/chains/secrets.test.ts`,
 The plan calls for explicit per-chain isolation so a vendor outage on one
 chain can't bleed into another's code path. Each chain's RPC clients, error
 classification, builders, and listeners are self-contained; the only shared
-surface is the interface defined in `types.ts`.
+surface is the interface defined in `types/`.

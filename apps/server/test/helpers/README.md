@@ -73,5 +73,5 @@ Tests use the `@server/*` alias exactly like runtime code — `test/tsconfig.jso
 maps it (paths resolve relative to the declaring config, hence `../src/*`):
 
 ```ts
-import { migrateOnBoot } from '@server/lib/boot-migrate'
+import { migrateOnBoot } from '@server/lib/boot/migrate'
 ```
