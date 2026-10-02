@@ -17,7 +17,7 @@
  * purpose. The wallet funds every escrow the run posts, and the operator
  * should be putting it into the environment for exactly this run.
  */
-import { stripTrailingSlash } from '@server/lib/env'
+import { stripTrailingSlash } from '@server/config/env'
 import { parseOnly } from './select'
 
 export const AGENT_KEY_ENV = 'AGENT_KEY'

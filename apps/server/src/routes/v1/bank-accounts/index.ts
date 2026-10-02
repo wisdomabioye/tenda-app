@@ -12,8 +12,8 @@ import type { PayoutRailKind, BankAccountSummary } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import type { BankAccountRow } from '@server/features/fiat-rails'
-import { buildNameEnquiry } from '@server/lib/nip'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { buildNameEnquiry } from '@server/features/fiat-rails/providers/nip'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
 import { requireFiatRails, requireStr } from '@server/features/fiat-rails/fiat-routes'
 
 function serialize(a: BankAccountRow): BankAccountSummary {

@@ -18,7 +18,7 @@
 import { hashDomain, parseSignature } from 'viem'
 import { ErrorCode, type PermitSignatureBody, type PermitTypedData } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isRecord } from '@server/lib/validation'
+import { isRecord } from '@server/lib/http/validation'
 import { isAmountRaw, type AmountRaw } from '@server/chains/types'
 
 /** Permit deadline horizon: long enough to sign, short enough to limit replay. */

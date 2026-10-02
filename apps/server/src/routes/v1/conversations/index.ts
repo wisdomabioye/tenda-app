@@ -3,8 +3,8 @@ import { and, eq, or, ne, desc, inArray, isNull, sql } from 'drizzle-orm'
 import { conversations, messages, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
-import { messagePreview } from '@server/lib/chat'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
+import { messagePreview } from '@server/lib/http/chat'
 import { AppError, requireBody } from '@server/lib/errors'
 
 type ListRoute       = ConversationsContract['list']

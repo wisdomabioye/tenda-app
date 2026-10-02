@@ -18,7 +18,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { NOTIFICATION_SCREEN } from '@tenda/shared'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import {
   stableNotificationId,
   enqueueNotification,

@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { escrows, escrow_transactions, disputes, gig_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'

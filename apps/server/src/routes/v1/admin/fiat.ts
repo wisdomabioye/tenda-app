@@ -16,7 +16,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
 import { fiat_intents, fiat_providers, fiatIntentStatusEnum, type FiatIntentStatus } from '@tenda/shared/db/schema/fiat'
 import { AppError } from '@server/lib/errors'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 
 const LIST_LIMIT = 50

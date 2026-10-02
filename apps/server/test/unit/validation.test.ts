@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
-import { ensureIntInRange } from '@server/lib/validation'
+import { ensureIntInRange } from '@server/lib/http/validation'
 import { AppError } from '@server/lib/errors'
 
 function expect400(value: number, match: RegExp) {

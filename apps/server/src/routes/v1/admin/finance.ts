@@ -4,11 +4,11 @@
  * filtered by escrow kind. Amounts are raw-unit strings (numeric 78,0).
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { desc, eq, sql, and, gte, lte, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import type { ApiError, EscrowKind, FinanceFeeRow } from '@tenda/shared'
 

@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { integerRangeProblem, isAbsoluteUrl, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { integerRangeProblem, isAbsoluteUrl, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
 
 const HTTPS = ['https'] as const
 const HTTP_S = ['https', 'http'] as const

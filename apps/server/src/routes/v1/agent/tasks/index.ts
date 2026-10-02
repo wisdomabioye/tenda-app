@@ -23,7 +23,7 @@ import {
   type AgentTaskPaymentRequired,
 } from '@tenda/shared'
 import { requireBody } from '@server/lib/errors'
-import { decodePaymentHeader, encodeSettlementHeader } from '@server/lib/x402'
+import { decodePaymentHeader, encodeSettlementHeader } from '@server/lib/chain/x402'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { createAgentTask } from '@server/features/agent/createAgentTask'
 

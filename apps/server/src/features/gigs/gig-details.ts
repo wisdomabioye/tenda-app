@@ -27,7 +27,7 @@ import type {
   ProofType,
 } from '@tenda/shared'
 import { AppError } from '../../lib/errors'
-import { ensureValidCoordinates } from '../../lib/validation'
+import { ensureValidCoordinates } from '../../lib/http/validation'
 
 export interface ValidatedGigDetails {
   title: string

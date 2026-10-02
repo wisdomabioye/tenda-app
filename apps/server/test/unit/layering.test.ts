@@ -168,7 +168,6 @@ function mixedFolders(dir = SRC, rel = ''): string[] {
  * list can never quietly outlive the work it tracks.
  */
 const MIXED_FOLDERS_TO_FIX: string[] = [
-  '.',
   'chains',
   'chains/evm',
   'chains/solana',
@@ -182,7 +181,6 @@ const MIXED_FOLDERS_TO_FIX: string[] = [
   'features/gas-seed',
   'features/moderation',
   'features/notifications',
-  'lib',
   'queue',
   'queue/workers',
 ]

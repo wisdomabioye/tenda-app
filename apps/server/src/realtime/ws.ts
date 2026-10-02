@@ -18,8 +18,8 @@ import { WS_AUTH_SUBPROTOCOL, wsChannelName } from '@tenda/shared'
 import { conversations, users } from '@tenda/shared/db/schema'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
-import { isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
-import { isUuidLike } from '@server/lib/uuid'
+import { isEscrowPartyOrAssigned } from '@server/lib/escrow/party'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 // ---------- subprotocol auth -------------------------------------------------
 

@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { getConfig } from '@server/config'
-import { acquireBootLock } from '@server/lib/boot-lock'
+import { acquireBootLock } from '@server/lib/boot/lock'
 import type { FastifyBaseLogger } from 'fastify'
 
 // Anything with pino's info(), keeps tests from having to fake a full logger.

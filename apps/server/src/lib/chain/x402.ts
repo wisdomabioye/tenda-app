@@ -14,7 +14,7 @@ import {
   type RelaySettlementResponse,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isRecord } from '@server/lib/validation'
+import { isRecord } from '@server/lib/http/validation'
 
 function malformed(reason: string): never {
   throw new AppError(400, ErrorCode.VALIDATION_ERROR, `X-PAYMENT header ${reason}`)

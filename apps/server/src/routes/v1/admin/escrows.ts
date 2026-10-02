@@ -6,7 +6,7 @@
  * user suspension, or Stage-6 moderation overrides.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details, users, disputes } from '@tenda/shared/db/schema'
 import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
@@ -20,7 +20,7 @@ import type {
   PaginatedResponse,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { channelName } from '@server/realtime/ws'

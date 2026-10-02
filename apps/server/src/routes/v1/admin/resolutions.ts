@@ -20,8 +20,8 @@ import type {
   ResolutionQueueRow,
   ResolutionStatus,
 } from '@tenda/shared'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'

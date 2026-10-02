@@ -10,7 +10,7 @@
 import { Buffer } from 'node:buffer'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 export interface GigFeedCursor {
   created_at: Date

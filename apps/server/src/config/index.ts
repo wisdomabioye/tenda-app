@@ -1,5 +1,5 @@
 import { slackConfigProblems } from '@server/features/alerts/slack'
-import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
 import { moderationConfig } from '@server/features/moderation/config'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'

@@ -8,8 +8,8 @@
  * Transitions live under /v1/escrows/:id/*.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { isEscrowCounterpartySide } from '@server/lib/escrow/party'
 import { eq, and, inArray, or, sql, lt, desc, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'

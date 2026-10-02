@@ -15,7 +15,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { SignerPreferenceBody } from '@tenda/shared'
 import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
-import { requireProfileComplete } from '@server/lib/guards'
+import { requireProfileComplete } from '@server/lib/http/guards'
 import { prepareDraftCreate } from '@server/features/escrows/creation/prepareDraftCreate'
 
 const route: FastifyPluginAsync = async (fastify) => {

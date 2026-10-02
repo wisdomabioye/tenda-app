@@ -19,7 +19,7 @@
  *            bank_accounts, revealed only inside an accepted intent).
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
@@ -40,8 +40,8 @@ import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/features/fiat-rails/exchange-read'
 import { publicExchangeConditions } from './public-feed'
-import { chainFilterCondition } from '@server/lib/chain-filter'
-import { amountWindowConditions } from '@server/lib/amount-window'
+import { chainFilterCondition } from '@server/lib/http/chain-filter'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']

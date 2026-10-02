@@ -6,7 +6,7 @@
  * there); this surface is read-only triage.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { disputes, dispute_resolutions, escrows, gig_details, users } from '@tenda/shared/db/schema'
@@ -19,7 +19,7 @@ import type {
   PaginatedResponse,
   ProposeResolutionBody,
 } from '@tenda/shared'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import {

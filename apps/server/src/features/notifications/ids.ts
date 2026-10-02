@@ -8,7 +8,7 @@
 
 import { createHash } from 'node:crypto'
 import { ErrorCode } from '@tenda/shared'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import { AppError } from '@server/lib/errors'
 
 /**

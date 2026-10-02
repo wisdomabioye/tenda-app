@@ -17,7 +17,7 @@ import { and } from 'drizzle-orm'
 import { escrows, users } from '@tenda/shared/db/schema'
 import { abbreviatedName, formatFullName } from '@tenda/shared'
 import type { PublicUser, User } from '@tenda/shared'
-import { isEscrowParty } from '@server/lib/escrow-party'
+import { isEscrowParty } from '@server/lib/escrow/party'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**

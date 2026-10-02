@@ -5,7 +5,7 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { ATTACHMENT_PREVIEW, messagePreview } from '@server/lib/chat'
+import { ATTACHMENT_PREVIEW, messagePreview } from '@server/lib/http/chat'
 
 test('plain content: trimmed and capped at 100 chars', () => {
   assert.strictEqual(messagePreview('  hello  ', false), 'hello')

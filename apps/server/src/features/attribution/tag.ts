@@ -55,7 +55,7 @@
 
 import { toDataSuffix } from '@celo/attribution-tags'
 import { findChain } from '@tenda/shared'
-import { optionalEnv } from '@server/lib/env'
+import { optionalEnv } from '@server/config/env'
 
 /** Calldata, or a bare suffix — both are 0x-hex and both are concatenated raw. */
 type Hex = `0x${string}`

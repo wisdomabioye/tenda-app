@@ -12,7 +12,7 @@
 import { and, eq, inArray, isNull, or, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ACTOR_SCOPED_FEED_TX_TYPES, feedTxTypesFor } from '@tenda/shared'
-import { isEscrowParty } from '@server/lib/escrow-party'
+import { isEscrowParty } from '@server/lib/escrow/party'
 
 // Derived once at module load, not per request: the matrix is static, and
 // re-deriving it inside the handler reads as if it could vary by caller.

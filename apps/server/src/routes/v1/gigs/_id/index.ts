@@ -30,10 +30,10 @@ import {
   scopeMySignerAddress,
 } from '@server/features/escrows/detail/scope'
 import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
-import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
-import { optionalUserId, uuidParamGuard } from '@server/lib/guards'
+import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow/party'
+import { optionalUserId, uuidParamGuard } from '@server/lib/http/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'
-import { USER_COLS } from '@server/lib/users'
+import { USER_COLS } from '@server/lib/db/users'
 
 type GetRoute = GigsContract['get']
 

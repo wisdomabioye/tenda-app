@@ -1,5 +1,5 @@
 import { isValidLatitude, isValidLongitude, ErrorCode } from '@tenda/shared'
-import { AppError } from './errors'
+import { AppError } from '../errors'
 
 /**
  * A plain object — the shape every JSON body/header field is inspected as

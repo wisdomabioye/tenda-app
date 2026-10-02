@@ -19,7 +19,7 @@
  * assert a targeted broadcast never leaks through it.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { and, desc, isNull, or, gt, eq, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import type { ApiError } from '@tenda/shared'

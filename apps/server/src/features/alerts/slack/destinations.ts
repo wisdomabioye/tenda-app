@@ -27,7 +27,7 @@
  *     failure mode an alerting channel must never have.
  */
 
-import { isAbsoluteUrl, optionalEnv, urlEnvProblems } from '@server/lib/env'
+import { isAbsoluteUrl, optionalEnv, urlEnvProblems } from '@server/config/env'
 import type { SlackWebhookConfig } from './transport'
 
 interface SlackDestinationSpec {

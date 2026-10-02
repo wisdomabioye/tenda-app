@@ -20,7 +20,7 @@ import {
   type RelayPaymentPayload,
   type RelayTerms,
 } from '@tenda/shared'
-import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/x402'
+import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/chain/x402'
 import { buildInstruction } from '@server/chains/solana/instructions'
 import type { SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'

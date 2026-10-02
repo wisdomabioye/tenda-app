@@ -21,7 +21,7 @@
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import { ErrorCode } from '@tenda/shared'
 import {
   type Caller,

@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode, PUSH_ANNOUNCEMENT_TTL_DAYS } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { createAnnouncement, normalizeTarget } from '@server/features/announcements/announcements'

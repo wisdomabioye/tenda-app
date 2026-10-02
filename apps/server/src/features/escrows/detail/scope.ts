@@ -56,7 +56,7 @@
 
 import { ADMIN_ROLES, type EscrowAcceptanceMode } from '@tenda/shared'
 import type { escrows } from '@tenda/shared/db/schema'
-import { isEscrowPartyOrAssignedRow, type EscrowPartyColumns } from '@server/lib/escrow-party'
+import { isEscrowPartyOrAssignedRow, type EscrowPartyColumns } from '@server/lib/escrow/party'
 
 /**
  * The reader, or `null` for an anonymous one. Only built on routes that ran

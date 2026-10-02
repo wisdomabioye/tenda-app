@@ -1,4 +1,4 @@
-import { AppError } from './errors'
+import { AppError } from './'
 import { ErrorCode } from '@tenda/shared'
 
 /**

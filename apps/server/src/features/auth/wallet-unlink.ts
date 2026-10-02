@@ -24,7 +24,7 @@ import { escrows } from '@tenda/shared/db/schema/escrow'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { sameWalletAddress } from '@server/lib/auth/wallet-address'
-import { isEscrowParty } from '@server/lib/escrow-party'
+import { isEscrowParty } from '@server/lib/escrow/party'
 import type { AppDatabase } from '@server/plugins/db'
 
 /** Escrow states whose parties still need their wallet's signature. */

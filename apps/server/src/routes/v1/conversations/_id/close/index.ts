@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { uuidParamGuard } from '@server/lib/http/guards'
 import { eq } from 'drizzle-orm'
 import { conversations } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'

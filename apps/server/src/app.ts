@@ -7,7 +7,7 @@ import {
 import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
-import { registerErrorHandlers } from './lib/http-errors'
+import { registerErrorHandlers } from './lib/errors/http'
 
 
 

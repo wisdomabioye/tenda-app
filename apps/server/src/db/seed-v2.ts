@@ -17,7 +17,7 @@ import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { loadConfig } from '@server/config'
 import { getChainSecrets } from '@server/chains/secrets'
-import { acquireBootLock } from '@server/lib/boot-lock'
+import { acquireBootLock } from '@server/lib/boot/lock'
 import { buildSeedRows } from './seed/rows'
 import { applySeed } from './seed/apply'
 

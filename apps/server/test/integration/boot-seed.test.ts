@@ -20,7 +20,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot-seed'
+import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot/seed'
 import { getChainSecrets, resetChainSecretsCache } from '@server/chains/secrets'
 import { buildSeedRows } from '@server/db/seed-v2'
 

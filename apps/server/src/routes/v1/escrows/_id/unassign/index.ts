@@ -13,7 +13,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
-import { requireProfileComplete } from '@server/lib/guards'
+import { requireProfileComplete } from '@server/lib/http/guards'
 import { assertCanTransact } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/features/escrows/routes'
 import { buildEscrowTx, partyCaller } from '@server/lib/escrow'

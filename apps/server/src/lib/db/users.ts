@@ -3,7 +3,7 @@ import { users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 
 import type { AppDatabase } from '@server/plugins/db'
-import { AppError } from './errors'
+import { AppError } from '../errors'
 
 /**
  * Standard public user column projection, matches the shared `UserRef`

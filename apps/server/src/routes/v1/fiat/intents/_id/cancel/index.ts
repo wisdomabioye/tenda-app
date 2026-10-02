@@ -5,7 +5,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { uuidParamGuard } from '@server/lib/http/guards'
 import { buildFiatDeps, cancelIntent } from '@server/features/fiat-rails'
 import { requireFiatRails } from '@server/features/fiat-rails/fiat-routes'
 

@@ -9,10 +9,10 @@ import {
   MIN_APPLICATION_TTL_SECONDS,
   MAX_APPLICATION_TTL_SECONDS,
 } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
-import { ensureIntInRange } from '@server/lib/validation'
-import { ensureTxUpdated } from '@server/lib/db'
+import { ensureIntInRange } from '@server/lib/http/validation'
+import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
 import type { AdminPlatformConfig, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'

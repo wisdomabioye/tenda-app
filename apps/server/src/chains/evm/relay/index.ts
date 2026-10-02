@@ -19,7 +19,7 @@ import {
   type RelayTerms,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/x402'
+import { assertRelayEnvelope, relayRejected as rejected } from '@server/lib/chain/x402'
 import type { EscrowRelay, RelayedCreateArgs } from '@server/chains/types'
 import { ESCROW_EVM_ABI } from '../rpc'
 import { evmChainNumericId } from '@tenda/shared'

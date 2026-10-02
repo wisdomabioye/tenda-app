@@ -4,11 +4,11 @@ import type { Permission, UserRole } from '@tenda/shared'
 import { ErrorCode, hasCompleteName, hasPermission } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 // hasPermission moved to @tenda/shared (#90) so the admin dashboard's nav
 // filter and the server guards share one implementation. Re-exported here,
-// existing `from '@server/lib/guards'` imports stay valid.
+// existing `from '@server/lib/http/guards'` imports stay valid.
 export { hasPermission }
 
 /**

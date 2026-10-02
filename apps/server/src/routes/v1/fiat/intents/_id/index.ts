@@ -4,7 +4,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { uuidParamGuard } from '@server/lib/http/guards'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { buildFiatDeps } from '@server/features/fiat-rails'

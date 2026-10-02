@@ -13,7 +13,7 @@ import { and, eq, isNull, or } from 'drizzle-orm'
 import { disputes, escrows } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
+import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow/party'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface ClaimArgs {

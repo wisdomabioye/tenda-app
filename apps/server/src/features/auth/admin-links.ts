@@ -15,7 +15,7 @@
  */
 
 import { ADMIN_DASHBOARD_URL_ENV, BASE_URL_PROTOCOLS } from '@server/config'
-import { isAbsoluteUrl, optionalEnv } from '@server/lib/env'
+import { isAbsoluteUrl, optionalEnv } from '@server/config/env'
 
 const TRAILING_SLASHES = /\/+$/
 

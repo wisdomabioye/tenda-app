@@ -9,7 +9,7 @@
 
 import bs58 from 'bs58'
 import { CHAIN_MANIFEST, isEvmAddress, type ChainManifestEntry } from '@tenda/shared'
-import { ABSOLUTE_PREFIX, isAbsoluteUrl } from '@server/lib/env'
+import { ABSOLUTE_PREFIX, isAbsoluteUrl } from '@server/config/env'
 
 /** An ed25519 secret key as web3's `Keypair.fromSecretKey` takes it: 64 raw bytes. */
 const ED25519_SECRET_KEY_BYTES = 64

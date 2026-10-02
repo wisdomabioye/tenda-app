@@ -16,7 +16,7 @@ import { escrows, gig_applications, gig_details, users } from '@tenda/shared/db/
 import type { MyApplication, PaginatedResponse } from '@tenda/shared'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
 import { toApplicationWire } from '@server/features/applications/wire'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: number; offset?: number } }>(

@@ -34,7 +34,7 @@
  */
 
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
-import { optionalEnv } from '@server/lib/env'
+import { optionalEnv } from '@server/config/env'
 import {
   chainEnvPrefix,
   describeKind,

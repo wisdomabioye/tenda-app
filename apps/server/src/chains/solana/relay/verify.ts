@@ -5,7 +5,7 @@
  */
 import { VersionedTransaction, type MessageV0, type PublicKey } from '@solana/web3.js'
 import nacl from 'tweetnacl'
-import { relayRejected as rejected } from '@server/lib/x402'
+import { relayRejected as rejected } from '@server/lib/chain/x402'
 
 /** Parse the artifact's base64 into a versioned transaction, or refuse. */
 export function deserializeArtifact(transaction_base64: string): VersionedTransaction {

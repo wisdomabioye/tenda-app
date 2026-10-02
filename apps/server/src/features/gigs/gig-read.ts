@@ -6,7 +6,7 @@
 import { eq } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import type { GigCategory, GigSummary, UserRef } from '@tenda/shared'
-import { USER_COLS } from '@server/lib/users'
+import { USER_COLS } from '@server/lib/db/users'
 import type { AppDatabase, AppTransaction } from '@server/plugins/db'
 
 /** escrows ⨝ gig_details ⨝ users, matches the shared GigSummary wire type. */

@@ -14,7 +14,7 @@ import { ErrorCode } from '@tenda/shared'
 import { moderation_verdicts } from '@tenda/shared/db/schema/moderation'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { AppError } from '@server/lib/errors'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 
 const PAGE_SIZE = 50
 

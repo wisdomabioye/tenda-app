@@ -26,9 +26,9 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { escrows, gig_details } from '@tenda/shared/db/schema'
 import { ErrorCode, isGigCategory } from '@tenda/shared'
 import type { ApiError, CompletedWorkCategory, UsersContract } from '@tenda/shared'
-import { uuidParamGuard } from '@server/lib/guards'
-import { ensureUserExists } from '@server/lib/users'
-import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
+import { uuidParamGuard } from '@server/lib/http/guards'
+import { ensureUserExists } from '@server/lib/db/users'
+import { isEscrowCounterpartySide } from '@server/lib/escrow/party'
 
 type CompletedWorkRoute = UsersContract['completedWork']
 

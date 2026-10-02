@@ -18,7 +18,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import postgres from 'postgres'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { acquireBootLock, BOOT_LOCK_TIMEOUT } from '@server/lib/boot-lock'
+import { acquireBootLock, BOOT_LOCK_TIMEOUT } from '@server/lib/boot/lock'
 import { runSeed } from '@server/db/seed-v2'
 
 const skip = !TEST_DB_CONFIGURED

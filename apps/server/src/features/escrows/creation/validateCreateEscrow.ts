@@ -22,7 +22,7 @@ import { AppError } from '@server/lib/errors'
 import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
 import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 export interface CreateEscrowBody {
   creation_operation_id?: unknown

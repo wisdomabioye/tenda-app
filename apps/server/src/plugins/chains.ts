@@ -28,7 +28,7 @@ import {
 } from '@server/chains/contracts'
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
-import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
+import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/chain/sponsor'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import { assertAttributionCodes } from '@server/features/attribution'
 

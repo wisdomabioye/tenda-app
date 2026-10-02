@@ -1,14 +1,14 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { reports } from '@tenda/shared/db/schema'
 import {
   ErrorCode, REPORT_STATUSES, REPORT_CONTENT_TYPES,
 } from '@tenda/shared'
 import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
-import { ensureTxUpdated } from '@server/lib/db'
+import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { appEvents } from '@server/lib/events'
 
 

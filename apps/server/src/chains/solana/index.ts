@@ -17,7 +17,7 @@
 import { Program } from '@coral-xyz/anchor'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
 import { createSolanaBuilders } from '@server/chains/solana/builders'
 import { fetchPlatformState } from '@server/chains/solana/builder-internals'
 import { cachedApprovalWindow } from '@server/chains/approval-window'
@@ -109,4 +109,4 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
 }
 
 /** Ed25519 auth-sig check, re-exported from the single source for callers/tests. */
-export { verifyEd25519 } from '@server/lib/wallet-signature'
+export { verifyEd25519 } from '@server/lib/chain/wallet-signature'

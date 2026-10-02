@@ -6,8 +6,8 @@
 import type { FastifyError, FastifyInstance } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
-import { captureError } from './reporter'
-import { AppError } from './errors'
+import { captureError } from './report'
+import { AppError } from './'
 
 export function registerErrorHandlers(fastify: FastifyInstance): void {
   // 404 handler

@@ -11,8 +11,8 @@ import { and, eq, or } from 'drizzle-orm'
 import { admin_users, user_identities, users } from '@tenda/shared/db/schema/identity'
 import { ADMIN_ROLES, ErrorCode, EMAIL_MAX_LENGTH, isE164, normalizeEmail } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isPostgresUniqueViolation } from '@server/lib/db'
-import { isUuidLike } from '@server/lib/uuid'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
+import { isUuidLike } from '@server/lib/http/uuid'
 import type { AppDatabase } from '@server/plugins/db'
 
 /** @deprecated alias kept for call sites, admin email cap is the shared {@link EMAIL_MAX_LENGTH}. */

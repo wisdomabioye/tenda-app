@@ -10,7 +10,7 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 test('isUuidLike: canonical lowercase UUID accepted', () => {
   assert.strictEqual(isUuidLike('550e8400-e29b-41d4-a716-446655440000'), true)

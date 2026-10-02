@@ -6,7 +6,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { sql } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get(

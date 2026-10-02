@@ -10,7 +10,7 @@ import assert from 'node:assert'
 import os from 'node:os'
 import postgres from 'postgres'
 import { TEST_DB_CONFIGURED } from '../helpers/test-app'
-import { migrateOnBoot, resolveMigrationsFolder } from '@server/lib/boot-migrate'
+import { migrateOnBoot, resolveMigrationsFolder } from '@server/lib/boot/migrate'
 
 const skip = !TEST_DB_CONFIGURED
 const log = { info: () => {} }

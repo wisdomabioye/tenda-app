@@ -21,7 +21,7 @@ import {
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { assertNotTakenDown } from '@server/lib/escrow'
-import { requireProfileComplete } from '@server/lib/guards'
+import { requireProfileComplete } from '@server/lib/http/guards'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { getPlatformConfig } from '@server/lib/platform'
 import {
@@ -40,7 +40,7 @@ import {
   type ApplicationEscrowRow,
 } from '@server/features/applications/store'
 import { toApplicantWire, toApplicationWire } from '@server/features/applications/wire'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import { appEvents } from '@server/lib/events'
 import type { AppDatabase } from '@server/plugins/db'
 

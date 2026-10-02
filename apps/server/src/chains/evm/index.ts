@@ -12,7 +12,7 @@
  */
 
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
 import {
   type AssetId,
   type BuildTxArgs,

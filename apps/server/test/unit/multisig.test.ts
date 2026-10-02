@@ -12,7 +12,7 @@ import {
   type AdminOp,
   type MultisigClient,
   squadsClient,
-} from '@server/lib/multisig'
+} from '@server/lib/chain/multisig'
 
 const ARGS = {
   vault: 'SquadsVaultPDA1111111111111111111111111111',

@@ -1,15 +1,15 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { containsPattern } from '@server/lib/like-pattern'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { containsPattern } from '@server/lib/http/like-pattern'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
 import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode,
 } from '@tenda/shared'
-import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { AppError, requireBody } from '@server/lib/errors'
-import { ensureTxUpdated } from '@server/lib/db'
+import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { appEvents } from '@server/lib/events'
 import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 

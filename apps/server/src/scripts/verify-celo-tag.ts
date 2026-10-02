@@ -20,7 +20,7 @@
 import 'dotenv/config'
 import { createPublicClient, http } from 'viem'
 import { chainById, requireEvmPublicRpcUrl } from '@tenda/shared'
-import { optionalEnv } from '@server/lib/env'
+import { optionalEnv } from '@server/config/env'
 import { chainEnvPrefix } from '@server/chains/secrets'
 import {
   ATTRIBUTION_FAMILIES,

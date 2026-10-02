@@ -24,7 +24,7 @@
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { abbreviatedName, formatFullName } from '@tenda/shared'
 import type { ExchangePartyRef, ExchangeSummary, UserRef } from '@tenda/shared'
-import { USER_COLS } from '@server/lib/users'
+import { USER_COLS } from '@server/lib/db/users'
 
 /**
  * A creator row as a given viewer may see it.

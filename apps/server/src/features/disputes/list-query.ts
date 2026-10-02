@@ -20,7 +20,7 @@ import {
   type EscrowKind,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 /**
  * `undefined` for an absent filter, the narrowed value for a legal one, and a

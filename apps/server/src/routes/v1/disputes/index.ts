@@ -11,7 +11,7 @@
  * NULL; omit `status` for the full history.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { and, or, eq, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { disputes, escrows, gig_details, users } from '@tenda/shared/db/schema'
