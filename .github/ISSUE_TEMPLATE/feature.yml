@@ -1,0 +1,45 @@
+name: Feature
+description: A new capability or a change in product behaviour
+title: "[feature] "
+labels: ["kind:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is public. Do not paste secrets, private keys, seed phrases, `.env` contents, or personal data.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - server
+        - mobile
+        - web
+        - admin
+        - contracts
+        - landing
+        - docs
+        - shared
+        - ops
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What can a user, agent or operator do afterwards that they cannot do now?
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: Observable conditions. Include the evidence that proves it, not only that code merged.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: depends
+    attributes:
+      label: Depends on / blocks
+      description: Issue links. Leave empty if none.
