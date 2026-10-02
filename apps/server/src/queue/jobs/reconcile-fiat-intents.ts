@@ -6,7 +6,7 @@
  * handles the fiat refund).
  */
 
-import { RECONCILE_BATCH_LIMIT, RECONCILE_MIN_AGE_MS } from '@server/features/fiat-rails/config'
+import { RECONCILE_BATCH_LIMIT, RECONCILE_MIN_AGE_MS } from '@server/features/fiat-rails/core/config'
 import { reconcileIntent, type FiatDeps } from '@server/features/fiat-rails/service'
 
 export interface ReconcileFiatResult {

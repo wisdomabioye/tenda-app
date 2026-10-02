@@ -25,7 +25,7 @@ import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
 import type { ContractRegistry } from '../chains/contracts'
 import type { WsBroadcaster } from '../realtime/ws'
-import type { QuoteCache } from '../features/fiat-rails/quote-cache'
+import type { QuoteCache } from '../features/fiat-rails/core/quote-cache'
 import type { RealtimePublisher } from '../realtime'
 
 declare module 'fastify' {

@@ -174,7 +174,6 @@ const MIXED_FOLDERS_TO_FIX: string[] = [
   'features/alerts',
   'features/alerts/channels/in-app',
   'features/alerts/channels/slack',
-  'features/fiat-rails',
 ]
 
 test('no new folder mixes loose files with subfolders', () => {

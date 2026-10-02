@@ -19,7 +19,7 @@ import type {
   FiatDirection,
   FiatIntentRow,
   PaymentInstruction,
-} from '../types'
+} from '../core/types'
 import type { FiatDeps } from './deps'
 
 export interface InitiateOutput {

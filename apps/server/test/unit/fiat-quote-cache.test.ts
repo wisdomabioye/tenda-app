@@ -15,7 +15,7 @@ import {
   type QuoteCache,
   type RedisLike,
   type StoredQuote,
-} from '@server/features/fiat-rails/quote-cache'
+} from '@server/features/fiat-rails/core/quote-cache'
 
 const BASE_MS = 1_700_000_000_000
 

@@ -47,7 +47,7 @@ import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { AppError } from '@server/lib/errors'
-import { drizzleP2pFulfilment } from '@server/features/fiat-rails/p2p-live'
+import { drizzleP2pFulfilment } from '@server/features/fiat-rails/rates/p2p-live'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,

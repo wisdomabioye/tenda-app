@@ -13,8 +13,8 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { verifyHmac } from '@server/core/webhooks/verify-hmac'
 import { getConfig, type Config } from '@server/config'
-import { buildFiatDeps } from './index'
-import { settleFromProvider, type ProviderOutcome } from './service'
+import { buildFiatDeps } from '../index'
+import { settleFromProvider, type ProviderOutcome } from '../service'
 
 const SIGNATURE_HEADER = 'x-signature'
 

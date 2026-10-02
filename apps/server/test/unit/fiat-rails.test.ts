@@ -16,8 +16,8 @@ import {
   type FiatDeps,
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
-import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
-import { inMemoryQuoteCache, type QuoteCache } from '@server/features/fiat-rails/quote-cache'
+import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/core/routing'
+import { inMemoryQuoteCache, type QuoteCache } from '@server/features/fiat-rails/core/quote-cache'
 import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT, P2P_PROVIDER_ID } from '@tenda/shared'
 import {
   p2pInternalProvider,
@@ -29,7 +29,7 @@ import {
   type ProviderHttp,
 } from '@server/features/fiat-rails/providers/licensed-http'
 import { YELLOWCARD_SPEC } from '@server/features/fiat-rails/providers/specs'
-import { mapWebhookOutcome } from '@server/features/fiat-rails/webhooks'
+import { mapWebhookOutcome } from '@server/features/fiat-rails/http/webhooks'
 import { reconcileFiatIntentsHandler } from '@server/queue/jobs/reconcile-fiat-intents'
 import { expireFiatQuotesHandler } from '@server/queue/jobs/expire-fiat-quotes'
 import type {
@@ -37,8 +37,8 @@ import type {
   FiatIntentRow,
   FiatIntentStatus,
   QuoteRequest,
-} from '@server/features/fiat-rails/types'
-import type { FiatStore, NewFiatIntent, IntentPatch } from '@server/features/fiat-rails/store'
+} from '@server/features/fiat-rails/core/types'
+import type { FiatStore, NewFiatIntent, IntentPatch } from '@server/features/fiat-rails/core/store'
 import { AppError } from '@server/lib/errors'
 
 const NOW = new Date('2026-06-01T12:00:00Z')

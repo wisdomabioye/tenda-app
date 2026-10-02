@@ -8,13 +8,13 @@
 import type { FastifyInstance } from 'fastify'
 import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
-import { getAssetRates } from '@server/features/fiat-rails/exchange-rates'
-import { getUsdFxRates } from '@server/features/fiat-rails/fx-rates'
+import { getAssetRates } from '@server/features/fiat-rails/rates/exchange-rates'
+import { getUsdFxRates } from '@server/features/fiat-rails/rates/fx-rates'
 import { getAssetMeta, isSupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
-import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from './config'
-import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-internal'
+import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from '../core/config'
+import type { P2pFulfilment, P2pOrderBook, RateSource } from '../providers/p2p-internal'
 
 /**
  * Mid-rate for any exchange-tradable asset, priced via CoinGecko (per-asset

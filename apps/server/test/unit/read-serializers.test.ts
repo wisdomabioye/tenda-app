@@ -11,7 +11,7 @@ import {
   toExchangePartyRef,
   toExchangeSummary,
   type ExchangeSummaryRow,
-} from '@server/features/fiat-rails/exchange-read'
+} from '@server/features/fiat-rails/rates/exchange-read'
 import type { UserRef } from '@tenda/shared'
 
 const creator: UserRef = {

@@ -10,7 +10,7 @@
  * risk table (never honor an expired quote at the original rate).
  */
 
-import { RECONCILE_BATCH_LIMIT } from '@server/features/fiat-rails/config'
+import { RECONCILE_BATCH_LIMIT } from '@server/features/fiat-rails/core/config'
 import type { FiatDeps } from '@server/features/fiat-rails/service'
 
 export interface ExpireFiatQuotesResult {
