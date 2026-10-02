@@ -298,7 +298,7 @@ test('one-shot: an out-of-range window is refused before any draft exists', { sk
 test('two builds of the same draft encode the SAME accept deadline', { skip }, async () => {
   // The agent one-shot signs an EIP-3009 authorization whose nonce is
   // keccak256 of the create params, and `acceptDeadline` is INSIDE that struct
-  // (chains/evm/create-params.ts). The 402 quote and the X-PAYMENT resend each
+  // (chains/evm/build/create-params.ts). The 402 quote and the X-PAYMENT resend each
   // go through the same preparation, so a deadline re-derived from the clock on
   // both gives two different nonces the moment the pair straddles a one-second
   // boundary — and the relay then refuses the agent's own signature with

@@ -3,7 +3,7 @@
  *
  * Three modules mint keyed job ids, none of them aware of the others:
  * `dedupKey` (queue/idempotency), `verifyTxDedupKey` (queue/jobs/verify-tx) and
- * `alertJobId` (features/alerts/identity). Each documents the constraint in
+ * `alertJobId` (features/alerts/identity/identity). Each documents the constraint in
  * prose, and prose drifts — src/jobs/verify-tx.ts stated it flatly wrong
  * ("BullMQ rejects a jobId containing ':'") in two places until #33. This file
  * states the rule ONCE, executably, and runs every producer through it.

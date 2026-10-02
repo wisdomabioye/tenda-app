@@ -50,7 +50,7 @@ beforeEach(() => {
  * A BLANK var must read exactly like an UNSET one (#34) — the rule, and the
  * oracle the two tests below share.
  *
- * `lib/env.ts` states the rule — "blank means absent … one rule, one home" —
+ * `config/env.ts` states the rule — "blank means absent … one rule, one home" —
  * and `optionalEnv` implements it, but config.ts only routed SOME vars through
  * it; the rest read `process.env.X ?? null`, and `??` does not fire for ''.
  * The consequence is the opposite of harmless: blanking a key is the documented

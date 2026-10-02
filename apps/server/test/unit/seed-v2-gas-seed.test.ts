@@ -1,5 +1,5 @@
 /**
- * db/seed-v2 — the GAS-SEED columns specifically: `chains.gas_seed_amount_raw`
+ * db/seed/seed-v2 — the GAS-SEED columns specifically: `chains.gas_seed_amount_raw`
  * and `gas_seed_wallet_address`, which the paired CHECK constraint forces to be
  * set or NULL together.
  *

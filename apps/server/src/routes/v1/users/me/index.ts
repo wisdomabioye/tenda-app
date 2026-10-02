@@ -13,7 +13,7 @@
  * profile_complete = first_name AND last_name set, via the shared
  * `hasCompleteName` — the same predicate `requireProfileComplete` enforces on
  * the create/accept surface and mobile routes on, so the three cannot drift.
- * Names are trimmed on write (lib/validation's `optionalName`, shared with the
+ * Names are trimmed on write (lib/http/validation's `optionalName`, shared with the
  * other write path) so the stored value and the
  * predicate agree about what "set" means.
  */

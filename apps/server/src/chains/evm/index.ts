@@ -4,10 +4,10 @@
  * EvmAdapterArgs). Slots into the Stage-0 registry beside the Solana
  * adapter; verify-tx, reconcile and the routes are untouched.
  *
- * Sponsorship: when the paymaster is configured AND lib/sponsor.ts says
+ * Sponsorship: when the paymaster is configured AND lib/chain/sponsor.ts says
  * the user qualifies, buildTx returns an `evm-userop` skeleton (calldata +
  * paymaster fields); otherwise a plain `evm-tx`. The reservation /
- * decrement lifecycle stays in lib/sponsor.ts + verify-tx (Stage 0
+ * decrement lifecycle stays in lib/chain/sponsor.ts + verify-tx (Stage 0
  * pattern).
  */
 
@@ -42,7 +42,7 @@ export interface EvmAdapterDeps {
   /** AssetId → ERC-20 address (`null` = native). Throws on unknown. */
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /**
-   * Should this user's next tx be sponsored? (lib/sponsor.ts policy,
+   * Should this user's next tx be sponsored? (lib/chain/sponsor.ts policy,
    * remaining quota etc.). A `true` result has ALREADY reserved (decremented)
    * a quota slot, see `releaseSponsorship`. Absent = never sponsor.
    */
@@ -246,7 +246,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
-    // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
+    // lib/chain/wallet-signature; the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
     fetchEscrowState: (escrow_ref) => fetchEscrowState(context, escrow_ref),
     computeFee: (fee_args) => computePlatformFee(fee_args),

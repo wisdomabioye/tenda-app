@@ -45,7 +45,7 @@ Solana has no second address to watch and must not acquire one. The program id
 is `declare_id!`, propagated through the IDL (`ESCROW_IDL.address`), and every
 PDA derives from it; `anchor upgrade` replaces the CODE while keeping the id.
 Deploying a *new* program id on mainnet would strand every existing escrow's
-PDAs, and no server-side registry can rescue that. `chains/solana/builders.ts`
+PDAs, and no server-side registry can rescue that. `chains/solana/build/builders.ts`
 therefore refuses outright when asked to build against any other program, and
 the multi-address listener work is EVM-only by design.
 

@@ -4,7 +4,7 @@
  * unconfigured).
  *
  * Each tick fetches recent program signatures, enqueues idempotent verify-tx
- * jobs for those in slots beyond the cursor (chains/cursors), then advances
+ * jobs for those in slots beyond the cursor (chains/listening/cursors), then advances
  * the cursor to the highest slot seen.
  *
  * Cursor boundary: signatures landing later in the SAME slot as the cursor

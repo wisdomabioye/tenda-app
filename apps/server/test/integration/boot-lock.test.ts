@@ -1,5 +1,5 @@
 /**
- * lib/boot-lock.ts — the single advisory lock every registry writer takes.
+ * lib/boot/lock.ts — the single advisory lock every registry writer takes.
  *
  * Three writers exist: migrateOnBoot, seedOnBoot, and the hand-run `db:seed`
  * CLI. They must serialise, because seedOnBoot's guard reads the enabled set

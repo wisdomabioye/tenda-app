@@ -34,7 +34,7 @@ import {
 
 /**
  * Decoupled DB surface, matches the `SponsorStore` / `NonceStore` pattern
- * (see lib/sponsor.ts, features/auth/nonce.ts). Lets unit tests use an in-memory
+ * (see lib/chain/sponsor.ts, features/auth/session/nonce.ts). Lets unit tests use an in-memory
  * implementation without standing up Postgres.
  */
 export interface VerifyTxStore {
@@ -46,7 +46,7 @@ export interface VerifyTxStore {
    * Stamp tx_attempts.failed_at + failure_code (no-op if no row).
    * Stage-3 note: when the BASE paymaster lands (#45), failed SPONSORED
    * attempts (was_sponsored) must also restore the user's
-   * sponsored_tx_remaining via lib/sponsor.ts, the column exists for
+   * sponsored_tx_remaining via lib/chain/sponsor.ts, the column exists for
    * exactly that; Solana has no sponsored txs so nothing restores today.
    */
   markAttemptFailed(tx_ref: string, failure_code: string): Promise<void>

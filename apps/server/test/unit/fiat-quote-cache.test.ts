@@ -1,5 +1,5 @@
 /**
- * features/fiat-rails/quote-cache — the pre-commit quote primitive. Both impls
+ * features/fiat-rails/core/quote-cache — the pre-commit quote primitive. Both impls
  * must behave identically: put/peek round-trip (non-consuming), take is a
  * one-shot atomic consume, and TTL-expiry yields null. The Redis impl is
  * exercised against a fake client that asserts the exact SET…EX / GET / GETDEL

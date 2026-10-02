@@ -1,7 +1,7 @@
 /**
  * Drizzle implementation of the moderation store seam + the dependency
  * builder routes use (config → transport → provider wiring lives once
- * here, mirroring features/auth/onboarding-deps.ts).
+ * here, mirroring features/auth/otp/onboarding-deps.ts).
  */
 
 import { and, eq } from 'drizzle-orm'

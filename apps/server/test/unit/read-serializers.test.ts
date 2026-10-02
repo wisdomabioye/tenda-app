@@ -1,5 +1,5 @@
 /**
- * Wire serializers for the v2 read surfaces (features/gigs/gig-read, features/fiat-rails/exchange-read):
+ * Wire serializers for the v2 read surfaces (features/gigs/gig-read, features/fiat-rails/rates/exchange-read):
  * Drizzle Date columns → ISO strings, byte-identical between listing and
  * detail responses.
  */

@@ -146,7 +146,7 @@ test('admin users: an admin cannot demote their OWN account, 403', { skip }, asy
 /**
  * NOT COVERED, recorded rather than forced:
  *
- *   features/auth/admin-auth.ts:165  `role must be one of` in `setAdminRole`. Its
+ *   features/auth/admin/admin-auth.ts:165  `role must be one of` in `setAdminRole`. Its
  *   parameter is typed `(typeof ADMIN_ROLES)[number]`, so the type already
  *   enumerates the two legal values, and the ONLY production caller —
  *   scripts/bootstrap-super-admin.ts, found by unexporting the function and

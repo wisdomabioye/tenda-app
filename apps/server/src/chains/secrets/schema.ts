@@ -232,7 +232,7 @@ function urlNote(value: string): string | null {
 export function isValid(kind: SecretKind, value: string): boolean {
   switch (kind) {
     case 'url':
-      // Shared with config.ts and features/alerts/slack — lib/env.ts's rule 2, which this
+      // Shared with config.ts and features/alerts/slack — config/env.ts's rule 2, which this
       // reader had adopted rule 1 (`optionalEnv`) of but not this one. A
       // protocol-only check is NOT enough: `new URL('https:rpc.example.com')`
       // parses happily, protocol `https:`, host `rpc.example.com`, so the

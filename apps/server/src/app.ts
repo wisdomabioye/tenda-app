@@ -24,7 +24,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
   fastify,
   opts
 ): Promise<void> => {
-  // Error envelope shared with the test harness (lib/http-errors.ts).
+  // Error envelope shared with the test harness (lib/errors/http.ts).
   registerErrorHandlers(fastify)
 
   // Load all plugins (db, auth, cors, rate-limit, sensible)

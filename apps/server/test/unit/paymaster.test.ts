@@ -1,5 +1,5 @@
 /**
- * chains/evm/paymaster — fetchPaymasterHttp JSON-RPC client + ENTRY_POINT.
+ * chains/evm/sender/paymaster — fetchPaymasterHttp JSON-RPC client + ENTRY_POINT.
  * Fully offline: global `fetch` is stubbed per test (no network). Covers the
  * request shape (pm_sponsorUserOperation envelope, snake→camel userOp), the
  * happy-path field mapping, and every failure branch (HTTP !ok, JSON-RPC

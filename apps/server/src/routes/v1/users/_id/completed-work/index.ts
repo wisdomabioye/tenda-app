@@ -11,7 +11,7 @@
  * status=completed` on /v1/gigs is `isEscrowCounterpartySide` + the completed
  * status + kind='gig', and so is this — pushed through the SAME helper rather
  * than a second hand-written `or(...)`, which is exactly the drift
- * lib/escrow-party.ts was written to end. The chips therefore sum to the
+ * lib/escrow/party.ts was written to end. The chips therefore sum to the
  * number printed above them; any other predicate puts two figures that
  * disagree on one page.
  *

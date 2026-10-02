@@ -1,5 +1,5 @@
 /**
- * lib/boot-seed/ — opt-in boot-time registry seed (SEED_ON_BOOT=true).
+ * lib/boot/seed/ — opt-in boot-time registry seed (SEED_ON_BOOT=true).
  *
  * Mirrors boot-migrate's shape: flag-gated (unset = never connects, proven with
  * a dead-port URL), advisory-locked, and DB-backed cases gated on

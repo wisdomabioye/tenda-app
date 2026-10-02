@@ -1,5 +1,5 @@
 /**
- * features/alerts/enqueue-alert — the producer.
+ * features/alerts/pipeline/enqueue-alert — the producer.
  *
  * Three things this file is actually pinning, none of which are "the function
  * runs":

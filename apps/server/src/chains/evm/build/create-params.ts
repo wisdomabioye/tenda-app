@@ -39,7 +39,7 @@ export interface CreateParamsContext {
 
 /**
  * A uuid escrow id as the contract's `bytes16` ref. Kept HERE rather than in
- * chains/ids.ts: that module is deliberately chain-agnostic and viem-free,
+ * chains/shared/ids.ts: that module is deliberately chain-agnostic and viem-free,
  * while `toHex` is viem. One EVM-side encoder, every caller.
  */
 export function escrowIdHex(escrow_id: string): `0x${string}` {

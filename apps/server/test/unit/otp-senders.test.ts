@@ -212,7 +212,7 @@ test('sendViaResend: non-2xx → 502 AppError carrying the status', async () => 
   )
 })
 
-// ---------- admin login mail (features/auth/admin-otp) ---------------------------------
+// ---------- admin login mail (features/auth/admin/admin-otp) ---------------------------------
 
 test('admin resendSender: POSTs the login code to Resend with bearer auth', async () => {
   // The branch that actually sends admin login mail (#110). T5a covered which

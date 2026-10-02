@@ -1,6 +1,6 @@
 /**
  * Cutover seed CLI: chains, assets, platform_config. Idempotent by
- * construction, so boot-time invocation (lib/boot-seed/) is safe.
+ * construction, so boot-time invocation (lib/boot/seed/) is safe.
  *
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
  * `CHAIN_<ID>_*` env).

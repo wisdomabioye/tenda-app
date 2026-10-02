@@ -62,7 +62,7 @@
  *      in a generated migration. NOT required — an unread table costs nothing,
  *      and the grant history is worth keeping even after the feature stops.
  * Nothing else knows this feature exists. Three things deliberately stay behind
- * because they are NOT part of it: `chains/evm/hot-wallet.ts` (the relayer uses
+ * because they are NOT part of it: `chains/evm/sender/hot-wallet.ts` (the relayer uses
  * the same clients), `resolvePrimaryWalletAddress`'s deterministic ordering
  * (a fix to shared auth code, good on its own merits, and six modules depend on
  * it), and the session client stamp on the auth token (a generic session fact —

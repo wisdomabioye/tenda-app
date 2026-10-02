@@ -106,7 +106,7 @@ export async function fanOutEscrowEvent(
   //    on one of those and go silently undelivered.
   //
   //    Deliberately NOT wrapped in try/catch: `enqueueAlert` never throws (G5,
-  //    documented at features/alerts/enqueue-alert.ts), so a catch here would
+  //    documented at features/alerts/pipeline/enqueue-alert.ts), so a catch here would
   //    be dead code that reads as a live guarantee. The direction that matters
   //    is the other one — the party notices below must not be lost because an
   //    operator's alert failed — and that is what G5 buys.

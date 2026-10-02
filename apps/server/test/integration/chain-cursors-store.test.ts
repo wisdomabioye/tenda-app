@@ -1,5 +1,5 @@
 /**
- * chains/cursors `drizzleCursorStore` against a REAL database.
+ * chains/listening/cursors `drizzleCursorStore` against a REAL database.
  *
  * The store had no DB-backed test at all, so every claim the two-cursor tick
  * rests on was verified only against an in-memory fake: that a NULL

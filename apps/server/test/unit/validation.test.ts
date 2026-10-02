@@ -1,5 +1,5 @@
 /**
- * lib/validation — ensureIntInRange, extracted from the admin platform-config
+ * lib/http/validation — ensureIntInRange, extracted from the admin platform-config
  * route where each new tunable was adding another hand-written bounds check.
  * Four call sites now share it, so its edges are worth pinning directly.
  */

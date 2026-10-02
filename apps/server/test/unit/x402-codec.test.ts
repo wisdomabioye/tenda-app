@@ -1,5 +1,5 @@
 /**
- * The x402 envelope codec (lib/x402): what the X-PAYMENT header must look
+ * The x402 envelope codec (lib/chain/x402): what the X-PAYMENT header must look
  * like to reach an adapter at all, and the X-PAYMENT-RESPONSE round trip.
  * Shape only — whether the artifact matches the terms is the adapters' job.
  */

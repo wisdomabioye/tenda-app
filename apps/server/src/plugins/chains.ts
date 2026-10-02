@@ -202,7 +202,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Refuse to serve a registry that disagrees with the chains we actually
   // transact on. The stored copy is what a stale `db:seed` leaves behind, and
-  // it used to be handed to mobile as fact — see chains/registry-sync.ts.
+  // it used to be handed to mobile as fact — see chains/registry/registry-sync.ts.
   await assertChainRegistryInSync(fastify.db, secrets, {
     warn: (msg) => fastify.log.warn(msg),
   })

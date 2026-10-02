@@ -81,7 +81,7 @@ export function slackDestinationKeys(): SlackDestinationKey[] {
 
 /**
  * A webhook URL must be absolute and https — no http fallback, the payload
- * carries dispute context. `isAbsoluteUrl` (lib/env.ts) is what rejects the
+ * carries dispute context. `isAbsoluteUrl` (config/env.ts) is what rejects the
  * missing-slashes typo that plain URL parsing accepts.
  *
  * The host is deliberately NOT pinned to hooks.slack.com: staging deployments

@@ -12,7 +12,7 @@
  * executing rather than assuming.
  *
  * THE TWIN. The gigs feed takes the same two params and, since #101, runs the
- * SAME guard: `amountWindowConditions` in lib/amount-window. That is what makes
+ * SAME guard: `amountWindowConditions` in lib/http/amount-window. That is what makes
  * this file's job narrow — the rule itself is proved once, in
  * unit/amount-window.test.ts, over every input including the ones no route
  * happens to send today. What is proved HERE is what only a route can show:

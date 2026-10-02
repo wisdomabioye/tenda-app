@@ -11,7 +11,8 @@ that can be checked mechanically; the rest is convention.
 | `queue/` | BullMQ job handlers (`jobs/`) and consumers (`workers/`), plus the job-id factory. `plugins/queue` and `plugins/workers` only wire them into Fastify. |
 | `realtime/` | WebSocket transport, channel authorisation and the publisher. |
 | `plugins/` | Fastify plugins — wiring only (autoloaded — see its README). |
-| `lib/` | The domain-free layer: errors, env, validation, guards, pagination, the escrow core the chain adapters call, and the few helpers everything shares. |
+| `config/` | Typed config (`index`) and the raw env-value readers beneath it (`env`). |
+| `lib/` | The domain-free layer, in folders: `errors/`, `http/` (validation, guards, pagination, …), `boot/`, `chain/`, `events/`, `platform/`, `db/`, and the escrow core the chain adapters call (`escrow/`, `auth/`). |
 | `db/` | Seed and migrations. `db/migrations` is read by path at runtime (boot-migrate, the Dockerfile) — do not move it. |
 | `scripts/` | One-off and operator CLIs; never imported by the app. |
 
@@ -26,11 +27,20 @@ that can be checked mechanically; the rest is convention.
 3. **Nothing outside `routes/` imports `routes/`.** Enforced.
 4. New domain code goes in `features/<domain>/`, in a folder — not as a loose
    file at a layer root.
+5. **A folder holds files or folders, never both.** A folder with subfolders may
+   hold only its `index.ts` barrel; everything else goes in a subfolder named for
+   what it does. Enforced. Exempt: `app.ts` / `server.ts` (process entry points
+   addressed by `package.json`, the Dockerfile and `instrument.js`), `routes/`
+   (the URL decides the shape), `plugins/` (autoload reads it flat) and
+   `scripts/` (each file is a CLI entry point named by a script). A folder with
+   no subfolders may stay flat.
+   A single file that owns a name becomes `name/index.ts`, so `@server/name`
+   keeps resolving.
 
 ## Why some escrow code stays in `lib/`
 
 `lib/escrow/` (state machine, fees, build-tx, signer, …) and
-`lib/escrow-party.ts` are imported by `chains/`. Moving them under `features/`
+`lib/escrow/party.ts` are imported by `chains/`. Moving them under `features/`
 would make the adapters depend upward. For the same reason `lib/auth/resolver.ts`
 (and the two files it imports) stay: the escrow signer resolves a wallet to a
 user through it.

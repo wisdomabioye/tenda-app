@@ -1,5 +1,5 @@
 /**
- * #98 gap-fill — features/fiat-rails/exchange-rates (CoinGecko) via a mocked global fetch.
+ * #98 gap-fill — features/fiat-rails/rates/exchange-rates (CoinGecko) via a mocked global fetch.
  *
  * The module holds a process-level 5-min cache, so tests are ORDERED:
  *   1. no-cache failure paths (503) run first while the cache is null,

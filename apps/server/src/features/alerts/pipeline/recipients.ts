@@ -67,7 +67,7 @@ export async function mediatorUserIds(
       and(
         inArray(users.role, roles),
         // Suspended admins are locked out at authentication (plugins/auth.ts
-        // and features/auth/session.ts both reject them), so they cannot open the
+        // and features/auth/session/session.ts both reject them), so they cannot open the
         // dispute they would be paged about. Alerting them is noise, and worse,
         // it inflates the roster into looking like someone is watching.
         eq(users.status, 'active'),

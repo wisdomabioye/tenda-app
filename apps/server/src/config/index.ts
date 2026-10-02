@@ -138,7 +138,7 @@ function moderationModelProblem(): string[] {
 /**
  * Schemes accepted for dashboard/base URLs — http so local dev works.
  *
- * Exported because features/auth/admin-links.ts re-reads `ADMIN_DASHBOARD_URL` from a
+ * Exported because features/auth/admin/admin-links.ts re-reads `ADMIN_DASHBOARD_URL` from a
  * THREADED env (an alert channel is handed `deps.env`, never `process.env`), and
  * a second `['https', 'http']` written there would be a second spelling of the
  * same policy. One of them tightening later is a difference nothing would catch.
@@ -147,7 +147,7 @@ export const BASE_URL_PROTOCOLS = ['https', 'http'] as const
 
 /**
  * Named once: the validator and the reader below must not drift apart — and,
- * since features/auth/admin-links.ts reads the same var, neither may they drift from IT.
+ * since features/auth/admin/admin-links.ts reads the same var, neither may they drift from IT.
  * A var name that only agrees with its boot validator by coincidence is exactly
  * the silent-mute failure the optional-URL check exists to prevent.
  */

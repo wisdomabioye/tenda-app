@@ -98,7 +98,7 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 
-    // Namespace-level crypto (ed25519), single source in lib/wallet-signature;
+    // Namespace-level crypto (ed25519), single source in lib/chain/wallet-signature;
     // the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('solana', a),
 

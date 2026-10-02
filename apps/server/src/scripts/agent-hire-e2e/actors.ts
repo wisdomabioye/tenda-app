@@ -57,7 +57,7 @@ export function expectStatus(
 }
 
 /**
- * The message shape `features/auth/auth-message.ts` parses.
+ * The message shape `features/auth/session/auth-message.ts` parses.
  *
  * THE URI IS THE CALLER'S, and it is a required argument rather than a constant
  * because the server CHECKS it outside development: a proof carrying

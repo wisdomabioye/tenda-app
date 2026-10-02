@@ -2,7 +2,7 @@
  * Announcement write path — the single place a broadcast is created, shared by
  * the admin announcement CRUD (`admin/announcements`) and the admin push
  * broadcast (`admin/push`). A broadcast lives ONCE in `announcements` (fan-out
- * on read, see features/notifications/read); it is never written as N per-user rows.
+ * on read, see features/notifications/store/read); it is never written as N per-user rows.
  *
  * `createAnnouncement(db, input, { push })` persists the row and, when `push`
  * is set, resolves the audience's device tokens and fires a best-effort push —

@@ -71,7 +71,7 @@ export interface WsAuthStore {
    * True iff the user is creator / counterparty / pending assignee. Named for
    * the WIDER notion on purpose: a direct-offer invitee subscribes to the
    * escrow before accepting it, so this is `isEscrowPartyOrAssigned`, not the
-   * settled-parties-only `isEscrowParty` (see lib/escrow-party.ts).
+   * settled-parties-only `isEscrowParty` (see lib/escrow/party.ts).
    */
   isEscrowPartyOrAssigned(escrow_id: string, user_id: string): Promise<boolean>
   /** True iff the user is a member of the conversation. */

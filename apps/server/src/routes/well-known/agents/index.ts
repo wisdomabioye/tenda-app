@@ -55,7 +55,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     // `isEvmAddress` BEFORE any query — an unbounded path segment must not
     // reach the database.
     if (!isEvmAddress(raw)) {
-      // Thrown, not hand-rolled: the shared handler (lib/http-errors) is what
+      // Thrown, not hand-rolled: the shared handler (lib/errors/http) is what
       // gives every other route's 404 its four-field envelope.
       throw new AppError(404, ErrorCode.NOT_FOUND, 'not an agent card address')
     }

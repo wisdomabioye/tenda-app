@@ -1,5 +1,5 @@
 /**
- * #98 gap-fill — features/notifications/push (Expo Push API) via a mocked global fetch.
+ * #98 gap-fill — features/notifications/push/push (Expo Push API) via a mocked global fetch.
  * Offline unit test: token filtering, batching, ticket handling
  * (DeviceNotRegistered pruning), and both failure branches.
  */

@@ -90,7 +90,7 @@ export function parseAuthMessage(message: string): AuthMessageFields {
  *   - address mismatch (signed by a different wallet than claimed)
  *   - issued_at outside [now - max_age, now + max_age]
  *
- * Nonce-freshness is enforced separately by `features/auth/nonce.ts:consumeNonce`,
+ * Nonce-freshness is enforced separately by `features/auth/session/nonce.ts:consumeNonce`,
  * this function doesn't touch the DB.
  */
 export function assertAuthMessage(args: {

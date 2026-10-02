@@ -11,7 +11,7 @@
  *   400  the request could not be interpreted — a field is missing, or present
  *        with the wrong type, or a query parameter will not parse. Both guards
  *        below throw it, as do the latitude/longitude range checks in
- *        lib/validation.ts.
+ *        lib/http/validation.ts.
  *   422  the request was understood and is refused on its CONTENT — a value
  *        that parses fine but is not acceptable for this operation.
  *   409  refused because of state that already exists — an expired quote, a
@@ -19,7 +19,7 @@
  *
  * WHERE THE LINE IS GENUINELY BLURRED, because pretending otherwise is how the
  * last claim about a convention went wrong: `optionalString` in
- * lib/validation.ts throws 422 for a value that is EITHER the wrong type (400
+ * lib/http/validation.ts throws 422 for a value that is EITHER the wrong type (400
  * by the rule) OR too long (422 by the rule). One check, two categories. When
  * a guard straddles them, pick the status for the case a caller is likelier to
  * hit and say so where you throw.

@@ -1,5 +1,5 @@
 /**
- * lib/chat — inbox/push preview semantics, incl. S5.2 attachment-only
+ * lib/http/chat — inbox/push preview semantics, incl. S5.2 attachment-only
  * messages (empty content + placeholder).
  */
 

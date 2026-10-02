@@ -90,7 +90,7 @@ export function collapseWhitespace(text: string): string {
 
 /**
  * Trimmed text, or null when there is nothing to show — BLANK IS ABSENT, the
- * same rule lib/env.ts applies to environment values.
+ * same rule config/env.ts applies to environment values.
  *
  * Not defensive padding. A column is `null` when the row is missing, but a row
  * that exists holding whitespace is a different thing, and `'' ?? fallback`

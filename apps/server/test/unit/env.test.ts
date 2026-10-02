@@ -1,5 +1,5 @@
 /**
- * lib/env.ts — the two rules every env reader agrees on: blank means absent,
+ * config/env.ts — the two rules every env reader agrees on: blank means absent,
  * and a URL from env must be genuinely absolute. The URL cases that matter are
  * the ones plain `new URL()` accepts; this helper exists to reject those.
  */

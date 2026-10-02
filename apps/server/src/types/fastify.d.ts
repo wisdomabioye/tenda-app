@@ -95,7 +95,7 @@ declare module '@fastify/jwt' {
        */
       client?: SessionClient
       /**
-       * Restricts what this token may reach (`features/auth/scope.ts`). Present ONLY
+       * Restricts what this token may reach (`features/auth/session/scope.ts`). Present ONLY
        * on a demo session; absent means unrestricted, so every token minted
        * before this claim existed keeps working exactly as it did.
        *

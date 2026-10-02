@@ -1,5 +1,5 @@
 /**
- * db/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
+ * db/seed/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
  * manifest; the row VALUES are what need guarding here. The I/O wrapper
  * (applySeed — registry-fact upserts + enablement reconcile) is DB-tested in
  * integration/seed-upsert.test.ts. Secrets are built through the real loader.
