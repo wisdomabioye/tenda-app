@@ -1,5 +1,5 @@
 import { parseWsServerFrame, type WsServerFrame } from '@tenda/shared'
-import { isRecord } from '../lib/http/validation'
+import { isRecord } from '../../lib/http/validation'
 
 export const REALTIME_ENVELOPE_SCHEMA_VERSION = 1 as const
 export const REALTIME_MAX_MESSAGE_BYTES = 64 * 1_024
