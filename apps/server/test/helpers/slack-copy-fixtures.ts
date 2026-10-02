@@ -14,7 +14,7 @@
 import { randomUUID } from 'node:crypto'
 import assert from 'node:assert'
 import type { AlertKind, AlertOf, AlertPartyNames } from '@server/features/alerts'
-import { slackAlertMessage } from '@server/features/alerts/channels/slack/copy'
+import { slackAlertMessage } from '@server/features/alerts/channels/slack/render/copy'
 import type { SlackMessage } from '@server/features/alerts/slack'
 import { RAISED_BY_PREFIX } from '@server/features/alerts/channels/slack/kinds/dispute-raised'
 import { ADMIN_DASHBOARD_URL_ENV } from '@server/config'

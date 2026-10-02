@@ -11,10 +11,10 @@
  */
 
 import type { AppDatabase } from '@server/plugins/db'
-import { resolveDisputeRaised } from './kinds/dispute-raised'
-import { resolveGasSeedLowBalance } from './kinds/gas-seed-low-balance'
-import { seededChainBalance } from './kinds/gas-seed-balance-reader'
-import type { Alert, AlertKind, AlertOf, AlertRef, AlertRefOf, AlertResolver } from './types'
+import { resolveDisputeRaised } from '../kinds/dispute-raised'
+import { resolveGasSeedLowBalance } from '../kinds/gas-seed-low-balance'
+import { seededChainBalance } from '../kinds/gas-seed-balance-reader'
+import type { Alert, AlertKind, AlertOf, AlertRef, AlertRefOf, AlertResolver } from '../types'
 
 /**
  * Every kind's resolver. The ONLY list — adding a kind means adding a line

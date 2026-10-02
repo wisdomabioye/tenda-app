@@ -37,14 +37,14 @@
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { postToSlackWebhook, resolveSlackDestination } from '@server/features/alerts/slack'
-import { loadAlertPartyNames } from '../../identities'
+import { loadAlertPartyNames } from '../../identity/identities'
 import type { AlertChannel, AlertChannelName } from '../../types'
 import {
   SLACK_ALERT_KINDS,
   slackAlertDestination,
   slackAlertMessage,
   slackAlertPartyIds,
-} from './copy'
+} from './render/copy'
 
 /** The registry name. Typed so it must be one `ALERT_CHANNEL_NAMES` declares. */
 const NAME: AlertChannelName = 'slack'

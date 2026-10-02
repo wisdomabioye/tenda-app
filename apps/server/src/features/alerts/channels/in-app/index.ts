@@ -16,11 +16,11 @@
  */
 
 import { enqueueNotificationToMany, stableNotificationId } from '@server/features/notifications'
-import { alertIdentity } from '../../identity'
-import { loadAlertPartyNames } from '../../identities'
-import { mediatorUserIds } from '../../recipients'
+import { alertIdentity } from '../../identity/identity'
+import { loadAlertPartyNames } from '../../identity/identities'
+import { mediatorUserIds } from '../../pipeline/recipients'
 import type { AlertChannel, AlertChannelName } from '../../types'
-import { IN_APP_ALERT_KINDS, inAppExcludedIds, inAppNotice, inAppPartyIds } from './copy'
+import { IN_APP_ALERT_KINDS, inAppExcludedIds, inAppNotice, inAppPartyIds } from './render/copy'
 
 /** The registry name. Typed so it must be one `ALERT_CHANNEL_NAMES` declares. */
 const NAME: AlertChannelName = 'in_app'

@@ -14,15 +14,15 @@
  * "the channel is what knows whether it has copy for a kind".
  */
 
-import type { AlertPartyNames } from '../../identities'
-import { ALERT_KINDS } from '../../types'
-import type { AlertKind, AlertOf } from '../../types'
+import type { AlertPartyNames } from '../../../identity/identities'
+import { ALERT_KINDS } from '../../../types'
+import type { AlertKind, AlertOf } from '../../../types'
 import type { SlackDestinationKey, SlackMessage } from '@server/features/alerts/slack'
-import { disputeRaisedMessage, disputeRaisedPartyIds } from './kinds/dispute-raised'
+import { disputeRaisedMessage, disputeRaisedPartyIds } from '../kinds/dispute-raised'
 import {
   gasSeedLowBalanceMessage,
   gasSeedLowBalancePartyIds,
-} from './kinds/gas-seed-low-balance'
+} from '../kinds/gas-seed-low-balance'
 
 /**
  * Everything the channel needs for one kind: whose names to load, and what to

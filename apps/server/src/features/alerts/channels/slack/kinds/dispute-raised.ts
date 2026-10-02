@@ -15,8 +15,8 @@ import type { PartyRole } from '@tenda/shared'
 import { escapeSlackText, slackLink, truncate } from '@server/features/alerts/slack'
 import type { SlackMessage } from '@server/features/alerts/slack'
 import { adminDisputeUrl } from '@server/features/auth/admin/admin-links'
-import { alertPartyName } from '../../../identities'
-import type { AlertPartyNames } from '../../../identities'
+import { alertPartyName } from '../../../identity/identities'
+import type { AlertPartyNames } from '../../../identity/identities'
 import type { AlertOf } from '../../../types'
 import {
   FIELD_SEPARATOR,
@@ -30,7 +30,7 @@ import {
   inline,
   present,
   section,
-} from '../blocks'
+} from '../render/blocks'
 
 type DisputeRaised = AlertOf<'dispute.raised'>
 

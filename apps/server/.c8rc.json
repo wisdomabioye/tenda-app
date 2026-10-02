@@ -10,7 +10,7 @@
     "src/features/moderation/core/types.ts",
     "src/**/*.types.ts",
     "src/plugins/queue/payloads.ts",
-    "src/features/alerts/channels/in-app/notice.ts",
+    "src/features/alerts/channels/in-app/render/notice.ts",
     "src/**/*.d.ts"
   ],
   "reporter": ["text", "lcov"],

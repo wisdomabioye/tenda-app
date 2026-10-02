@@ -12,7 +12,7 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { rolesWithPermission } from '@tenda/shared'
-import type { AlertDeps } from './types'
+import type { AlertDeps } from '../types'
 
 /**
  * The permission that defines a mediator — the query filter and both warnings

@@ -25,7 +25,7 @@ import { partyRoleLabel, displayName } from '@tenda/shared'
 import type { AlertPartyNames } from '@server/features/alerts'
 import { RAISED_BY_PREFIX } from '@server/features/alerts/channels/slack/kinds/dispute-raised'
 import type { SlackMessage } from '@server/features/alerts/slack'
-import { slackAlertMessage } from '@server/features/alerts/channels/slack/copy'
+import { slackAlertMessage } from '@server/features/alerts/channels/slack/render/copy'
 import { allText, contextTexts, sectionTexts } from '../helpers/slack-message'
 import { disputeRaisedAlert } from '../helpers/alert-fixtures'
 import {

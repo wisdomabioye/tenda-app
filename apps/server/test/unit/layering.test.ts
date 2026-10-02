@@ -171,9 +171,6 @@ const MIXED_FOLDERS_TO_FIX: string[] = [
   'chains',
   'chains/evm',
   'chains/solana',
-  'features/alerts',
-  'features/alerts/channels/in-app',
-  'features/alerts/channels/slack',
 ]
 
 test('no new folder mixes loose files with subfolders', () => {

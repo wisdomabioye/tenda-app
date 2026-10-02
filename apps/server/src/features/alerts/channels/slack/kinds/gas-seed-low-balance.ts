@@ -23,7 +23,7 @@ import { findChain } from '@tenda/shared'
 import { escapeSlackText } from '@server/features/alerts/slack'
 import type { SlackMessage } from '@server/features/alerts/slack'
 import type { AlertOf } from '../../../types'
-import { FIELD_SEPARATOR, code, context, section } from '../blocks'
+import { FIELD_SEPARATOR, code, context, section } from '../render/blocks'
 
 type LowBalance = AlertOf<'gas-seed.low-balance'>
 

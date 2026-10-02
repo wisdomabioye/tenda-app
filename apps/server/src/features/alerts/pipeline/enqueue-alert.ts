@@ -21,9 +21,9 @@
  * hook point is only protected by this one.
  */
 
-import { alertJobId } from './identity'
-import { channelsFor } from './registry'
-import type { AlertChannel, AlertKind, AlertLogger, AlertRef } from './types'
+import { alertJobId } from '../identity/identity'
+import { channelsFor } from '../kinds/registry'
+import type { AlertChannel, AlertKind, AlertLogger, AlertRef } from '../types'
 import type { QueueService } from '@server/plugins/queue'
 import type { EscrowRepublishEvent, InternalEscrowEvent } from '@server/features/escrows/events'
 

@@ -14,15 +14,15 @@
  * — so it belongs beside that kind's copy, not in the channel.
  */
 
-import type { AlertPartyNames } from '../../identities'
-import { ALERT_KINDS } from '../../types'
-import type { AlertKind, AlertOf } from '../../types'
+import type { AlertPartyNames } from '../../../identity/identities'
+import { ALERT_KINDS } from '../../../types'
+import type { AlertKind, AlertOf } from '../../../types'
 import type { InAppNotice } from './notice'
 import {
   disputeRaisedExcluded,
   disputeRaisedNotice,
   disputeRaisedPartyIds,
-} from './kinds/dispute-raised'
+} from '../kinds/dispute-raised'
 
 /** Everything the channel needs for one kind. */
 interface InAppCopy<K extends AlertKind> {

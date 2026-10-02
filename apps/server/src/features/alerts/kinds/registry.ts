@@ -20,9 +20,9 @@
  * reads as the question it actually is: "is there a channel nobody registered?"
  */
 
-import { inAppAlertChannel } from './channels/in-app'
-import { slackAlertChannel } from './channels/slack'
-import type { AlertChannel, AlertChannelName, AlertKind } from './types'
+import { inAppAlertChannel } from '../channels/in-app'
+import { slackAlertChannel } from '../channels/slack'
+import type { AlertChannel, AlertChannelName, AlertKind } from '../types'
 
 /**
  * Every live channel, in delivery order.

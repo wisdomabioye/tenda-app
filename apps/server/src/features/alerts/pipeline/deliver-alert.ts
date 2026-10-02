@@ -15,9 +15,9 @@
  * queue/workers/escrow-fanout/enqueue-notice.ts reads.
  */
 
-import { channelByName } from './registry'
+import { channelByName } from '../kinds/registry'
 import { resolveAlert } from './resolve-alert'
-import type { AlertChannel, AlertDeps, AlertJob } from './types'
+import type { AlertChannel, AlertDeps, AlertJob } from '../types'
 
 /**
  * How a channel name is resolved. Defaults to the real registry, so no

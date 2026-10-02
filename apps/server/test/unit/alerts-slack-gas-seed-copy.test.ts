@@ -13,7 +13,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { chainById } from '@tenda/shared'
-import { slackAlertMessage } from '@server/features/alerts/channels/slack/copy'
+import { slackAlertMessage } from '@server/features/alerts/channels/slack/render/copy'
 import { gasSeedLowBalancePartyIds } from '@server/features/alerts/channels/slack/kinds/gas-seed-low-balance'
 import type { AlertOf, AlertPartyNames } from '@server/features/alerts'
 import type { SlackMessage } from '@server/features/alerts/slack'

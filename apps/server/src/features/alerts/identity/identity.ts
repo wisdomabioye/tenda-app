@@ -15,7 +15,7 @@
  * of alert identity can re-close that loop.
  */
 
-import type { AlertChannelName, AlertKind, AlertRef, AlertRefOf } from './types'
+import type { AlertChannelName, AlertKind, AlertRef, AlertRefOf } from '../types'
 
 /**
  * What identifies each kind's subject, keyed by kind so a new kind cannot ship

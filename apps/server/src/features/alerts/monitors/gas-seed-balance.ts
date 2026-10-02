@@ -22,7 +22,7 @@
  * silent monitoring gap.
  */
 
-import { enqueueAlert, type ChannelSelector } from '../enqueue-alert'
+import { enqueueAlert, type ChannelSelector } from '../pipeline/enqueue-alert'
 import {
   seedStanding,
   seededChainIds,
