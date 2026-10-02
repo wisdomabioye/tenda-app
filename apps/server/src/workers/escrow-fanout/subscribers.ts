@@ -20,7 +20,7 @@ import { and, asc, eq, gt, ne, or } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
-import { stableNotificationId } from '@server/lib/notify'
+import { stableNotificationId } from '@server/features/notifications'
 import { newGigNotice } from './copy'
 import { enqueueEscrowNotice } from './enqueue-notice'
 

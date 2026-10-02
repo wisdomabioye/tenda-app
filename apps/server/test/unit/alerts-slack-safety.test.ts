@@ -27,8 +27,8 @@ import type { AlertOf, AlertPartyNames } from '@server/features/alerts'
 import { slackAlertMessage } from '@server/features/alerts/channels/slack/copy'
 import { slackAlertChannel } from '@server/features/alerts/channels/slack'
 import { RAISED_BY_PREFIX } from '@server/features/alerts/channels/slack/kinds/dispute-raised'
-import { SLACK_TEXT_MAX } from '@server/lib/slack'
-import type { SlackMessage } from '@server/lib/slack'
+import { SLACK_TEXT_MAX } from '@server/features/alerts/slack'
+import type { SlackMessage } from '@server/features/alerts/slack'
 import { allText, contextTexts, sectionTexts } from '../helpers/slack-message'
 import {
   ALERT_FIXTURES,

@@ -36,7 +36,7 @@
 
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { postToSlackWebhook, resolveSlackDestination } from '@server/lib/slack'
+import { postToSlackWebhook, resolveSlackDestination } from '@server/features/alerts/slack'
 import { loadAlertPartyNames } from '../../identities'
 import type { AlertChannel, AlertChannelName } from '../../types'
 import {

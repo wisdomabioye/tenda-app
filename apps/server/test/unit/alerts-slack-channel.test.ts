@@ -38,7 +38,7 @@ import {
   slackAlertPartyIds,
 } from '@server/features/alerts/channels/slack/copy'
 import { slackAlertChannel } from '@server/features/alerts/channels/slack'
-import { slackDestinationKeys, slackEnvKey } from '@server/lib/slack'
+import { slackDestinationKeys, slackEnvKey } from '@server/features/alerts/slack'
 import { testChannelContract } from '../helpers/alert-channel-contract'
 import {
   ALERT_FIXTURES,

@@ -9,7 +9,7 @@
  * copies of "how one notice reaches N users" is one too many.
  */
 
-import { enqueueNotificationToMany, escrowPushData } from '@server/lib/notify'
+import { enqueueNotificationToMany, escrowPushData } from '@server/features/notifications'
 import type { QueueService } from '@server/plugins/queue'
 import type { EscrowKind } from '@tenda/shared'
 import type { NoticeCopy } from './copy'

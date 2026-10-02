@@ -10,7 +10,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
-import { knownSlackEnvKeys } from '@server/lib/slack'
+import { knownSlackEnvKeys } from '@server/features/alerts/slack'
 
 const REQUIRED: Record<string, string> = {
   DATABASE_URL: 'postgres://localhost/test',

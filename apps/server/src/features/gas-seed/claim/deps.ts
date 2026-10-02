@@ -10,7 +10,7 @@
 import { chainById } from '@tenda/shared'
 import { getChainSecrets } from '@server/chains/secrets'
 import { getConfig } from '@server/config'
-import { enqueueNotification } from '@server/lib/notify'
+import { enqueueNotification } from '@server/features/notifications'
 import type { QueueService } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 import { drizzleGasSeedStore } from '../grants'

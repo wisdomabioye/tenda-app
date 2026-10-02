@@ -14,7 +14,7 @@ import {
   chatPushData,
   fiatIntentPushData,
   type PushData,
-} from '@server/lib/notify'
+} from '@server/features/notifications'
 
 const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function notify(

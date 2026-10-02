@@ -17,14 +17,14 @@ import { device_tokens } from '@tenda/shared/db/schema'
 import { drizzleEscrowEventStore } from '@server/features/escrows/events'
 import { expireApplicationsHandler } from '@server/jobs/expire-applications'
 import { drizzleApplicationStore } from '@server/features/applications/store'
-import { persistNotification } from '@server/lib/notify'
+import { persistNotification } from '@server/features/notifications'
 import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from './escrow-fanout'
 import {
   buildPushServices,
   routePush,
   type DevicePlatform,
   type PlatformToken,
-} from '@server/lib/push-services'
+} from '@server/features/notifications/push-services'
 import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'

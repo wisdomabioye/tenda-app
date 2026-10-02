@@ -5,7 +5,7 @@
  */
 import { test, afterEach } from 'node:test'
 import assert from 'node:assert'
-import { sendPush } from '@server/lib/push'
+import { sendPush } from '@server/features/notifications/push'
 
 type FetchArgs = Parameters<typeof fetch>
 interface LoggerCall { obj: object; msg: string }

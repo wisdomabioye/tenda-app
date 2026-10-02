@@ -18,7 +18,7 @@ import {
   TWILIO_API_BASE,
   type OtpSender,
 } from '@server/features/auth/otp'
-import { sendViaResend, RESEND_API_URL } from '@server/lib/email'
+import { sendViaResend, RESEND_API_URL } from '@server/features/notifications/email'
 import { resendSender } from '@server/features/auth/admin-otp'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 import { AppError } from '@server/lib/errors'

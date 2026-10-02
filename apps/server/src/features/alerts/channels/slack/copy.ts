@@ -17,7 +17,7 @@
 import type { AlertPartyNames } from '../../identities'
 import { ALERT_KINDS } from '../../types'
 import type { AlertKind, AlertOf } from '../../types'
-import type { SlackDestinationKey, SlackMessage } from '@server/lib/slack'
+import type { SlackDestinationKey, SlackMessage } from '@server/features/alerts/slack'
 import { disputeRaisedMessage, disputeRaisedPartyIds } from './kinds/dispute-raised'
 import {
   gasSeedLowBalanceMessage,

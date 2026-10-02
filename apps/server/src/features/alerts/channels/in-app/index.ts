@@ -15,7 +15,7 @@
  * broadcast — three things that are already right in one place.
  */
 
-import { enqueueNotificationToMany, stableNotificationId } from '@server/lib/notify'
+import { enqueueNotificationToMany, stableNotificationId } from '@server/features/notifications'
 import { alertIdentity } from '../../identity'
 import { loadAlertPartyNames } from '../../identities'
 import { mediatorUserIds } from '../../recipients'

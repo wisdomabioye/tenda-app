@@ -16,7 +16,7 @@ import {
   fcmHttpTransport,
   apnsHttp2Transport,
   buildPushServices,
-} from '@server/lib/push-services'
+} from '@server/features/notifications/push-services'
 
 const realFetch = globalThis.fetch
 afterEach(() => {

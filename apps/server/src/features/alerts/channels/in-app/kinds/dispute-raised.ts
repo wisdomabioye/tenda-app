@@ -24,7 +24,7 @@
  */
 
 import type { EscrowKind } from '@tenda/shared'
-import { disputePushData } from '@server/lib/notify'
+import { disputePushData } from '@server/features/notifications'
 import { alertPartyName } from '../../../identities'
 import type { AlertPartyNames } from '../../../identities'
 import type { AlertOf } from '../../../types'

@@ -16,6 +16,6 @@
  * ./copy imports the kinds, so declaring it there would close a cycle.
  */
 
-import type { ManyNotificationInput } from '@server/lib/notify'
+import type { ManyNotificationInput } from '@server/features/notifications'
 
 export type InAppNotice = Pick<ManyNotificationInput, 'title' | 'body' | 'data'>

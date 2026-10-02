@@ -24,7 +24,7 @@ import {
   OTP_CODE_DIGITS,
 } from '@server/features/auth/otp'
 import { normalizeAdminEmail } from '@server/features/auth/admin-auth'
-import { sendViaResend } from '@server/lib/email'
+import { sendViaResend } from '@server/features/notifications/email'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- policy constants (deliberately the phone values, own knobs) ----

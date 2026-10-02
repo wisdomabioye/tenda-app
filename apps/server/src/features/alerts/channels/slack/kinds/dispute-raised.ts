@@ -12,8 +12,8 @@
 
 import { partyRoleLabel } from '@tenda/shared'
 import type { PartyRole } from '@tenda/shared'
-import { escapeSlackText, slackLink, truncate } from '@server/lib/slack'
-import type { SlackMessage } from '@server/lib/slack'
+import { escapeSlackText, slackLink, truncate } from '@server/features/alerts/slack'
+import type { SlackMessage } from '@server/features/alerts/slack'
 import { adminDisputeUrl } from '@server/features/auth/admin-links'
 import { alertPartyName } from '../../../identities'
 import type { AlertPartyNames } from '../../../identities'

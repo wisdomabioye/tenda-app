@@ -22,7 +22,7 @@ import type {
 import { AppError } from '@server/lib/errors'
 import { assertDisputeThreadAccess } from '@server/features/disputes/thread-access'
 import { validateMessageAttachment } from '@server/features/uploads/validate-attachment'
-import { enqueueNotification, disputePushData } from '@server/lib/notify'
+import { enqueueNotification, disputePushData } from '@server/features/notifications'
 import { buildDisputeThreadContext } from '@server/features/disputes/thread-context'
 
 const MESSAGES_PAGE_LIMIT = 100

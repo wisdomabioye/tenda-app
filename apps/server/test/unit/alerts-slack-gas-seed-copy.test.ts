@@ -16,7 +16,7 @@ import { chainById } from '@tenda/shared'
 import { slackAlertMessage } from '@server/features/alerts/channels/slack/copy'
 import { gasSeedLowBalancePartyIds } from '@server/features/alerts/channels/slack/kinds/gas-seed-low-balance'
 import type { AlertOf, AlertPartyNames } from '@server/features/alerts'
-import type { SlackMessage } from '@server/lib/slack'
+import type { SlackMessage } from '@server/features/alerts/slack'
 import { gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { allText, sectionTexts } from '../helpers/slack-message'
 

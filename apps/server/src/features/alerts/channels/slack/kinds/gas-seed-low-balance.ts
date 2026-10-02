@@ -20,8 +20,8 @@
  */
 
 import { findChain } from '@tenda/shared'
-import { escapeSlackText } from '@server/lib/slack'
-import type { SlackMessage } from '@server/lib/slack'
+import { escapeSlackText } from '@server/features/alerts/slack'
+import type { SlackMessage } from '@server/features/alerts/slack'
 import type { AlertOf } from '../../../types'
 import { FIELD_SEPARATOR, code, context, section } from '../blocks'
 

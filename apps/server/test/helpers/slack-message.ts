@@ -13,7 +13,7 @@
  * would put the interesting half of each test somewhere the test does not
  * mention.
  */
-import type { SlackMessage } from '@server/lib/slack'
+import type { SlackMessage } from '@server/features/alerts/slack'
 
 // `flatMap` rather than `filter().map()`: filter does not narrow a
 // discriminated union, so the map would need a cast to reach `.text`.

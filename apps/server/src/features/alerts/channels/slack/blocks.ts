@@ -21,8 +21,8 @@
  * rejects an oversized section with `invalid_blocks` — the whole message.
  */
 
-import { escapeSlackText, truncate } from '@server/lib/slack'
-import type { SlackBlock } from '@server/lib/slack'
+import { escapeSlackText, truncate } from '@server/features/alerts/slack'
+import type { SlackBlock } from '@server/features/alerts/slack'
 
 /**
  * Cap for a fragment that shares a LINE with other text — a title, a party

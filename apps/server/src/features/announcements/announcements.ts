@@ -14,7 +14,7 @@ import { announcements, device_tokens, users } from '@tenda/shared/db/schema'
 import { ANNOUNCEMENT_TARGETS, ErrorCode } from '@tenda/shared'
 import type { AnnouncementTarget, UserRole } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { sendPush } from '@server/lib/push'
+import { sendPush } from '@server/features/notifications/push'
 import type { AppDatabase } from '@server/plugins/db'
 
 type AnnouncementRow = typeof announcements.$inferSelect

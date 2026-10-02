@@ -27,7 +27,7 @@ import {
   slackLink,
   SLACK_TEXT_MAX,
   type SlackMessage,
-} from '@server/lib/slack'
+} from '@server/features/alerts/slack'
 import { AppError } from '@server/lib/errors'
 import { restoreFetch, stubFetch, type CapturedRequest } from '../helpers/fetch-stub'
 

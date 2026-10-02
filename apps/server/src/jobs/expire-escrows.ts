@@ -19,7 +19,7 @@
 
 import { and, eq, gte, isNull, lt } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
-import { enqueueNotification, escrowPushData } from '@server/lib/notify'
+import { enqueueNotification, escrowPushData } from '@server/features/notifications'
 import type { JobPayload, QueueService } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 

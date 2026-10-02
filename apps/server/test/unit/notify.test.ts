@@ -28,7 +28,7 @@ import {
   chatPushData,
   fiatIntentPushData,
   toNotificationWire,
-} from '@server/lib/notify'
+} from '@server/features/notifications'
 import { queueDouble } from '../helpers/queue-double'
 
 // ---------- helpers ----------------------------------------------------------

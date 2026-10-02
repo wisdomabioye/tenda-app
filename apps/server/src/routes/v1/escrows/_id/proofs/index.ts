@@ -14,7 +14,7 @@ import { ErrorCode, MAX_ESCROW_PROOFS, isDataProofType, proofIdentity } from '@t
 import type { ApiError, EscrowProof } from '@tenda/shared'
 import { loadEscrowOr404, deriveCaller } from '@server/features/escrows/routes'
 import { AppError } from '@server/lib/errors'
-import { enqueueNotification, escrowPushData, disputePushData } from '@server/lib/notify'
+import { enqueueNotification, escrowPushData, disputePushData } from '@server/features/notifications'
 import { validateEscrowProofUploads, type EscrowProofUploadInput } from '@server/features/escrows/proofs/validateEscrowProofUploads'
 import { checkDataProofsAgainstGig } from '@server/features/escrows/proofs/checkDataProofsAgainstGig'
 

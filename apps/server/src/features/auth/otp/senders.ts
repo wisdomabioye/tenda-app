@@ -9,7 +9,7 @@
 import type { OtpChannel } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { sendViaResend, type ResendConfig } from '@server/lib/email'
+import { sendViaResend, type ResendConfig } from '@server/features/notifications/email'
 
 export interface OtpSender {
   send(identifier: string, code: string): Promise<void>
