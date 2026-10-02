@@ -12,6 +12,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { abbreviatedName } from '@tenda/shared'
 import { reviews, escrow_transactions } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED,
@@ -32,7 +33,12 @@ test('GET /v1/users/:id: returns the public profile, no PII', { skip }, async ()
   const res = await app.inject({ method: 'GET', url: `/v1/users/${row.id}` })
   assert.strictEqual(res.statusCode, 200)
   const body = res.json()
-  assert.strictEqual(body.first_name, 'Ada')
+  // #180: what the route says depends on who asks, and an anonymous reader gets
+  // the abbreviation — the legal-name parts are never wire fields at all (the
+  // full matrix lives in public-profile-scope.test.ts).
+  assert.strictEqual(body.display_name, abbreviatedName('Ada', 'Lovelace'))
+  assert.strictEqual(body.full_name, null)
+  assert.ok(!('first_name' in body) && !('last_name' in body), 'legal-name parts must not be wire fields')
   assert.strictEqual(body.bio, 'hi')
   assert.ok(!('phone_e164' in body), 'phone must not leak')
   assert.ok(!('wallet_address' in body))
