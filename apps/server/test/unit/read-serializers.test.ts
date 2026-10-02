@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { toGigSummary, type GigSummaryRow } from '@server/lib/gig-read'
+import { toGigSummary, type GigSummaryRow } from '@server/features/gigs/gig-read'
 import {
   toExchangePartyRef,
   toExchangeSummary,

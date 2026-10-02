@@ -21,7 +21,7 @@ import { ErrorCode, MAX_GIG_DESCRIPTION_LENGTH, getAssetMeta, type CreateGigDeta
 import { gig_details, users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/lib/escrow-routes'
-import { validateGigDetails, type ValidatedGigDetails } from '@server/lib/gig-details'
+import { validateGigDetails, type ValidatedGigDetails } from '@server/features/gigs/gig-details'
 import type { AppDatabase } from '@server/plugins/db'
 import { moderateGig } from '@server/features/moderation/service'
 import { buildModerationDeps } from '@server/features/moderation/store'

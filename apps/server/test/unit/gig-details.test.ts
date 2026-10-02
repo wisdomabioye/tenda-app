@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { MAX_GIG_TITLE_LENGTH, MAX_GIG_DESCRIPTION_LENGTH, MAX_PROOF_REQUIREMENTS } from '@tenda/shared'
 import type { CreateGigDetailsBody } from '@tenda/shared'
-import { validateGigDetails } from '@server/lib/gig-details'
+import { validateGigDetails } from '@server/features/gigs/gig-details'
 import { AppError } from '@server/lib/errors'
 
 function body(overrides: Partial<CreateGigDetailsBody> = {}): Partial<CreateGigDetailsBody> {

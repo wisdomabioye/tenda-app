@@ -38,8 +38,8 @@ import {
   PLATFORM_COMPONENT_NAMES,
   type SchemaObject,
 } from '@tenda/api-doc'
-import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
-import { GIG_SUMMARY_COLS } from '@server/lib/gig-read'
+import { FEATURED_RAIL_LIMIT } from '@server/features/gigs/featured'
+import { GIG_SUMMARY_COLS } from '@server/features/gigs/gig-read'
 import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
 
 const { paths, components } = AGENT_API_DOCUMENT

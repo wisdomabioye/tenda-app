@@ -34,7 +34,7 @@ import {
 } from '@tenda/shared'
 import type { GigsContract, GigCategory, EscrowStatus } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
+import { gigSearchCondition, gigSearchRank } from '@server/features/gigs/gig-search'
 import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/chain-filter'
 import { amountWindowConditions } from '@server/lib/amount-window'
 

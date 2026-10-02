@@ -11,7 +11,7 @@ import type { ApiError, CreateFeaturedSlotBody, FeaturedSlotRow, UpdateFeaturedS
 import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { invalidateFeaturedCache } from '@server/lib/featured'
+import { invalidateFeaturedCache } from '@server/features/gigs/featured'
 
 const MAX_POSITION = 100
 

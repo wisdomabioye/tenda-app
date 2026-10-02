@@ -14,7 +14,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { desc, eq, sql } from 'drizzle-orm'
 import { escrows, gig_applications, gig_details, users } from '@tenda/shared/db/schema'
 import type { MyApplication, PaginatedResponse } from '@tenda/shared'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
 import { toApplicationWire } from '@server/features/applications/wire'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 

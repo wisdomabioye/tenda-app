@@ -8,7 +8,7 @@
 import { and, asc, eq, gt, gte, isNull, lte, or, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users, featured_slots } from '@tenda/shared/db/schema'
 import { FEATURED_RAIL_LIMIT, type GigSummary } from '@tenda/shared'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**

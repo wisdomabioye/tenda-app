@@ -22,7 +22,7 @@ import {
   validateCreateEscrow,
   type ValidatedCreateEscrow,
 } from '@server/features/escrows/creation/validateCreateEscrow'
-import { validateGigDetails, type ValidatedGigDetails } from '@server/lib/gig-details'
+import { validateGigDetails, type ValidatedGigDetails } from '@server/features/gigs/gig-details'
 import type { GigSeed } from './gigs'
 
 /** What the RUN supplies — exactly the keys `GigSeed` omits from the body. */
