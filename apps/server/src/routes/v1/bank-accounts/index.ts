@@ -14,7 +14,7 @@ import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import type { BankAccountRow } from '@server/features/fiat-rails'
 import { buildNameEnquiry } from '@server/lib/nip'
 import { isPostgresUniqueViolation } from '@server/lib/db'
-import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr } from '@server/features/fiat-rails/fiat-routes'
 
 function serialize(a: BankAccountRow): BankAccountSummary {
   // Mask via the rail's own rule (banks show 4, MoMo shows 3); fall back to a

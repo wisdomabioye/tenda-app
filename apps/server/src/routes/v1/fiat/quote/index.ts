@@ -24,7 +24,7 @@ import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'
 import { buildFiatDeps, requestQuote } from '@server/features/fiat-rails'
 import { DEFAULT_FIAT_COUNTRY } from '@server/features/fiat-rails/config'
-import { requireFiatRails, requireStr, optionalStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr, optionalStr } from '@server/features/fiat-rails/fiat-routes'
 
 interface Body {
   direction?: unknown

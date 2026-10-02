@@ -35,7 +35,7 @@ import {
 } from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
-import { toExchangePartyRef } from '@server/lib/exchange-read'
+import { toExchangePartyRef } from '@server/features/fiat-rails/exchange-read'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = ExchangeContract['get']

@@ -27,8 +27,8 @@
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { assetRateSource } from '@server/features/fiat-rails/p2p-live'
-import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
-import { invalidateFxRatesCache, FX_RATES_URL } from '@server/lib/fx-rates'
+import { invalidateExchangeRatesCache } from '@server/features/fiat-rails/exchange-rates'
+import { invalidateFxRatesCache, FX_RATES_URL } from '@server/features/fiat-rails/fx-rates'
 import { ErrorCode } from '@tenda/shared'
 
 /** A USDC asset id, so the CoinGecko id under test is a real registry value. */

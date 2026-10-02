@@ -9,7 +9,7 @@
  */
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
-import { getUsdFxRates, invalidateFxRatesCache, FX_RATES_URL } from '@server/lib/fx-rates'
+import { getUsdFxRates, invalidateFxRatesCache, FX_RATES_URL } from '@server/features/fiat-rails/fx-rates'
 import { ErrorCode } from '@tenda/shared'
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {

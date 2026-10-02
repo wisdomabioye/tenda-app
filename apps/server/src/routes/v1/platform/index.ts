@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { asc, eq } from 'drizzle-orm'
 import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
-import { getExchangeRates } from '@server/lib/exchange-rates'
+import { getExchangeRates } from '@server/features/fiat-rails/exchange-rates'
 import {
   assetFundsBySignature,
   chainById,

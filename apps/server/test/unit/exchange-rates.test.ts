@@ -10,7 +10,7 @@
  */
 import { test, afterEach } from 'node:test'
 import assert from 'node:assert'
-import { getExchangeRates, getAssetRates } from '@server/lib/exchange-rates'
+import { getExchangeRates, getAssetRates } from '@server/features/fiat-rails/exchange-rates'
 
 function jsonResponse(status: number, body: unknown): Response {
   return {

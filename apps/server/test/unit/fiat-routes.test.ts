@@ -22,7 +22,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
 import type { AppError } from '@server/lib/errors'
-import { requireFiatRails, requireStr, optionalStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr, optionalStr } from '@server/features/fiat-rails/fiat-routes'
 
 // Set before the first getConfig() call in this process — see the header.
 process.env.FIAT_RAILS_ENABLED = 'false'
