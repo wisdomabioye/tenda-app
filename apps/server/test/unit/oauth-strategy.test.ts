@@ -7,9 +7,9 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { AppError } from '@server/lib/errors'
-import { oauthStrategy } from '@server/lib/auth/strategies/oauth'
-import type { OidcVerifier } from '@server/lib/auth/oidc'
-import type { VerifyProof } from '@server/lib/auth/strategy'
+import { oauthStrategy } from '@server/features/auth/strategies/oauth'
+import type { OidcVerifier } from '@server/features/auth/oidc'
+import type { VerifyProof } from '@server/features/auth/strategy'
 
 const stub = (claims: { sub: string; email: string | null }): OidcVerifier => ({
   verify: async () => claims,

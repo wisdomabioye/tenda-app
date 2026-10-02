@@ -22,7 +22,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { buildAuthStrategies } from '@server/lib/auth/registry'
+import { buildAuthStrategies } from '@server/features/auth/registry'
 import type { AppError } from '@server/lib/errors'
 import {
   ABSENT_UUID,

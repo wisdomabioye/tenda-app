@@ -18,7 +18,7 @@ import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { requirePermission } from '@server/lib/guards'
-import { grantAdminEmail } from '@server/lib/admin-auth'
+import { grantAdminEmail } from '@server/features/auth/admin-auth'
 import { isUuidLike } from '@server/lib/uuid'
 import { appEvents } from '@server/lib/events'
 

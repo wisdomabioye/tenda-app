@@ -14,8 +14,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError, requireBody } from '@server/lib/errors'
-import { isAuthMethod } from '@server/lib/auth/strategy'
-import { buildAuthStrategies } from '@server/lib/auth/registry'
+import { isAuthMethod } from '@server/features/auth/strategy'
+import { buildAuthStrategies } from '@server/features/auth/registry'
 
 interface Body {
   method?: unknown

@@ -11,12 +11,12 @@
 
 import type { FastifyInstance } from 'fastify'
 import { getConfig } from '@server/config'
-import { buildOtpDeps } from '@server/lib/onboarding-deps'
-import { otpStrategy } from '@server/lib/auth/strategies/otp'
-import { walletStrategy } from '@server/lib/auth/strategies/wallet'
-import { oauthStrategy } from '@server/lib/auth/strategies/oauth'
-import { googleVerifier, appleVerifier, type OidcVerifier } from '@server/lib/auth/oidc'
-import type { AuthStrategy, AuthStrategyRegistry } from '@server/lib/auth/strategy'
+import { buildOtpDeps } from '@server/features/auth/onboarding-deps'
+import { otpStrategy } from '@server/features/auth/strategies/otp'
+import { walletStrategy } from '@server/features/auth/strategies/wallet'
+import { oauthStrategy } from '@server/features/auth/strategies/oauth'
+import { googleVerifier, appleVerifier, type OidcVerifier } from '@server/features/auth/oidc'
+import type { AuthStrategy, AuthStrategyRegistry } from '@server/features/auth/strategy'
 
 interface OauthStrategies {
   google?: AuthStrategy

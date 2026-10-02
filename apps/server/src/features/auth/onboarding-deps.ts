@@ -21,7 +21,7 @@ import {
   twilioSmsSender,
   type OtpDeps,
   type OtpSender,
-} from '@server/lib/otp'
+} from '@server/features/auth/otp'
 
 /**
  * What the sender builders actually need from the app: somewhere to log.

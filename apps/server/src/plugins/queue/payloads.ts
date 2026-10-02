@@ -15,7 +15,7 @@
  */
 
 import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
-import type { OtpMessage } from '@server/lib/otp'
+import type { OtpMessage } from '@server/features/auth/otp'
 // TYPE-ONLY, and it must stay that way: features/alerts/types/channel.ts
 // imports `QueueService` back from this module's barrel, so the two reference
 // each other. Both directions are erased today (verified in the emitted JS —

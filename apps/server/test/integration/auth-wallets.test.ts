@@ -10,7 +10,7 @@ import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
 import { user_wallets, user_identities } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { unlinkWallet } from '@server/lib/auth/wallet-unlink'
+import { unlinkWallet } from '@server/features/auth/wallet-unlink'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader, linkWallet, testEvmAddress,
 } from '../helpers/test-app'

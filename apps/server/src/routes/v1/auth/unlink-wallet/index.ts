@@ -16,7 +16,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { chainNamespaceEnum, type ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { AppError } from '@server/lib/errors'
-import { unlinkWallet } from '@server/lib/auth/wallet-unlink'
+import { unlinkWallet } from '@server/features/auth/wallet-unlink'
 
 interface Body {
   chain_ns?: unknown

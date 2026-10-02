@@ -17,9 +17,9 @@ import {
   TERMII_SMS_URL,
   TWILIO_API_BASE,
   type OtpSender,
-} from '@server/lib/otp'
+} from '@server/features/auth/otp'
 import { sendViaResend, RESEND_API_URL } from '@server/lib/email'
-import { resendSender } from '@server/lib/admin-otp'
+import { resendSender } from '@server/features/auth/admin-otp'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 import { AppError } from '@server/lib/errors'
 

@@ -12,7 +12,7 @@ import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { knownSlackEnvKeys, slackEnvKey } from '@server/lib/slack'
-import { buildOtpSenders, type OtpSenderHost } from '@server/lib/onboarding-deps'
+import { buildOtpSenders, type OtpSenderHost } from '@server/features/auth/onboarding-deps'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 
 const REQUIRED: Record<string, string> = {

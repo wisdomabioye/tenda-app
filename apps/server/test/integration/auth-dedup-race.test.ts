@@ -12,7 +12,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { user_identities, users } from '@tenda/shared/db/schema'
-import { resolveOrLink } from '@server/lib/auth/orchestrator'
+import { resolveOrLink } from '@server/features/auth/orchestrator'
 import { TEST_DB_CONFIGURED, useTestApp, resetDb } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED

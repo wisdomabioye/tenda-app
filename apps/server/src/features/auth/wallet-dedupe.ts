@@ -6,7 +6,7 @@
  * a backfill for existing rows only. Pure (no DB) so the keeper choice is
  * unit-tested; `scripts/dedupe-wallets.ts` performs the deletes.
  */
-import { normalizeWalletAddress } from './wallet-address'
+import { normalizeWalletAddress } from '../../lib/auth/wallet-address'
 import type { ChainNamespace } from '@tenda/shared/db/schema'
 
 export interface WalletRow {

@@ -13,7 +13,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { adminDashboardBaseUrl, adminDisputeUrl } from '@server/lib/admin-links'
+import { adminDashboardBaseUrl, adminDisputeUrl } from '@server/features/auth/admin-links'
 import { ADMIN_DASHBOARD_URL_ENV, BASE_URL_PROTOCOLS } from '@server/config'
 
 const BASE = 'https://admin.tenda.test'

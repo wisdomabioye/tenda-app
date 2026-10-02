@@ -39,8 +39,8 @@ import {
   handleGasSeedClaim,
   handleGasSeedConfirm,
 } from '@server/features/gas-seed'
-import { buildOtpSenders } from '@server/lib/onboarding-deps'
-import { deliverOtp } from '@server/lib/otp'
+import { buildOtpSenders } from '@server/features/auth/onboarding-deps'
+import { deliverOtp } from '@server/features/auth/otp'
 import {
   drizzleVerifyTxStore,
   verifyTxJobHandler,

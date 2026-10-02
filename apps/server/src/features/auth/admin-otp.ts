@@ -22,8 +22,8 @@ import {
   OTP_TTL_SECONDS,
   OTP_MAX_ATTEMPTS,
   OTP_CODE_DIGITS,
-} from '@server/lib/otp'
-import { normalizeAdminEmail } from '@server/lib/admin-auth'
+} from '@server/features/auth/otp'
+import { normalizeAdminEmail } from '@server/features/auth/admin-auth'
 import { sendViaResend } from '@server/lib/email'
 import type { AppDatabase } from '@server/plugins/db'
 

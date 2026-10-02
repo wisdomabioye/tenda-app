@@ -12,7 +12,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { apiRoutes } from '@tenda/shared'
-import { DEMO_SCOPE, DEMO_SCOPE_ROUTES, scopeAllows } from '@server/lib/auth/scope'
+import { DEMO_SCOPE, DEMO_SCOPE_ROUTES, scopeAllows } from '@server/features/auth/scope'
 
 test('an UNSCOPED token is unrestricted — the ordinary session, a real agent included', () => {
   assert.equal(scopeAllows(undefined, apiRoutes.agent.tasks), true)

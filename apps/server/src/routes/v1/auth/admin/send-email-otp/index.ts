@@ -12,8 +12,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
-import { resolveAdminEmailSender, sendAdminLoginOtp } from '@server/lib/admin-otp'
-import { OTP_TTL_SECONDS } from '@server/lib/otp'
+import { resolveAdminEmailSender, sendAdminLoginOtp } from '@server/features/auth/admin-otp'
+import { OTP_TTL_SECONDS } from '@server/features/auth/otp'
 
 interface Body {
   email?: unknown

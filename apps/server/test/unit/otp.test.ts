@@ -21,7 +21,7 @@ import {
   type OtpChannel,
   type OtpDeps,
   type OtpStore,
-} from '@server/lib/otp'
+} from '@server/features/auth/otp'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const PHONE = '+2348012345678'

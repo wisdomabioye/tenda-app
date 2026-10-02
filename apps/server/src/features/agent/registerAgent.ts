@@ -18,7 +18,7 @@ import { users, user_wallets } from '@tenda/shared/db/schema'
 import { AppError, requireNonEmptyString } from '@server/lib/errors'
 import { resolveUserByWallet } from '@server/lib/auth/resolver'
 import { normalizeWalletAddress } from '@server/lib/auth/wallet-address'
-import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
+import { verifyWalletAuth } from '@server/features/auth/strategies/wallet'
 
 export interface AgentRegistration {
   user: User

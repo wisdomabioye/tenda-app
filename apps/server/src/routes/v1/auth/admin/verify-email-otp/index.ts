@@ -15,7 +15,7 @@ import { ErrorCode } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
-import { verifyAdminLoginOtp } from '@server/lib/admin-otp'
+import { verifyAdminLoginOtp } from '@server/features/auth/admin-otp'
 
 interface Body {
   email?: unknown
