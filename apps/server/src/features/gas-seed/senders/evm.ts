@@ -30,7 +30,7 @@
 import { getAddress, keccak256, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { chainById } from '@tenda/shared'
-import type { GasSeedSender, GasSeedTransferStatus } from '../grants'
+import type { GasSeedSender, GasSeedTransferStatus } from '../claim/grants'
 import type { GasSeedFunder } from './index'
 import { evmHotWallet } from '@server/chains/evm/hot-wallet'
 

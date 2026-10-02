@@ -14,7 +14,7 @@ import type {
   SessionClient,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { GasSeedStore, SeedableChain } from '../grants'
+import type { GasSeedStore, SeedableChain } from './grants'
 import type { GasSeedFunder } from '../senders'
 import {
   claimRefusal,

@@ -13,19 +13,19 @@
 
 import { randomUUID } from 'node:crypto'
 import type { QueueService, JobPayload, EnqueueOptions } from '@server/plugins/queue'
-import { assertNotificationId } from './ids'
-import type { PushData } from './push-data'
+import { assertNotificationId } from './store/ids'
+import type { PushData } from './push/push-data'
 
-export { stableNotificationId } from './ids'
+export { stableNotificationId } from './store/ids'
 export {
   chatPushData,
   disputePushData,
   escrowPushData,
   fiatIntentPushData,
-} from './push-data'
-export type { PushData } from './push-data'
-export { persistNotification, toNotificationWire } from './persist'
-export type { PersistDeps, PersistOutcome } from './persist'
+} from './push/push-data'
+export type { PushData } from './push/push-data'
+export { persistNotification, toNotificationWire } from './store/persist'
+export type { PersistDeps, PersistOutcome } from './store/persist'
 
 export interface NotificationInput {
   user_id: string

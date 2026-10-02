@@ -40,7 +40,7 @@ import {
 } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { SOLANA_BLOCKHASH_VALIDITY_SECONDS } from '@tenda/shared'
-import type { GasSeedSender, GasSeedTransferStatus } from '../grants'
+import type { GasSeedSender, GasSeedTransferStatus } from '../claim/grants'
 import type { GasSeedFunder } from './index'
 import {
   commitmentFor,

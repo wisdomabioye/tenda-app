@@ -14,15 +14,15 @@
  */
 
 import type { ModerationDecision } from '@tenda/shared/db/schema/moderation'
-import { moderationConfig } from '@server/features/moderation/config'
-import { cacheKey, inputHash } from '@server/features/moderation/normalize'
+import { moderationConfig } from '@server/features/moderation/core/config'
+import { cacheKey, inputHash } from '@server/features/moderation/core/normalize'
 import { screenKeywords } from '@server/features/moderation/providers/keyword'
 import type {
   ModerationInput,
   ModerationProvider,
   PriceStats,
   Verdict,
-} from '@server/features/moderation/types'
+} from '@server/features/moderation/core/types'
 
 // ---------- seams ---------------------------------------------------------------
 

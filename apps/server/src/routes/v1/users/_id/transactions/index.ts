@@ -5,7 +5,7 @@ import { escrows, escrow_transactions, disputes, gig_details } from '@tenda/shar
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { userFeedPredicate } from '@server/features/escrows/feed'
+import { userFeedPredicate } from '@server/features/escrows/detail/feed'
 
 type TransactionsRoute = UsersContract['transactions']
 

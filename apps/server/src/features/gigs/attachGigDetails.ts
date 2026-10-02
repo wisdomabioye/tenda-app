@@ -23,8 +23,8 @@ import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/features/escrows/routes'
 import { validateGigDetails, type ValidatedGigDetails } from '@server/features/gigs/gig-details'
 import type { AppDatabase } from '@server/plugins/db'
-import { moderateGig } from '@server/features/moderation/service'
-import { buildModerationDeps } from '@server/features/moderation/store'
+import { moderateGig } from '@server/features/moderation/core/service'
+import { buildModerationDeps } from '@server/features/moderation/core/store'
 
 export type GigDetailsRow = typeof gig_details.$inferSelect
 

@@ -18,7 +18,7 @@ import {
   type ModerationDeps,
   type ModerationStore,
   type VerdictCache,
-} from '@server/features/moderation/service'
+} from '@server/features/moderation/core/service'
 import {
   openRouterProvider,
   openRouterTransport,

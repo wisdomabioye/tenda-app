@@ -18,7 +18,7 @@
  */
 
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
-import type { GasSeedSender } from '../grants'
+import type { GasSeedSender } from '../claim/grants'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import {
   gasSeedAddressFromSecret,

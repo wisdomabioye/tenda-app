@@ -7,7 +7,7 @@
 
 import type { PushService } from '@server/chains/types'
 import type { Config } from '@server/config'
-import { sendPush } from '@server/features/notifications/push'
+import { sendPush } from '@server/features/notifications/push/push'
 import type { DevicePlatform, PushLogger } from './shared'
 import { fcmHttpTransport, fcmPushService, type FcmServiceAccount } from './fcm'
 import { apnsHttp2Transport, apnsPushService } from './apns'

@@ -85,7 +85,7 @@ export {
   type GasSeedTransferStatus,
   type SeedableChain,
   type SignedGasSeedTransfer,
-} from './grants'
+} from './claim/grants'
 
 export {
   buildGasSeedSenders,

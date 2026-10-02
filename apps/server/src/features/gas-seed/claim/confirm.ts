@@ -24,7 +24,7 @@
 
 import { GAS_SEED_UNRESOLVED_AFTER_MS } from '@tenda/shared'
 import { RetryableError } from '@server/queue/jobs/verify-tx'
-import type { GasSeedSender, GasSeedStore, GasSeedTransferStatus } from '../grants'
+import type { GasSeedSender, GasSeedStore, GasSeedTransferStatus } from './grants'
 import type { GasSeedClaimStore } from './store'
 import type { GasSeedClaimJob } from './service'
 
