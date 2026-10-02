@@ -22,7 +22,7 @@ import { assets, chains } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
 import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot/seed'
 import { getChainSecrets, resetChainSecretsCache } from '@server/chains/secrets'
-import { buildSeedRows } from '@server/db/seed-v2'
+import { buildSeedRows } from '@server/db/seed/seed-v2'
 
 const skip = !TEST_DB_CONFIGURED
 

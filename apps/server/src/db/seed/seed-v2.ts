@@ -5,11 +5,11 @@
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
  * `CHAIN_<ID>_*` env).
  *
- * The work itself lives in ./seed:
- *   - ./seed/rows  — the pure, manifest + secrets driven row builder
- *   - ./seed/apply — the transactional applier and enablement reconcile
+ * The work itself lives alongside it:
+ *   - ./rows  — the pure, manifest + secrets driven row builder
+ *   - ./apply — the transactional applier and enablement reconcile
  *
- * Re-exported here so `@server/db/seed-v2` stays the import path.
+ * Re-exported here so `@server/db/seed/seed-v2` stays the import path.
  */
 
 import 'dotenv/config'
@@ -18,13 +18,13 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { loadConfig } from '@server/config'
 import { getChainSecrets } from '@server/chains/secrets'
 import { acquireBootLock } from '@server/lib/boot/lock'
-import { buildSeedRows } from './seed/rows'
-import { applySeed } from './seed/apply'
+import { buildSeedRows } from './rows'
+import { applySeed } from './apply'
 
-export { buildSeedRows } from './seed/rows'
-export type { SeedRows, FiatProviderRow } from './seed/rows'
-export { applySeed, applySeedRows, enablementDelta } from './seed/apply'
-export type { EnablementDelta } from './seed/apply'
+export { buildSeedRows } from './rows'
+export type { SeedRows, FiatProviderRow } from './rows'
+export { applySeed, applySeedRows, enablementDelta } from './apply'
+export type { EnablementDelta } from './apply'
 
 /**
  * The CLI seed, exported so a test can drive it.
@@ -64,7 +64,7 @@ export async function runSeed(databaseUrl?: string): Promise<void> {
   }
 }
 
-// Execute only when run directly (tsx src/db/seed-v2.ts), not on import.
+// Execute only when run directly (tsx src/db/seed/seed-v2.ts), not on import.
 if (require.main === module) {
   runSeed().catch((err) => {
     console.error('seed-v2 failed:', err)

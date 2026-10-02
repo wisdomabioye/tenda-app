@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ESCROW_IDL } from '@tenda/shared/idl'
-import { buildSeedRows, enablementDelta } from '@server/db/seed-v2'
+import { buildSeedRows, enablementDelta } from '@server/db/seed/seed-v2'
 import { loadChainSecrets } from '@server/chains/secrets'
 
 const SOL = 'So11111111111111111111111111111111111111112'

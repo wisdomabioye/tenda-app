@@ -14,7 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { chain_contracts, chains, escrows } from '@tenda/shared/db/schema'
-import { applySeed, buildSeedRows } from '@server/db/seed-v2'
+import { applySeed, buildSeedRows } from '@server/db/seed/seed-v2'
 import { loadChainSecrets } from '@server/chains/secrets'
 import {
   assertEscrowContractsKnown,

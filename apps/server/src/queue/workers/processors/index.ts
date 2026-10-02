@@ -18,7 +18,7 @@ import { drizzleEscrowEventStore } from '@server/features/escrows/events'
 import { expireApplicationsHandler } from '@server/queue/jobs/expire-applications'
 import { drizzleApplicationStore } from '@server/features/applications/store'
 import { persistNotification } from '@server/features/notifications'
-import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from './escrow-fanout'
+import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from '../escrow-fanout'
 import {
   buildPushServices,
   routePush,
