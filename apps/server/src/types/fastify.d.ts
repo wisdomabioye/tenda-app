@@ -15,7 +15,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { AppDatabase } from '../plugins/db'
 import type { SessionClient } from '@tenda/shared'
-import type { TokenScope } from '../features/auth/scope'
+import type { TokenScope } from '../features/auth/session/scope'
 // `UserRole` is intentionally NOT imported here. v1's enum and v2's
 // `user_role_v2` enum differ (v2 renames 'dispute_resolver' → 'dispute_admin'
 // + new values). Until #34 cutover removes the v1 schema, JWT.role is typed

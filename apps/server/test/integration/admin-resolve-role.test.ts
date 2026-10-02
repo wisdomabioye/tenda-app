@@ -8,7 +8,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { users, user_identities } from '@tenda/shared/db/schema/identity'
 import { AppError } from '../../src/lib/errors'
-import { resolveAdminCandidates, setAdminRole } from '../../src/features/auth/admin-auth'
+import { resolveAdminCandidates, setAdminRole } from '../../src/features/auth/admin/admin-auth'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED

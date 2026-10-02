@@ -8,7 +8,7 @@ import { isE164, normalizeEmail } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { sendOtp, verifyOtp, type OtpChannel, type OtpDeps } from '@server/features/auth/otp'
-import type { AuthStrategy, ChallengeOutcome, VerifyOutcome, VerifyProof } from '@server/features/auth/strategy'
+import type { AuthStrategy, ChallengeOutcome, VerifyOutcome, VerifyProof } from '@server/features/auth/strategies/strategy'
 
 /** Normalise an identifier for the channel; null when malformed. */
 function normalizeIdentifier(channel: OtpChannel, raw: string): string | null {

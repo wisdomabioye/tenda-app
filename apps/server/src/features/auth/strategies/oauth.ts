@@ -6,8 +6,8 @@
 
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { OidcVerifier } from '@server/features/auth/oidc'
-import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/features/auth/strategy'
+import type { OidcVerifier } from '@server/features/auth/strategies/oidc'
+import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/features/auth/strategies/strategy'
 
 export function oauthStrategy(kind: 'google' | 'apple', verifier: OidcVerifier): AuthStrategy {
   return {

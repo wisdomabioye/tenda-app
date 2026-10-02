@@ -10,7 +10,7 @@ import type { SessionClient } from '@tenda/shared'
 import type { IncomingHttpHeaders } from 'node:http'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
-import type { TokenScope } from '@server/features/auth/scope'
+import type { TokenScope } from '@server/features/auth/session/scope'
 
 /**
  * What minting actually needs from the app: something that signs.

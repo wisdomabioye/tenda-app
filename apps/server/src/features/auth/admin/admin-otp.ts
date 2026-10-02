@@ -23,7 +23,7 @@ import {
   OTP_MAX_ATTEMPTS,
   OTP_CODE_DIGITS,
 } from '@server/features/auth/otp'
-import { normalizeAdminEmail } from '@server/features/auth/admin-auth'
+import { normalizeAdminEmail } from '@server/features/auth/admin/admin-auth'
 import { sendViaResend } from '@server/features/notifications/email'
 import type { AppDatabase } from '@server/plugins/db'
 

@@ -9,7 +9,7 @@ import { test, before } from 'node:test'
 import * as assert from 'node:assert'
 import { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet, type JWTVerifyGetKey } from 'jose'
 import { AppError } from '@server/lib/errors'
-import { createOidcVerifier, GOOGLE_ISSUERS } from '@server/features/auth/oidc'
+import { createOidcVerifier, GOOGLE_ISSUERS } from '@server/features/auth/strategies/oidc'
 
 const ISS = 'https://accounts.google.com'
 const AUD = 'client-abc.apps.googleusercontent.com'

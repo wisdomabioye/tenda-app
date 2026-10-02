@@ -6,7 +6,7 @@ import { users } from '@tenda/shared/db/schema'
 import type { UserRole } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
-import { DEMO_SCOPE_REFUSAL, scopeAllows } from '@server/features/auth/scope'
+import { DEMO_SCOPE_REFUSAL, scopeAllows } from '@server/features/auth/session/scope'
 
 // Augmentations live in `src/types/fastify.d.ts`.
 

@@ -11,10 +11,10 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
-import { isAuthMethod, type VerifyProof } from '@server/features/auth/strategy'
-import { buildAuthStrategies } from '@server/features/auth/registry'
-import { resolveOrLink, type UserBootstrap } from '@server/features/auth/orchestrator'
-import { mintAuthResponse, sessionClientFromHeaders } from '@server/features/auth/session'
+import { isAuthMethod, type VerifyProof } from '@server/features/auth/strategies/strategy'
+import { buildAuthStrategies } from '@server/features/auth/strategies/registry'
+import { resolveOrLink, type UserBootstrap } from '@server/features/auth/strategies/orchestrator'
+import { mintAuthResponse, sessionClientFromHeaders } from '@server/features/auth/session/session'
 
 interface Body {
   method?: unknown

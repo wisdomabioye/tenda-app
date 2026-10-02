@@ -22,7 +22,7 @@ import {
   resolveUserByWallet,
   findUserByVerifiedEmail,
 } from '@server/lib/auth/resolver'
-import type { VerifiedIdentity, VerifyOutcome } from '@server/features/auth/strategy'
+import type { VerifiedIdentity, VerifyOutcome } from '@server/features/auth/strategies/strategy'
 import type { AppDatabase, AppDb } from '@server/plugins/db'
 
 /** Profile fields captured at first sign-in; applied ONLY on user create. */

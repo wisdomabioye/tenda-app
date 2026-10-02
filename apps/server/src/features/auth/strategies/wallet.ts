@@ -11,13 +11,13 @@
 import type { ChainNamespace } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { drizzleNonceStore, consumeNonce } from '@server/features/auth/nonce'
-import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/features/auth/auth-message'
+import { drizzleNonceStore, consumeNonce } from '@server/features/auth/session/nonce'
+import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/features/auth/session/auth-message'
 import { deriveChainNamespace } from '@server/lib/chain/wallet-signature'
 import { normalizeWalletAddress } from '@server/lib/auth/wallet-address'
 import type { ChainRegistry } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
-import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/features/auth/strategy'
+import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/features/auth/strategies/strategy'
 
 export interface WalletAuthDeps {
   chains: ChainRegistry
