@@ -1,5 +1,5 @@
 /**
- * lib/push-services — JWT shapes (decoded + verified against real
+ * features/notifications/push-services — JWT shapes (decoded + verified against real
  * keypairs), provider-token caching, per-platform routing with loud
  * degradation, unregistered-token accounting.
  */

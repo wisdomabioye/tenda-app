@@ -12,11 +12,11 @@
 
 import { tx_attempts } from '@tenda/shared/db/schema'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
-import { dedupKey } from '@server/core/queue/idempotency'
+import { dedupKey } from '@server/queue/idempotency'
 import type { AppDatabase } from '@server/plugins/db'
 import type { QueueService } from '@server/plugins/queue'
 import { EVENT_BY_TX_TYPE, type EscrowTxType } from '@server/chains/types'
-import type { VerifyTxSource } from '@server/jobs/verify-tx'
+import type { VerifyTxSource } from '@server/queue/jobs/verify-tx'
 
 // ---------- store abstraction --------------------------------------------
 

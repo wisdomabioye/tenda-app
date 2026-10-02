@@ -1,5 +1,5 @@
 /**
- * lib/otp — channel-agnostic issue/verify, every policy branch: per-identifier
+ * features/auth/otp — channel-agnostic issue/verify, every policy branch: per-identifier
  * + per-user rate limits, expiry, attempt cap, single-use, hash round-trip,
  * pre-account (null user) binding, and the phone/email channel split.
  */

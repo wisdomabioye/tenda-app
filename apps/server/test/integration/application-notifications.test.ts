@@ -21,7 +21,7 @@ import { eq } from 'drizzle-orm'
 import { gig_applications } from '@tenda/shared/db/schema'
 import { appEvents, type AppEvents } from '@server/lib/events'
 import { drizzleEscrowEventStore } from '@server/features/escrows/events'
-import { fanOutEscrowEvent, type EscrowFanoutEvent } from '@server/workers/escrow-fanout'
+import { fanOutEscrowEvent, type EscrowFanoutEvent } from '@server/queue/workers/escrow-fanout'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import {
   TEST_DB_CONFIGURED,

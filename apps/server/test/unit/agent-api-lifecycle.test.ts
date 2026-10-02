@@ -17,7 +17,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { RELAY_QUOTE_TTL_SECONDS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
 import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
-import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
+import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/queue/jobs/reconcile-escrows'
 import { AGENT_API_DOCUMENT, AGENT_API_POST, AGENT_API_STABILITY } from '@tenda/api-doc'
 import { plainProse } from '../helpers/document-prose'
 

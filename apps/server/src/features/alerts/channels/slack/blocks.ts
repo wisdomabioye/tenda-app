@@ -13,7 +13,7 @@
  *      truncate a title full of ampersands five times earlier than a plain one.
  *   2. escape (`field` again, same call).
  *   3. cap for SLACK (`section`/`context`), on the assembled, already-escaped
- *      text. This is the order lib/slack/format.ts requires, and it is what
+ *      text. This is the order features/alerts/slack/format.ts requires, and it is what
  *      guarantees the hard limit — step 1 cannot, because escaping expands.
  *
  * Step 3 is load-bearing, not decorative: `REASON_MAX` ampersands expand 5x to

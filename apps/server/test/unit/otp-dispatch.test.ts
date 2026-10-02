@@ -1,5 +1,5 @@
 /**
- * lib/otp delivery seam — `deliverOtp` (channel routing) + `otpDispatch`
+ * features/auth/otp delivery seam — `deliverOtp` (channel routing) + `otpDispatch`
  * (queue-vs-inline selection). These back the bigger-hammer fix: the auth
  * challenge persists the code then hands delivery to `dispatch`, so the
  * response never blocks on the email/SMS provider.

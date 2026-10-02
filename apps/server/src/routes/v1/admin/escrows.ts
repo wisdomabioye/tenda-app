@@ -23,7 +23,7 @@ import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
 import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { buildEscrowDossier } from '@server/features/escrows/detail/dossier'
 import { publishGigFeedChange } from '@server/features/gig-feed-realtime'
 
@@ -203,7 +203,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     // too — a restored listing left dead on screen is the same bug reversed.
     //
     // It reaches PARTIES ONLY and cannot do more: `authorizeChannel` admits
-    // only parties and assignees to `escrow:<id>` (lib/ws.ts). A stranger's
+    // only parties and assignees to `escrow:<id>` (realtime/ws.ts). A stranger's
     // stale screen is re-synced by the 409 refusal instead, never by this.
     //
     // Empty `tx_ref` — nothing was signed, and TransactionMonitor early-returns

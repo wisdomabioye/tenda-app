@@ -39,7 +39,7 @@ export interface TokenSigner {
  *   that care pair it with facts a caller cannot assert (a registered device, a
  *   verified phone). See shared constants/session.ts.
  *
- * @param scope Restricts what the token may reach (`lib/auth/scope.ts`). Passed
+ * @param scope Restricts what the token may reach (`features/auth/scope.ts`). Passed
  *   ONLY by the demo session; every other mint site omits it and the token is
  *   unrestricted, which is what keeps a real agent's session a full one.
  *

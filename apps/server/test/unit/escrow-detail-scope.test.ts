@@ -1,5 +1,5 @@
 /**
- * The detail-route-specific read gates (`lib/escrow-detail-scope`): the admin
+ * The detail-route-specific read gates (`features/escrows/detail/scope`): the admin
  * rung on top of party membership, and the private-half projection.
  *
  * The two party rungs themselves are NOT tested here — they live in

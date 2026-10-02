@@ -147,7 +147,7 @@ test('auth strategies: each refuses a proof of the wrong KIND', { skip }, async 
  *                   That test was written for this tranche and then deleted; a
  *                   flaky race case would be worse than this note.
  *
- *   lib/auth/orchestrator.ts 214, 238, 246
+ *   features/auth/orchestrator.ts 214, 238, 246
  *                   'user insert returned no row', 'identity race winner not
  *                   found', 'resolved user row missing'. 500s guarding states
  *                   the database cannot produce for a caller: an INSERT ...

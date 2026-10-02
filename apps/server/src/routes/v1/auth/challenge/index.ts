@@ -7,7 +7,7 @@
  *
  * Optional auth: a bearer binds the OTP to the current user (link flow);
  * anonymous issues a pre-account code (passwordless sign-in). Per-IP rate
- * limited on top of the per-identifier DB cap (lib/otp), the public surface
+ * limited on top of the per-identifier DB cap (features/auth/otp), the public surface
  * must not become an SMS/email-cost or enumeration oracle.
  */
 

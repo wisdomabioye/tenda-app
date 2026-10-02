@@ -4,7 +4,7 @@
  * DERIVED from `ManyNotificationInput` rather than declared beside it, so the
  * shape a kind writes and the shape the fan-out accepts are the same type. A
  * hand-listed `{ title, body, data }` would compile identically today and drift
- * the moment lib/notify grows a field — which is exactly how `escrowId` once
+ * the moment features/notifications grows a field — which is exactly how `escrowId` once
  * became `escrow_id` at one of nine call sites (see the notify docstring).
  *
  * `idFor` and `persist` are excluded deliberately: they are DELIVERY decisions,

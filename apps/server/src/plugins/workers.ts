@@ -31,8 +31,8 @@ import {
   type JobName,
   type JobPayload,
 } from '@server/plugins/queue'
-import { buildProcessors } from '@server/workers/processors'
-import { RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
+import { buildProcessors } from '@server/queue/workers/processors'
+import { RECONCILE_INTERVAL_MS } from '@server/queue/jobs/reconcile-escrows'
 
 /**
  * Per-queue worker parallelism. `Record<JobName, number>` so a new queue cannot

@@ -1,5 +1,5 @@
 /**
- * lib/auth/strategies/oauth — maps a verified id_token to an identity outcome.
+ * features/auth/strategies/oauth — maps a verified id_token to an identity outcome.
  * The OIDC verifier is injected, so this tests the mapping (incl. Apple's
  * no-email case) without network.
  */

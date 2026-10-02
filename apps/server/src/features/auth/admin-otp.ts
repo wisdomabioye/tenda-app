@@ -1,7 +1,7 @@
 /**
  * Admin-dashboard email-OTP login (#86), send/verify service over the
  * email_otps table. Reuses the scrypt code hashing + TTL/attempt policy
- * from lib/otp.ts (phone) so the two OTP channels can't drift.
+ * from features/auth/otp.ts (phone) so the two OTP channels can't drift.
  *
  * Anti-enumeration: send NEVER reveals whether an email belongs to an
  * admin, unknown emails, demoted/suspended admins, and internally

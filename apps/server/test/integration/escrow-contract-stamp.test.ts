@@ -273,7 +273,7 @@ test('an UNSTAMPED escrow still builds — no backfill was required', { skip }, 
 
 test('the public gig detail does NOT expose the escrow contract', { skip }, async () => {
   // Adding a column to `escrows` is one `select()` away from appearing on a
-  // public payload — `lib/escrow/dossier.ts` selects the whole row on purpose.
+  // public payload — `features/escrows/detail/dossier.ts` selects the whole row on purpose.
   // The public detail surfaces are narrowed selects and must stay that way.
   const app = getApp()
   const creator = await createUser(app)

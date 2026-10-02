@@ -242,7 +242,7 @@ test('buildPermitPayload: an asset the registry reports as native is 422', async
  *   Reaching it needs a third action the type does not permit, i.e. a cast at
  *   the call site — testing the cast, not the product.
  *
- *   lib/escrow-routes.ts:159  `assertEscrowStatus`'s default, 'schema drift'.
+ *   features/escrows/routes.ts:159  `assertEscrowStatus`'s default, 'schema drift'.
  *   The function is module-private and its only input is the `escrows.status`
  *   column, whose pg enum and the `EscrowStatus` union are 1:1 by design. It
  *   takes a plain `string` — so it WOULD be trivially testable if exported —

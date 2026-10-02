@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { WsServerFrame } from '@tenda/shared'
-import type { WsBroadcaster } from '@server/lib/ws'
+import type { WsBroadcaster } from '@server/realtime/ws'
 import { createRecentEventCache } from './recent-event-cache'
 import {
   REALTIME_ENVELOPE_SCHEMA_VERSION,

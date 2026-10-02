@@ -2,7 +2,7 @@
  * Consumer auth OTP, channel-agnostic issue/verify over the `auth_otps`
  * table (Stage 9 generalised the former phone-only service to phone + email;
  * one lifecycle so the two channels can't drift). Admin login OTP lives in
- * lib/admin-otp.ts (separate table + anti-enumeration semantics).
+ * features/auth/admin-otp.ts (separate table + anti-enumeration semantics).
  *
  * Rules enforced here (route handlers stay thin):
  *   - send: 3 sends per identifier per hour; 10 per user per day (only when

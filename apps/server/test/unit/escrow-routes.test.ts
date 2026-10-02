@@ -1,5 +1,5 @@
 /**
- * Pure-helper tests for lib/escrow-routes.ts. `loadEscrowOr404` and
+ * Pure-helper tests for features/escrows/routes.ts. `loadEscrowOr404` and
  * `guardTransition` need a real Drizzle db so they're covered by route
  * integration tests once the v2 schema lands at #34.
  */

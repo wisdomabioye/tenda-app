@@ -20,7 +20,7 @@ import { escrows, tx_attempts } from '@tenda/shared/db/schema/escrow'
 import { EVENT_BY_TX_TYPE, type ChainRegistry, type EscrowTxType } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import type { JobPayload, QueueService } from '@server/plugins/queue'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 import { RECONCILE_INTERVAL_MS, RECONCILE_GIVE_UP_MS } from '@tenda/shared'
 
 // ---------- policy constants ---------------------------------------------

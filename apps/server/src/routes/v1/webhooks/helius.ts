@@ -24,7 +24,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { solanaSecret } from '@server/chains/secrets'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 
 /** Defensive signature extraction from Helius enhanced-webhook items. */
 export function extractSignatures(payload: unknown): string[] {

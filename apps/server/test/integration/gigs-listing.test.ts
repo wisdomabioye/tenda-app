@@ -2,7 +2,7 @@
  * CO2 route matrix — public feed + my-gigs + device-token pruning:
  *   GET /v1/gigs       (status/deadline visibility, filters, search)
  *   GET /v1/gigs?mine= (full authenticate incl. suspended rejection)
- *   workers/processors removeTokens (provider-dead push-token pruning)
+ *   queue/workers/processors removeTokens (provider-dead push-token pruning)
  *
  * Real app via fastify.inject; gated on TEST_DATABASE_URL (helpers/test-app).
  */
@@ -11,7 +11,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { POSTED_ESCROW_STATUSES } from '@tenda/shared'
-import { removeTokens } from '@server/workers/processors'
+import { removeTokens } from '@server/queue/workers/processors'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -169,7 +169,7 @@ test('GET /v1/gigs?mine=working: rows where I am (assigned) counterparty', { ski
   assert.strictEqual(res.json().total, 2)
 })
 
-// ---------- device-token pruning (workers/processors.removeTokens) -----------------
+// ---------- device-token pruning (queue/workers/processors.removeTokens) -----------------
 
 test('removeTokens: prunes provider-dead tokens, leaves the rest', { skip }, async () => {
   const app = getApp()

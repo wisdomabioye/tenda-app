@@ -83,7 +83,7 @@ test('a role WITHOUT disputes.mediate is never paged', { skip }, async () => {
 // ---------- suspension ----------------------------------------------------------
 
 test('a SUSPENDED mediator is excluded — they cannot open what they are paged about', { skip }, async () => {
-  // plugins/auth.ts and lib/auth/session.ts both reject a suspended account, so
+  // plugins/auth.ts and features/auth/session.ts both reject a suspended account, so
   // paging one is noise AND makes the roster look staffed when it is not.
   const active = await admin('dispute_admin')
   const locked = await admin('dispute_admin', { suspended: true })

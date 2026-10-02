@@ -1,6 +1,6 @@
 /**
  * Low-level Slack incoming-webhook transport. The Slack counterpart of
- * lib/email.ts's `sendViaResend`: it knows how to deliver a message and
+ * features/notifications/email.ts's `sendViaResend`: it knows how to deliver a message and
  * nothing about what the message is for. Higher layers compose the text.
  *
  * No SDK: an incoming webhook is a plain JSON POST, so @slack/webhook would
@@ -11,7 +11,7 @@
  * them, not to the transport. Note the two shapes: a non-2xx becomes an
  * AppError, while a timeout or a DNS/connection failure surfaces as whatever
  * fetch rejects with (a DOMException for the abort). Catch broadly, not on
- * AppError alone — the same contract lib/email.ts's sendViaResend has.
+ * AppError alone — the same contract features/notifications/email.ts's sendViaResend has.
  */
 
 import { ErrorCode } from '@tenda/shared'

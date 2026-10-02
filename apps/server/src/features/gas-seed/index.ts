@@ -36,7 +36,7 @@
  *      the registration for both endpoints);
  *   3. delete the registry lines for BOTH queues — `'gas-seed'` and
  *      `'gas-seed-confirm'` (#58 split broadcasting from confirming) — in
- *      `plugins/queue/payloads.ts`, `workers/processors.ts`, and
+ *      `plugins/queue/payloads.ts`, `queue/workers/processors.ts`, and
  *      `plugins/workers.ts`'s `WORKER_CONCURRENCY`; that last one is not
  *      optional, the map is `Record<JobName, number>` and omitting an entry
  *      fails the type check;

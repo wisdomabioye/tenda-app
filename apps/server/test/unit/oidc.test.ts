@@ -1,5 +1,5 @@
 /**
- * lib/auth/oidc — OIDC id_token verification. Uses a locally-generated RSA
+ * features/auth/oidc — OIDC id_token verification. Uses a locally-generated RSA
  * keypair + createLocalJWKSet so the tests drive the REAL jose signature +
  * claim verification (not a mock): valid token, expired, wrong audience,
  * wrong issuer, bad signature, missing sub, and email_verified coercion.

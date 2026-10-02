@@ -131,7 +131,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       conditions.push(isNull(disputes.resolved_at), eq(escrows.status, 'disputed'))
     }
     if (status === 'resolved') conditions.push(isNotNull(disputes.resolved_at))
-    // Already narrowed — the vocabulary lives in lib/disputes/list-query.ts,
+    // Already narrowed — the vocabulary lives in features/disputes/list-query.ts,
     // never re-spelled here.
     if (kind !== undefined) conditions.push(eq(escrows.kind, kind))
     // Claim-pool views (CO7): my caseload vs the unclaimed pool.
@@ -179,7 +179,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
   // POST /v1/admin/disputes/:id/claim, take the dispute from the open pool
   // (CO7). Semantics — atomic race, party refusal, failure shapes — live in
-  // lib/disputes/claim-store.
+  // features/disputes/claim-store.
   fastify.post<{
     Params: { id: string }
     Reply: { id: string; assigned_to_id: string } | ApiError

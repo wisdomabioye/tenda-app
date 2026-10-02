@@ -1,8 +1,8 @@
 /**
- * The Slack alert channel — an `AlertChannel` over lib/slack's generic
+ * The Slack alert channel — an `AlertChannel` over features/alerts/slack's generic
  * transport.
  *
- * The split is the point: lib/slack knows how to post to a webhook and nothing
+ * The split is the point: features/alerts/slack knows how to post to a webhook and nothing
  * about disputes, this file knows about alerts and nothing about HTTP. So the
  * transport stays reusable by anything else that wants Slack, and swapping this
  * channel out is deleting this folder and one line of ../../registry.

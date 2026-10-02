@@ -1,5 +1,5 @@
 /**
- * Escrow-event push/WS fan-out. MOVED here out of workers/processors.ts — not
+ * Escrow-event push/WS fan-out. MOVED here out of queue/workers/processors.ts — not
  * copied — to keep that file under the size budget and to unit-test the copy in
  * isolation. Nothing of it remains there: processors.ts builds the deps and
  * calls `fanOutEscrowEvent`, and this module owns the description of what it
@@ -33,7 +33,7 @@
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { escrows } from '@tenda/shared/db/schema/escrow'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { alertRefForEscrowEvent, enqueueAlert } from '@server/features/alerts'
 import type { EscrowRepublishEvent } from '@server/features/escrows/events'
 import { APPLICANT_NOTICE, noticeCopyFor, partyNoticeFor } from './copy'
@@ -44,7 +44,7 @@ import { publishGigFeedChange, type GigFeedChange } from '@server/features/gig-f
 // `export` what survives to runtime, and no __exportStar loop is emitted.
 //
 // The subscriber expansion is re-exported but NOT called from this file any
-// more: step 3 below enqueues it, and workers/processors.ts binds it to the
+// more: step 3 below enqueues it, and queue/workers/processors.ts binds it to the
 // 'fanout-subscribers' queue. The barrel stays its one import surface so that
 // move did not change how anything reaches it.
 export { fanOutNewGigToSubscribers, SUBSCRIBER_PAGE_SIZE } from './subscribers'
@@ -58,7 +58,7 @@ export {
 export type { NoticeCopy, EventNotice, ResolvedNotice } from './copy'
 
 /**
- * The republish payload. Owned by lib/escrow-events so this consumer and
+ * The republish payload. Owned by features/escrows/events so this consumer and
  * verify-tx (the producer) share one declaration instead of two hand-kept
  * copies — re-exported here because every caller of this module already
  * imports the name from it.

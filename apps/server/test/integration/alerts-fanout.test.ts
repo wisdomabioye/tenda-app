@@ -30,10 +30,10 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
-import { buildVerifyTxDeps } from '@server/workers/processors'
+import { buildVerifyTxDeps } from '@server/queue/workers/processors'
 import { channelsFor } from '@server/features/alerts'
 import type { AlertChannel } from '@server/features/alerts'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { installCapture, interceptQueue, type SideEffectCapture } from '../helpers/side-effects'
 import { republishEvent } from '../helpers/republish-event'
 import {

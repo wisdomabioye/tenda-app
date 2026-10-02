@@ -35,7 +35,7 @@
  */
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
-import { buildVerifyTxDeps, buildProcessors } from '@server/workers/processors'
+import { buildVerifyTxDeps, buildProcessors } from '@server/queue/workers/processors'
 import { slackEnvKey } from '@server/features/alerts/slack'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import type { CapturedAlert } from '../helpers/queue-double'

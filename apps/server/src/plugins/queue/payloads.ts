@@ -14,7 +14,7 @@
  * pays for it. The `AlertJob` import below depends on that.
  */
 
-import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
+import type { VerifyTxJobPayload } from '@server/queue/jobs/verify-tx'
 import type { OtpMessage } from '@server/features/auth/otp'
 // TYPE-ONLY, and it must stay that way: features/alerts/types/channel.ts
 // imports `QueueService` back from this module's barrel, so the two reference
@@ -87,7 +87,7 @@ export interface JobPayload {
   'sweep-escrows': {
     tick_id: string
   }
-  /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */
+  /** Imported from `queue/jobs/verify-tx.ts` so producer + handler share one shape. */
   'verify-tx': VerifyTxJobPayload
   reconcile: {
     /**

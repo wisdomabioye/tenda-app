@@ -1,5 +1,5 @@
 /**
- * resolveAdminCandidates + setAdminRole (lib/admin-auth.ts) — the lookup +
+ * resolveAdminCandidates + setAdminRole (features/auth/admin-auth.ts) — the lookup +
  * promote cores behind `pnpm admin:grant-email` and `pnpm admin:bootstrap`.
  * resolveAdminCandidates is read-only; setAdminRole PROMOTES only.
  */

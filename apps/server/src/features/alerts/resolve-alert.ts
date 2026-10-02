@@ -3,7 +3,7 @@
  * channel renders.
  *
  * A mapped record rather than a `switch`, matching `WORKER_CONCURRENCY`
- * (plugins/workers.ts) and `buildProcessors` (workers/processors.ts). The
+ * (plugins/workers.ts) and `buildProcessors` (queue/workers/processors.ts). The
  * mapped type is exhaustive, so a new `AlertKind` fails the build here until it
  * has a resolver — where a `switch` would need a `default` that either throws
  * at runtime or silently returns null, both of which move the failure out of

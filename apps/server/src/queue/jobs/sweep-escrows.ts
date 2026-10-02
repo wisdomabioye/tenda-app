@@ -4,7 +4,7 @@
  *
  * The gap it closes. Both terminal-by-timeout states end with money sitting in
  * a contract that only one address could previously withdraw it to — and that
- * address belongs to whoever posted the gig. `jobs/expire-escrows` already
+ * address belongs to whoever posted the gig. `queue/jobs/expire-escrows` already
  * NOTIFIES them, which works for a person with the app installed and does
  * nothing at all for an agent that has crashed. #43 made `refundExpired` and
  * `reclaimAbandoned` permissionless on EVM, so the server can now finish the
@@ -147,7 +147,7 @@ export const SWEEP_BATCH_LIMIT = 50
 /**
  * How long after a window closes the creator keeps the first move.
  *
- * They are notified the moment it closes (`jobs/expire-escrows`), and their own
+ * They are notified the moment it closes (`queue/jobs/expire-escrows`), and their own
  * refund costs them gas they may prefer to spend themselves — on their own
  * schedule, and in the case of an exchange offer possibly alongside a re-post.
  * A day is long enough that an ordinary person acts first and short enough that

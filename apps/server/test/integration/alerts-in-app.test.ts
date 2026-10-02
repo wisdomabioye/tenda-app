@@ -9,7 +9,7 @@
  * in test/unit/alerts-in-app-copy.test.ts.
  *
  * The queue is a double: this channel's job is to PRODUCE notification jobs,
- * and what the delivery worker then does with them is lib/notify's contract,
+ * and what the delivery worker then does with them is features/notifications's contract,
  * covered by its own tests.
  *
  * Gated on TEST_DATABASE_URL.

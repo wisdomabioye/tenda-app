@@ -58,7 +58,7 @@ export type { ChannelSelector } from './enqueue-alert'
 
 /**
  * The gas-seed hot-wallet monitor (#53b item 4) — a repeatable, wired in
- * workers/processors.ts. Under alerts rather than under the seed so the
+ * queue/workers/processors.ts. Under alerts rather than under the seed so the
  * dependency between the two features runs one way; see the module for why.
  */
 export { handleGasSeedBalanceCheck } from './monitors/gas-seed-balance'

@@ -34,7 +34,7 @@ import {
 
 /**
  * Decoupled DB surface, matches the `SponsorStore` / `NonceStore` pattern
- * (see lib/sponsor.ts, lib/nonce.ts). Lets unit tests use an in-memory
+ * (see lib/sponsor.ts, features/auth/nonce.ts). Lets unit tests use an in-memory
  * implementation without standing up Postgres.
  */
 export interface VerifyTxStore {
@@ -80,7 +80,7 @@ export function drizzleVerifyTxStore(db: AppDatabase): VerifyTxStore {
 // ---------- payload ------------------------------------------------------
 
 /** Origin of a verify-tx enqueue; `sweep` is the platform broadcasting a
- *  creator's own refund for them (#43, see lib/tx-attempts `source`). */
+ *  creator's own refund for them (#43, see features/escrows/tx-attempts `source`). */
 export type VerifyTxSource = 'webhook' | 'polling' | 'client-hint' | 'reconcile' | 'sweep'
 
 export interface VerifyTxJobPayload {
@@ -147,7 +147,7 @@ export interface VerifyTxDeps {
    * time one was added. Best-effort: a republish failure must not fail the
    * (already-applied) state transition.
    *
-   * The payload shape is owned by lib/escrow-events (see EscrowRepublishEvent)
+   * The payload shape is owned by features/escrows/events (see EscrowRepublishEvent)
    * so this side and the fan-out cannot drift as fields are added.
    */
   republish(event: EscrowRepublishEvent): Promise<void>
@@ -157,7 +157,7 @@ export interface VerifyTxDeps {
 // ---------- idempotency key ---------------------------------------------
 
 /**
- * BullMQ jobId factory. Spec lives in core/queue/idempotency.ts (Stage 2);
+ * BullMQ jobId factory. Spec lives in queue/idempotency.ts (Stage 2);
  * Stage 0 inlines the format so the queue plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
@@ -178,7 +178,7 @@ export function verifyTxDedupKey(args: {
 }): string {
   // BullMQ does NOT ban ':' outright — an earlier version of this comment said
   // it did, and that was wrong in a way that would mislead the next person to
-  // need a keyed id (core/queue/idempotency.ts emits colons on purpose).
+  // need a keyed id (queue/idempotency.ts emits colons on purpose).
   //
   // The real rule, from `Job.validateOptions` (bullmq 5.78,
   // classes/job.js:1041-1050) and confirmed against a live queue: a custom

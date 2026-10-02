@@ -1,5 +1,5 @@
 /**
- * lib/escrow-events — the event→DB application table. Every event maps to
+ * features/escrows/events — the event→DB application table. Every event maps to
  * its status guard, tx type, derived columns and actor; replays absorb via
  * the guard.
  */

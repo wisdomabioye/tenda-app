@@ -12,7 +12,7 @@
  * is the only thing standing between a Slack 503 and permanent silence.
  *
  * Named for the direction of travel, paired with ./enqueue-alert, the same way
- * workers/escrow-fanout/enqueue-notice.ts reads.
+ * queue/workers/escrow-fanout/enqueue-notice.ts reads.
  */
 
 import { channelByName } from './registry'

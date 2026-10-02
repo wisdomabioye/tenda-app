@@ -7,7 +7,7 @@
  * whether they won, which lives on the application.
  *
  * The gig is nested as the standard `GigSummary` so the client reuses the same
- * card it renders everywhere else (lib/gig-read's stated purpose).
+ * card it renders everywhere else (features/gigs/gig-read's stated purpose).
  */
 
 import type { FastifyPluginAsync } from 'fastify'

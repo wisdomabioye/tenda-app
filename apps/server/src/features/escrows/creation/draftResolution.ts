@@ -191,14 +191,14 @@ export function draftColumns(args: DraftInsert): typeof escrows.$inferInsert & D
     // CURRENT deployment — but it must be recorded, because by the time a
     // transition is built "current" may mean a different contract and the
     // funds will not have moved with it. Re-attested from the EscrowCreated
-    // log when the tx lands (lib/escrow-events).
+    // log when the tx lands (features/escrows/events).
     escrow_contract: args.escrow_contract,
     accept_window_seconds: terms.accept_window_seconds,
     // Provisional, and only that. The OWNER's own list (/v1/users/:id/escrows
     // serves drafts too) projects `accept_deadline` and the clients render it,
     // so a draft cannot carry a blank where every other escrow shows a date.
     // The expiry job does NOT read this — it filters status open/accepted
-    // (jobs/expire-escrows.ts). `prepareDraftCreate` re-derives the value from
+    // (queue/jobs/expire-escrows.ts). `prepareDraftCreate` re-derives the value from
     // the window when the create is actually built, and THAT is what reaches
     // the chain (#41).
     accept_deadline: new Date(args.now.getTime() + terms.accept_window_seconds * 1000),

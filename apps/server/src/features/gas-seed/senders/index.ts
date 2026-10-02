@@ -7,7 +7,7 @@
  * a DB row + env var, no code change". That was true only inside a
  * namespace that already had a sender, and until #53a only Solana did: two
  * separate places hardcoded `namespace === 'solana'` — the deps builder (now
- * ../trigger, then in lib/onboarding-deps) and the funder-address resolution in
+ * ../trigger, then in features/auth/onboarding-deps) and the funder-address resolution in
  * db/seed/rows. Both
  * now ask here, so a third namespace is ONE entry in this record and nothing
  * else, and the two can no longer disagree about which chains are seedable.

@@ -15,7 +15,7 @@ import type { FastifyInstance } from 'fastify'
 import { GAS_SEED_LOW_BALANCE_GRANTS } from '@tenda/shared'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { drizzleEscrowEventStore } from '@server/features/escrows/events'
-import { expireApplicationsHandler } from '@server/jobs/expire-applications'
+import { expireApplicationsHandler } from '@server/queue/jobs/expire-applications'
 import { drizzleApplicationStore } from '@server/features/applications/store'
 import { persistNotification } from '@server/features/notifications'
 import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from './escrow-fanout'
@@ -45,15 +45,15 @@ import {
   drizzleVerifyTxStore,
   verifyTxJobHandler,
   type VerifyTxDeps,
-} from '@server/jobs/verify-tx'
-import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/expire-escrows'
-import { drizzleSweepEscrowsStore, handleSweepEscrows } from '@server/jobs/sweep-escrows'
+} from '@server/queue/jobs/verify-tx'
+import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/queue/jobs/expire-escrows'
+import { drizzleSweepEscrowsStore, handleSweepEscrows } from '@server/queue/jobs/sweep-escrows'
 import { drizzleTxAttemptsStore } from '@server/features/escrows/tx-attempts'
 import { getPlatformConfig } from '@server/lib/platform'
-import { handleNotificationRetention } from '@server/workers/notification-retention'
-import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
-import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
-import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
+import { handleNotificationRetention } from '@server/queue/workers/notification-retention'
+import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/queue/jobs/reconcile-escrows'
+import { reconcileFiatIntentsHandler } from '@server/queue/jobs/reconcile-fiat-intents'
+import { expireFiatQuotesHandler } from '@server/queue/jobs/expire-fiat-quotes'
 import {
   drizzlePriceStatsStore,
   updatePriceStatsHandler,
@@ -145,7 +145,7 @@ export function buildProcessors(
   fastify: FastifyInstance,
   // Built ONCE here (default) for the worker's lifetime. Each service instance
   // holds its provider auth-token cache (FCM OAuth access token / APNS JWT,
-  // ~50-min refresh, see lib/push-services). buildProcessors runs once at
+  // ~50-min refresh, see features/notifications/push-services). buildProcessors runs once at
   // worker-plugin init, so rebuilding per delivery would discard the cache and
   // re-exchange the token on every single notification. Injectable for tests.
   pushServices: Partial<Record<DevicePlatform, PushService>> = buildPushServices(

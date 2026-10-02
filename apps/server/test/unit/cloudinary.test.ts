@@ -1,5 +1,5 @@
 /**
- * lib/cloudinary — S5.12 signed upload constraints: per-type formats are
+ * features/uploads/cloudinary — S5.12 signed upload constraints: per-type formats are
  * part of the signature (alphabetical string-to-sign), size guards ride
  * along for the client. Scoped types (chat, dispute) derive a per-sender
  * folder from the scope id.

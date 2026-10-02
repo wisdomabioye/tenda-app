@@ -17,7 +17,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
   // Not the escrow's audit trail. Being a party to an escrow used to be the
   // whole filter, which put the counterparty's actions in your wallet ("Gig
   // accepted", "Proof submitted" on the POSTER's feed). The per-escrow trail
-  // is still complete at GET /v1/escrows/:id/transactions; see lib/escrow-feed
+  // is still complete at GET /v1/escrows/:id/transactions; see features/escrows/feed
   // for why the split is keyed by role and not by `actor_id`.
   fastify.get<{
     Params: TransactionsRoute['params']

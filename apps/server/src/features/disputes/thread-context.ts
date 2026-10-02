@@ -2,7 +2,7 @@
  * Builds the read-only escrow context shown atop the mediation thread (party
  * + mediator view). Pure data assembly (no HTTP), so it is unit-testable and
  * reused by GET /v1/escrows/:id/dispute/messages. Shares the creator-first
- * party derivation with the admin dossier via lib/disputes/parties.
+ * party derivation with the admin dossier via features/disputes/parties.
  */
 import { eq, inArray } from 'drizzle-orm'
 import { gig_details, users } from '@tenda/shared/db/schema'

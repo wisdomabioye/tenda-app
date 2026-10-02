@@ -9,7 +9,7 @@
  * ever appeared in a chat room nobody scrolled back through is as lost as one
  * that only appeared in a feed nobody opened.
  *
- * It produces NOTIFICATION JOBS rather than writing rows itself. lib/notify is
+ * It produces NOTIFICATION JOBS rather than writing rows itself. features/notifications is
  * the single producer of those jobs by design, and going around it would mean
  * re-implementing the stable-id contract, the column clamping and the live WS
  * broadcast — three things that are already right in one place.

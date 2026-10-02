@@ -1,5 +1,5 @@
 /**
- * lib/disputes/parties — the creator-first party derivation shared by the
+ * features/disputes/parties — the creator-first party derivation shared by the
  * admin dossier and the mediation-thread context. Pure functions, no DB.
  */
 import { test } from 'node:test'

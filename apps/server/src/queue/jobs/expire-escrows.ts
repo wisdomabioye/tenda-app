@@ -14,7 +14,7 @@
  *      never re-notify.
  *
  * The repeatable scheduling + worker wiring land with #33 (Redis); the
- * handler is complete and tested now, same pattern as jobs/verify-tx.ts.
+ * handler is complete and tested now, same pattern as queue/jobs/verify-tx.ts.
  */
 
 import { and, eq, gte, isNull, lt } from 'drizzle-orm'

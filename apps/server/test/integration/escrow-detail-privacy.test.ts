@@ -15,7 +15,7 @@
  * Disclosure is PARTY-based and reads no role: the gig route is reached
  * through `identifyViewer` (a bare jwtVerify), whose role claim is up to a
  * 7-day token lifetime stale. Admins read evidence through the dossier — see
- * the module header on lib/escrow-detail-scope.
+ * the module header on features/escrows/detail/scope.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'

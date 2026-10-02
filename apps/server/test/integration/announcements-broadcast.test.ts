@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { notifications, device_tokens } from '@tenda/shared/db/schema'
-import { handleNotificationRetention } from '@server/workers/notification-retention'
+import { handleNotificationRetention } from '@server/queue/workers/notification-retention'
 import {
   NOTIFICATION_RETENTION_READ_DAYS,
   NOTIFICATION_RETENTION_MAX_DAYS,

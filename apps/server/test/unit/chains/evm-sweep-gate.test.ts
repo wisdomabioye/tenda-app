@@ -1,7 +1,7 @@
 /**
  * Whether an EVM chain offers the sweep port at all (#43).
  *
- * The port's presence IS the switch — `jobs/sweep-escrows` skips any chain
+ * The port's presence IS the switch — `queue/jobs/sweep-escrows` skips any chain
  * whose adapter has no `sweep`, silently and forever. So this file guards the
  * one thing that decides whether the platform spends its gas float on other
  * people's refunds on a given chain.

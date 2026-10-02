@@ -5,7 +5,7 @@
  *        to the mediator (disputes.execute). This is the multisig "reject"
  *        vote later; today it simply reopens the dispute for a new proposal.
  * The per-dispute propose / current-proposal routes live on admin/disputes.ts
- * (dispute-scoped); both share lib/disputes/resolution-store.ts.
+ * (dispute-scoped); both share features/disputes/resolution-store.ts.
  */
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq, inArray } from 'drizzle-orm'

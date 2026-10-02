@@ -23,7 +23,7 @@
  */
 
 import { GAS_SEED_UNRESOLVED_AFTER_MS } from '@tenda/shared'
-import { RetryableError } from '@server/jobs/verify-tx'
+import { RetryableError } from '@server/queue/jobs/verify-tx'
 import type { GasSeedSender, GasSeedStore, GasSeedTransferStatus } from '../grants'
 import type { GasSeedClaimStore } from './store'
 import type { GasSeedClaimJob } from './service'
@@ -59,7 +59,7 @@ export type GasSeedConfirmOutcome =
  * Resolve one submitted grant against its chain.
  *
  * THROWS `RetryableError` while the chain has no answer, which is the same
- * signal `jobs/verify-tx` uses for an unconfirmed escrow transaction — BullMQ
+ * signal `queue/jobs/verify-tx` uses for an unconfirmed escrow transaction — BullMQ
  * retries it on the queue's backoff. Every other exit is terminal and returns.
  */
 export async function handleGasSeedConfirm(

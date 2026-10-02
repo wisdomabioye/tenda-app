@@ -24,7 +24,7 @@ import type { TokenScope } from '../features/auth/scope'
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
 import type { ContractRegistry } from '../chains/contracts'
-import type { WsBroadcaster } from '../lib/ws'
+import type { WsBroadcaster } from '../realtime/ws'
 import type { QuoteCache } from '../features/fiat-rails/quote-cache'
 import type { RealtimePublisher } from '../realtime'
 
@@ -95,7 +95,7 @@ declare module '@fastify/jwt' {
        */
       client?: SessionClient
       /**
-       * Restricts what this token may reach (`lib/auth/scope.ts`). Present ONLY
+       * Restricts what this token may reach (`features/auth/scope.ts`). Present ONLY
        * on a demo session; absent means unrestricted, so every token minted
        * before this claim existed keeps working exactly as it did.
        *

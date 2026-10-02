@@ -25,7 +25,7 @@ export async function mediatorUserIds(
   deps: Pick<AlertDeps, 'db' | 'log'>,
   /**
    * Ids to leave out — the escrow's parties. An admin who is a party already
-   * gets the party notice, and `assertCanClaimDispute` (lib/disputes/
+   * gets the party notice, and `assertCanClaimDispute` (features/disputes/
    * claim-store.ts) already bars them from claiming the dispute, so paging
    * them as a mediator is both noise and a contradiction of the conflict rule
    * the rest of the system enforces. Nullable entries are allowed so callers
@@ -67,7 +67,7 @@ export async function mediatorUserIds(
       and(
         inArray(users.role, roles),
         // Suspended admins are locked out at authentication (plugins/auth.ts
-        // and lib/auth/session.ts both reject them), so they cannot open the
+        // and features/auth/session.ts both reject them), so they cannot open the
         // dispute they would be paged about. Alerting them is noise, and worse,
         // it inflates the roster into looking like someone is watching.
         eq(users.status, 'active'),

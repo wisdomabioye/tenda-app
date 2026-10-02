@@ -19,7 +19,7 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { paymasterChainSecret } from '@server/chains/secrets'
 import { verifyHmac } from '@server/core/webhooks/verify-hmac'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 
 const SIGNATURE_HEADER = 'x-alchemy-signature'
 

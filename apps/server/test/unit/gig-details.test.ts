@@ -1,5 +1,5 @@
 /**
- * lib/gig-details — validation matrix for the gig create-detail body
+ * features/gigs/gig-details — validation matrix for the gig create-detail body
  * (POST /v1/gigs). Positive + negative cases per field. Invariant: remote
  * gigs carry no country/city; physical gigs require both. Cross-border is
  * derived by comparing the work country against the creator's country.

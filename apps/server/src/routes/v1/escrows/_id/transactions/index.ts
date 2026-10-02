@@ -8,7 +8,7 @@
  * the only two route maps in the repo.
  *
  * IT IS NOT DEAD, and the difference matters. The rows reach an ADMIN through
- * the dossier (`lib/escrow/dossier.ts` runs the same query) and reach a user's
+ * the dossier (`features/escrows/detail/dossier.ts` runs the same query) and reach a user's
  * own wallet history through GET /v1/users/:id/transactions, which is
  * role-scoped per TX_FEED_VISIBILITY. Neither answers "what happened on chain
  * for THIS escrow" for a PARTY to it — that is what this serves, and no other

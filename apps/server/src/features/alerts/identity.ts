@@ -77,7 +77,7 @@ export function alertIdentity(ref: AlertRef): string {
  * EXACTLY THREE ':'-separated parts, which is a hard BullMQ constraint, not a
  * style choice: it rejects a custom id containing ':' unless it splits into
  * three (bullmq 5.78, classes/job.js — `'Custom Id cannot contain :'`). The
- * three-part shape is also what core/queue/idempotency.ts already emits, so
+ * three-part shape is also what queue/idempotency.ts already emits, so
  * this reads the same in Redis as every other keyed job. `kind` and
  * `AlertChannelName` are colon-free by construction; `REF_KEYS` says the ref
  * key must be too.

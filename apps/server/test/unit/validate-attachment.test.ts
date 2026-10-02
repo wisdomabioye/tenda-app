@@ -1,5 +1,5 @@
 /**
- * lib/uploads/validate-attachment — shared attachment-field validation for
+ * features/uploads/validate-attachment — shared attachment-field validation for
  * chat + dispute message POSTs. All-three-or-none, type/size bounds, and a
  * scope-folder URL check.
  */

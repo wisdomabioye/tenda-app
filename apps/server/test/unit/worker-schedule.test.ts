@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { REPEATABLES, WORKER_CONCURRENCY } from '@server/plugins/workers'
-import { RECONCILE_INTERVAL_MS } from '@server/jobs/reconcile-escrows'
+import { RECONCILE_INTERVAL_MS } from '@server/queue/jobs/reconcile-escrows'
 import type { JobName } from '@server/plugins/queue'
 
 const byName = new Map(REPEATABLES.map((r) => [r.name as string, r]))

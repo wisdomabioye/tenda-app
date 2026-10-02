@@ -1,7 +1,7 @@
 /**
  * The per-kind copy map — which alert kinds Slack can speak about, and how.
  *
- * Split from ./index for the same reason workers/escrow-fanout/copy.ts is split
+ * Split from ./index for the same reason queue/workers/escrow-fanout/copy.ts is split
  * from its fan-out: composing a message is pure, so the wording can be pinned by
  * a unit test with no database, no webhook and no queue. `index.ts` keeps the
  * side effects — reading env, loading names, posting. The wording itself lives
@@ -41,7 +41,7 @@ interface SlackAlertCopy<K extends AlertKind> {
    * comes to be readable by a set of people it was never written for.
    *
    * Typed as `SlackDestinationKey`, so deleting a destination from
-   * lib/slack/destinations.ts fails the build here rather than resolving to
+   * features/alerts/slack/destinations.ts fails the build here rather than resolving to
    * null at delivery and going quietly mute.
    */
   destination: SlackDestinationKey

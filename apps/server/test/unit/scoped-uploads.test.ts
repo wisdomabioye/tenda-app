@@ -1,5 +1,5 @@
 /**
- * lib/uploads/scoped — pure folder + attachment-URL helpers for the scoped
+ * features/uploads/scoped — pure folder + attachment-URL helpers for the scoped
  * upload registry (chat, dispute). The `authorize` half is DB-backed and
  * exercised by the integration suites; here we pin the path construction and
  * the strict URL check that stops a signature being replayed cross-scope.

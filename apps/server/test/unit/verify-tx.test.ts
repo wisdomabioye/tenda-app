@@ -1,5 +1,5 @@
 /**
- * jobs/verify-tx — the full Stage-2 pipeline: dedup → adapter verify →
+ * queue/jobs/verify-tx — the full Stage-2 pipeline: dedup → adapter verify →
  * status-guarded application → attempt stamping → best-effort republish.
  * Offline: fake adapter registry + in-memory stores.
  */
@@ -13,7 +13,7 @@ import {
   type VerifyTxDeps,
   type VerifyTxJobPayload,
   type VerifyTxStore,
-} from '@server/jobs/verify-tx'
+} from '@server/queue/jobs/verify-tx'
 import type {
   ChainAdapter,
   ChainRegistry,

@@ -19,7 +19,7 @@ import type { CursorStore } from '@server/chains/cursors'
 import { createIntervalListener } from '@server/chains/interval-listener'
 import type { ChainId, ChainListener } from '@server/chains/types'
 import type { QueueService } from '@server/plugins/queue'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 
 // ---------- policy constants ---------------------------------------------
 

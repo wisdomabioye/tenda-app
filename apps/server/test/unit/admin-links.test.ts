@@ -1,5 +1,5 @@
 /**
- * lib/admin-links — the only place this server spells an apps/admin route.
+ * features/auth/admin-links — the only place this server spells an apps/admin route.
  *
  * What is actually being pinned here is a DEGRADATION contract, not string
  * concatenation: every function returns null when `ADMIN_DASHBOARD_URL` is

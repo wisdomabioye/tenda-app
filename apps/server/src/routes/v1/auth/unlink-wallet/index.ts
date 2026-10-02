@@ -1,6 +1,6 @@
 /**
  * POST /v1/auth/unlink-wallet, remove a linked wallet. Thin wrapper: validates
- * the body, then delegates to `unlinkWallet` (lib/auth/wallet-unlink) which owns
+ * the body, then delegates to `unlinkWallet` (features/auth/wallet-unlink) which owns
  * the atomic load → guard → delete under a per-user advisory lock. Guards:
  *   1. cannot unlink your ONLY wallet → 409 LAST_WALLET. A wallet is required to
  *      transact, so the account must always keep at least one, this holds even

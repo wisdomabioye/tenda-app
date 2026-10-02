@@ -1,5 +1,5 @@
 /**
- * `lib/fiat-routes` — the /v1/fiat/* feature gate and body narrowing (#105 T1).
+ * `features/fiat-rails/fiat-routes` — the /v1/fiat/* feature gate and body narrowing (#105 T1).
  *
  * Three of the sweep's refusals live here and none had run: the kill switch at
  * 14, `requireStr` at 20, and `optionalStr`'s delegation to it at 27. That last

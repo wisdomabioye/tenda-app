@@ -30,8 +30,8 @@ import {
 } from '@server/features/fiat-rails/providers/licensed-http'
 import { YELLOWCARD_SPEC } from '@server/features/fiat-rails/providers/specs'
 import { mapWebhookOutcome } from '@server/features/fiat-rails/webhooks'
-import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
-import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
+import { reconcileFiatIntentsHandler } from '@server/queue/jobs/reconcile-fiat-intents'
+import { expireFiatQuotesHandler } from '@server/queue/jobs/expire-fiat-quotes'
 import type {
   FiatProvider,
   FiatIntentRow,
