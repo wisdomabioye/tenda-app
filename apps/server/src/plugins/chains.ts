@@ -20,7 +20,7 @@ import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
 import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
 import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
 import { solanaSecret } from '@server/chains/secrets'
-import { assertChainRegistryInSync } from '@server/chains/registry-sync'
+import { assertChainRegistryInSync } from '@server/chains/registry/registry-sync'
 import {
   assertEscrowContractsKnown,
   contractSourcesFromSecrets,

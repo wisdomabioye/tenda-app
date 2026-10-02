@@ -13,7 +13,7 @@
 
 import { encodeAbiParameters, keccak256, toHex, type AbiFunction, type AbiParameter } from 'viem'
 import { ESCROW_KIND_CODE, type EvmCreateParamsWire } from '@tenda/shared'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import type { CreateEscrowPayload } from '@server/chains/types'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS } from './rpc'
 

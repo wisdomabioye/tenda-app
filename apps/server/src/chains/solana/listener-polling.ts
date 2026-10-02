@@ -15,8 +15,8 @@
 
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import type { SolanaRpc } from '@server/chains/solana/rpc'
-import type { CursorStore } from '@server/chains/cursors'
-import { createIntervalListener } from '@server/chains/interval-listener'
+import type { CursorStore } from '@server/chains/listening/cursors'
+import { createIntervalListener } from '@server/chains/listening/interval-listener'
 import type { ChainId, ChainListener } from '@server/chains/types'
 import type { QueueService } from '@server/plugins/queue'
 import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'

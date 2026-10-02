@@ -17,7 +17,7 @@
 
 import { assets, chain_contracts, chains } from '@tenda/shared/db/schema/chains'
 import { chainById, getAssetMeta, type ChainAsset } from '@tenda/shared'
-import { escrowAddressOf } from '@server/chains/registry-sync'
+import { escrowAddressOf } from '@server/chains/registry/registry-sync'
 // Leaf import, not the barrel: this module documents itself as pure (no
 // database), and the barrel pulls in the registry + boot probe, which import
 // drizzle and the db type.

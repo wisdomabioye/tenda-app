@@ -15,7 +15,7 @@ import { resolveSolanaSigner, type EscrowSignerFields } from '@server/chains/sol
 import { evmAdapter } from '@server/chains/evm'
 import type { PaymasterHttp } from '@server/chains/evm/paymaster'
 import { ZERO_ADDRESS, type EvmRpc } from '@server/chains/evm/rpc'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { partyCaller, readSignerPreference } from '@server/lib/escrow'
 import { AppError } from '@server/lib/errors'
 

@@ -7,7 +7,7 @@
 
 import { decodeEventLog } from 'viem'
 import { DISPUTE_WINNER_CODE } from '@tenda/shared'
-import { bytesToUuid } from '@server/chains/ids'
+import { bytesToUuid } from '@server/chains/shared/ids'
 import { ESCROW_EVENTS, type DecodedEvent, type EscrowEvent } from '@server/chains/types'
 import { ESCROW_EVM_ABI } from './rpc'
 import type { EvmReceiptLog } from './rpc'

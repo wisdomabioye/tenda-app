@@ -19,7 +19,7 @@ import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs } from '@server/chains/types'
 import type { EscrowAccount } from '@server/chains/solana/pdas'
 import type { SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
-import { boundPartyAddress } from '@server/chains/signer-role'
+import { boundPartyAddress } from '@server/chains/shared/signer-role'
 
 /** The three fields the resolver reads — structural so tests need no full
  *  IDL account, and the real EscrowAccount always satisfies it. */

@@ -15,7 +15,7 @@ import bs58 from 'bs58'
 import { ErrorCode } from '@tenda/shared'
 import type { TendaEscrow } from '@tenda/shared/idl'
 import { AppError } from '@server/lib/errors'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import {
   PROGRAM_ID,
   decodeEscrowAccount,

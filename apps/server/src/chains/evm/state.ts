@@ -17,7 +17,7 @@
 
 import { AppError } from '@server/lib/errors'
 import { ErrorCode, ESCROW_STATUS_ORDER } from '@tenda/shared'
-import { bytesToUuid } from '@server/chains/ids'
+import { bytesToUuid } from '@server/chains/shared/ids'
 import type { BuildTxArgs, EscrowState } from '@server/chains/types'
 import { escrowIdHex } from './create-params'
 import { ZERO_ADDRESS, type EvmRpc } from './rpc'

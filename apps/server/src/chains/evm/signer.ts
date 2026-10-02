@@ -18,7 +18,7 @@ import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, EscrowState } from '@server/chains/types'
 import { escrowIdHex } from './create-params'
 import { fetchEscrowState, type EvmAdapterContext } from './state'
-import { boundPartyAddress } from '@server/chains/signer-role'
+import { boundPartyAddress } from '@server/chains/shared/signer-role'
 
 /** This chain's state, mapped into the SHARED role rule (signer-role.ts). */
 function boundAddressFor(

@@ -8,7 +8,7 @@
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { escrowPda, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
 import type { BuildTxArgs } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'

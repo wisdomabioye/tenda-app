@@ -11,7 +11,7 @@
 import type { Coder, IdlAccounts } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 
 export type EscrowAccount = IdlAccounts<TendaEscrow>['escrow']
 export type PlatformStateAccount = IdlAccounts<TendaEscrow>['platformState']

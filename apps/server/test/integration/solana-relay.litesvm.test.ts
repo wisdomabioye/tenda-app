@@ -13,7 +13,7 @@ import { Keypair, PublicKey, SystemProgram, VersionedTransaction } from '@solana
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { solanaAdapter } from '@server/chains/solana'
 import { decodeEscrowAccount, escrowPdaFromUuid, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { AppError } from '@server/lib/errors'
 import type { CreateEscrowPayload, RelayedCreateArgs } from '@server/chains/types'
 import { TENDA_RELAY_SCHEME, X402_VERSION, type RelayPaymentPayload, type RelayTerms } from '@tenda/shared'

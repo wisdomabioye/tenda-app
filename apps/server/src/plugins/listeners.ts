@@ -16,7 +16,7 @@ import fp from 'fastify-plugin'
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { chainById } from '@tenda/shared'
 import { getChainSecrets, solanaSecret } from '@server/chains/secrets'
-import { drizzleCursorStore } from '@server/chains/cursors'
+import { drizzleCursorStore } from '@server/chains/listening/cursors'
 import { createSolanaRpc } from '@server/chains/solana/rpc'
 import {
   createSolanaPollingListener,

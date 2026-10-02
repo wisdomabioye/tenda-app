@@ -10,7 +10,7 @@
 import { BN, EventParser, type Program } from '@coral-xyz/anchor'
 import { PublicKey, SystemProgram } from '@solana/web3.js'
 import type { TendaEscrow } from '@tenda/shared/idl'
-import { bytesToUuid } from '@server/chains/ids'
+import { bytesToUuid } from '@server/chains/shared/ids'
 import {
   PROGRAM_ID,
   decodeEscrowAccount,
