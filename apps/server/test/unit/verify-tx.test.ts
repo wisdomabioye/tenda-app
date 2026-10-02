@@ -20,7 +20,7 @@ import type {
   DecodedEvent,
   VerifiedTx,
 } from '@server/chains/types'
-import type { EscrowEventStore, EscrowPatch } from '@server/lib/escrow-events'
+import type { EscrowEventStore, EscrowPatch } from '@server/features/escrows/events'
 import type { EscrowStatus } from '@server/lib/escrow'
 import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 

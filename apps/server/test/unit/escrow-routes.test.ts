@@ -12,7 +12,7 @@ import {
   buildContext,
   deriveCaller,
   requireCaller,
-} from '@server/lib/escrow-routes'
+} from '@server/features/escrows/routes'
 
 const T0 = new Date('2026-05-20T12:00:00Z')
 const T_FUTURE = new Date('2026-06-20T12:00:00Z')

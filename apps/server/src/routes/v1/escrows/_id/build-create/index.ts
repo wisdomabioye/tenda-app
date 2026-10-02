@@ -13,7 +13,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import type { SignerPreferenceBody } from '@tenda/shared'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { prepareDraftCreate } from '@server/features/escrows/creation/prepareDraftCreate'

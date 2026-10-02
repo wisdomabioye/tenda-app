@@ -28,7 +28,7 @@ import {
   type EscrowEventStore,
   type EscrowRepublishEvent,
   type InternalEscrowEvent,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 
 // ---------- store abstraction --------------------------------------------
 

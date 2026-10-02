@@ -32,7 +32,7 @@ import {
   type EscrowEventStore,
   type EscrowEventTransaction,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import type { EscrowStatus } from '@server/lib/escrow'
 import { encodeApprove } from '@tenda/shared'
 

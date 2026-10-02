@@ -28,8 +28,8 @@ import {
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
   scopeMySignerAddress,
-} from '@server/lib/escrow-detail-scope'
-import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
+} from '@server/features/escrows/detail/scope'
+import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import { optionalUserId, uuidParamGuard } from '@server/lib/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'

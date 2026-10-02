@@ -17,7 +17,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
-import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/features/escrows/events'
 import {
   TEST_DB_CONFIGURED,
   FAKE_SOLANA_PROGRAM,

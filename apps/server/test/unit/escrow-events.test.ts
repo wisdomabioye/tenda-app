@@ -13,7 +13,7 @@ import {
   type ApplyEscrowEventDeps,
   type EscrowEventStore,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import {
   ESCROW_EVENTS,
   EVENT_BY_TX_TYPE,

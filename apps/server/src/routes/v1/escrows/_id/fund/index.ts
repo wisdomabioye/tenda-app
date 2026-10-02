@@ -31,7 +31,7 @@ import {
   type RelayPaymentRequired,
   type SignerPreferenceBody,
 } from '@tenda/shared'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { decodePaymentHeader, encodeSettlementHeader } from '@server/lib/x402'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'

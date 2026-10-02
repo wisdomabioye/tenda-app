@@ -13,7 +13,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { assertGigCapacity } from '@server/features/capacity/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact } from '@server/lib/auth/resolver'
-import { guardTransition } from '@server/lib/escrow-routes'
+import { guardTransition } from '@server/features/escrows/routes'
 import { assertCallerWallet, buildEscrowTx, partyCaller, readSignerPreference } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {

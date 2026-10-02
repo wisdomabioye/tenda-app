@@ -12,7 +12,7 @@ import {
   type RecordTxAttemptDeps,
   type RecordTxAttemptInput,
   type TxAttemptRow,
-} from '@server/lib/tx-attempts'
+} from '@server/features/escrows/tx-attempts'
 import type { JobPayload } from '@server/plugins/queue'
 import { queueDouble, type CapturedJob, type QueueDouble } from '../helpers/queue-double'
 

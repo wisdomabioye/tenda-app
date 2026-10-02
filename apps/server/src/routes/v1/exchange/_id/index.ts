@@ -32,8 +32,8 @@ import {
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
   scopeMySignerAddress,
-} from '@server/lib/escrow-detail-scope'
-import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
+} from '@server/features/escrows/detail/scope'
+import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
 import { toExchangePartyRef } from '@server/features/fiat-rails/exchange-read'
 import { USER_COLS } from '@server/lib/users'

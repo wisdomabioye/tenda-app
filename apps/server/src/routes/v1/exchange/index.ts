@@ -35,7 +35,7 @@ import {
 } from '@tenda/shared'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/features/fiat-rails/exchange-read'

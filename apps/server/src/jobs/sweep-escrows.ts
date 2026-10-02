@@ -25,8 +25,8 @@
 import { and, eq, isNull, lt, notExists, isNotNull } from 'drizzle-orm'
 import { escrows, tx_attempts } from '@tenda/shared/db/schema'
 import type { ChainRegistry, SweepableTransition } from '@server/chains/types'
-import type { RecordTxAttemptDeps } from '@server/lib/tx-attempts'
-import { recordTxAttempt } from '@server/lib/tx-attempts'
+import type { RecordTxAttemptDeps } from '@server/features/escrows/tx-attempts'
+import { recordTxAttempt } from '@server/features/escrows/tx-attempts'
 import type { JobPayload } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 

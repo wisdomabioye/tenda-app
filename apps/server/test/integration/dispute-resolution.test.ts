@@ -13,7 +13,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { disputes, dispute_resolutions, escrows } from '@tenda/shared/db/schema'
 import type { DisputeSummary, ResolutionWinner } from '@tenda/shared'
-import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { drizzleEscrowEventStore } from '@server/features/escrows/events'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,

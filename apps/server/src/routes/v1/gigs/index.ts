@@ -16,7 +16,7 @@ import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { attachGigDetails } from '@server/features/gigs/attachGigDetails'
 import {
   assertKnownCountry,

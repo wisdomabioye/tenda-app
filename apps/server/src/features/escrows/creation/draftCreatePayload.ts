@@ -10,7 +10,7 @@
  * not a substitute (see the escrows column comments).
  */
 import type { CreateEscrowPayload } from '@server/chains/types'
-import type { EscrowRow } from '@server/lib/escrow-routes'
+import type { EscrowRow } from '@server/features/escrows/routes'
 
 export interface DraftWindows {
   /** The accept deadline the transaction will encode — DERIVED at build from the draft's window (#41), never the instant a caller sent. */

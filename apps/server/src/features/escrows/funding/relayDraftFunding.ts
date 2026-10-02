@@ -8,9 +8,9 @@
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { ErrorCode, apiRoutes, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { EscrowRow } from '@server/lib/escrow-routes'
+import type { EscrowRow } from '@server/features/escrows/routes'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
-import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/lib/tx-attempts'
+import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/features/escrows/tx-attempts'
 import { prepareDraftCreate } from '@server/features/escrows/creation/prepareDraftCreate'
 
 export type RelayDraftOutcome =

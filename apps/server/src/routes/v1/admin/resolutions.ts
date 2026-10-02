@@ -25,7 +25,7 @@ import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
-import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/lib/tx-attempts'
+import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/features/escrows/tx-attempts'
 import {
   ACTIVE_RESOLUTION_STATUSES,
   getResolutionById,

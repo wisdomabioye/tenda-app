@@ -16,7 +16,7 @@ import {
   scopeMySignerAddress,
   type DetailViewer,
   type EscrowSignerAddressColumns,
-} from '@server/lib/escrow-detail-scope'
+} from '@server/features/escrows/detail/scope'
 import type { EscrowPartyColumns } from '@server/lib/escrow-party'
 
 const CREATOR = 'user-creator'

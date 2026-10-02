@@ -14,7 +14,7 @@ import { disputes } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { hasPermission } from '@server/lib/guards'
-import { loadEscrowOr404, type EscrowRow } from '@server/lib/escrow-routes'
+import { loadEscrowOr404, type EscrowRow } from '@server/features/escrows/routes'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import type { AppDatabase } from '@server/plugins/db'
 

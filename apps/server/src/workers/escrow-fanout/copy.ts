@@ -8,7 +8,7 @@
  * picks by escrows.kind.
  */
 
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
+import type { InternalEscrowEvent } from '@server/features/escrows/events'
 import type { EscrowKind } from '@tenda/shared'
 
 export interface NoticeCopy {
