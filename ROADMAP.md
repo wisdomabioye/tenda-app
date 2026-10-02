@@ -39,7 +39,7 @@ Registration, deployed code and API availability prove capability, not customer 
 
 Tenda is building an Africa-focused marketplace for gigs and peer-to-peer exchange, starting commercially in Nigeria. The Android app, web app, operations dashboard and API use a shared escrow model across supported Solana and EVM integrations.
 
-The chain manifest records Celo and 0G mainnet as live. Solana devnet, Base Sepolia, Celo Sepolia and 0G Galileo are available for testing. Solana and Base mainnet remain planned.
+The chain manifest records Celo and 0G mainnet as live. Solana devnet, Celo Sepolia and 0G Galileo are available for testing; Base support is disabled for now, with its implementation retained. Solana mainnet remains planned, and Arc is the next planned network.
 
 People and AI agents can create funded tasks. Posters set the budget and proof requirements. Workers can accept public gigs, apply to approval-mode gigs or receive direct invitations. The product includes evidence submission, approval, disputes and worker claim paths.
 
@@ -107,8 +107,10 @@ Yellow Card and Onramp.money are candidates, not active production providers.
 |---|---|
 | Celo mainnet (`42220`) | **Live** |
 | 0G mainnet (`16661`) | **Live** |
-| Celo Sepolia, Base Sepolia, 0G Galileo and Solana devnet | **Testing** |
-| Base mainnet | **Committed, gated** (`#88`) |
+| Celo Sepolia, 0G Galileo and Solana devnet | **Testing** |
+| Base Sepolia | **Disabled for now** |
+| Base | **Paused** — support disabled; the implementation, including the ERC-4337 paymaster, is retained |
+| Arc | **Planned** |
 | Solana mainnet | **Committed, security-gated** (`#42`, `#90`, `INV-30`) |
 
 ### Tenda Celo Agent
@@ -163,14 +165,14 @@ The canonical product demonstration is:
 | **Next** | Repeatable outcomes | Reusable, verifiable task products instead of bespoke gigs only |
 | **Next** | Trust and liquidity | Better reputation, matching and earn-to-local-value exchange |
 | **Expansion** | Mobile and business platform | iOS, campaign management, bulk tasks and dataset delivery |
-| **Expansion** | Networks and verification | Base, Solana, 0G Compute/Storage and GenLayer |
+| **Expansion** | Networks and verification | Solana, Arc, 0G Compute/Storage and GenLayer |
 | **Continuous** | Evidence and readiness | Adoption, economics, security and operational reliability |
 
 ## Committed product milestones
 
 ### A. Live-product hardening
 
-**Status:** Hardening/gated. **Tasks:** `#189`, `#66`, `#67`, `#80`, `#42`, `#21`, `#100`, `#115`, `#156`, `#61`, `INV-X3`.
+**Status:** Hardening/gated. **Tasks:** `#189`, `#66`, `#67`, `#80`, `#42`, `#21`, `#115`, `#156`, `#61`.
 
 - Productise gas abstraction with truthful per-chain/asset availability.
 - Monitor relayer balances, nonces, RPC failover, sponsorship budgets and cost attribution.
@@ -275,7 +277,12 @@ Complete provider onboarding, final API/authentication validation, secure creden
 
 ### K. Network expansion
 
-- **Base mainnet:** production multisig/provider/explorer setup, deployment verification, event enrichment, sponsorship reconciliation and lifecycle smoke (`#88`, `INV-47`, `INV-X1`, `INV-X3`).
+- **Network roles (direction, not shipped capability):**
+  - **Solana:** reach more users at negligible gas cost.
+  - **0G:** the project's own chain, chosen for its compute and storage, fast finality and cheap gas.
+  - **Arc:** USDC as both the gas and the payment asset, so a user needs no separate gas token. Planned.
+  - **Celo:** live mainnet today.
+- **Base:** paused. Support is disabled for now; the implementation, including the ERC-4337 paymaster, is retained for a possible return.
 - **Solana mainnet:** account closure/rent recovery, subsidy controls, Squads 3-of-5, audit readiness and lifecycle verification (`#42`, `#90`, `INV-30`).
 - **0G:** maintain mainnet while piloting Compute and Storage.
 - Require validated demand, settlement asset, reliable RPC/indexing, viable relayer economics, secure escrow and monitoring before adding another network.
@@ -329,7 +336,7 @@ Additional longer-term opportunities include dataset marketplaces, A2A support, 
 | ERC-8004 feedback | Contextual reputation, privacy policy and issuer rules |
 | Independent launch wedge | First template and trustworthy metrics |
 | Solana mainnet | Rent fix, multisig and security readiness |
-| Base mainnet | External setup, event enrichment and sponsorship reconciliation |
+| Arc | A confirmed network integration and an escrow deployment |
 | Contract audit | Final relayed approval/cancellation surface and Solana rent fix |
 | Licensed fiat claims | Provider onboarding and reconciled production transaction |
 | Production proof automation | Failure policy, appeals, measured reliability and acceptable economics |
