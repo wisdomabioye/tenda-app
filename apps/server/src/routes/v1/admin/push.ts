@@ -3,7 +3,7 @@ import { ErrorCode, PUSH_ANNOUNCEMENT_TTL_DAYS } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
+import { createAnnouncement, normalizeTarget } from '@server/features/announcements/announcements'
 import type { ApiError } from '@tenda/shared'
 
 const DAY_MS = 24 * 3_600_000

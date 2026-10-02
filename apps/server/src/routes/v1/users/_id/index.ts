@@ -7,7 +7,7 @@ import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates, optionalName } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
-import { PROFILE_COLS, mayRevealIdentity, toPublicUser } from '@server/lib/profile-read'
+import { PROFILE_COLS, mayRevealIdentity, toPublicUser } from '@server/features/profile/read'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']

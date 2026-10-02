@@ -6,7 +6,7 @@ import { ErrorCode } from '@tenda/shared'
 import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
+import { createAnnouncement, normalizeTarget } from '@server/features/announcements/announcements'
 import type { ApiError } from '@tenda/shared'
 
 
