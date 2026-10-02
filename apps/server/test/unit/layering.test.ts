@@ -121,3 +121,86 @@ test('nothing outside routes/ imports routes/', () => {
     'routes/ is autoloaded — shared logic belongs in features/ or lib/, not behind a route file',
   )
 })
+
+/**
+ * A folder holds files OR folders, never both (folder reorganisation, phase 2).
+ * `lib/filename.ts` beside `lib/escrow/` is the case that rule exists for: the
+ * loose files are the ones nobody can place.
+ *
+ * Exempt: `index.ts` barrels; `app.ts` / `server.ts` (process entry points that
+ * `package.json`, the Dockerfile and `instrument.js` address by path); and the
+ * three trees whose shape something else decides — `routes/` (the URL),
+ * `plugins/` (autoload reads it flat), `scripts/` (each file is a CLI entry
+ * point named by a package.json script). Flat folders with NO subfolders are
+ * fine: the rule is against mixing, not against files.
+ */
+const MIXED_FOLDER_EXEMPT_TOP = new Set(['routes', 'plugins', 'scripts'])
+const ENTRY_POINTS = new Set(['app.ts', 'server.ts'])
+
+function holdsSource(dir: string): boolean {
+  return readdirSync(dir, { withFileTypes: true }).some((entry) =>
+    entry.isDirectory() ? holdsSource(join(dir, entry.name)) : entry.name.endsWith('.ts'),
+  )
+}
+
+function mixedFolders(dir = SRC, rel = ''): string[] {
+  const entries = readdirSync(dir, { withFileTypes: true })
+  const loose = entries.filter(
+    (e) =>
+      e.isFile() &&
+      e.name.endsWith('.ts') &&
+      e.name !== 'index.ts' &&
+      !e.name.endsWith('.d.ts') &&
+      !(rel === '' && ENTRY_POINTS.has(e.name)),
+  )
+  const subs = entries.filter((e) => e.isDirectory() && holdsSource(join(dir, e.name)))
+  const found = loose.length > 0 && subs.length > 0 ? [rel === '' ? '.' : rel] : []
+  for (const sub of subs) {
+    if (rel === '' && MIXED_FOLDER_EXEMPT_TOP.has(sub.name)) continue
+    found.push(...mixedFolders(join(dir, sub.name), rel === '' ? sub.name : `${rel}/${sub.name}`))
+  }
+  return found
+}
+
+/**
+ * Folders still to be fixed. A RATCHET: it may only shrink, and an entry whose
+ * folder no longer mixes must be deleted from here (the second test), so the
+ * list can never quietly outlive the work it tracks.
+ */
+const MIXED_FOLDERS_TO_FIX: string[] = [
+  '.',
+  'chains',
+  'chains/evm',
+  'chains/solana',
+  'db',
+  'features/alerts',
+  'features/alerts/channels/in-app',
+  'features/alerts/channels/slack',
+  'features/auth',
+  'features/escrows',
+  'features/fiat-rails',
+  'features/gas-seed',
+  'features/moderation',
+  'features/notifications',
+  'lib',
+  'queue',
+  'queue/workers',
+]
+
+test('no new folder mixes loose files with subfolders', () => {
+  const allowed = new Set(MIXED_FOLDERS_TO_FIX)
+  assert.deepEqual(
+    mixedFolders().filter((folder) => !allowed.has(folder)),
+    [],
+    'a folder holds files or folders, not both — put the loose files in a subfolder named for what they do',
+  )
+})
+
+test('every folder still listed as mixed really is — fixed ones leave the list', () => {
+  const mixed = new Set(mixedFolders())
+  assert.deepEqual(
+    MIXED_FOLDERS_TO_FIX.filter((folder) => !mixed.has(folder)),
+    [],
+    'these folders no longer mix files and subfolders — delete them from MIXED_FOLDERS_TO_FIX',
+  )
+})
