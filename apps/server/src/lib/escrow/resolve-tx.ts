@@ -13,12 +13,12 @@ import { ErrorCode, type ResolutionWinner } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { AppDatabase } from '@server/plugins/db'
 import type { ChainRegistry, UnsignedTx } from '@server/chains/types'
-import { requireChainAdapter } from './chain-adapter'
 import {
   resolveEscrowContract,
   type ContractRegistry,
   type EscrowContractRef,
 } from '@server/chains/contracts'
+import { requireChainAdapter } from './chain-adapter'
 
 export interface BuildResolveTxDeps {
   db: AppDatabase
