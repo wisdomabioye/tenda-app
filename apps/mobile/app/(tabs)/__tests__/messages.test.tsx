@@ -13,7 +13,8 @@ jest.mock('expo-router', () => {
   const { useEffect } = require('react')
   return {
     useRouter: () => ({ push: jest.fn() }),
-    useFocusEffect: (effect: () => void) => useEffect(effect, []),
+    // Re-runs when the callback changes, as the real hook does.
+    useFocusEffect: (effect: () => void) => useEffect(() => effect(), [effect]),
   }
 })
 jest.mock('react-native-unistyles', () => ({
