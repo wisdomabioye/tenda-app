@@ -116,7 +116,10 @@ describe('loadMoreConversations: older pages', () => {
     // The older page repeats the last row held (a shifted window) and adds one.
     mockList.mockResolvedValueOnce([...batch(INBOX_PAGE_SIZE, 1), ...batch(INBOX_PAGE_SIZE + 1, 1)])
     await state().loadMoreConversations()
-    expect(new Set(ids(state().conversations)).size).toBe(INBOX_PAGE_SIZE + 1)
+    // The ARRAY, not a Set of it: a Set would hide the very duplicate under test.
+    expect(ids(state().conversations)).toEqual(
+      ids([...batch(1, INBOX_PAGE_SIZE), ...batch(INBOX_PAGE_SIZE + 1, 1)]),
+    )
   })
 
   test('a FAILED page leaves the list alone, still allows another try, and never rejects', async () => {
