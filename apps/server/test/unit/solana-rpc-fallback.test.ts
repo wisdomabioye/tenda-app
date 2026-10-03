@@ -3,6 +3,7 @@ import * as assert from 'node:assert'
 import {
   DEFAULT_RPC_TIMEOUT_MS,
   FALLBACK_RPC_TIMEOUT_MS,
+  createSolanaRpc,
   distinctFallbackUrl,
   failoverSolanaRpc,
   perEndpointTimeoutMs,
@@ -11,6 +12,8 @@ import {
   type SolanaConnectionPort,
   type SolanaRpc,
 } from '@server/chains/solana/rpc'
+import bs58 from 'bs58'
+import { startStubRpc } from '../helpers/stub-rpc'
 
 const PRIMARY_ERROR = new Error('primary unavailable')
 
@@ -195,4 +198,181 @@ test('a HUNG endpoint fails over: each endpoint carries its own timeout, so the 
     solanaRpcFromConnection(port({ getLatestBlockhash: async () => ({ blockhash: 'second', lastValidBlockHeight: 9 }) }), 40),
   ])
   assert.deepStrictEqual(await rpc.getLatestBlockhash(), { blockhash: 'second', last_valid_block_height: 9 })
+})
+
+// ---------- createSolanaRpc: the factory that wires the endpoints ------------
+
+const BLOCKHASH_REPLY = {
+  context: { slot: 1 },
+  value: { blockhash: 'GfnhkAa2iy8cZV7X5SyyYmWDjA3rGg9Q7bX9ZpzG8m1u', lastValidBlockHeight: 321 },
+}
+
+test('createSolanaRpc: a failing primary fails over to the configured fallback', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'getLatestBlockhash') throw new Error('primary is down')
+    return null
+  })
+  const secondary = await startStubRpc((m) => (m === 'getLatestBlockhash' ? BLOCKHASH_REPLY : null))
+  try {
+    const rpc = createSolanaRpc({
+      rpc_url: primary.url,
+      rpc_url_fallback: secondary.url,
+      chain_id: 'solana:devnet',
+    })
+    assert.deepStrictEqual(await rpc.getLatestBlockhash(), {
+      blockhash: BLOCKHASH_REPLY.value.blockhash,
+      last_valid_block_height: 321,
+    })
+    assert.strictEqual(primary.callsTo('getLatestBlockhash').length, 1, 'the primary is tried first')
+    assert.strictEqual(secondary.callsTo('getLatestBlockhash').length, 1, 'the fallback answers')
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+test('createSolanaRpc: with no fallback the failure is the endpoint\'s own, tried once', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'getLatestBlockhash') throw new Error('primary is down')
+    return null
+  })
+  try {
+    const rpc = createSolanaRpc({ rpc_url: primary.url, chain_id: 'solana:devnet' })
+    await assert.rejects(rpc.getLatestBlockhash(), (e: unknown) => !(e instanceof AggregateError))
+    assert.strictEqual(primary.callsTo('getLatestBlockhash').length, 1)
+  } finally {
+    await primary.close()
+  }
+})
+
+test('createSolanaRpc: a fallback that duplicates the primary is not a second attempt', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'getLatestBlockhash') throw new Error('primary is down')
+    return null
+  })
+  try {
+    const rpc = createSolanaRpc({
+      rpc_url: primary.url,
+      rpc_url_fallback: primary.url,
+      chain_id: 'solana:devnet',
+    })
+    await assert.rejects(rpc.getLatestBlockhash())
+    assert.strictEqual(primary.callsTo('getLatestBlockhash').length, 1)
+  } finally {
+    await primary.close()
+  }
+})
+
+test('createSolanaRpc: when both endpoints fail the caller gets both causes', async () => {
+  const down = (m: string): unknown => {
+    if (m === 'getLatestBlockhash') throw new Error('down')
+    return null
+  }
+  const primary = await startStubRpc(down)
+  const secondary = await startStubRpc(down)
+  try {
+    const rpc = createSolanaRpc({ rpc_url: primary.url, rpc_url_fallback: secondary.url, chain_id: 'solana:devnet' })
+    await assert.rejects(rpc.getLatestBlockhash(), (e: unknown) => e instanceof AggregateError && e.errors.length === 2)
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+// ---------- createSolanaRpc: what each read maps the cluster's answer to -----
+
+const KEY = '11111111111111111111111111111111'
+const SIGNATURE = bs58.encode(Buffer.alloc(64, 3))
+
+/** The smallest transaction web3.js's response validation accepts. */
+const transactionReply = (err: unknown, logMessages: string[] | null) => ({
+  slot: 5,
+  blockTime: null,
+  meta: { err, fee: 5000, preBalances: [1], postBalances: [1], logMessages },
+  transaction: {
+    signatures: [SIGNATURE],
+    message: {
+      accountKeys: [KEY],
+      header: { numReadonlySignedAccounts: 0, numReadonlyUnsignedAccounts: 0, numRequiredSignatures: 1 },
+      instructions: [],
+      recentBlockhash: KEY,
+    },
+  },
+})
+
+async function rpcOver(respond: (method: string) => unknown) {
+  const node = await startStubRpc(respond)
+  return { node, rpc: createSolanaRpc({ rpc_url: node.url, chain_id: 'solana:devnet' }) }
+}
+
+test('createSolanaRpc maps a landed transaction to failed=false with its logs', async () => {
+  const { node, rpc } = await rpcOver((m) => (m === 'getTransaction' ? transactionReply(null, ['Program log: ok']) : null))
+  try {
+    assert.deepStrictEqual(await rpc.getTransaction(SIGNATURE), {
+      failed: false,
+      failure_reason: null,
+      log_messages: ['Program log: ok'],
+    })
+    // The recorded commitment policy rides the read: devnet 'confirmed', and
+    // versioned transactions are asked for explicitly (web3 refuses them otherwise).
+    assert.deepStrictEqual(node.callsTo('getTransaction')[0].params[1], {
+      commitment: 'confirmed',
+      maxSupportedTransactionVersion: 0,
+    })
+  } finally {
+    await node.close()
+  }
+})
+
+test('createSolanaRpc maps a FAILED transaction to failed=true with the runtime error, and missing logs to []', async () => {
+  const { node, rpc } = await rpcOver((m) => (m === 'getTransaction' ? transactionReply({ InstructionError: [0, 'Custom'] }, null) : null))
+  try {
+    const tx = await rpc.getTransaction(SIGNATURE)
+    assert.strictEqual(tx?.failed, true)
+    assert.strictEqual(tx?.failure_reason, JSON.stringify({ InstructionError: [0, 'Custom'] }))
+    assert.deepStrictEqual(tx?.log_messages, [])
+  } finally {
+    await node.close()
+  }
+})
+
+test('createSolanaRpc: an unknown signature is null, not an error', async () => {
+  const { node, rpc } = await rpcOver(() => null)
+  try {
+    assert.strictEqual(await rpc.getTransaction(SIGNATURE), null)
+  } finally {
+    await node.close()
+  }
+})
+
+test('createSolanaRpc maps an account to its data and its OWNING program, and a missing one to null', async () => {
+  const { node, rpc } = await rpcOver((m) =>
+    m === 'getAccountInfo'
+      ? { context: { slot: 1 }, value: { data: [Buffer.from('hello').toString('base64'), 'base64'], executable: false, lamports: 1, owner: KEY, rentEpoch: 0 } }
+      : null,
+  )
+  const empty = await rpcOver(() => ({ context: { slot: 1 }, value: null }))
+  try {
+    const account = await rpc.getAccount(KEY)
+    assert.strictEqual(account?.owner, KEY)
+    assert.strictEqual(account?.data.toString(), 'hello')
+    assert.strictEqual(await empty.rpc.getAccount(KEY), null)
+  } finally {
+    await node.close()
+    await empty.node.close()
+  }
+})
+
+test('createSolanaRpc maps the signature feed to {signature, slot} pairs, passing the limit through', async () => {
+  const { node, rpc } = await rpcOver((m) =>
+    m === 'getSignaturesForAddress' ? [{ signature: SIGNATURE, slot: 9, err: null, memo: null, blockTime: null }] : null,
+  )
+  try {
+    assert.deepStrictEqual(await rpc.getSignaturesForAddress(KEY, { limit: 7 }), [{ signature: SIGNATURE, slot: 9 }])
+    const [call] = node.callsTo('getSignaturesForAddress')
+    // web3 adds the connection's commitment (devnet: 'confirmed') to the config.
+    assert.deepStrictEqual(call.params[1], { commitment: 'confirmed', limit: 7 })
+  } finally {
+    await node.close()
+  }
 })
