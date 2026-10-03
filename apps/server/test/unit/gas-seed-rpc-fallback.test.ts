@@ -15,7 +15,11 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { solanaGasSeedFunder, solanaGasSeedSender } from '@server/features/gas-seed/senders/solana'
+import {
+  SOLANA_SEED_EXPIRY_MS,
+  solanaGasSeedFunder,
+  solanaGasSeedSender,
+} from '@server/features/gas-seed/senders/solana'
 import { evmGasSeedFunder } from '@server/features/gas-seed/senders/evm'
 import { GAS_SEED_SUPPORT } from '@server/features/gas-seed/senders'
 import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
@@ -264,6 +268,27 @@ test('the Solana sender: the status read fails over, so a landed transfer is sti
   } finally {
     await primary.close()
     await secondary.close()
+  }
+})
+
+test('the Solana sender: "no record" is pending while the blockhash can live and failed once it cannot', async () => {
+  // The path a double payment would travel: a null status is the cluster saying
+  // it has never seen the signature. Fresh, that is just "not yet"; past the
+  // expiry margin it is proof the transfer can no longer land, which releases
+  // the slot. Driven through the REAL sender so the null branch of the status
+  // read is exercised, not only the pure classifier.
+  const node = await startStubRpc((m) => (m === 'getSignatureStatuses' ? { context: { slot: 1 }, value: [null] } : null))
+  try {
+    const sender = senderOver(node, undefined)
+    const tx_ref = bs58.encode(Buffer.alloc(64, 9))
+    const now = Date.now()
+    assert.strictEqual(await sender.checkStatus({ tx_ref, submitted_at: new Date(now) }), 'pending')
+    assert.strictEqual(
+      await sender.checkStatus({ tx_ref, submitted_at: new Date(now - SOLANA_SEED_EXPIRY_MS - 1_000) }),
+      'failed',
+    )
+  } finally {
+    await node.close()
   }
 })
 
