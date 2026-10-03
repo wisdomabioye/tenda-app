@@ -324,6 +324,23 @@ test('createSolanaRpc maps a landed transaction to failed=false with its logs', 
   }
 })
 
+test('createSolanaRpc on MAINNET reads transactions at the stricter commitment: finalized', async () => {
+  // The recorded policy: devnet accepts 'confirmed', mainnet requires
+  // 'finalized' — a mainnet transaction must not be acted on before it can no
+  // longer be rolled back.
+  const node = await startStubRpc((m) => (m === 'getTransaction' ? transactionReply(null, []) : null))
+  try {
+    const rpc = createSolanaRpc({ rpc_url: node.url, chain_id: 'solana:mainnet' })
+    await rpc.getTransaction(SIGNATURE)
+    assert.deepStrictEqual(node.callsTo('getTransaction')[0].params[1], {
+      commitment: 'finalized',
+      maxSupportedTransactionVersion: 0,
+    })
+  } finally {
+    await node.close()
+  }
+})
+
 test('createSolanaRpc maps a FAILED transaction to failed=true with the runtime error, and missing logs to []', async () => {
   const { node, rpc } = await rpcOver((m) => (m === 'getTransaction' ? transactionReply({ InstructionError: [0, 'Custom'] }, null) : null))
   try {
