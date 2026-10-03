@@ -20,6 +20,11 @@
  * The cap is `AGENT_DEMO_DRAFT_CAP`, default below: well above the ten
  * reviewers a round runs concurrently, so no live session is evicted, and
  * small enough to bound the table.
+ *
+ * Since then a daily sweep (features/escrows/creation/staleDrafts) discards
+ * abandoned drafts of EVERY account after DRAFT_RETENTION_DAYS. That is the
+ * backstop for people; this ring remains the tight, immediate bound for the one
+ * keyless account that can mint faster than a week passes.
  */
 import { and, desc, eq } from 'drizzle-orm'
 import { escrows, user_wallets } from '@tenda/shared/db/schema'
