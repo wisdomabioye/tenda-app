@@ -58,7 +58,8 @@ export function evmHotWallet(args: {
    * because it is not true of every chain: the transaction is signed ONCE, at a
    * fixed nonce, so re-broadcasting it to a second endpoint is the same
    * transaction with the same hash. The chain de-duplicates it. (Solana's seed
-   * sender deliberately has no equivalent — see ../../features/gas-seed/senders/solana.ts.)
+   * sender relies on the same property: it signs once and re-sends the same bytes —
+   * see ../../features/gas-seed/senders/solana.ts.)
    */
   rpc_url_fallback: string | undefined
   /** CAIP-2 id of a manifest EVM chain, e.g. `'eip155:84532'`. */

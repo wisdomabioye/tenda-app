@@ -177,7 +177,8 @@ export function evmGasSeedFunder(args: {
    * Secondary endpoint. Handed straight to `evmHotWallet`, which builds the
    * failover transport — so the reader AND the wallet client both get it, and
    * a broadcast survives one provider stalling. Safe here because the nonce
-   * pins the transaction; Solana's sender deliberately has no equivalent.
+   * pins the transaction; Solana's sender is safe for the same reason (one
+   * signature, the same bytes re-sent).
    *
    * A required key, like every other builder of an EVM hot wallet: optional is
    * how the relayer beside this one ended up with no failover at all.
