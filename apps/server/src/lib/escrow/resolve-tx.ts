@@ -57,6 +57,18 @@ export async function buildResolveTx(
     )
   }
 
+  // A chain can be deconfigured after an escrow was created (env removed,
+  // rollback), and the registry answers an unknown id with a plain throw that
+  // the error handler turns into a 500 and a Sentry report. Every other escrow
+  // action refuses this with a clean 503 (`buildEscrowTx`); dispute resolution
+  // is the one an admin reaches for during exactly that incident.
+  if (!deps.chains.has(args.escrow.chain_id)) {
+    throw new AppError(
+      503,
+      ErrorCode.SERVICE_UNAVAILABLE,
+      `chain '${args.escrow.chain_id}' is not currently available`,
+    )
+  }
   const adapter = deps.chains.get(args.escrow.chain_id)
 
   // The resolve tx is authorised by the chain's dispute-resolution key, whose
