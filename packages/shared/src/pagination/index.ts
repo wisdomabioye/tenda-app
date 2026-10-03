@@ -1,4 +1,4 @@
-export { PAGE_SIZE, END_REACHED_THRESHOLD } from './constants'
+export { PAGE_SIZE, INBOX_PAGE_SIZE, END_REACHED_THRESHOLD } from './constants'
 export { mergeById, hasMore, hasMorePages, nextOffset } from './page'
 export type { HasMoreArgs } from './page'
 export {
