@@ -21,7 +21,8 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { and, eq } from 'drizzle-orm'
 import { apiRoutes, type AgentRegisterResponse, type AgentTaskBody, type AgentTaskPaymentRequired } from '@tenda/shared'
 import { escrows, tx_attempts } from '@tenda/shared/db/schema'
-import { discardDrafts, isDemoAccount } from '@server/features/agent/demo/demoDraftRing'
+import { isDemoAccount } from '@server/features/agent/demo/demoDraftRing'
+import { discardDrafts } from '@server/features/escrows/creation/discardDrafts'
 import {
   TEST_DB_CONFIGURED,
   authHeader,
