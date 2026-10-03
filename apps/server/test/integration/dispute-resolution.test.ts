@@ -353,7 +353,7 @@ test('buildResolveTx: a configured chain is NOT refused by the availability guar
     { db: app.db, chains: app.chains, contracts: app.contracts },
     { escrow: { id: escrow.id, chain_id: escrow.chain_id, escrow_contract: null }, winner: 'creator', signer_user_id: 'irrelevant' },
   )
-  assert.ok(tx !== undefined)
+  assert.deepStrictEqual(tx, FAKE_UNSIGNED)
 })
 
 function executeBuild(app: FastifyInstance, resolutionId: string, token: string) {

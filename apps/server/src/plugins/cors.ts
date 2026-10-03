@@ -26,7 +26,7 @@ import { getConfig } from '@server/config'
 const ADMIN_PREFIX = '/v1/admin/'
 
 /** Response headers a browser client needs to read; see `exposedHeaders` below. */
-export const EXPOSED_RESPONSE_HEADERS = [
+const EXPOSED_RESPONSE_HEADERS = [
   'x-ratelimit-limit',
   'x-ratelimit-remaining',
   'x-ratelimit-reset',
