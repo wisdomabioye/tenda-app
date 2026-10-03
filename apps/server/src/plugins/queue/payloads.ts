@@ -113,6 +113,8 @@ export interface JobPayload {
   'prune-notifications': { tick_id: string }
   /** Daily discard of unfunded drafts past DRAFT_RETENTION_DAYS, tick id for correlation. */
   'prune-stale-drafts': { tick_id: string }
+  /** Daily delete of one-time codes older than the OTP send limits can count, tick id for correlation. */
+  'prune-auth-otps': { tick_id: string }
   /**
    * Expand a new gig into one notification per matching subscriber.
    *

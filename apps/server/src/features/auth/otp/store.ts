@@ -6,7 +6,7 @@
 
 import type { OtpChannel } from '@tenda/shared/db/schema'
 import { auth_otps } from '@tenda/shared/db/schema'
-import { and, eq, gte, isNull, sql } from 'drizzle-orm'
+import { and, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface OtpStore {
@@ -95,4 +95,18 @@ export function drizzleOtpStore(db: AppDatabase): OtpStore {
       await db.update(auth_otps).set({ consumed_at: new Date() }).where(eq(auth_otps.id, id))
     },
   }
+}
+
+/**
+ * Delete every code created before `cutoff`, whatever its state. Not on `OtpStore`:
+ * the issue/verify service never prunes, and widening the port would make every
+ * in-memory fake implement a delete it never calls.
+ *
+ * Callers pass a cutoff no newer than `now - OTP_RETENTION_MS` (see ./index): the
+ * send limits count rows by `created_at` regardless of consumed/expired, so
+ * anything inside their windows still counts.
+ */
+export async function pruneOtpsCreatedBefore(db: AppDatabase, cutoff: Date): Promise<number> {
+  const deleted = await db.delete(auth_otps).where(lt(auth_otps.created_at, cutoff)).returning({ id: auth_otps.id })
+  return deleted.length
 }
