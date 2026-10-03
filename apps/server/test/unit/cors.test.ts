@@ -1,11 +1,17 @@
 /**
- * CORS: which response headers a browser script may read (#36).
+ * CORS plugin: which response headers a browser script may read (#36) and which
+ * origins may reach /v1/admin/*.
  *
  * A browser hides every response header that is not CORS-safelisted unless the
  * server lists it in Access-Control-Expose-Headers. The rate-limit headers, the
  * Retry-After after a 429 and the relay receipt on the paid 201 are exactly the
  * ones a client needs and cannot otherwise see. The allow-list itself (which
  * ORIGINS may call) must not move: exposing a header is not widening access.
+ *
+ * The admin-origin hook is the plugin's other job and had no test anywhere (the
+ * integration harness does not register this plugin). The dev allow-all branch
+ * (ADMIN_ORIGIN unset) lives in cors-admin-origin-dev.test.ts, because the
+ * config is read once per process.
  */
 import '../helpers/test-app/env'
 import { test } from 'node:test'
@@ -25,6 +31,7 @@ async function buildApp() {
   const app = Fastify()
   await app.register(corsPlugin)
   app.get('/x', async () => ({ ok: true }))
+  app.get('/v1/admin/x', async () => ({ ok: true }))
   await app.ready()
   return app
 }
@@ -83,5 +90,37 @@ test('exposing headers does not widen the allow-list: the origin list is exactly
   }
   const other = await app.inject({ method: 'GET', url: '/x', headers: { origin: 'https://app.tenda.test.evil.example' } })
   assert.strictEqual(other.headers['access-control-allow-origin'], undefined)
+  await app.close()
+})
+
+const ADMIN = 'https://admin.tenda.test'
+
+test('an admin route refuses a browser origin that is allowed for the app but is not the admin origin', async () => {
+  const app = await buildApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/admin/x', headers: { origin: ALLOWED } })
+  assert.strictEqual(res.statusCode, 403)
+  assert.strictEqual(res.json().code, 'FORBIDDEN')
+  await app.close()
+})
+
+test('an admin route answers the admin origin', async () => {
+  const app = await buildApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/admin/x', headers: { origin: ADMIN } })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.headers['access-control-allow-origin'], ADMIN)
+  await app.close()
+})
+
+test('an admin route answers a request with no Origin header: a non-browser client relies on its JWT', async () => {
+  const app = await buildApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/admin/x' })
+  assert.strictEqual(res.statusCode, 200)
+  await app.close()
+})
+
+test('the admin-origin check applies to /v1/admin/ only: the same app origin still reaches a public route', async () => {
+  const app = await buildApp()
+  const res = await app.inject({ method: 'GET', url: '/x', headers: { origin: ALLOWED } })
+  assert.strictEqual(res.statusCode, 200)
   await app.close()
 })
