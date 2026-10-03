@@ -7,6 +7,8 @@ import {
   failoverSolanaRpc,
   perEndpointTimeoutMs,
   solanaConnectionConfig,
+  solanaRpcFromConnection,
+  type SolanaConnectionPort,
   type SolanaRpc,
 } from '@server/chains/solana/rpc'
 
@@ -24,10 +26,10 @@ function solRpc(over: Partial<SolanaRpc> = {}): SolanaRpc {
 
 test('failover uses secondary after primary transport failure', async () => {
   let secondaryCalls = 0
-  const rpc = failoverSolanaRpc(
+  const rpc = failoverSolanaRpc([
     solRpc({ getTransaction: async () => { throw PRIMARY_ERROR } }),
     solRpc({ getTransaction: async () => { secondaryCalls += 1; return null } }),
-  )
+  ])
   assert.strictEqual(await rpc.getTransaction('sig'), null)
   assert.strictEqual(secondaryCalls, 1)
 })
@@ -44,12 +46,12 @@ test('every Solana read method delegates to its matching fallback method', async
     getSignaturesForAddress: async (address, opts) => [{ signature: address, slot: opts.limit }],
   })
   const fail = async (): Promise<never> => { throw PRIMARY_ERROR }
-  const rpc = failoverSolanaRpc(solRpc({
+  const rpc = failoverSolanaRpc([solRpc({
     getLatestBlockhash: fail,
     getTransaction: fail,
     getAccount: fail,
     getSignaturesForAddress: fail,
-  }), secondary)
+  }), secondary])
 
   assert.deepEqual(await rpc.getLatestBlockhash(), {
     blockhash: 'fallback',
@@ -64,10 +66,10 @@ test('every Solana read method delegates to its matching fallback method', async
 
 test('failover does not touch secondary after primary success', async () => {
   let secondaryCalls = 0
-  const rpc = failoverSolanaRpc(
+  const rpc = failoverSolanaRpc([
     solRpc({ getAccount: async () => ({ data: Buffer.from('ok'), owner: 'owner' }) }),
     solRpc({ getAccount: async () => { secondaryCalls += 1; return null } }),
-  )
+  ])
   assert.strictEqual((await rpc.getAccount('addr'))?.owner, 'owner')
   assert.strictEqual(secondaryCalls, 0)
 })
@@ -131,11 +133,66 @@ test('an explicit timeout override beats the fallback policy', () => {
   assert.strictEqual(perEndpointTimeoutMs({ rpc_url: 'https://a', timeout_ms: 1_000 }), 1_000)
 })
 
-test('surfaces the fallback error after both endpoints fail', async () => {
+test('when every endpoint fails, EVERY read method surfaces BOTH causes in endpoint order', async () => {
   const fallbackError = new Error('fallback unavailable')
-  const rpc = failoverSolanaRpc(
-    solRpc({ getTransaction: async () => { throw PRIMARY_ERROR } }),
-    solRpc({ getTransaction: async () => { throw fallbackError } }),
-  )
-  await assert.rejects(rpc.getTransaction('sig'), fallbackError)
+  const failing = (cause: Error): SolanaRpc => {
+    const fail = async (): Promise<never> => { throw cause }
+    return solRpc({
+      getLatestBlockhash: fail,
+      getTransaction: fail,
+      getAccount: fail,
+      getSignaturesForAddress: fail,
+    })
+  }
+  const rpc = failoverSolanaRpc([failing(PRIMARY_ERROR), failing(fallbackError)])
+  const reads = {
+    getLatestBlockhash: () => rpc.getLatestBlockhash(),
+    getTransaction: () => rpc.getTransaction('sig'),
+    getAccount: () => rpc.getAccount('addr'),
+    getSignaturesForAddress: () => rpc.getSignaturesForAddress('program', { limit: 1 }),
+  }
+  for (const [name, read] of Object.entries(reads)) {
+    await assert.rejects(read(), (e: unknown) =>
+      e instanceof AggregateError && e.errors.length === 2 && e.errors[0] === PRIMARY_ERROR && e.errors[1] === fallbackError,
+    `${name} must surface both causes`)
+  }
+})
+
+test('a third endpoint is reached after the first two fail, and nothing after the first success', async () => {
+  const order: string[] = []
+  const failing = (name: string): SolanaRpc =>
+    solRpc({ getAccount: async () => { order.push(name); throw new Error(name) } })
+  const rpc = failoverSolanaRpc([
+    failing('a'),
+    failing('b'),
+    solRpc({ getAccount: async () => { order.push('c'); return { data: Buffer.from('ok'), owner: 'c-owner' } } }),
+    solRpc({ getAccount: async () => { order.push('d'); return null } }),
+  ])
+  assert.strictEqual((await rpc.getAccount('addr'))?.owner, 'c-owner')
+  assert.deepStrictEqual(order, ['a', 'b', 'c'])
+})
+
+test('a single endpoint keeps its OWN error type, untouched by the combinator', async () => {
+  const only = new RangeError('lone endpoint down')
+  const rpc = failoverSolanaRpc([solRpc({ getSignaturesForAddress: async () => { throw only } })])
+  await assert.rejects(rpc.getSignaturesForAddress('program', { limit: 1 }), only)
+})
+
+test('a HUNG endpoint fails over: each endpoint carries its own timeout, so the combinator needs none', async () => {
+  // The reason failoverSolanaRpc passes no timeout_ms. A degraded provider
+  // usually never answers; if the per-endpoint bound were missing, the loop
+  // would wait on the primary forever and never reach the second endpoint.
+  const port = (over: Partial<SolanaConnectionPort>): SolanaConnectionPort => ({
+    getLatestBlockhash: async () => ({ blockhash: 'BH', lastValidBlockHeight: 1 }),
+    getTransaction: async () => null,
+    getAccountInfo: async () => null,
+    getSignaturesForAddress: async () => [],
+    ...over,
+  })
+  const never = <T>(): Promise<T> => new Promise<T>(() => undefined)
+  const rpc = failoverSolanaRpc([
+    solanaRpcFromConnection(port({ getLatestBlockhash: never }), 40),
+    solanaRpcFromConnection(port({ getLatestBlockhash: async () => ({ blockhash: 'second', lastValidBlockHeight: 9 }) }), 40),
+  ])
+  assert.deepStrictEqual(await rpc.getLatestBlockhash(), { blockhash: 'second', last_valid_block_height: 9 })
 })
