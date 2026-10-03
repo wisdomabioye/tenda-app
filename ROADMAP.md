@@ -2,7 +2,7 @@
 
 Tenda is an agent-to-human execution network and marketplace. People, businesses and AI agents can commission funded real-world or digital work; workers complete it through mobile or web; proof, approval or dispute, and escrow settlement close the loop. Tenda also provides a separate peer-to-peer exchange path that workers may use to pursue local value.
 
-This roadmap records Tenda's product direction, delivery commitments and evidence standards. Detailed implementation sequencing and definitions of done remain in [`../docs/TASKS.md`](../docs/TASKS.md).
+This roadmap records Tenda's product direction, delivery commitments and evidence standards. Delivery is tracked in the repository's [issues](https://github.com/wisdomabioye/tenda-app/issues); each milestone below links the issues that deliver it. Work involving counterparties, credentials or security detail is tracked privately and is not linked here.
 
 ## Table of contents
 
@@ -111,7 +111,7 @@ Yellow Card and Onramp.money are candidates, not active production providers.
 | Base Sepolia | **Disabled for now** |
 | Base | **Paused** — support disabled; the implementation, including the ERC-4337 paymaster, is retained |
 | Arc | **Planned** |
-| Solana mainnet | **Committed, security-gated** (`#42`, `#90`, `INV-30`) |
+| Solana mainnet | **Committed, security-gated** |
 
 ### Tenda Celo Agent
 
@@ -172,7 +172,7 @@ The canonical product demonstration is:
 
 ### A. Live-product hardening
 
-**Status:** Hardening/gated. **Tasks:** `#189`, `#66`, `#67`, `#80`, `#42`, `#21`, `#115`, `#156`, `#61`.
+**Status:** Hardening/gated. **Issues:** [#4](https://github.com/wisdomabioye/tenda-app/issues/4), [#5](https://github.com/wisdomabioye/tenda-app/issues/5), [#7](https://github.com/wisdomabioye/tenda-app/issues/7), [#12](https://github.com/wisdomabioye/tenda-app/issues/12), [#17](https://github.com/wisdomabioye/tenda-app/issues/17).
 
 - Productise gas abstraction with truthful per-chain/asset availability.
 - Monitor relayer balances, nonces, RPC failover, sponsorship budgets and cost attribution.
@@ -185,7 +185,7 @@ The canonical product demonstration is:
 
 ### B. Agent identity, trust and discoverability
 
-**Status:** Live foundation, committed expansion. **Tasks:** `#81`, `#95`, `#193`.
+**Status:** Live foundation, committed expansion. **Issues:** [#9](https://github.com/wisdomabioye/tenda-app/issues/9), [#23](https://github.com/wisdomabioye/tenda-app/issues/23).
 
 - Add the card `registrations` entry with agent `9815`, Celo chain and Identity Registry provenance.
 - Publish only verified operations, networks, assets and endpoint versions.
@@ -198,7 +198,7 @@ The canonical product demonstration is:
 
 ### C. Complete agent lifecycle
 
-**Status:** Committed. **Tasks:** `#36`, `#80`, `#144`, `#185`.
+**Status:** Committed. **Issues:** [#21](https://github.com/wisdomabioye/tenda-app/issues/21).
 
 - Cover funding, acceptance/application, submission, approval, dispute, completion, expiry and terminal funding failure.
 - Publish signed, versioned, idempotent events.
@@ -209,7 +209,7 @@ The canonical product demonstration is:
 
 ### D. Agent developer platform
 
-**Status:** Committed after lifecycle stabilisation. **Task:** `#186`.
+**Status:** Committed after lifecycle stabilisation.
 
 - Ship TypeScript and Python SDKs for registration, quotes, 402 sign/resend, funding, reads/lists, watching, proof inspection and authorised settlement actions.
 - Hide raw token-unit and chain-specific transaction complexity without holding customer keys.
@@ -220,7 +220,7 @@ The canonical product demonstration is:
 
 ### E. Repeatable outcomes and proof
 
-**Status:** Committed. **Tasks:** `#187`, `#91`, `#92`, `#94`.
+**Status:** Committed. **Issues:** [#8](https://github.com/wisdomabioye/tenda-app/issues/8).
 
 - Create versioned templates for retail price/availability audits, merchant/location verification, property inspection, local app/payment testing and structured field data.
 - Each template owns typed inputs, geography, eligibility, proof, review, privacy/retention, dispute and export policy.
@@ -233,7 +233,7 @@ The canonical product demonstration is:
 
 ### F. Contextual and portable reputation
 
-**Status:** Committed after outcome templates. **Task:** `#188`.
+**Status:** Committed after outcome templates.
 
 - Derive versioned, recomputable completion, acceptance, dispute, response/approval, cancellation and funding-reliability signals by task family.
 - Cover workers, humans, businesses and agents with sample-size/time-window and cold-start labels.
@@ -246,13 +246,13 @@ The canonical product demonstration is:
 
 - Match by location, availability, language, experience, equipment, travel radius and demonstrated capability.
 - Support vetted/private worker pools and make agent-posted work recognisable.
-- Add saved searches, location/task alerts, opt-in email (`#37`), Android/iOS push (`INV-53`) and Telegram gig broadcasts (`#99`).
+- Add saved searches, location/task alerts, opt-in email ([#20](https://github.com/wisdomabioye/tenda-app/issues/20)), Android/iOS push and Telegram gig broadcasts.
 - Add task-category safety restrictions, incident reporting, consent-based location handling and check-ins where appropriate.
 - Add referral/supply programs only after fraud-resistant attribution exists.
 
 ### H. Earn-to-local-value exchange
 
-**Status:** Live foundation, committed hardening. **Task:** `#190`.
+**Status:** Live foundation, committed hardening.
 
 - Connect work earnings to exchange discovery without implying fiat custody.
 - Improve rate transparency/expiry, counterparty reputation, payment timers and fiat-payment evidence.
@@ -262,7 +262,7 @@ The canonical product demonstration is:
 
 ### I. Licensed fiat access
 
-**Status:** External dependency. **Track:** `INV-61`.
+**Status:** External dependency.
 
 Complete provider onboarding, final API/authentication validation, secure credentials, verified webhooks, recipient verification where supported, a reconciled production transaction, and published country/currency/limit/responsibility scope before changing public status. Yellow Card, Onramp.money and NIP integrations remain candidates or dependencies, not live providers.
 
@@ -283,13 +283,13 @@ Complete provider onboarding, final API/authentication validation, secure creden
   - **Arc:** USDC as both the gas and the payment asset, so a user needs no separate gas token. Planned.
   - **Celo:** live mainnet today.
 - **Base:** paused. Support is disabled for now; the implementation, including the ERC-4337 paymaster, is retained for a possible return.
-- **Solana mainnet:** account closure/rent recovery, subsidy controls, Squads 3-of-5, audit readiness and lifecycle verification (`#42`, `#90`, `INV-30`).
+- **Solana mainnet:** account closure/rent recovery, subsidy controls, Squads 3-of-5, audit readiness and lifecycle verification.
 - **0G:** maintain mainnet while piloting Compute and Storage.
 - Require validated demand, settlement asset, reliable RPC/indexing, viable relayer economics, secure escrow and monitoring before adding another network.
 
 ### L. Measurement and independent validation
 
-**Status:** Committed. **Tasks:** `#191`, `#192`.
+**Status:** Committed. **Issues:** [#22](https://github.com/wisdomabioye/tenda-app/issues/22).
 
 - Marketplace funnel: customer-paid, non-team-funded GMV, take rate, costs, fill/accept/complete time, proof acceptance, rework, disputes, repeat posters, retained workers, net earnings, exchange completion and contribution margin.
 - Agent funnel: registrations, quotes, 402 quote→authorisation→funded conversion, relay success/cost, completion, webhook delivery, repeat agents, review latency and human-review rate.
@@ -299,7 +299,7 @@ Complete provider onboarding, final API/authentication validation, secure creden
 
 ### M. Product, developer and operational evidence
 
-**Status:** Committed/continuous. **Tasks:** `#178`, `#184`, `#21`.
+**Status:** Committed/continuous.
 
 - Move the keyless public demo to a clearly labelled testnet without blocking production registration.
 - Reframe the landing page around the full execution loop and distinct poster, worker, business and agent entry points.
@@ -307,6 +307,16 @@ Complete provider onboarding, final API/authentication validation, secure creden
 - Monitor the public card, OpenAPI, endpoints and on-chain URI.
 - Produce receipts connecting task terms, escrow transaction, evidence hash, decision and settlement.
 - Maintain audits, multisig/key rotation, relayer isolation, webhook/upload security, evidence retention/redaction, location consent, fraud controls, reorg/provider-disagreement recovery, incident runbooks and uptime/readiness monitoring.
+
+### N. Business task console
+
+**Status:** Planned after webhooks and per-account limits. **Issues:** [#36](https://github.com/wisdomabioye/tenda-app/issues/36), [#37](https://github.com/wisdomabioye/tenda-app/issues/37), [#38](https://github.com/wisdomabioye/tenda-app/issues/38), [#39](https://github.com/wisdomabioye/tenda-app/issues/39).
+
+- A thin, static web console for businesses to create and manage tasks through the same agent API and x402 payment flow, with wallet-only sign-in and no custody of customer keys.
+- Bulk task creation from a spreadsheet or CSV with per-row validation, a rate-limited submission queue and per-row funding status.
+- Optional AI-assisted task composition through one small serverless function, with output validated against the published OpenAPI schema.
+- Hosted by Tenda first; self-hosting follows only on demand.
+- Gated on: webhooks, per-account rate limits, browser-readable rate-limit and payment headers, batched moderation and a validate-only task endpoint.
 
 ## Suggested expansion
 
@@ -341,6 +351,7 @@ Additional longer-term opportunities include dataset marketplaces, A2A support, 
 | Licensed fiat claims | Provider onboarding and reconciled production transaction |
 | Production proof automation | Failure policy, appeals, measured reliability and acceptable economics |
 | Business datasets | Consent, retention, licensing and redaction |
+| Business task console | Webhooks, per-account rate limits, CORS-exposed headers, batched moderation and a validate-only endpoint |
 | Native iOS release | Feature parity, secure storage, device E2E and APNs readiness |
 
 ## Evidence ledger
