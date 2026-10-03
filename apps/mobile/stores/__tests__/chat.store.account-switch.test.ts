@@ -7,6 +7,7 @@
  * per writer, because each takes its own snapshot and a case that reaches one
  * leaves the others unproven.
  */
+import { INBOX_PAGE_SIZE } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
@@ -118,4 +119,25 @@ test('a send that FAILS after sign-out does not resurrect its thread either', as
   await pending
 
   expect(useChatStore.getState().messages).toEqual({})
+})
+
+test('an older inbox page in flight at sign-out does not put account A\'s threads into account B\'s inbox', async () => {
+  // loadMoreConversations is a writer of its own: it snapshots the account, then
+  // appends. A page that left before the clear returns after it.
+  listMock.mockResolvedValueOnce(Array.from({ length: INBOX_PAGE_SIZE }, (_, i) => conv({ id: `a${i}` })))
+  await useChatStore.getState().fetchConversations()
+  const response = deferred<Awaited<ReturnType<typeof api.conversations.list>>>()
+  listMock.mockReturnValueOnce(response.promise)
+
+  const pending = useChatStore.getState().loadMoreConversations()
+  await useAuthStore.getState().logout()
+  response.resolve([conv({ id: 'older', last_message: 'private to account A', unread_count: 9 })])
+  await pending
+
+  const chat = useChatStore.getState()
+  expect(chat.conversations).toEqual([])
+  expect(chat.unread).toBe(0)
+  // The reset took the in-flight flag with it; a stuck `true` would block the
+  // next account's first scroll forever.
+  expect(chat.loadingMoreConversations).toBe(false)
 })
