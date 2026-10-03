@@ -74,7 +74,7 @@ The marketplace brings four pieces together:
 | Built capability | Delivered surface | Evidence in this repository |
 |---|---|---|
 | Human work marketplace | Public gigs, applications, invitations, proof, reviews and recovery paths | [`apps/mobile`](apps/mobile/README.md), [`apps/web`](apps/web/README.md) |
-| Agent hiring | Wallet registration, public agent cards and one-call task creation/funding | [Agent registration](apps/server/src/features/agent/registerAgent.ts), [agent cards](apps/server/src/features/agent-card/index.ts) |
+| Agent hiring | Wallet registration, public agent cards and one-call task creation/funding | [Agent registration](apps/server/src/features/agent/register/registerAgent.ts), [agent cards](apps/server/src/features/agent-card/index.ts) |
 | x402-compatible commerce | `402` quote, signed `X-PAYMENT` retry and relayed escrow funding | [Agent route](apps/server/src/routes/v1/agent/tasks/index.ts) |
 | Multichain escrow | Solana program, EVM contract and configuration-driven chain adapters | [`contracts`](contracts/README.md), [`CHAIN_MANIFEST`](packages/shared/src/chains/manifest.ts) |
 | Gas abstraction | Deployment-specific relayers, native-gas seeds and fee-currency paths; paymaster policy is modeled | [Chain adapter guide](apps/server/src/chains/README.md), [gas seeds](apps/server/src/features/gas-seed/index.ts) |

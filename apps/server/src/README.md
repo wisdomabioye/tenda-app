@@ -44,3 +44,17 @@ that can be checked mechanically; the rest is convention.
 would make the adapters depend upward. For the same reason `lib/auth/resolver.ts`
 (and the two files it imports) stay: the escrow signer resolves a wallet to a
 user through it.
+
+## Settled placements
+
+- `routes/v1/openapi.json/` and `routes/v1/agent/openapi.json/` are route
+  folders whose names are the URL segment (the autoloader maps folder → path);
+  they are routes, not data files.
+- `features/escrows/routes/` holds the escrow feature's route-level helpers;
+  the HTTP handlers themselves live under `routes/v1/escrows/`.
+- `assets/` is copied verbatim into `dist/` by `build:ts`; `types/fastify.d.ts`
+  is picked up by the tsconfig `include`. Both are build inputs, not code.
+- Features with a small flat set of files (`applications`, `capacity`,
+  `reputation`, `gigs`, `disputes`) have no barrel: callers import the specific
+  module. Add an `index.ts` only when a feature has a public surface worth
+  narrowing.

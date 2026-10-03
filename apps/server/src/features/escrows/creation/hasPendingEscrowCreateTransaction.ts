@@ -5,7 +5,7 @@ import type { AppDatabase } from '@server/plugins/db'
 /**
  * The three clauses that make an attempt "a create awaiting confirmation":
  * ONE spelling, shared by the per-escrow guard below and by the demo draft
- * ring's correlated subquery (features/agent/demoDraftRing, #147), which
+ * ring's correlated subquery (features/agent/demo/demoDraftRing, #147), which
  * asks the same question of a whole SELECT at once and so takes the escrow as
  * a column rather than a value. Two copies of these clauses is how one of
  * them would stop counting a failed attempt as settled.

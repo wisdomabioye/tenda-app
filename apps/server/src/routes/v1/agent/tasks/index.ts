@@ -25,7 +25,7 @@ import {
 import { requireBody } from '@server/lib/errors'
 import { decodePaymentHeader, encodeSettlementHeader } from '@server/lib/chain/x402'
 import { requireGoodStanding } from '@server/features/reputation/guards'
-import { createAgentTask } from '@server/features/agent/createAgentTask'
+import { createAgentTask } from '@server/features/agent/tasks/createAgentTask'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: Partial<AgentTaskBody> | null }>(

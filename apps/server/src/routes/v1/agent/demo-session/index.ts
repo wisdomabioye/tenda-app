@@ -20,7 +20,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode, type AgentRegisterResponse } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { mintAuthResponse, sessionClientFromHeaders } from '@server/features/auth/session/session'
-import { demoAgentSession } from '@server/features/agent/demoSession'
+import { demoAgentSession } from '@server/features/agent/demo/demoSession'
 import { DEMO_SCOPE } from '@server/features/auth/session/scope'
 
 const route: FastifyPluginAsync = async (fastify) => {

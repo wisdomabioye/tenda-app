@@ -323,7 +323,7 @@ path. Optionally, on providers that support it (Alchemy), add a push webhook:
 - Custom Webhook (or Address Activity) → `POST https://<server-host>/v1/webhooks/alchemy`
 - Watch address: the deployed escrow (`CHAIN_<ID>_ESCROW_ADDR`).
 - The signing key the provider generates is `CHAIN_<ID>_WEBHOOK_SECRET`; the
-  route verifies the HMAC (`src/core/webhooks/verify-hmac.ts`) and drops
+  route verifies the HMAC (`src/lib/http/verify-hmac.ts`) and drops
   unsigned/mismatched calls.
 
 ---

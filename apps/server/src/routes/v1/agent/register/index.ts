@@ -11,7 +11,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { AgentRegisterBody, AgentRegisterResponse } from '@tenda/shared'
 import { requireBody } from '@server/lib/errors'
 import { mintAuthResponse, sessionClientFromHeaders } from '@server/features/auth/session/session'
-import { registerAgent } from '@server/features/agent/registerAgent'
+import { registerAgent } from '@server/features/agent/register/registerAgent'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: Partial<AgentRegisterBody> | null; Reply: AgentRegisterResponse }>(

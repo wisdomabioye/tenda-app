@@ -28,7 +28,7 @@ import { validateCreateEscrow } from '@server/features/escrows/creation/validate
 import { findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
 import { attachGigDetails, prepareGigDetails, upsertGigDetails } from '@server/features/gigs/attachGigDetails'
 import { relayDraftFunding, type RelayDraftOutcome } from '@server/features/escrows/funding/relayDraftFunding'
-import { evictDraftsBeyond, isDemoAccount } from './demoDraftRing'
+import { evictDraftsBeyond, isDemoAccount } from '../demo/demoDraftRing'
 
 export type AgentTaskOutcome = RelayDraftOutcome & { task_id: string }
 

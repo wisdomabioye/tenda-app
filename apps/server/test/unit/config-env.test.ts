@@ -9,7 +9,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
-import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
+import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demo/demoDraftRing'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { knownSlackEnvKeys, slackEnvKey } from '@server/features/alerts/slack'
 import { buildOtpSenders, type OtpSenderHost } from '@server/features/auth/otp/onboarding-deps'

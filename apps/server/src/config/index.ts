@@ -2,7 +2,7 @@ import { slackConfigProblems } from '@server/features/alerts/slack'
 import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
 import { moderationConfig } from '@server/features/moderation/core/config'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
-import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demoDraftRing'
+import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demo/demoDraftRing'
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
@@ -112,9 +112,9 @@ export interface Config {
    */
   GOOGLE_OAUTH_CLIENT_IDS: string[] | null
   APPLE_OAUTH_CLIENT_IDS: string[] | null
-  /** Demo agent's EVM address (#108); null = no demo, the route 503s. An ADDRESS, never a key — features/agent/demoSession.ts has the argument. */
+  /** Demo agent's EVM address (#108); null = no demo, the route 503s. An ADDRESS, never a key — features/agent/demo/demoSession.ts has the argument. */
   AGENT_DEMO_ADDRESS: string | null
-  /** Unfunded drafts the demo account keeps before the oldest is rung out (#147; features/agent/demoDraftRing.ts). */
+  /** Unfunded drafts the demo account keeps before the oldest is rung out (#147; features/agent/demo/demoDraftRing.ts). */
   AGENT_DEMO_DRAFT_CAP: number
 }
 

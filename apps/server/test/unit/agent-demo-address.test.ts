@@ -12,7 +12,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { demoAddress } from '@server/features/agent/demoSession'
+import { demoAddress } from '@server/features/agent/demo/demoSession'
 
 test('a well-formed address is usable, in either case the operator pasted', () => {
   const lower = `0x${'ab'.repeat(20)}`

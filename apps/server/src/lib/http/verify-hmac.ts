@@ -3,7 +3,7 @@
  * (Helius, Alchemy, Yellow Card, Onramp.money, ...).
  *
  * Single source of truth, referenced by stage-0 exit criteria
- * ("core/webhooks/verify-hmac.ts exists and is the only HMAC implementation").
+ * ("lib/http/verify-hmac.ts is the only HMAC implementation").
  *
  * Uses Node's `timingSafeEqual` so a leaked signature can't be guessed
  * byte-by-byte via timing oracle.

@@ -38,7 +38,7 @@ import { ErrorCode, apiRoutes, isEvmAddress } from '@tenda/shared'
 import type { FastifyInstance } from 'fastify'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
-import { findOrCreateAgentByWallet, type AgentRegistration } from './registerAgent'
+import { findOrCreateAgentByWallet, type AgentRegistration } from '../register/registerAgent'
 
 /**
  * The demo account's display name. Every surface that shows an agent shows this

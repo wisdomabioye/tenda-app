@@ -11,7 +11,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { verifyHmac } from '@server/core/webhooks/verify-hmac'
+import { verifyHmac } from '@server/lib/http/verify-hmac'
 import { getConfig, type Config } from '@server/config'
 import { buildFiatDeps } from '../index'
 import { settleFromProvider, type ProviderOutcome } from '../service'
