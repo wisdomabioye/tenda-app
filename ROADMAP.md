@@ -209,10 +209,11 @@ The canonical product demonstration is:
 
 ### D. Agent developer platform
 
-**Status:** Committed after lifecycle stabilisation.
+**Status:** Committed after lifecycle stabilisation. **Issues:** [#40](https://github.com/wisdomabioye/tenda-app/issues/40).
 
 - Ship TypeScript and Python SDKs for registration, quotes, 402 sign/resend, funding, reads/lists, watching, proof inspection and authorised settlement actions.
 - Hide raw token-unit and chain-specific transaction complexity without holding customer keys.
+- Publish an agent skill for the current one-shot create path first; extend it as the lifecycle lands.
 - Ship MCP tools that return unsigned/signable intent or use caller-provided signers.
 - Generate types from one API contract and conformance-test raw HTTP, TypeScript, Python and MCP against the same flow.
 - Publish package provenance, versioning, changelog, deprecation policy and vendor-neutral OpenAI/Claude-compatible examples.
