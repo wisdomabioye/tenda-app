@@ -69,3 +69,10 @@ export type MessagesQuery = {
   before_id?: string
   limit?: number
 }
+
+/**
+ * The inbox pages by the same cursor a thread does: `before_id` is the id of the
+ * LAST conversation the client holds, `limit` the page size. Same shape on
+ * purpose, so one client hook drives both lists.
+ */
+export type ConversationsQuery = MessagesQuery

@@ -75,6 +75,7 @@ export type {
   UpsertSubscriptionInput,
   RegisterDeviceTokenInput,
   MessagesQuery,
+  ConversationsQuery,
 } from './chat'
 export { ATTACHMENT_PREVIEW } from './chat'
 export type { CreateReportInput } from './moderation'
