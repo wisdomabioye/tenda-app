@@ -22,7 +22,20 @@ const { conversations, notifications, subscriptions } = apiRoutes
 const id = { id: 'c1' }
 
 const CASES: ClientCase[] = [
-  { name: 'conversations.list', call: () => conversationsApi.list(), method: 'GET', path: conversations.list },
+  {
+    name: 'conversations.list (query omitted)',
+    call: () => conversationsApi.list(),
+    method: 'GET',
+    path: conversations.list,
+    options: { query: undefined },
+  },
+  {
+    name: 'conversations.list (cursor given)',
+    call: () => conversationsApi.list({ before_id: 'c9', limit: 20 }),
+    method: 'GET',
+    path: conversations.list,
+    options: { query: { before_id: 'c9', limit: 20 } },
+  },
   {
     name: 'conversations.findOrCreate',
     call: () => conversationsApi.findOrCreate({ user_id: 'u2' }),
