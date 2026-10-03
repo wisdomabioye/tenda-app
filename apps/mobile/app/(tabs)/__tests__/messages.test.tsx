@@ -6,7 +6,7 @@
  * are computed over (whatever is loaded) and a regression there would be silent.
  */
 import { ActivityIndicator, FlatList } from 'react-native'
-import { act, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { END_REACHED_THRESHOLD, type Conversation } from '@tenda/shared'
 
 jest.mock('expo-router', () => {
@@ -41,8 +41,14 @@ jest.mock('@/components/ui/EmptyState', () => {
   return { EmptyState: ({ title }: { title: string }) => <Text>{title}</Text> }
 })
 jest.mock('@/components/feedback', () => {
-  const { Text } = require('react-native')
-  return { ErrorState: ({ title }: { title: string }) => <Text>{title}</Text> }
+  const { Pressable, Text } = require('react-native')
+  return {
+    ErrorState: ({ title, onCtaPress }: { title: string; onCtaPress: () => void }) => (
+      <Pressable accessibilityLabel="retry" onPress={onCtaPress}>
+        <Text>{title}</Text>
+      </Pressable>
+    ),
+  }
 })
 jest.mock('@/components/chat/ConversationItem', () => {
   const { Text } = require('react-native')
@@ -115,4 +121,25 @@ test('with nothing loaded, the empty state shows and paging is not asked for by 
   render(<MessagesScreen />)
   expect(screen.getByText('No conversations yet')).toBeTruthy()
   expect(mockLoadMore).not.toHaveBeenCalled()
+})
+
+test('a failed first load says so, and Retry asks again and clears the error', async () => {
+  mockFetchConversations.mockRejectedValueOnce(new Error('offline'))
+  render(<MessagesScreen />)
+  expect(await screen.findByText("Couldn't load messages")).toBeTruthy()
+
+  fireEvent.press(screen.getByLabelText('retry'))
+
+  expect(mockFetchConversations).toHaveBeenCalledTimes(2)
+  expect(await screen.findByText('No conversations yet')).toBeTruthy()
+  expect(screen.queryByText("Couldn't load messages")).toBeNull()
+})
+
+test('a failed load does not blank a list that is already on screen', async () => {
+  mockStore.conversations = [conversation({ id: 'c1' })]
+  mockFetchConversations.mockRejectedValueOnce(new Error('offline'))
+  render(<MessagesScreen />)
+  await act(async () => {})
+  // The error state is the EMPTY-list body; a list with rows keeps its rows.
+  expect(screen.getByText('thread c1')).toBeTruthy()
 })
