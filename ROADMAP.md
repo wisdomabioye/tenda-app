@@ -73,6 +73,8 @@ Automated approval will only ship with documented failure handling and an appeal
 - expose completion, acceptance and dispute history with appropriate privacy controls
 - improve discovery by location, availability and demonstrated capability
 
+Optional verification is **exploratory** ([#43](https://github.com/wisdomabioye/tenda-app/issues/43)): a chain-neutral layer where users may attach privacy-preserving claims (proof of personhood, document-backed or local-ID verification) from decentralized or credential-based sources such as Self, wallet-held credentials or zkTLS. Tenda would store only the claim, level and expiry, never documents. Verification would unlock limits, badges and vetted pools, never block baseline use, and nothing is committed until a coverage test with target-market workers shows it works.
+
 ERC-8004 identity is live on Celo. Self Agent ID, chain-neutral identity adapters, contextual outcome reputation and portable on-chain feedback remain committed or exploratory extensions with explicit privacy, safety and user-value gates.
 
 ## Fiat access
@@ -182,6 +184,9 @@ The canonical product demonstration is:
 - Add authorised relayed approval/cancellation where contract authority permits.
 - Close Solana accounts and recover rent before mainnet; complete Solidity/Solana audit and multisig readiness.
 - Improve gas-claim placement, multi-asset cNGN/cUSD balances, configurable draft retention and dashboard aggregation.
+- Resolve disputes by percentage (`split_bps`) instead of a fixed 50/50, with the fee on the counterparty's share, a bounded admin range and a stored rationale ([#41](https://github.com/wisdomabioye/tenda-app/issues/41)).
+- Charge a separate, admin-tunable platform fee on the peer-to-peer exchange path, snapshotted onto each escrow at creation so the fee quoted is the fee charged. The receiver pays on both paths and the Seeker discount applies to both ([#42](https://github.com/wisdomabioye/tenda-app/issues/42)).
+- Land both contract changes in one revision with relayed approval/cancellation, ahead of security review.
 
 ### B. Agent identity, trust and discoverability
 
