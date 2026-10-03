@@ -20,7 +20,7 @@
 
 import fp from 'fastify-plugin'
 import cors from '@fastify/cors'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, X_PAYMENT_RESPONSE_HEADER } from '@tenda/shared'
 import { getConfig } from '@server/config'
 
 const ADMIN_PREFIX = '/v1/admin/'
@@ -31,7 +31,7 @@ const EXPOSED_RESPONSE_HEADERS = [
   'x-ratelimit-remaining',
   'x-ratelimit-reset',
   'retry-after',
-  'x-payment-response',
+  X_PAYMENT_RESPONSE_HEADER,
 ] as const
 
 export default fp(async (fastify) => {
