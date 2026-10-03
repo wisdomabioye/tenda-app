@@ -78,6 +78,14 @@ module.exports = [
   // trickiest state in the app. Measured before listing: the file reads
   // 100/100/100/100 and the global branch figure goes UP, 90.21 -> 90.57.
   'stores/chat.store.ts',
+  // The inbox half of the chat store, split out when paging took the store
+  // past 300 lines, and the Messages tab that drives it. Listing the module is
+  // REQUIRED, not optional: its code used to be measured inside chat.store.ts
+  // at 100%, and a split that left it off this list would have quietly shrunk
+  // the measured surface. Measured with both listed: chat-inbox.ts 100/96/100/
+  // 100, messages.tsx 96.96/93.75/91.66/96.42 (its row-press navigation was the
+  // one uncovered line and has a case now; not re-measured after it), chat.store.ts
+  // still 100/100/100/100, and the global figures hold at 94.72/93.61/94.15/94.86.
   'stores/chat-inbox.ts',
   'app/(tabs)/messages.tsx',
   // The budget field: fiat/asset entry, the rate-arrival conversion (#49) and

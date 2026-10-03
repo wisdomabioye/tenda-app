@@ -9,10 +9,11 @@ import { ActivityIndicator, FlatList } from 'react-native'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { END_REACHED_THRESHOLD, type Conversation } from '@tenda/shared'
 
+const mockPush = jest.fn()
 jest.mock('expo-router', () => {
   const { useEffect } = require('react')
   return {
-    useRouter: () => ({ push: jest.fn() }),
+    useRouter: () => ({ push: mockPush }),
     // Re-runs when the callback changes, as the real hook does.
     useFocusEffect: (effect: () => void) => useEffect(() => effect(), [effect]),
   }
@@ -51,8 +52,14 @@ jest.mock('@/components/feedback', () => {
   }
 })
 jest.mock('@/components/chat/ConversationItem', () => {
-  const { Text } = require('react-native')
-  return { ConversationItem: ({ conversation }: { conversation: { id: string } }) => <Text>{`thread ${conversation.id}`}</Text> }
+  const { Pressable, Text } = require('react-native')
+  return {
+    ConversationItem: ({ conversation, onPress }: { conversation: { id: string }; onPress: () => void }) => (
+      <Pressable onPress={onPress}>
+        <Text>{`thread ${conversation.id}`}</Text>
+      </Pressable>
+    ),
+  }
 })
 
 const mockFetchConversations = jest.fn(async () => {})
@@ -142,4 +149,13 @@ test('a failed load does not blank a list that is already on screen', async () =
   await act(async () => {})
   // The error state is the EMPTY-list body; a list with rows keeps its rows.
   expect(screen.getByText('thread c1')).toBeTruthy()
+})
+
+test('tapping a thread opens the chat with the OTHER person, not the conversation id', () => {
+  mockStore.conversations = [
+    conversation({ id: 'c1', other_user: { id: 'u-ada', first_name: 'Ada', last_name: 'L', avatar_url: null } }),
+  ]
+  render(<MessagesScreen />)
+  fireEvent.press(screen.getByText('thread c1'))
+  expect(mockPush).toHaveBeenCalledWith('/chat/u-ada')
 })
