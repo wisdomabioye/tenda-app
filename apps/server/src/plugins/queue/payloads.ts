@@ -111,6 +111,8 @@ export interface JobPayload {
   'update-price-stats': { tick_id: string }
   /** Daily retention sweep of stale personal notifications, tick id for correlation. */
   'prune-notifications': { tick_id: string }
+  /** Daily discard of unfunded drafts past DRAFT_RETENTION_DAYS, tick id for correlation. */
+  'prune-stale-drafts': { tick_id: string }
   /**
    * Expand a new gig into one notification per matching subscriber.
    *

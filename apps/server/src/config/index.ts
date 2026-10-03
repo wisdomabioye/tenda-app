@@ -3,6 +3,7 @@ import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerPr
 import { moderationConfig } from '@server/features/moderation/core/config'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demo/demoDraftRing'
+import { DRAFT_RETENTION_DAYS_DEFAULT } from '@server/features/escrows/creation/staleDrafts'
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
@@ -116,6 +117,8 @@ export interface Config {
   AGENT_DEMO_ADDRESS: string | null
   /** Unfunded drafts the demo account keeps before the oldest is rung out (#147; features/agent/demo/demoDraftRing.ts). */
   AGENT_DEMO_DRAFT_CAP: number
+  /** Days an unfunded draft lives before the daily sweep discards it (features/escrows/creation/staleDrafts.ts). */
+  DRAFT_RETENTION_DAYS: number
 }
 
 /** Parse a comma-separated env var into a trimmed non-empty list, or null. */
@@ -126,7 +129,7 @@ function csvEnv(raw: string | undefined): string[] | null {
 }
 
 /** Every optional var that must parse as a positive integer when set. */
-const POSITIVE_INTEGER_ENV_VARS = ['OPENROUTER_MODERATION_TIMEOUT_MS', 'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS', 'AGENT_DEMO_DRAFT_CAP'] as const
+const POSITIVE_INTEGER_ENV_VARS = ['OPENROUTER_MODERATION_TIMEOUT_MS', 'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS', 'AGENT_DEMO_DRAFT_CAP', 'DRAFT_RETENTION_DAYS'] as const
 
 function moderationModelProblem(): string[] {
   const model = optionalEnv('OPENROUTER_MODERATION_MODEL')
@@ -249,6 +252,7 @@ export function loadConfig(): Config {
     JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
     AGENT_DEMO_ADDRESS:    optionalEnv('AGENT_DEMO_ADDRESS'),
     AGENT_DEMO_DRAFT_CAP:  positiveIntegerEnv('AGENT_DEMO_DRAFT_CAP', DEMO_DRAFT_CAP_DEFAULT),
+    DRAFT_RETENTION_DAYS:  positiveIntegerEnv('DRAFT_RETENTION_DAYS', DRAFT_RETENTION_DAYS_DEFAULT),
     TERMII_API_KEY:        optionalEnv('TERMII_API_KEY'),
     TERMII_SENDER_ID:      optionalEnv('TERMII_SENDER_ID'),
     TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],

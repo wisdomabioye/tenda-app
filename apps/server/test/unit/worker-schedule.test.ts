@@ -50,6 +50,7 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
     'expire-fiat-quotes',
     'gas-seed-balance-check',
     'prune-notifications',
+    'prune-stale-drafts',
     'reconcile',
     'reconcile-fiat',
     'sweep-escrows',
@@ -75,6 +76,7 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   // tick that finds work spends real gas.
   assert.strictEqual(byName.get('sweep-escrows')?.every_ms, 15 * 60_000)
   assert.strictEqual(byName.get('prune-notifications')?.every_ms, 24 * 3_600_000)
+  assert.strictEqual(byName.get('prune-stale-drafts')?.every_ms, 24 * 3_600_000)
   // #53b watches the gas-seed hot wallets. Brisk on purpose and cheap to be so:
   // a tick is one RPC read per seeded chain, and how often an OPERATOR hears
   // about a low wallet is set by the alert's chain-keyed dedup, not by this.
