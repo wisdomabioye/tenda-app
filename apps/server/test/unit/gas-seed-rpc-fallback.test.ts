@@ -316,9 +316,8 @@ test('the Solana sender: a fallback DUPLICATING the primary is not a second broa
 })
 
 test('the Solana FUNDER built by the same seam DOES fail over', async () => {
-  // The control for the test above: same seam, same args, opposite answer —
-  // so "nothing failed over" cannot pass by the fallback simply being dropped
-  // on the floor before it reaches either builder.
+  // The funder half of the same seam as the sender test above: the fallback
+  // must reach BOTH builders, so neither can pass by the seam dropping it.
   const [primary, secondary] = await balanceStubs({ context: { slot: 1 }, value: 777 }, 'getBalance')
   try {
     const funder = GAS_SEED_SUPPORT.solana.buildFunder({
