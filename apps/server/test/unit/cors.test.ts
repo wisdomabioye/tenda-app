@@ -20,12 +20,13 @@ import Fastify from 'fastify'
 import corsPlugin from '@server/plugins/cors'
 
 const ALLOWED = 'https://app.tenda.test'
+const ADMIN = 'https://admin.tenda.test'
 const REJECTED = 'https://evil.example'
 
 // The plugin reads these through getConfig() when it REGISTERS, not when it is
 // imported, so setting them here (before any buildApp call) is early enough.
 process.env.CORS_ORIGIN = ALLOWED
-process.env.ADMIN_ORIGIN = 'https://admin.tenda.test'
+process.env.ADMIN_ORIGIN = ADMIN
 
 async function buildApp() {
   const app = Fastify()
@@ -84,7 +85,7 @@ test('a disallowed origin is still refused: no allow-origin, so its browser igno
 
 test('exposing headers does not widen the allow-list: the origin list is exactly CORS_ORIGIN plus ADMIN_ORIGIN', async () => {
   const app = await buildApp()
-  for (const origin of [ALLOWED, 'https://admin.tenda.test']) {
+  for (const origin of [ALLOWED, ADMIN]) {
     const res = await app.inject({ method: 'GET', url: '/x', headers: { origin } })
     assert.strictEqual(res.headers['access-control-allow-origin'], origin)
   }
@@ -92,8 +93,6 @@ test('exposing headers does not widen the allow-list: the origin list is exactly
   assert.strictEqual(other.headers['access-control-allow-origin'], undefined)
   await app.close()
 })
-
-const ADMIN = 'https://admin.tenda.test'
 
 test('an admin route refuses a browser origin that is allowed for the app but is not the admin origin', async () => {
   const app = await buildApp()
