@@ -19,7 +19,7 @@
  * Set here rather than per suite, where one copy could quietly loosen.
  */
 import Ajv from 'ajv'
-import { AGENT_API_DOCUMENT, COMPONENT_REF_PREFIX } from '@tenda/api-doc'
+import { AGENT_API_DOCUMENT, COMPONENT_REF_PREFIX } from '../index'
 
 export { COMPONENT_REF_PREFIX }
 

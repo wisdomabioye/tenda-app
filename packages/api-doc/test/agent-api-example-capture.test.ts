@@ -19,8 +19,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { apiRoutes, findChain } from '@tenda/shared'
-import { AGENT_API_DOCUMENT, RECORDED_EXCHANGE } from '@tenda/api-doc'
-import { plainProse } from '../helpers/document-prose'
+import { AGENT_API_DOCUMENT, RECORDED_EXCHANGE } from '../src'
+import { plainProse } from '../src/testing/document-prose'
 
 test('#133: the operation labels the example as a local-node capture and points at the registry for live addresses', () => {
   // Read through `plainProse`: the label is now a bold sentence and the four

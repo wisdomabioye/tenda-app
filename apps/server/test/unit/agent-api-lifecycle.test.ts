@@ -19,7 +19,7 @@ import { RELAY_QUOTE_TTL_SECONDS, SOLANA_BLOCKHASH_VALIDITY_SECONDS, X_PAYMENT_H
 import { EVM_POLL_INTERVAL_MS } from '@server/chains/evm/listener-polling/constants'
 import { RECONCILE_GIVE_UP_MS, RECONCILE_INTERVAL_MS } from '@server/queue/jobs/reconcile-escrows'
 import { AGENT_API_DOCUMENT, AGENT_API_POST, AGENT_API_STABILITY } from '@tenda/api-doc'
-import { plainProse } from '../helpers/document-prose'
+import { plainProse } from '@tenda/api-doc/testing'
 
 const task = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post
 assert.ok(task !== undefined, 'the task operation is documented')

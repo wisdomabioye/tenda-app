@@ -40,7 +40,7 @@ import {
 } from '@tenda/api-doc'
 import { FEATURED_RAIL_LIMIT } from '@server/features/gigs/featured'
 import { GIG_SUMMARY_COLS } from '@server/features/gigs/gig-read'
-import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
+import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '@tenda/api-doc/testing'
 
 const { paths, components } = AGENT_API_DOCUMENT
 
