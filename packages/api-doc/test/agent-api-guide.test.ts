@@ -30,7 +30,7 @@ import {
   AGENT_API_DOCUMENT,
   GUIDE_PATHS,
   integrationGuide,
-} from '@tenda/api-doc'
+} from '../src'
 
 const description = AGENT_API_DOCUMENT.info.description
 

@@ -40,7 +40,7 @@ import {
   useTestApp,
 } from '../helpers/test-app'
 import { servedPaths } from '../helpers/route-table'
-import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
+import { COMPONENT_REF_PREFIX, agentApiAjv } from '@tenda/api-doc/testing'
 import { agentTaskBody, registerAgent } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED

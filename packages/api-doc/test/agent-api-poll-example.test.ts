@@ -19,8 +19,8 @@ import {
   type RecordedExchange,
   RECORDED_EXCHANGE,
   JSON_MEDIA_TYPE,
-} from '@tenda/api-doc'
-import { agentApiAjv } from '../helpers/agent-api-validator'
+} from '../src'
+import { agentApiAjv } from '../src/testing/agent-api-validator'
 
 const ajv = agentApiAjv()
 

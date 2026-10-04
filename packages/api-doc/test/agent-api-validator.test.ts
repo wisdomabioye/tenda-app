@@ -15,8 +15,8 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { AGENT_API_DOCUMENT } from '@tenda/api-doc'
-import { agentApiAjv, strictAjv, COMPONENT_REF_PREFIX } from '../helpers/agent-api-validator'
+import { AGENT_API_DOCUMENT } from '../src'
+import { agentApiAjv, strictAjv, COMPONENT_REF_PREFIX } from '../src/testing/agent-api-validator'
 
 /** A real closed component: every key required, additionalProperties false. */
 const AUTH_NONCE = `${COMPONENT_REF_PREFIX}AuthNonce`
