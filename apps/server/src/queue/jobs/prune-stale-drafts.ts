@@ -1,5 +1,5 @@
 /**
- * prune-stale-drafts — discards unfunded drafts older than the retention window.
+ * prune-stale-drafts — discards unfunded drafts idle for longer than the retention window.
  *
  * Daily, like the notification retention sweep, and bounded the way
  * expire-escrows is: a batch per statement, a ceiling on batches per tick, so a
