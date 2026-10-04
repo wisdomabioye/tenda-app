@@ -14,7 +14,7 @@ import { eq } from 'drizzle-orm'
 import { gig_details } from '@tenda/shared/db/schema'
 import { validateGigDetails } from '@server/features/gigs/gig-details'
 import { upsertGigDetails } from '@server/features/gigs/attachGigDetails'
-import { TEST_DB_CONFIGURED, createEscrow, createUser, resetDb, useTestApp } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, attachGigDetails, createEscrow, createUser, resetDb, useTestApp } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -105,4 +105,23 @@ test('everything the validator accepts as remote is storable: a country on a rem
   assert.strictEqual(stored.country, null)
   assert.strictEqual(stored.city, null)
   assert.strictEqual(stored.remote, true)
+})
+
+test('the shared test helper builds a remote gig with no place by default, and a located one only on request', { skip }, async () => {
+  const app = getApp()
+  await resetDb(app)
+  const creator = await createUser(app)
+  const remoteEscrow = await createEscrow(app, { creator_id: creator.row.id, status: 'draft' })
+  await attachGigDetails(app, remoteEscrow.id, { remote: true })
+  const [remote] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, remoteEscrow.id))
+  assert.deepStrictEqual([remote.country, remote.city], [null, null])
+
+  const onSiteEscrow = await createEscrow(app, { creator_id: creator.row.id, status: 'draft' })
+  await attachGigDetails(app, onSiteEscrow.id, {})
+  const [onSite] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, onSiteEscrow.id))
+  assert.deepStrictEqual([onSite.country, onSite.city], ['NG', 'Lagos'])
+
+  // Asking for the impossible is answered by the constraint, not silently fixed.
+  const bogusEscrow = await createEscrow(app, { creator_id: creator.row.id, status: 'draft' })
+  await assert.rejects(attachGigDetails(app, bogusEscrow.id, { remote: true, country: 'NG' }), rejectedBy(CONSTRAINT))
 })
