@@ -17,6 +17,7 @@
  */
 import {
   apiRoutes,
+  ErrorCode,
   TENDA_RELAY_SCHEME,
   X402_VERSION,
   X_PAYMENT_HEADER,
@@ -99,6 +100,6 @@ export function integrationGuide(): string {
     '',
     `**5 — Watch it land.** Read the task back at \`GET ${gig}\`. The create is on chain once the gig leaves \`draft\`; how long this deployment waits before giving up on a transaction it cannot find is stated on the task operation itself.`,
     '',
-    `**When it does not work.** A resend answering **402** again means the previous create is over: the terms are fresh and so is the draft. A **409** means a create for that \`creation_operation_id\` is still in flight — wait rather than mint a new one. A **422** means this deployment cannot settle what the body asked for, and \`GET ${chains}\` is the authority on what it can. Every non-2xx answer is the \`ApiError\` envelope, whose \`code\` is the machine-readable half.`,
+    `**When it does not work.** A resend answering **402** again means the previous create is over: the terms are fresh and so is the draft. A **409** means a create for that \`creation_operation_id\` is still in flight — wait rather than mint a new one. A **422** means this deployment cannot settle what the body asked for, and \`GET ${chains}\` is the authority on what it can. A **429** with \`code\` \`${ErrorCode.RATE_LIMITED}\` means slow down: wait \`details.retry_after\` seconds (the \`Retry-After\` header carries the same number) and resend the same body. Every non-2xx answer is the \`ApiError\` envelope, whose \`code\` is the machine-readable half.`,
   ].join('\n')
 }

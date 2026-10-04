@@ -19,6 +19,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
+  ErrorCode,
   TENDA_RELAY_SCHEME,
   X402_VERSION,
   X_PAYMENT_HEADER,
@@ -90,4 +91,11 @@ test('the document resolves operations to the origin it was fetched from, not a 
     { url: '/', description: 'The origin this document was fetched from' },
   ])
   assert.ok(!description.includes('https://'), 'the guide hard-codes an origin, so a second deployment would send readers to the first')
+})
+
+test('the guide tells a reader what a throttled request looks like, by the code the server sends', () => {
+  const guide = integrationGuide()
+  assert.ok(guide.includes('**429**'), 'the guide never mentions a 429')
+  assert.ok(guide.includes(ErrorCode.RATE_LIMITED), 'the guide does not name the code a 429 carries')
+  assert.ok(guide.includes('retry_after'), 'the guide does not say where the wait is stated')
 })

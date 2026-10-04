@@ -71,6 +71,8 @@ export const ErrorCode = {
    *  primary first. Distinct from WALLET_IN_USE so the client shows the right
    *  message (not the active-escrow copy). */
   WALLET_IS_PRIMARY:             'WALLET_IS_PRIMARY',
+  /** Any request refused by the per-IP / per-route rate limiter (429). OTP sends keep their own code below. */
+  RATE_LIMITED:                  'RATE_LIMITED',
   OTP_RATE_LIMITED:              'OTP_RATE_LIMITED',
   OTP_INVALID:                   'OTP_INVALID',
   OTP_EXPIRED:                   'OTP_EXPIRED',
