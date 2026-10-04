@@ -2,7 +2,8 @@
  * discardStaleDrafts — what the retention sweep may and may not delete.
  *
  * Real rows against a real database, because the guards ARE the SQL: still a
- * draft, created before the cutoff, no create awaiting confirmation. The
+ * draft, idle since before the cutoff (`updated_at`, not `created_at`), no create
+ * awaiting confirmation. The
  * dangerous failure is not leaving a stale draft behind; it is deleting a row
  * whose create is already on its way to the chain.
  */
@@ -27,7 +28,11 @@ async function exists(id: string): Promise<boolean> {
   return rows.length === 1
 }
 
-async function draft(created_at: Date, over: { status?: EscrowStatus; kind?: 'gig' | 'exchange' } = {}) {
+/** `updated_at` defaults to `created_at`: a draft nobody has touched since it was made. */
+async function draft(
+  created_at: Date,
+  over: { status?: EscrowStatus; kind?: 'gig' | 'exchange'; updated_at?: Date } = {},
+) {
   const app = getApp()
   const creator = await createUser(app)
   const status = over.status ?? 'draft'
@@ -35,6 +40,7 @@ async function draft(created_at: Date, over: { status?: EscrowStatus; kind?: 'gi
     creator_id: creator.row.id,
     status,
     created_at,
+    updated_at: over.updated_at ?? created_at,
     ...(over.kind !== undefined ? { kind: over.kind } : {}),
     ...(status === 'draft' ? {} : { escrow_ref: `ref-${randomUUID()}` }),
   })
@@ -48,6 +54,23 @@ test('a draft older than the cutoff goes; a fresher one stays', { skip }, async 
   assert.strictEqual(await discardStaleDrafts(getApp().db, { older_than: CUTOFF, limit: 100 }), 1)
   assert.strictEqual(await exists(old), false)
   assert.strictEqual(await exists(fresh), true)
+})
+
+test('age is measured from the last touch: an old draft someone came back to is kept', { skip }, async () => {
+  await resetDb(getApp())
+  const revisited = await draft(before(30 * DAY), { updated_at: new Date(CUTOFF.getTime() + DAY) })
+  assert.strictEqual(await discardStaleDrafts(getApp().db, { older_than: CUTOFF, limit: 100 }), 0)
+  assert.strictEqual(await exists(revisited), true, 'a draft touched after the cutoff was erased for its creation date')
+})
+
+test('a recently created draft that has sat idle since before the cutoff still goes', { skip }, async () => {
+  // The other half: updated_at, not created_at, decides — a row can only be idle
+  // longer than it has existed if the two columns disagree, which a fixture can
+  // force and production can reach through a clock correction.
+  await resetDb(getApp())
+  const idle = await draft(new Date(CUTOFF.getTime() + DAY), { updated_at: before(DAY) })
+  assert.strictEqual(await discardStaleDrafts(getApp().db, { older_than: CUTOFF, limit: 100 }), 1)
+  assert.strictEqual(await exists(idle), false)
 })
 
 test('the cutoff is strict: a draft created exactly at it is kept', { skip }, async () => {
@@ -99,7 +122,7 @@ test('a SETTLED create attempt does not pin the draft: a failed one leaves it di
   assert.strictEqual(await exists(failed), false)
 })
 
-test('a batch takes the OLDEST first and respects the limit', { skip }, async () => {
+test('a batch takes the LONGEST-IDLE first and respects the limit', { skip }, async () => {
   await resetDb(getApp())
   const oldest = await draft(before(10 * DAY))
   const middle = await draft(before(5 * DAY))
@@ -108,6 +131,16 @@ test('a batch takes the OLDEST first and respects the limit', { skip }, async ()
   assert.strictEqual(await exists(oldest), false)
   assert.strictEqual(await exists(middle), false)
   assert.strictEqual(await exists(newest), true, 'the limit was ignored or the order was newest-first')
+})
+
+test('the batch is ordered by idle time, not by creation date', { skip }, async () => {
+  await resetDb(getApp())
+  // Both are stale. `touchedRecently` is the older row but was used more lately.
+  const touchedRecently = await draft(before(10 * DAY), { updated_at: before(2 * DAY) })
+  const longIdle = await draft(before(3 * DAY), { updated_at: before(9 * DAY) })
+  assert.strictEqual(await discardStaleDrafts(getApp().db, { older_than: CUTOFF, limit: 1 }), 1)
+  assert.strictEqual(await exists(longIdle), false, 'the draft idle longest was not chosen first')
+  assert.strictEqual(await exists(touchedRecently), true)
 })
 
 test('rows the sweep must keep cannot starve the ones it may discard: the batch is chosen FROM the eligible set', { skip }, async () => {
