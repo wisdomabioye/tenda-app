@@ -16,8 +16,8 @@ import {
   nativeCurrencyOf,
   type GasPolicy,
 } from '@tenda/shared/chains'
-import { ASSET_META } from '@tenda/shared/constants/assets'
 import { prose } from '@tenda/shared/utils/prose'
+import { registryAsset } from './registry-asset'
 
 export interface ChainDisplay {
   /** Marketing-cased name (manifest displayName is UPPER for some chains). */
@@ -259,7 +259,7 @@ export const CHAIN_STRENGTHS_PROSE = prose(
  * Celo's cUSD and CELO — an understatement rather than a lie, and exactly the
  * kind that grows into one when a chain is added.
  *
- * STABLECOINS LEAD, from ASSET_META's own `is_stable` flag rather than a
+ * STABLECOINS LEAD, from the registry's own `is_stable` flag rather than a
  * hand-kept order. Raw manifest order puts SOL first (Solana is the first
  * entry and lists its native asset before its USDC), which opens a sentence
  * about a USDC-denominated product with a volatile token.
@@ -269,7 +269,10 @@ export const EXCHANGE_ASSET_SYMBOLS_PROSE = prose(
     ...new Map(
       CHAIN_MANIFEST.filter((entry) => entry.kind === 'mainnet')
         .flatMap((entry) => entry.assets.filter((asset) => asset.roles.includes('exchange')))
-        .map((asset) => [ASSET_META[asset.id].symbol, ASSET_META[asset.id].is_stable] as const),
+        .map((asset) => {
+          const meta = registryAsset(asset.id, 'exchange assets')
+          return [meta.symbol, meta.is_stable] as const
+        }),
     ),
   ]
     .sort(([, aStable], [, bStable]) => Number(bStable) - Number(aStable))
