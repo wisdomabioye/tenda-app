@@ -30,7 +30,7 @@ module.exports = defineConfig([
     //     module scope, so it cannot close over an `import`ed binding; it
     //     `require`s what it needs at call time.
     //
-    // SOURCE KEEPS BOTH RULES. __tests__/lint-scope.test.ts pins that, so this
+    // SOURCE KEEPS BOTH RULES. __tests__/lint-test-file-policy.test.ts pins that, so this
     // block cannot widen into the app unnoticed.
     files: ['**/__tests__/**', '**/*.test.{ts,tsx}', '**/__mocks__/**', '**/__fixtures__/**'],
     rules: {
