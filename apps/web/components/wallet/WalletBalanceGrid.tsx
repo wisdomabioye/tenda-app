@@ -57,6 +57,12 @@ export function WalletBalanceGrid({ balances }: { balances: WalletChainBalance[]
       {balances.map((balance) => {
         const usdc = readingOf(balance.usdc)
         const native = readingOf(balance.native)
+        // What else the wallet HOLDS on this chain (cUSD, cNGN). A zero is left
+        // off: a line per empty asset would bury the figure a holder came for.
+        const others = balance.others
+          .filter((other) => /[1-9]/.test(other.amountRaw))
+          .map((other) => readingOf(other))
+          .flatMap((reading) => (reading === null ? [] : [`${reading.value} ${reading.unit}`]))
         return (
           <div
             key={`${balance.chainId}:${balance.address}`}
@@ -77,6 +83,11 @@ export function WalletBalanceGrid({ balances }: { balances: WalletChainBalance[]
               {truncateWallet(balance.address)}
               {native !== null ? ` · ${native.value} ${native.unit}` : ` · ${WALLET_COPY.noNative}`}
             </p>
+            {others.length > 0 && (
+              <p data-other-assets className="mt-1 truncate font-numeric text-xs leading-4 text-content-tertiary">
+                {others.join(' · ')}
+              </p>
+            )}
           </div>
         )
       })}

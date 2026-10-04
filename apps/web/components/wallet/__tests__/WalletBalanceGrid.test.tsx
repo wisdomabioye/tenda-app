@@ -20,6 +20,7 @@ const ROW: WalletChainBalance = {
   address: 'SoLAddr11111111111111111111111111111111111',
   usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '48500000', decimals: 6, isStable: true },
   native: { assetId: 'SOL_DEVNET', symbol: 'SOL', amountRaw: '1200000000', decimals: 9, isStable: false },
+  others: [],
 }
 
 describe('WalletBalanceGrid', () => {
@@ -71,10 +72,32 @@ describe('WalletBalanceGrid', () => {
         isStable: true,
       },
       native: null,
+      others: [],
     }
     const { container } = render(<WalletBalanceGrid balances={[cusd]} />)
     expect(screen.getByText('1.2346')).toBeInTheDocument()
     expect(container.textContent).not.toContain('1.2345678901234567')
+  })
+
+  it('shows what else the wallet HOLDS on the chain (cNGN, cUSD), and leaves an empty asset off', () => {
+    render(
+      <WalletBalanceGrid
+        balances={[{
+          ...ROW,
+          others: [
+            { assetId: 'cNGN', symbol: 'cNGN', amountRaw: '1500000000', decimals: 6, isStable: true },
+            { assetId: 'cUSD', symbol: 'cUSD', amountRaw: '0', decimals: 18, isStable: true },
+          ],
+        }]}
+      />,
+    )
+    const line = document.querySelector('[data-other-assets]')
+    expect(line?.textContent).toBe('1,500 cNGN')
+  })
+
+  it('has no other-assets line when the wallet holds nothing else', () => {
+    const { container } = render(<WalletBalanceGrid balances={[ROW]} />)
+    expect(container.querySelector('[data-other-assets]')).toBeNull()
   })
 
   it('renders nothing at all when there are no chains', () => {

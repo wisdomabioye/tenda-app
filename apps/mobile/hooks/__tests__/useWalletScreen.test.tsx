@@ -122,7 +122,7 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   mockChains = [{ id: 'solana:devnet', namespace: 'solana', display_name: 'Solana', assets: [] }]
   mockRead.mockResolvedValue([
     { chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address: 'SoL',
-      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null },
+      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
   ])
   // The REAL sumUsdcRaw runs over the mocked read result → 50 USDC (6dp).
 
@@ -404,6 +404,7 @@ test('a slower EARLIER read cannot overwrite the newer one it was superseded by'
     chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address,
     usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '1', decimals: 6, isStable: true },
     native: null,
+    others: [],
   })
   let releaseFirst: ((v: unknown[]) => void) | undefined
   mockRead.mockImplementationOnce(() => new Promise<unknown[]>((res) => { releaseFirst = res }))
@@ -437,7 +438,7 @@ test('a superseded run cannot write even when it FAILS or answers late', async (
   await waitFor(() => expect(mockRead).toHaveBeenCalledTimes(1))
 
   const fresh = [{ chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana',
-    address: 'NEW', usdc: null, native: null }]
+    address: 'NEW', usdc: null, native: null, others: [] }]
   mockRead.mockResolvedValue(fresh)
   mockSummary.mockResolvedValue({ earned_raw: '9000000', spent_raw: '0', asset: 'USDC_SOL' })
   mockWallets = [{ chain_ns: 'solana', address: 'NEW' }]

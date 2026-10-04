@@ -38,4 +38,11 @@ export interface WalletChainBalance {
   usdc: AssetBalance | null
   /** The chain's native gas token (SOL / ETH / CELO). */
   native: AssetBalance | null
+  /**
+   * EVERY other asset the read returned: neither the gig stablecoin nor the
+   * native token (cUSD, cNGN, …). The read already pays for them, so dropping
+   * them showed a holder of cNGN a screen with no cNGN on it. Zero balances are
+   * included — whether to show a zero is the surface's call, not the reader's.
+   */
+  others: AssetBalance[]
 }
