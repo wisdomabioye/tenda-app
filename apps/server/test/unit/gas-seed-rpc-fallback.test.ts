@@ -15,7 +15,11 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { solanaGasSeedFunder } from '@server/features/gas-seed/senders/solana'
+import {
+  SOLANA_SEED_EXPIRY_MS,
+  solanaGasSeedFunder,
+  solanaGasSeedSender,
+} from '@server/features/gas-seed/senders/solana'
 import { evmGasSeedFunder } from '@server/features/gas-seed/senders/evm'
 import { GAS_SEED_SUPPORT } from '@server/features/gas-seed/senders'
 import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
@@ -154,29 +158,38 @@ test('evm funder: a fallback DUPLICATING the primary buys no second endpoint', a
   }
 })
 
-// ---------- the deliberate asymmetry ---------------------------------------
+// ---------- the Solana sender fails over too (#5) ---------------------------
 
-test('the Solana SENDER never fails over, even when a fallback is configured', async () => {
-  // Not an oversight, and this pins it as a decision. It PREDATES #58 and still
-  // holds for a different reason: the sender now signs once and broadcasts those
-  // exact bytes, so a second endpoint would carry the same signature and the
-  // cluster would de-duplicate it — safe, but still not wired, and wiring it is
-  // tracked separately rather than smuggled in here.
-  //
-  // THE BROADCAST IS WHAT THIS MUST EXERCISE. An earlier version failed the
-  // primary outright, so `sign` threw and `send` was never reached — leaving
-  // "the fallback was never contacted" trivially true and saying nothing about
-  // the broadcast, which is the call that would cost money. So the primary
-  // answers the blockhash fetch and fails only `sendTransaction`.
-  //
-  // Asserted through GAS_SEED_SUPPORT (the seam that HAS the fallback in hand
-  // and chooses not to pass it), so someone threading it in has to delete this.
-  const blockhash = { context: { slot: 1 }, value: { blockhash: BLOCKHASH, lastValidBlockHeight: 100 } }
-  const primary = await startStubRpc((method) => {
-    if (method === 'sendTransaction') throw new Error('primary refused the broadcast')
-    return blockhash
+const BLOCKHASH_RESULT = { context: { slot: 1 }, value: { blockhash: BLOCKHASH, lastValidBlockHeight: 100 } }
+/** What the cluster answers for a signature that landed and succeeded. */
+const LANDED = { context: { slot: 1 }, value: [{ slot: 1, confirmations: null, err: null, confirmationStatus: 'finalized' }] }
+const SEED = { to_address: Keypair.generate().publicKey.toBase58(), amount_raw: '1000' }
+
+/** The sender under test, wired straight to two stub nodes. */
+function senderOver(primary: StubRpc, fallback: string | undefined, timeout_ms?: number) {
+  return solanaGasSeedSender({
+    rpc_url: primary.url,
+    rpc_url_fallback: fallback,
+    chain_id: 'solana:devnet',
+    secret_key_base58: SOL_KEY,
+    ...(timeout_ms !== undefined ? { timeout_ms } : {}),
   })
-  const secondary = await startStubRpc(() => blockhash)
+}
+
+test('the Solana SENDER fails over on the broadcast, with the SAME signed bytes', async () => {
+  // Safe because sign() signs ONCE and send() carries those bytes: a second
+  // endpoint sees the same signature, and the cluster de-duplicates it. Asserted
+  // through GAS_SEED_SUPPORT, the seam that holds the fallback, so threading it
+  // through is proved too — not only the sender in isolation.
+  //
+  // THE BROADCAST IS WHAT THIS MUST EXERCISE: the primary answers the blockhash
+  // fetch and refuses only sendTransaction, so sign() succeeds and send() is the
+  // call under test.
+  const primary = await startStubRpc((m) => {
+    if (m === 'sendTransaction') throw new Error('primary refused the broadcast')
+    return BLOCKHASH_RESULT
+  })
+  const secondary = await startStubRpc((m) => (m === 'sendTransaction' ? 'accepted' : BLOCKHASH_RESULT))
   try {
     const sender = GAS_SEED_SUPPORT.solana.buildSender({
       chain_id: 'solana:devnet',
@@ -184,29 +197,152 @@ test('the Solana SENDER never fails over, even when a fallback is configured', a
       rpc_url_fallback: secondary.url,
       key: SOL_KEY,
     })
-    const signed = await sender.sign({
-      to_address: Keypair.generate().publicKey.toBase58(),
-      amount_raw: '1000',
-    })
-    await assert.rejects(() => signed.broadcast(), 'the primary refused, so the broadcast must fail')
+    const signed = await sender.sign(SEED)
+    await signed.broadcast()
 
-    assert.ok(primary.callsTo('sendTransaction').length >= 1, 'the primary was asked to broadcast')
-    assert.strictEqual(
-      secondary.callsTo('sendTransaction').length,
-      0,
-      'the fallback must NEVER be asked to broadcast — that is a second transfer',
+    assert.strictEqual(primary.callsTo('sendTransaction').length, 1, 'the primary is asked first')
+    assert.strictEqual(secondary.callsTo('sendTransaction').length, 1, 'the fallback is asked once')
+    // The property that makes this safe: identical bytes, not a re-signed transfer.
+    assert.deepStrictEqual(
+      secondary.callsTo('sendTransaction')[0].params[0],
+      primary.callsTo('sendTransaction')[0].params[0],
     )
-    assert.strictEqual(secondary.calls.length, 0, 'the fallback was not contacted at all')
+    assert.strictEqual(primary.callsTo('getLatestBlockhash').length + secondary.callsTo('getLatestBlockhash').length, 1,
+      'the blockhash is fetched ONCE — a second fetch would mean a second, different signature')
   } finally {
     await primary.close()
     await secondary.close()
   }
 })
 
+test('the Solana sender: when EVERY endpoint refuses the broadcast, it rejects with both causes', async () => {
+  const refuse = (m: string): unknown => {
+    if (m === 'sendTransaction') throw new Error('refused')
+    return BLOCKHASH_RESULT
+  }
+  const primary = await startStubRpc(refuse)
+  const secondary = await startStubRpc(refuse)
+  try {
+    const signed = await senderOver(primary, secondary.url).sign(SEED)
+    await assert.rejects(
+      () => signed.broadcast(),
+      (e: unknown) => e instanceof AggregateError && e.errors.length === 2,
+    )
+    assert.strictEqual(primary.callsTo('sendTransaction').length, 1)
+    assert.strictEqual(secondary.callsTo('sendTransaction').length, 1)
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+test('the Solana sender: signing survives a failing blockhash read on the primary', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'getLatestBlockhash') throw new Error('primary is down')
+    return null
+  })
+  const secondary = await startStubRpc((m) => (m === 'getLatestBlockhash' ? BLOCKHASH_RESULT : null))
+  try {
+    const signed = await senderOver(primary, secondary.url).sign(SEED)
+    assert.ok(signed.tx_ref.length > 0, 'a signature exists')
+    assert.strictEqual(secondary.callsTo('getLatestBlockhash').length, 1)
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+test('the Solana sender: the status read fails over, so a landed transfer is still found', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'getSignatureStatuses') throw new Error('primary is down')
+    return null
+  })
+  const secondary = await startStubRpc((m) => (m === 'getSignatureStatuses' ? LANDED : null))
+  try {
+    const status = await senderOver(primary, secondary.url).checkStatus({
+      tx_ref: bs58.encode(Buffer.alloc(64, 7)),
+      submitted_at: new Date(),
+    })
+    assert.strictEqual(status, 'delivered')
+    assert.strictEqual(secondary.callsTo('getSignatureStatuses').length, 1)
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+test('the Solana sender: "no record" is pending while the blockhash can live and failed once it cannot', async () => {
+  // The path a double payment would travel: a null status is the cluster saying
+  // it has never seen the signature. Fresh, that is just "not yet"; past the
+  // expiry margin it is proof the transfer can no longer land, which releases
+  // the slot. Driven through the REAL sender so the null branch of the status
+  // read is exercised, not only the pure classifier.
+  const node = await startStubRpc((m) => (m === 'getSignatureStatuses' ? { context: { slot: 1 }, value: [null] } : null))
+  try {
+    const sender = senderOver(node, undefined)
+    const tx_ref = bs58.encode(Buffer.alloc(64, 9))
+    const now = Date.now()
+    assert.strictEqual(await sender.checkStatus({ tx_ref, submitted_at: new Date(now) }), 'pending')
+    assert.strictEqual(
+      await sender.checkStatus({ tx_ref, submitted_at: new Date(now - SOLANA_SEED_EXPIRY_MS - 1_000) }),
+      'failed',
+    )
+  } finally {
+    await node.close()
+  }
+})
+
+test('the Solana sender: a HUNG primary broadcast is abandoned and the fallback carries the same bytes', async () => {
+  // The failure that does not reject. Without a per-attempt budget the loop
+  // waits on the primary forever and the fallback it was given is never reached.
+  const primary = await startStubRpc((m) =>
+    m === 'sendTransaction' ? new Promise(() => {}) : BLOCKHASH_RESULT,
+  )
+  const secondary = await startStubRpc((m) => (m === 'sendTransaction' ? 'accepted' : BLOCKHASH_RESULT))
+  try {
+    const signed = await senderOver(primary, secondary.url, 150).sign(SEED)
+    await within(signed.broadcast(), 5_000, 'the hung primary was never abandoned')
+    assert.deepStrictEqual(
+      secondary.callsTo('sendTransaction')[0].params[0],
+      primary.callsTo('sendTransaction')[0].params[0],
+    )
+  } finally {
+    await primary.close()
+    await secondary.close()
+  }
+})
+
+test('the Solana sender with NO fallback: one attempt, the failure is its own', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'sendTransaction') throw new Error('refused')
+    return BLOCKHASH_RESULT
+  })
+  try {
+    const signed = await senderOver(primary, undefined).sign(SEED)
+    await assert.rejects(() => signed.broadcast(), (e: unknown) => !(e instanceof AggregateError))
+    assert.strictEqual(primary.callsTo('sendTransaction').length, 1, 'exactly one attempt')
+  } finally {
+    await primary.close()
+  }
+})
+
+test('the Solana sender: a fallback DUPLICATING the primary is not a second broadcast', async () => {
+  const primary = await startStubRpc((m) => {
+    if (m === 'sendTransaction') throw new Error('refused')
+    return BLOCKHASH_RESULT
+  })
+  try {
+    const signed = await senderOver(primary, primary.url).sign(SEED)
+    await assert.rejects(() => signed.broadcast())
+    assert.strictEqual(primary.callsTo('sendTransaction').length, 1, 'must not hit the same endpoint twice')
+  } finally {
+    await primary.close()
+  }
+})
+
 test('the Solana FUNDER built by the same seam DOES fail over', async () => {
-  // The control for the test above: same seam, same args, opposite answer —
-  // so "nothing failed over" cannot pass by the fallback simply being dropped
-  // on the floor before it reaches either builder.
+  // The funder half of the same seam as the sender test above: the fallback
+  // must reach BOTH builders, so neither can pass by the seam dropping it.
   const [primary, secondary] = await balanceStubs({ context: { slot: 1 }, value: 777 }, 'getBalance')
   try {
     const funder = GAS_SEED_SUPPORT.solana.buildFunder({

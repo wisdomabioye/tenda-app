@@ -15,6 +15,7 @@ import {
   commitmentFor,
   perEndpointTimeoutMs,
   solanaConnections,
+  withRpcFallback,
 } from '@server/chains/rpc'
 
 /** Minimal decoded view of a fetched transaction. */
@@ -172,28 +173,28 @@ export function createSolanaRpc(args: {
   }
   const timeout_ms = perEndpointTimeoutMs(args)
   const [first, ...rest] = connections.map((c) => solanaRpcFromConnection(buildPort(c), timeout_ms))
-  // `failoverSolanaRpc` rather than `withRpcFallback`: this seam fails over per
-  // READ on an already-mapped SolanaRpc, which is a different shape from
-  // wrapping a raw client call. One endpoint returns the port untouched.
-  return rest.reduce((primary, secondary) => failoverSolanaRpc(primary, secondary), first)
+  // One endpoint returns the port untouched; two or more fail over per READ.
+  return rest.length === 0 ? first : failoverSolanaRpc([first, ...rest])
 }
 
-/** Fail over each independent read; callers retain the same protocol-specific interface. */
-export function failoverSolanaRpc(primary: SolanaRpc, secondary: SolanaRpc): SolanaRpc {
-  const attempt = async <T>(first: () => Promise<T>, fallback: () => Promise<T>): Promise<T> => {
-    try {
-      return await first()
-    } catch {
-      return fallback()
-    }
-  }
+/**
+ * Fail over each independent read across `rpcs`, in order, through the one
+ * failover combinator (`withRpcFallback`) — this is only the SolanaRpc-shaped
+ * facade over it, so there is a single failover mechanism, not two.
+ *
+ * No `timeout_ms` is passed on purpose: every `SolanaRpc` here comes from
+ * `solanaRpcFromConnection`, which already bounds each call, so a hung endpoint
+ * rejects and the loop moves on.
+ *
+ * When EVERY endpoint fails the caller gets the combinator's `AggregateError`
+ * (both causes, in endpoint order) rather than only the last endpoint's error.
+ */
+export function failoverSolanaRpc(rpcs: readonly [SolanaRpc, ...SolanaRpc[]]): SolanaRpc {
   return {
-    getLatestBlockhash: () => attempt(primary.getLatestBlockhash, secondary.getLatestBlockhash),
-    getTransaction: (ref) => attempt(() => primary.getTransaction(ref), () => secondary.getTransaction(ref)),
-    getAccount: (address) => attempt(() => primary.getAccount(address), () => secondary.getAccount(address)),
-    getSignaturesForAddress: (address, opts) => attempt(
-      () => primary.getSignaturesForAddress(address, opts),
-      () => secondary.getSignaturesForAddress(address, opts),
-    ),
+    getLatestBlockhash: () => withRpcFallback(rpcs, (rpc) => rpc.getLatestBlockhash()),
+    getTransaction: (ref) => withRpcFallback(rpcs, (rpc) => rpc.getTransaction(ref)),
+    getAccount: (address) => withRpcFallback(rpcs, (rpc) => rpc.getAccount(address)),
+    getSignaturesForAddress: (address, opts) =>
+      withRpcFallback(rpcs, (rpc) => rpc.getSignaturesForAddress(address, opts)),
   }
 }

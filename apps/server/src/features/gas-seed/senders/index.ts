@@ -69,9 +69,7 @@ interface GasSeedChainArgs {
    * distinctness rule is applied by whoever builds the transport
    * (`distinctFallbackUrl`), not here, so one place decides it for everyone.
    *
-   * Absent for a chain that configured none. Which of the four builders below
-   * actually USES it is a per-namespace decision, not a uniform one: see the
-   * Solana sender's header for the one that must not.
+   * Absent for a chain that configured none. All four builders below use it.
    */
   rpc_url_fallback?: string
   key: string
@@ -99,12 +97,8 @@ interface GasSeedChainArgs {
 export const GAS_SEED_SUPPORT: Record<ChainNamespace, GasSeedNamespaceSupport> = {
   solana: {
     addressFromKey: (key) => gasSeedAddressFromSecret(key),
-    // NO fallback on the sender, and that asymmetry with the funder beside it
-    // is the point — re-signing a Solana transfer against a fresh blockhash is
-    // a SECOND transfer, not a retry. `solanaGasSeedSender`'s header has the
-    // full reasoning; a guard test pins that it stays this way.
-    buildSender: ({ chain_id, rpc_url, key }) =>
-      solanaGasSeedSender({ rpc_url, chain_id, secret_key_base58: key }),
+    buildSender: ({ chain_id, rpc_url, rpc_url_fallback, key }) =>
+      solanaGasSeedSender({ rpc_url, rpc_url_fallback, chain_id, secret_key_base58: key }),
     buildFunder: ({ chain_id, rpc_url, rpc_url_fallback, key }) =>
       solanaGasSeedFunder({ rpc_url, rpc_url_fallback, chain_id, secret_key_base58: key }),
   },

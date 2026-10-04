@@ -210,33 +210,48 @@ export function solanaGasSeedSenderFromPort(
 }
 
 /**
- * STILL ONE ENDPOINT for the send, and now for a plainer reason than before.
+ * The chain-facing sender, over the configured endpoints.
  *
- * It used to be that `sendAndConfirmTransaction` signed INSIDE the call against
- * a blockhash it fetched itself, so a second endpoint meant re-signing against a
- * fresh blockhash — a different signature, a second distinct transfer, and a
- * user paid twice if the first had landed. That is no longer the shape: `sign`
- * below signs ONCE and `send` broadcasts those exact bytes, so a second endpoint
- * would be the same transaction with the same signature and the cluster would
- * de-duplicate it. Adding the fallback is now a parameter rather than a rework,
- * and it is tracked separately rather than smuggled into a change about not
- * losing money.
+ * Every call fails over, the broadcast included, and that is SAFE for the reason
+ * this file's header gives: `sign` signs ONCE and `send` broadcasts those exact
+ * bytes, so a second endpoint carries the same signature and the cluster
+ * de-duplicates it. (It used to be unsafe: `sendAndConfirmTransaction` signed
+ * inside the call against a blockhash it fetched itself, so a second endpoint
+ * meant re-signing — a different signature, a second transfer.) What a failed or
+ * timed-out broadcast MEANS is unchanged: the claim job records it as uncertain
+ * and ./confirm settles it against the chain, never against this return value.
+ *
+ * Each attempt is bounded by `timeout_ms`, because a degraded provider usually
+ * accepts the request and never answers, and a loop that only advances on
+ * rejection would wait on it forever.
  */
 export function solanaGasSeedSender(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint, ideally a different provider. Present and DISTINCT makes
+   * the blockhash read, the broadcast and the status read fail over. A required
+   * key, like the funder's and every EVM builder's: optional is how the relayer
+   * ended up with no failover at all.
+   */
+  rpc_url_fallback: string | undefined
   chain_id: ChainId
   /** base58-encoded 64-byte secret key of the seed hot wallet. */
   secret_key_base58: string
+  /** Per-attempt budget override; production never passes it. */
+  timeout_ms?: number
 }): GasSeedSender {
   const commitment = commitmentFor(args.chain_id)
-  // `[0]` — the PRIMARY only, deliberately, and taken from the seam so the
-  // choice is visible rather than achieved by not asking. See the header.
-  const [connection] = solanaConnections({ chain_id: args.chain_id, rpc_url: args.rpc_url })
+  const connections = solanaConnections(args)
+  const timeout_ms = perEndpointTimeoutMs(args)
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
 
   return solanaGasSeedSenderFromPort({
     async sign({ to, lamports }) {
-      const { blockhash } = await connection.getLatestBlockhash(commitment)
+      const { blockhash } = await withRpcFallback(
+        connections,
+        (c) => c.getLatestBlockhash(commitment),
+        { timeout_ms },
+      )
       const tx = new Transaction().add(
         SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
       )
@@ -251,15 +266,21 @@ export function solanaGasSeedSender(args: {
       return { signature, raw }
     },
     async send(raw) {
-      await connection.sendRawTransaction(raw, { preflightCommitment: commitment })
+      await withRpcFallback(
+        connections,
+        (c) => c.sendRawTransaction(raw, { preflightCommitment: commitment }),
+        { timeout_ms },
+      )
     },
     async signatureStatus(signature) {
       // `searchTransactionHistory`: the signature may have left the recent
       // status cache by the time the confirm job asks, which is exactly the
       // window this check has to cover.
-      const { value } = await connection.getSignatureStatus(signature, {
-        searchTransactionHistory: true,
-      })
+      const { value } = await withRpcFallback(
+        connections,
+        (c) => c.getSignatureStatus(signature, { searchTransactionHistory: true }),
+        { timeout_ms },
+      )
       return value === null ? null : { err: value.err }
     },
   })
