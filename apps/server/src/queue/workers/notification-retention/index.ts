@@ -9,10 +9,8 @@
 
 import { and, isNotNull, lt, or } from 'drizzle-orm'
 import { notifications } from '@tenda/shared/db/schema'
-import { NOTIFICATION_RETENTION_READ_DAYS, NOTIFICATION_RETENTION_MAX_DAYS } from '@tenda/shared'
+import { MS_PER_DAY, NOTIFICATION_RETENTION_READ_DAYS, NOTIFICATION_RETENTION_MAX_DAYS } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
-
-const DAY_MS = 24 * 3_600_000
 
 export interface RetentionDeps {
   db: AppDatabase
@@ -24,8 +22,8 @@ export interface RetentionDeps {
 /** Delete stale personal notifications; returns how many rows were pruned. */
 export async function handleNotificationRetention(deps: RetentionDeps): Promise<{ pruned: number }> {
   const nowMs = deps.now().getTime()
-  const readCutoff = new Date(nowMs - NOTIFICATION_RETENTION_READ_DAYS * DAY_MS)
-  const maxCutoff = new Date(nowMs - NOTIFICATION_RETENTION_MAX_DAYS * DAY_MS)
+  const readCutoff = new Date(nowMs - NOTIFICATION_RETENTION_READ_DAYS * MS_PER_DAY)
+  const maxCutoff = new Date(nowMs - NOTIFICATION_RETENTION_MAX_DAYS * MS_PER_DAY)
 
   const deleted = await deps.db
     .delete(notifications)

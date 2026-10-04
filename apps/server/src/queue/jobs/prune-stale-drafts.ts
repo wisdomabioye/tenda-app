@@ -10,7 +10,7 @@
  * `DRAFT_RETENTION_DAYS`, resolved once where the processor is built.
  */
 
-const DAY_MS = 24 * 3_600_000
+import { MS_PER_DAY } from '@tenda/shared'
 
 /** Drafts per statement. */
 export const PRUNE_STALE_DRAFTS_BATCH = 500
@@ -29,7 +29,7 @@ export interface PruneStaleDraftsResult {
 }
 
 export async function handlePruneStaleDrafts(deps: PruneStaleDraftsDeps): Promise<PruneStaleDraftsResult> {
-  const older_than = new Date(deps.now().getTime() - deps.retention_days * DAY_MS)
+  const older_than = new Date(deps.now().getTime() - deps.retention_days * MS_PER_DAY)
   let pruned = 0
   let drained = false
   for (let batch = 0; batch < PRUNE_STALE_DRAFTS_MAX_BATCHES && !drained; batch += 1) {

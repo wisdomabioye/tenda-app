@@ -6,7 +6,9 @@ import {
   formatRelativeDayWithTime,
   formatRelativeShort,
   groupByDay,
+  MS_PER_DAY,
 } from '../../src/utils/date'
+import * as shared from '../../src/index'
 
 // Mid-day anchor so hour-offset cases never cross a calendar boundary; the
 // runner mocks Date so day-bucket labels are deterministic too.
@@ -79,4 +81,9 @@ test('groupByDay: items without a timestamp pass through with no header', (t) =>
   t.mock.timers.enable({ apis: ['Date'], now: NOW })
   const out = groupByDay([{ id: 'x', at: null as string | null }], (i) => i.at, (i) => i.id)
   assert.deepEqual(out.map((row) => row.type), ['item'])
+})
+
+test('MS_PER_DAY is one day of milliseconds, and the package root exports the same value', () => {
+  assert.equal(MS_PER_DAY, 24 * 60 * 60 * 1000)
+  assert.equal(shared.MS_PER_DAY, MS_PER_DAY)
 })
