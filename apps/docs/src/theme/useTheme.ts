@@ -46,11 +46,12 @@ const systemTheme = (): ResolvedTheme => (media()?.matches === true ? 'dark' : '
  * store cannot be read. Values written before `system` existed were only ever
  * `light` or `dark`, and both are still valid modes.
  */
-export function storedMode(
-  storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage,
-): ThemeMode {
+export function storedMode(storage?: Pick<Storage, 'getItem'>): ThemeMode {
   try {
-    const saved = storage?.getItem(STORAGE_KEY)
+    // Resolved INSIDE the try: with site data blocked, a browser raises a
+    // SecurityError from the `localStorage` getter itself, so a default
+    // parameter would throw before the guard could catch it.
+    const saved = (storage ?? globalThis.localStorage)?.getItem(STORAGE_KEY)
     return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
   } catch {
     // A browser with storage blocked still gets a working page — it just

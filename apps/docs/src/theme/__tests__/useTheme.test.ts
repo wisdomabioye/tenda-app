@@ -155,3 +155,26 @@ describe('a storage that refuses to write', () => {
     }
   })
 })
+
+describe('a browser where merely touching localStorage throws', () => {
+  // Chrome with site data blocked raises a SecurityError from the PROPERTY
+  // GETTER, before any getItem/setItem is called. The page must still render
+  // and still switch: the theme then lasts this visit.
+  it('renders following the system, and still cycles', () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('The operation is insecure.', 'SecurityError') },
+    })
+    try {
+      expect(storedMode()).toBe('system')
+      const { result } = renderHook(() => useTheme())
+      expect(result.current.mode).toBe('system')
+      act(() => { result.current.cycle() })
+      expect(result.current.mode).toBe('light')
+      expect(stamp()).toBe('light')
+    } finally {
+      if (original !== undefined) Object.defineProperty(globalThis, 'localStorage', original)
+    }
+  })
+})
