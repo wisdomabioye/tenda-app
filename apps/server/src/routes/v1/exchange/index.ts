@@ -42,6 +42,7 @@ import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/features/fiat-
 import { publicExchangeConditions } from './public-feed'
 import { chainFilterCondition } from '@server/lib/http/chain-filter'
 import { amountWindowConditions } from '@server/lib/http/amount-window'
+import { PUBLIC_FEED_RATE_LIMIT } from '@server/lib/http/rate-limits'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
@@ -55,7 +56,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', async (request) => {
+  }>('/', { config: { rateLimit: PUBLIC_FEED_RATE_LIMIT } }, async (request) => {
     const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))
