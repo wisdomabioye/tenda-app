@@ -23,6 +23,8 @@ import {
   type AgentTaskPaymentRequired,
 } from '@tenda/shared'
 import { requireBody } from '@server/lib/errors'
+import { accountRateLimit } from '@server/lib/http/account-rate-limit'
+import { AGENT_TASK_ACCOUNT_RATE_LIMIT, AGENT_TASK_IP_RATE_LIMIT } from '@server/lib/http/rate-limits'
 import { decodePaymentHeader, encodeSettlementHeader } from '@server/lib/chain/x402'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { createAgentTask } from '@server/features/agent/tasks/createAgentTask'
@@ -31,10 +33,15 @@ const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: Partial<AgentTaskBody> | null }>(
     '/',
     {
-      preHandler: [fastify.authenticate, requireGoodStanding('create')],
+      preHandler: [
+        fastify.authenticate,
+        accountRateLimit(fastify, AGENT_TASK_ACCOUNT_RATE_LIMIT),
+        requireGoodStanding('create'),
+      ],
       // Live RPC reads on every call plus, with a header, a relayed broadcast
-      // the hot wallet pays for — bounded per IP, the app's rate-limit key.
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      // the hot wallet pays for. Two layers: this per-IP OUTER bound (accounts
+      // are free to mint) and the per-account allowance in the preHandler.
+      config: { rateLimit: AGENT_TASK_IP_RATE_LIMIT },
     },
     async (request, reply) => {
       // Parsed FIRST: a malformed header is a 400 before any work.

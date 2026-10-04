@@ -12,3 +12,17 @@
  * allowance per free wallet (see docs/unattended-run-findings-2026-10-04.md, G3).
  */
 export const PUBLIC_FEED_RATE_LIMIT = { max: 60, timeWindow: '1 minute' } as const
+
+/**
+ * POST /v1/agent/tasks, in two layers that both apply to a request.
+ *
+ * The ACCOUNT layer (preHandler, after authenticate) is the allowance one agent
+ * gets wherever it calls from; a gig is two requests (the 402, then the signed
+ * resend), so 10 a minute is about 5 gigs a minute per account. The IP layer
+ * (config.rateLimit, before authentication) is the OUTER bound: accounts are
+ * free to mint (POST /v1/agent/register), so without it every fresh wallet
+ * would carry its own allowance. It is three accounts' worth, so a few agents
+ * behind one office, proxy or serverless egress no longer share ten requests.
+ */
+export const AGENT_TASK_ACCOUNT_RATE_LIMIT = { max: 10, timeWindow: '1 minute' } as const
+export const AGENT_TASK_IP_RATE_LIMIT = { max: 30, timeWindow: '1 minute' } as const
