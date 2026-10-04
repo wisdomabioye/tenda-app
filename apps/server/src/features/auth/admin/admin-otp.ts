@@ -11,7 +11,7 @@
  * checked after the hash match), so it leaks nothing to a guesser.
  */
 
-import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { randomInt } from 'node:crypto'
 import { admin_users, email_otps, users } from '@tenda/shared/db/schema/identity'
 import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
@@ -31,6 +31,16 @@ import type { AppDatabase } from '@server/plugins/db'
 
 export const ADMIN_OTP_MAX_SENDS_PER_EMAIL_PER_HOUR = 3
 export const ADMIN_OTP_MAX_SENDS_PER_USER_PER_DAY = 10
+
+/**
+ * The windows those limits count over, NAMED because the retention prune must
+ * agree with them: `sendOtp` counts email_otps rows by `created_at` whether or
+ * not they were consumed or expired, so a row stays load-bearing until it is
+ * older than the LONGEST window.
+ */
+export const ADMIN_OTP_EMAIL_WINDOW_MS = 3_600_000
+export const ADMIN_OTP_USER_WINDOW_MS = 86_400_000
+export const ADMIN_OTP_RETENTION_MS = Math.max(ADMIN_OTP_EMAIL_WINDOW_MS, ADMIN_OTP_USER_WINDOW_MS)
 
 // ---------- sender seam ------------------------------------------------------
 
@@ -102,8 +112,8 @@ export async function sendAdminLoginOtp(
   if (admin === null) return
 
   const now = deps.now()
-  const hourAgo = new Date(now.getTime() - 3_600_000)
-  const dayAgo = new Date(now.getTime() - 86_400_000)
+  const hourAgo = new Date(now.getTime() - ADMIN_OTP_EMAIL_WINDOW_MS)
+  const dayAgo = new Date(now.getTime() - ADMIN_OTP_USER_WINDOW_MS)
   const [byEmail, byUser] = await Promise.all([
     countSince(deps.db, eq(email_otps.email, email), hourAgo),
     countSince(deps.db, eq(email_otps.user_id, admin.user_id), dayAgo),
@@ -229,4 +239,10 @@ export function resolveAdminEmailSender(
     ErrorCode.SERVICE_UNAVAILABLE,
     'admin login email is not configured (RESEND_API_KEY/EMAIL_FROM)',
   )
+}
+
+/** Delete admin codes created before `cutoff`; returns how many rows went. */
+export async function pruneAdminOtpsCreatedBefore(db: AppDatabase, cutoff: Date): Promise<number> {
+  const deleted = await db.delete(email_otps).where(lt(email_otps.created_at, cutoff)).returning({ id: email_otps.id })
+  return deleted.length
 }
