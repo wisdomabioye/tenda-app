@@ -271,9 +271,8 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
     ///      the token refuses the altered params, so nothing is created.
     function createForAlteredTerms(uint256 signerSeed, uint256 amount, uint64 aw, uint64 dur, uint256 aSeed) external {
         (uint256 pk, address signer) = _actor(signerSeed);
-        // Reduce FIRST — the seed can be max uint256, and `+ 1` would overflow.
-        address attacker = actors[(aSeed % ACTOR_COUNT + 1) % ACTOR_COUNT];
-        if (attacker == signer) attacker = actors[(aSeed % ACTOR_COUNT + 2) % ACTOR_COUNT];
+        address attacker = _actorAfter(aSeed, 1);
+        if (attacker == signer) attacker = _actorAfter(aSeed, 2);
         CreateArgs memory c = _boundCreate(amount, 0, aw, dur, 0, 2);
         TendaEscrow.CreateParams memory p = _params(_nextId(), c, address(token));
         TendaEscrow.Authorization memory auth = _signAuthorization(pk, signer, p);
@@ -309,7 +308,7 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         if (block.timestamp >= g.acceptDeadline) return; // organically expired
         (, address who) = _actor(actorSeed);
         if (g.assigned != address(0)) who = g.assigned;
-        else if (who == g.creator) who = actors[(actorSeed + 1) % ACTOR_COUNT];
+        else if (who == g.creator) who = _actorAfter(actorSeed, 1);
         if (who == g.creator) return;
         vm.prank(who);
         escrowC.acceptEscrow(id);
@@ -459,7 +458,7 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         if (!g.requiresApproval) return;
         if (block.timestamp >= g.acceptDeadline) return;
         (, address who) = _actor(actorSeed);
-        if (who == g.creator) who = actors[(actorSeed + 1) % ACTOR_COUNT];
+        if (who == g.creator) who = _actorAfter(actorSeed, 1);
         if (who == g.creator) return;
         vm.prank(g.creator);
         escrowC.assignAccept(id, who);
