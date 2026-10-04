@@ -295,6 +295,13 @@
       "when": 1788805096409,
       "tag": "0041_special_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791072413996,
+      "tag": "0042_foamy_spirit",
+      "breakpoints": true
     }
   ]
 }
