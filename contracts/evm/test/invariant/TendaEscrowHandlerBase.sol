@@ -112,6 +112,17 @@ abstract contract TendaEscrowHandlerBase is AuthorizationSigning {
         return (actorKeys[i], actors[i]);
     }
 
+    /// @dev The actor `offset` places after `seed`'s actor, round the ring.
+    ///      The seed is reduced FIRST: the fuzzer supplies max uint256, and
+    ///      `seed + offset` is checked arithmetic that panics (0x11). Under
+    ///      fail_on_revert that fails the whole invariant suite on a handler
+    ///      bug, not a contract finding — and it did, deterministically, once
+    ///      the fuzzer found the seed. One spelling here so a fifth site cannot
+    ///      reintroduce it.
+    function _actorAfter(uint256 seed, uint256 offset) internal view returns (address) {
+        return actors[(seed % ACTOR_COUNT + offset) % ACTOR_COUNT];
+    }
+
     function _nextId() internal returns (bytes16) {
         idCounter += 1;
         return bytes16(idCounter);
