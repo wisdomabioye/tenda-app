@@ -22,8 +22,7 @@ import { api } from '@/api/client'
 import { WALLET_CHAINS } from '@/wallet/config'
 import { signInWithWallet, linkWalletWith } from '@/wallet/auth'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import type { AuthenticateResult, ChainNamespace, WalletAccount, SignMessageResult } from '@tenda/shared'
-import type { VerifyResponse } from '@tenda/shared'
+import type { AuthenticateResult, ChainNamespace, WalletAccount, SignMessageResult, VerifyResponse } from '@tenda/shared'
 
 const nonceMock = api.auth.nonce as jest.Mock
 const verifyMock = api.auth.verify as jest.Mock

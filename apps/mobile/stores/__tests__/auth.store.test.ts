@@ -6,9 +6,8 @@
  * happy, 401-clears vs transient-network-keeps).
  */
 import type { ImageRequireSource } from 'react-native'
-import type { AuthResponse } from '@tenda/shared'
+import type { AuthResponse, ChainNamespace, WalletAccount } from '@tenda/shared'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import type { ChainNamespace, WalletAccount } from '@tenda/shared'
 
 jest.mock('@/wallet/auth', () => ({
   signInWithWallet: jest.fn(),

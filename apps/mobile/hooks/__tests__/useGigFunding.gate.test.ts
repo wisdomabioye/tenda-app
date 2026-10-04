@@ -53,11 +53,8 @@ jest.mock('@/api/client', () => ({
 // Imports stay below mock declarations so their modules observe the test doubles.
 // The 9D gate is NOT mocked since its move to @tenda/shared: the tests throw
 // the real ApiClientError codes and the hook runs the real classifier.
-// eslint-disable-next-line import/first
 import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
-// eslint-disable-next-line import/first
 import { useGigFunding } from '@/hooks/useGigFunding'
-// eslint-disable-next-line import/first
 import { FUNDING_SIGNERS as SIGNERS, fundWith as fund } from '@/hooks/__fixtures__/gig-funding'
 beforeEach(() => {
   mockPush.mockReset(); mockNavigate.mockReset(); mockSetParams.mockReset()

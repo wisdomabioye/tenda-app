@@ -14,12 +14,12 @@ function loadConfig(env: AppEnv): ConfigModule {
 }
 
 describe('wallet/config, env-derived chain config', () => {
-  const cases: ReadonlyArray<{
+  const cases: readonly {
     env: AppEnv
     network: string
     solana: string
     eip155: string
-  }> = [
+  }[] = [
     { env: 'development', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:84532' },
     { env: 'staging', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:84532' },
     { env: 'production', network: 'mainnet-beta', solana: 'solana:mainnet', eip155: 'eip155:8453' },

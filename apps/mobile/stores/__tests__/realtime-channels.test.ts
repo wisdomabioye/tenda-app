@@ -29,7 +29,7 @@ const mockChannelListeners = new Map<string, (frame: WsFrame) => void>()
  * an outer const because `subscribe` only touches it when a case calls it.
  */
 jest.mock('@/lib/ws', () => {
-  const connectionListeners: Array<(connected: boolean) => void> = []
+  const connectionListeners: ((connected: boolean) => void)[] = []
   return {
     ws: {
       subscribe: (channel: string, listener: (frame: WsFrame) => void) => {
@@ -77,7 +77,7 @@ import type { WsFrame } from '@/lib/ws'
  * every connection case below would silently test nothing.
  */
 const { connectionListeners } = jest.requireMock('@/lib/ws') as {
-  connectionListeners: ReadonlyArray<(connected: boolean) => void>
+  connectionListeners: readonly ((connected: boolean) => void)[]
 }
 const connectionListener = connectionListeners[0]
 if (connectionListener === undefined) {
