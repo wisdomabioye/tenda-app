@@ -7,6 +7,7 @@
 #          service; thresholds in apps/server/.c8rc.json (ratchets toward 90/85)
 #        - shared → c8 (apps-free); thresholds in packages/shared/.c8rc.json (100)
 #        - api-doc → c8 over its own suites; thresholds in packages/api-doc/.c8rc.json
+#        - agent-skill → generated skill current (check:skill) + c8 in packages/agent-skill/.c8rc.json
 #          (the document-only suites live there; the two that read server
 #           constants stay in apps/server/test)
 #        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
@@ -137,6 +138,13 @@ jobs:
         run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
       - name: Tests + coverage gate (api-doc)
         run: pnpm --filter @tenda/api-doc test:coverage
+      # The agent skill is rendered FROM the api-doc build and shared's
+      # constants, so it needs both built. `check:skill` fails a change to the
+      # API that did not regenerate the committed skill the npm tarball ships.
+      - name: Build api-doc (the skill renders from it)
+        run: pnpm --filter @tenda/api-doc build
+      - name: Agent skill (generated files current, tests + coverage)
+        run: pnpm --filter @tenda/agent-skill check:skill && pnpm --filter @tenda/agent-skill test:coverage
 
   admin:
     runs-on: ubuntu-latest
