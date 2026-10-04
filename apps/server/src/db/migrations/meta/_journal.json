@@ -302,6 +302,13 @@
       "when": 1791072413996,
       "tag": "0042_foamy_spirit",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791139803113,
+      "tag": "0043_majestic_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

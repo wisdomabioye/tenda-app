@@ -1,12 +1,12 @@
 /**
- * gig_details_remote_no_location — a remote gig names no country and no city.
+ * gig_details_remote_no_location — a remote gig names no country, no city and no pin.
  *
  * The validator already guarantees it for everything that arrives over HTTP; the
  * CHECK holds it for everything that does not (a second writer, a backfill, a
  * hand-run fix). So these run against a real database, and end with the case
  * that matters for not breaking anyone: what the validator DOES accept must
- * still be storable — a remote gig with coordinates, and a "remote" body that
- * carries a country, which the validator drops.
+ * still be storable — a "remote" body that carries a country, which the
+ * validator drops.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -84,9 +84,17 @@ test('flipping a located gig to remote without clearing its location is refused'
   await app.db.update(gig_details).set({ remote: true, country: null, city: null }).where(eq(gig_details.escrow_id, row.escrow_id))
 })
 
-test('coordinates on a remote gig are NOT constrained: the validator accepts them (a geotag proof needs a pin)', { skip }, async () => {
+test('a remote gig with coordinates is refused by the database — latitude, longitude, or both', { skip }, async () => {
   await resetDb(getApp())
-  const { app, row } = await listing({ remote: true, latitude: 6.5244, longitude: 3.3792 })
+  for (const pin of [{ latitude: 6.5244, longitude: 3.3792 }, { latitude: 6.5244 }, { longitude: 3.3792 }]) {
+    const { app, row } = await listing({ remote: true, ...pin })
+    await assert.rejects(app.db.insert(gig_details).values(row), rejectedBy(CONSTRAINT))
+  }
+})
+
+test('an on-site gig keeps its coordinates (negative control for the pin rule)', { skip }, async () => {
+  await resetDb(getApp())
+  const { app, row } = await listing({ remote: false, country: 'NG', city: 'Lagos', latitude: 6.5244, longitude: 3.3792 })
   await app.db.insert(gig_details).values(row)
   const [stored] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, row.escrow_id))
   assert.strictEqual(stored.latitude, 6.5244)
@@ -98,7 +106,7 @@ test('everything the validator accepts as remote is storable: a country on a rem
   const creator = await createUser(app)
   const escrow = await createEscrow(app, { creator_id: creator.row.id, status: 'draft' })
   const details = validateGigDetails(
-    { title: 'Transcribe a recording', category: 'digital', remote: true, country: 'NG', city: 'Lagos', latitude: 6.5, longitude: 3.4 },
+    { title: 'Transcribe a recording', category: 'digital', remote: true, country: 'NG', city: 'Lagos' },
     'NG',
   )
   const stored = await upsertGigDetails(app.db, escrow.id, details)

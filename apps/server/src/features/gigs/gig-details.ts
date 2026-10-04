@@ -73,7 +73,7 @@ function validateProofRequirements(value: unknown): ProofType[] {
 }
 
 /**
- * Validates the listing fields. Remote gigs carry no country/city; physical
+ * Validates the listing fields. Remote gigs carry no country/city/coordinates; physical
  * gigs require both (the work location). The cross-border flag is derived by
  * comparing the work country against the creator's stored country. Throws
  * AppError(400) on the first violation.
@@ -120,6 +120,11 @@ export function validateGigDetails(
   if (!remote && !city) fail('city is required for non-remote gigs')
   if (!remote && !country) fail('country is required for non-remote gigs')
   ensureValidCoordinates(latitude, longitude)
+  // A remote gig has no place, so it has no pin: coordinates on one contradict
+  // `remote` the way a country does (and the database refuses them too).
+  if (remote && (latitude != null || longitude != null)) {
+    fail('a remote gig has no location, so it cannot carry latitude or longitude')
+  }
 
   // Remote gigs are location-agnostic: they carry no country or city. Physical
   // gigs must name the country (and city) where the WORK happens, the worker's
@@ -143,6 +148,11 @@ export function validateGigDetails(
   }
 
   const requirements = validateProofRequirements(proof_requirements)
+  // …and a geotag proof is a check-in at that pin, so a remote gig cannot ask
+  // for one. Said as the remote-gig problem it is, not as a "missing pin".
+  if (remote && requirements.includes('geotag')) {
+    fail('a geotag proof needs an on-site gig; turn remote off or drop the requirement')
+  }
   // A geotag proof is verified against the gig's own pin — a gig without one
   // has nothing to verify against, so the requirement is refused at the door
   // rather than stored uncheckable.
