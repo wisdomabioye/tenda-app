@@ -422,6 +422,27 @@ export const radius = {
   full: 9999,
 } as const
 
+/**
+ * Button geometry by size. These were locals in Button.tsx (HEIGHTS, PAD_X,
+ * LABEL_BY_SIZE, GHOST_HEIGHT) that web re-typed as Tailwind steps, and the
+ * copies drifted: web drew 20/24 side padding against the phone's 18/22 and a
+ * ghost at the size's height against the phone's fixed 44. Read by Button.tsx
+ * and by the token generator (apps/web/scripts/gen-web-tokens), the way the
+ * radii above are.
+ */
+export const buttonGeometry = {
+  height: { sm: 40, md: 48, lg: 52, xl: 56 },
+  padX: { sm: 14, md: 18, lg: 22, xl: 24 },
+  label: {
+    sm: { fontSize: 14, lineHeight: 18 },
+    md: { fontSize: 14, lineHeight: 18 },
+    lg: { fontSize: 15, lineHeight: 20 },
+    xl: { fontSize: 15, lineHeight: 20 },
+  },
+  /** A ghost button is a text action: one height whatever its size. */
+  ghostHeight: 44,
+} as const
+
 const fontWeights = {
   regular: '400',
   medium: '500',
