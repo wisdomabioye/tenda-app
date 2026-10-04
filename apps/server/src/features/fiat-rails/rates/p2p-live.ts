@@ -45,7 +45,7 @@ import type { P2pFulfilment, P2pOrderBook, RateSource } from '../providers/p2p-i
 export function assetRateSource(): RateSource {
   return {
     async midRate(asset, fiat_currency) {
-      // The shared accessor, never a bracket read: `ASSET_META['toString']`
+      // The shared accessor, never a bracket read: indexing the registry with 'toString'
       // answers a TRUTHY inherited function, an `=== undefined` guard never
       // fires, and CoinGecko is then asked for the coin id `undefined` (#116).
       const meta = getAssetMeta(asset)

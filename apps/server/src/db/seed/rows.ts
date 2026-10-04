@@ -123,7 +123,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
   // symbol/decimals/is_stable come from the shared ASSET_META registry,
   // the seed only contributes the deployment-specific chain/token wiring.
   function assetRow(id: string, chain_id: string, token_address: string | null): AssetRow {
-    // The shared accessor (Object.hasOwn), never a bracket read: `ASSET_META['constructor']`
+    // The shared accessor (Object.hasOwn), never a bracket read: indexing the registry with 'constructor'
     // is a truthy function and the guard below would never fire (#116 follow-up).
     const meta = getAssetMeta(id)
     if (meta === null) throw new Error(`asset '${id}' missing from shared ASSET_META`)

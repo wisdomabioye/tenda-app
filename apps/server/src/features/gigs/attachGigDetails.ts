@@ -52,7 +52,7 @@ export async function prepareGigDetails(
 
   const details = validateGigDetails(body, creator?.country ?? null)
 
-  // The shared accessor, never `ASSET_META[escrow.asset]?.decimals ?? 0`: a
+  // The shared accessor, never a bracket read with `?.decimals ?? 0` behind it: a
   // prototype key ('toString') answered a FUNCTION there, its `.decimals` was
   // undefined, and the fallback quietly moderated the price at ZERO decimals —
   // a 1 USDC gig read as a million dollars. The create path pins `asset` to
