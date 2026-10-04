@@ -295,8 +295,11 @@ test('prune-stale-drafts: the processor applies the configured retention to the 
   const creator = await createUser(app)
   const DAY = 24 * 3_600_000
   const aged = (days: number): Date => new Date(Date.now() - days * DAY)
-  await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: aged(DRAFT_RETENTION_DAYS_DEFAULT + 1) })
-  const recent = await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: aged(DRAFT_RETENTION_DAYS_DEFAULT - 1) })
+  // Idle time decides (`updated_at`), so both rows are untouched since they were made.
+  const idle = aged(DRAFT_RETENTION_DAYS_DEFAULT + 1)
+  const touched = aged(DRAFT_RETENTION_DAYS_DEFAULT - 1)
+  await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: idle, updated_at: idle })
+  const recent = await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: touched, updated_at: touched })
 
   const result = await buildProcessors(app)['prune-stale-drafts']({ tick_id: 'test' })
 
