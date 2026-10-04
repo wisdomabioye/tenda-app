@@ -44,8 +44,7 @@ jest.mock('@/api/client', () => {
 })
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
-import { ApiClientError } from '@tenda/shared'
-import { TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
+import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
 
 const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '1000000' }
 

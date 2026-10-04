@@ -8,9 +8,8 @@
  * knowing they are at their cap and thinking the app is broken.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '@tenda/shared'
 import { useApplicantList, useApplications } from '../useApplications'
-import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '@tenda/shared'
 
 // jest hoists jest.mock() above the file, so factory-referenced fakes must
 // carry the `mock` prefix the transform whitelists.

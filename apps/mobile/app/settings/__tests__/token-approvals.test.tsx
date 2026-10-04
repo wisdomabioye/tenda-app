@@ -13,6 +13,8 @@ jest.mock('expo-router', () => ({
   // equivalent. Calling cb() bare on every render would loop via setRows.
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = require('react')
+    // Once, on mount — the real hook fires on FOCUS, never on callback identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => cb(), [])
   },
 }))

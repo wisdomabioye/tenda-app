@@ -19,8 +19,7 @@
  * Do not replace them with the constants.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import type { DisputeMessage, DisputeSender, DisputeThreadResponse } from '@tenda/shared'
-import type { DisputeSendResult } from '@tenda/shared'
+import type { DisputeMessage, DisputeSender, DisputeThreadResponse, DisputeSendResult } from '@tenda/shared'
 
 const CREATOR = 'user-creator-1111'
 const COUNTERPARTY = 'user-counterparty-2222'
@@ -43,7 +42,7 @@ const mockState: {
   signedIn: true,
   backs: 0,
 }
-const mockBubbles: Array<{ id: string; sender: DisputeSender }> = []
+const mockBubbles: { id: string; sender: DisputeSender }[] = []
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -196,7 +195,7 @@ jest.mock('@/components/feedback/LoadingScreen', () => {
   return { LoadingScreen: () => <View testID="loading" /> }
 })
 
-const mockToasts: Array<{ tone: string; message: string }> = []
+const mockToasts: { tone: string; message: string }[] = []
 jest.mock('@/components/ui/Toast', () => ({
   showToast: (tone: string, message: string) => {
     mockToasts.push({ tone, message })
@@ -321,7 +320,7 @@ const mockThread: {
   threadMissing: boolean
   /** Drive the ListEmptyComponent without mutating the shared message fixture. */
   empty: boolean
-  sent: Array<{ body: string; hasAttachment: boolean }>
+  sent: { body: string; hasAttachment: boolean }[]
   reloads: number
 } = {
   loading: false,

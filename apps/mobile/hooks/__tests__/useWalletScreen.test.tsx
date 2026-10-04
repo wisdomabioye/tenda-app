@@ -8,7 +8,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native'
 type Chain = { id: string; namespace: string; display_name: string; assets: unknown[] }
 
 let mockUser: { id: string } | null = { id: 'u1' }
-let mockWallets: Array<{ chain_ns: string; address: string }> = []
+let mockWallets: { chain_ns: string; address: string }[] = []
 let mockWalletsStatus = 'ready'
 const mockRetry = jest.fn()
 let mockChains: Chain[] | null = []

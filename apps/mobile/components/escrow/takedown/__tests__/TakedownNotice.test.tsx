@@ -8,7 +8,6 @@
  * job changed. Getting those two backwards would tell a worker their gig was
  * pulled and leave them thinking they will not be paid.
  */
-/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 
 import { takedownAudience, takedownCopy, type TakedownEscrow } from '@tenda/shared'

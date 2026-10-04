@@ -1,5 +1,4 @@
-import type { LinkedWallet } from '@tenda/shared'
-import type { WalletAccount } from '@tenda/shared'
+import type { LinkedWallet, WalletAccount } from '@tenda/shared'
 
 jest.mock('@/wallet/reown/connection-signal', () => ({
   connectionSignal: {

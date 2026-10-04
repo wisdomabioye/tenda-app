@@ -27,13 +27,9 @@ jest.mock('@/wallet/reown/connection-signal', () => ({
   },
 }))
 
-// eslint-disable-next-line import/first
 import { WalletError } from '@tenda/shared'
-// eslint-disable-next-line import/first
 import { useAuthStore } from '@/stores/auth.store'
-// eslint-disable-next-line import/first
 import { useSigningWallet } from '@/hooks/wallet/useSigningWallet'
-// eslint-disable-next-line import/first
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 const EVM_CHAIN = 'eip155:84532'

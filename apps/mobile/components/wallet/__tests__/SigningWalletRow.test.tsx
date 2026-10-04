@@ -87,7 +87,6 @@ jest.mock('@/components/ui/Button', () => {
   }
 })
 
-// eslint-disable-next-line import/first
 import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 
 const CHAIN = 'eip155:84532'

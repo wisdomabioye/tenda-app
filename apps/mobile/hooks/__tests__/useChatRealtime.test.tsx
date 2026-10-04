@@ -16,10 +16,10 @@ const mockChannel = {
   listener: null as ((message: Message) => void) | null,
   unsubscribed: 0,
 }
-const mockPolledWith: Array<string | null> = []
+const mockPolledWith: (string | null)[] = []
 /** Every value the hook registers, in order — so a test can assert it was
  *  CLEARED on unmount, not merely set at some point. */
-const mockOpenConversation: Array<string> = []
+const mockOpenConversation: string[] = []
 
 jest.mock('@/stores/realtime.store', () => {
   const { create } = require('zustand')

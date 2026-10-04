@@ -15,7 +15,6 @@ jest.mock('lucide-react-native', () => ({ Search: () => null, X: () => null }))
 jest.mock('@/components/form/LocationPicker', () => ({ LocationPicker: () => null }))
 jest.mock('@/components/ui/Chip', () => {
   // Jest mock factories cannot close over the module's top-level React Native import.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Pressable, Text } = require('react-native')
   return {
     Chip: ({ label, onPress }: { label: string; onPress: () => void }) => (

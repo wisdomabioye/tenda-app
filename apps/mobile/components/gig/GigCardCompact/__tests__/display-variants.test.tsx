@@ -83,7 +83,6 @@ import { GigCardCompactClassic } from '@/components/gig/GigCardCompact/Classic'
 const NOW = Date.parse('2026-07-01T12:00:00.000Z')
 const IN_30_MIN = new Date(NOW + 30 * 60_000).toISOString()
 const IN_5_DAYS = new Date(NOW + 5 * 86_400_000).toISOString()
-const PAST = new Date(NOW - 86_400_000).toISOString()
 
 beforeEach(() => {
   jest.useFakeTimers().setSystemTime(NOW)

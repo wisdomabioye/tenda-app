@@ -16,7 +16,6 @@ jest.mock('@/lib/upload', () => ({ uploadToCloudinary: (...a: unknown[]) => mock
 const mockToast = jest.fn()
 jest.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
 
-// eslint-disable-next-line import/first
 import { uploadProofs } from '../upload'
 
 function picked(name: string, type: PickedFile['type']): PickedFile {

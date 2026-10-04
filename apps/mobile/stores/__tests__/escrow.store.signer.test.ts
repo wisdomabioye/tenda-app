@@ -25,7 +25,6 @@ jest.mock('@/stores/pending-sync.store', () => ({
   usePendingSyncStore: { getState: () => ({ add: jest.fn() }) },
 }))
 
-// eslint-disable-next-line import/first
 import { useEscrowStore } from '@/stores/escrow.store'
 
 const UNSIGNED = { kind: 'evm-tx' as const, to: '0x1', data: '0x', value: '0' }

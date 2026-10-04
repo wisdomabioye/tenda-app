@@ -33,7 +33,6 @@ jest.mock('@/stores/settings.store', () => ({
 const mockFee = { netRaw: 9_500_000n as bigint | null, feePct: 5 as number | null }
 jest.mock('@/hooks/useEscrowFee', () => ({ useEscrowFee: () => mockFee }))
 
-// eslint-disable-next-line import/first
 import { GigMetaInfo } from '../GigMetaInfo'
 
 // Reset the module-scoped doubles HERE, not at the end of the test that

@@ -1,6 +1,5 @@
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
-import { ApiClientError } from '@tenda/shared'
 import { persistEscrowProofs } from '../persistEscrowProofs'
 
 jest.mock('@/api/client', () => ({

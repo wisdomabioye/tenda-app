@@ -11,8 +11,7 @@
  * are stubbed with testIDs so each branch is observable.
  */
 import { render, screen, fireEvent } from '@testing-library/react-native'
-import type { UserEscrowTransaction } from '@tenda/shared'
-import type { WalletSectionState } from '@tenda/shared'
+import type { UserEscrowTransaction, WalletSectionState } from '@tenda/shared'
 
 /** Only the fields the screen's rows actually touch. */
 const tx = (id: string): UserEscrowTransaction =>
