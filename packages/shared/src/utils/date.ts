@@ -7,7 +7,8 @@
 
 const MIN_MS = 60_000
 const HOUR_MS = 3_600_000
-const DAY_MS  = 86_400_000
+/** One day in milliseconds: the one copy, for every app (server retention sweeps included). */
+export const MS_PER_DAY = 86_400_000
 
 function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString()
@@ -27,7 +28,7 @@ export function formatRelativeDay(iso: string | Date): string {
   yesterday.setDate(yesterday.getDate() - 1)
   if (isSameDay(date, yesterday)) return 'Yesterday'
 
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / DAY_MS)
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / MS_PER_DAY)
   if (diffDays > 0 && diffDays < 7) {
     return date.toLocaleDateString([], { weekday: 'long' })
   }
@@ -50,7 +51,7 @@ export function formatRelativeShort(iso: string | Date): string {
   if (min < 60)           return `${min}m`
   const hr = Math.floor(ms / HOUR_MS)
   if (hr < 24)            return `${hr}h`
-  const day = Math.floor(ms / DAY_MS)
+  const day = Math.floor(ms / MS_PER_DAY)
   if (day < 7)            return `${day}d`
   if (day < 30)           return `${Math.floor(day / 7)}w`
   return date.toLocaleDateString([], { day: 'numeric', month: 'short' })
@@ -73,7 +74,7 @@ export function formatConvoTime(iso: string | Date): string {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()
   }
 
-  const diffDays = Math.floor(ms / DAY_MS)
+  const diffDays = Math.floor(ms / MS_PER_DAY)
   if (diffDays === 1) return 'Yest'
   if (diffDays < 7)   return date.toLocaleDateString([], { weekday: 'short' })
   if (date.getFullYear() === now.getFullYear()) {
