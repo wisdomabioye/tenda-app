@@ -42,8 +42,15 @@ contract TendaEscrowHandlerSeeds is Test {
         return handler.ids(0);
     }
 
+    /// @dev The actor one place after `seed`'s, round the ring the handler holds.
+    function _nextActor(uint256 seed) internal view returns (address) {
+        uint256 n = handler.actorList().length;
+        return handler.actorList()[(seed % n + 1) % n];
+    }
+
     function test_acceptEscrow_atMaxSeed_picksTheNextActor() public {
-        // MAX % 6 == 3: actor 3 creates, and the same seed picks actor 3 to accept.
+        // The seed picks the same actor to create and to accept, so the creator IS
+        // the seed's own actor and the "take the next one" branch is reached.
         handler.createERC20(MAX, 1000, 0, 1 hours, 3 days, 0, PLAIN_OPEN);
         bytes16 id = _firstEscrow();
         address creator = escrow.getEscrow(id).creator;
@@ -53,7 +60,7 @@ contract TendaEscrowHandlerSeeds is Test {
         TendaEscrow.Escrow memory e = escrow.getEscrow(id);
         assertEq(uint8(e.status), uint8(TendaEscrow.Status.Accepted), "the escrow was not accepted");
         assertTrue(e.counterparty != creator, "the creator accepted their own escrow");
-        assertEq(e.counterparty, handler.actorList()[(MAX % 6 + 1) % 6], "not the next actor in the ring");
+        assertEq(e.counterparty, _nextActor(MAX), "not the next actor in the ring");
     }
 
     function test_assignAccept_atMaxSeed_picksTheNextActor() public {
@@ -66,7 +73,7 @@ contract TendaEscrowHandlerSeeds is Test {
         TendaEscrow.Escrow memory e = escrow.getEscrow(id);
         assertEq(uint8(e.status), uint8(TendaEscrow.Status.Accepted), "the escrow was not assigned");
         assertTrue(e.counterparty != creator, "the creator was assigned their own escrow");
-        assertEq(e.counterparty, handler.actorList()[(MAX % 6 + 1) % 6], "not the next actor in the ring");
+        assertEq(e.counterparty, _nextActor(MAX), "not the next actor in the ring");
     }
 
     function test_createForAlteredTerms_atMaxSeed_doesNotOverflow() public {
