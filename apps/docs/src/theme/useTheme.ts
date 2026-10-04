@@ -1,9 +1,14 @@
 /**
  * Which side of every `light-dark()` pair this page shows.
  *
- * Three states, not two: no stamp means "follow the system", and the two
- * stamps override it in either direction — the same contract the landing's
- * ThemeProvider has, because both read the same generated tokens.
+ * THREE MODES, the same vocabulary the landing's ThemeProvider uses (it reads
+ * the same generated tokens): `system` follows the reader's OS and stamps
+ * nothing on the page; `light` and `dark` pin one side. The part this app adds
+ * over the landing is the un-stamped `system` state, which is the one
+ * `color-scheme: light dark` is written for — and the reader can always get
+ * back to it, because `cycle` goes System → Light → Dark → System. A toggle
+ * that only flipped light/dark let a single click permanently end "follow my
+ * system".
  *
  * Local to this app rather than shared: `@tenda/shared` is deliberately
  * React-free and zero-dependency, so every client keeps its own small theme
@@ -12,10 +17,19 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 
-export type ThemeChoice = 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark' | 'system'
+/** What is actually showing — `system` resolved to a side. */
+export type ResolvedTheme = 'light' | 'dark'
 
 const STORAGE_KEY = 'tenda-docs-theme'
 const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+/** The order the header button walks. */
+const CYCLE: readonly ThemeMode[] = ['system', 'light', 'dark']
+
+export function nextMode(mode: ThemeMode): ThemeMode {
+  return CYCLE[(CYCLE.indexOf(mode) + 1) % CYCLE.length]
+}
 
 /**
  * `matchMedia` is absent in some environments (jsdom without a shim, very old
@@ -25,25 +39,42 @@ const DARK_QUERY = '(prefers-color-scheme: dark)'
 const media = (): MediaQueryList | null =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(DARK_QUERY) : null
 
-const systemTheme = (): ThemeChoice => (media()?.matches === true ? 'dark' : 'light')
+const systemTheme = (): ResolvedTheme => (media()?.matches === true ? 'dark' : 'light')
 
-/** The stored choice, or null when the reader has never chosen. */
-export function storedTheme(
+/**
+ * The stored mode, or `system` when there is none, it is unrecognised, or the
+ * store cannot be read. Values written before `system` existed were only ever
+ * `light` or `dark`, and both are still valid modes.
+ */
+export function storedMode(
   storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage,
-): ThemeChoice | null {
+): ThemeMode {
   try {
     const saved = storage?.getItem(STORAGE_KEY)
-    return saved === 'light' || saved === 'dark' ? saved : null
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
   } catch {
     // A browser with storage blocked still gets a working page — it just
     // follows the system every visit.
-    return null
+    return 'system'
   }
 }
 
-export function useTheme(): { theme: ThemeChoice; chosen: boolean; toggle: () => void } {
-  const [choice, setChoice] = useState<ThemeChoice | null>(() => storedTheme())
-  const [system, setSystem] = useState<ThemeChoice>(systemTheme)
+function persist(mode: ThemeMode): void {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, mode)
+  } catch {
+    /* storage blocked — the choice lasts this visit */
+  }
+}
+
+export function useTheme(): {
+  mode: ThemeMode
+  theme: ResolvedTheme
+  setMode: (mode: ThemeMode) => void
+  cycle: () => void
+} {
+  const [mode, setModeState] = useState<ThemeMode>(() => storedMode())
+  const [system, setSystem] = useState<ResolvedTheme>(systemTheme)
 
   useEffect(() => {
     const query = media()
@@ -53,22 +84,21 @@ export function useTheme(): { theme: ThemeChoice; chosen: boolean; toggle: () =>
     return () => { query.removeEventListener('change', onChange) }
   }, [])
 
-  const theme = choice ?? system
+  const theme: ResolvedTheme = mode === 'system' ? system : mode
 
   useEffect(() => {
     // No stamp while the reader is following the system: the un-stamped state
     // is the one `color-scheme: light dark` is written for.
-    if (choice === null) document.documentElement.removeAttribute('data-theme')
-    else document.documentElement.setAttribute('data-theme', choice)
-  }, [choice])
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme')
+    else document.documentElement.setAttribute('data-theme', mode)
+  }, [mode])
 
-  const toggle = useCallback(() => {
-    setChoice((current) => {
-      const next: ThemeChoice = (current ?? systemTheme()) === 'dark' ? 'light' : 'dark'
-      try { globalThis.localStorage?.setItem(STORAGE_KEY, next) } catch { /* storage blocked — the choice lasts this visit */ }
-      return next
-    })
+  const setMode = useCallback((next: ThemeMode) => {
+    setModeState(next)
+    persist(next)
   }, [])
 
-  return { theme, chosen: choice !== null, toggle }
+  const cycle = useCallback(() => { setMode(nextMode(mode)) }, [mode, setMode])
+
+  return { mode, theme, setMode, cycle }
 }
