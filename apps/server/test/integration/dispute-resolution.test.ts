@@ -323,6 +323,39 @@ test('buildResolveTx: chain with no configured dispute authority → 409 CHAIN_N
   )
 })
 
+test('buildResolveTx: a deconfigured chain is a 503, not the registry\'s raw throw (a 500)', { skip }, async () => {
+  const app = getApp()
+  const { escrow } = await disputedEscrow(app)
+  // The registry as it behaves once the chain's env is gone: `has` is false and
+  // `get` throws a plain Error, which the app error handler would turn into a
+  // 500 + a Sentry report.
+  const chains = {
+    ...app.chains,
+    has: () => false,
+    get: (chain_id: string): never => {
+      throw new Error(`no adapter registered for chain_id '${chain_id}'`)
+    },
+  }
+  await assert.rejects(
+    buildResolveTx(
+      { db: app.db, chains, contracts: app.contracts },
+      { escrow: { id: escrow.id, chain_id: escrow.chain_id, escrow_contract: null }, winner: 'creator', signer_user_id: 'irrelevant' },
+    ),
+    (e: unknown) =>
+      e instanceof Error && 'statusCode' in e && e.statusCode === 503 && 'code' in e && e.code === 'SERVICE_UNAVAILABLE',
+  )
+})
+
+test('buildResolveTx: a configured chain is NOT refused by the availability guard', { skip }, async () => {
+  const app = getApp()
+  const { escrow } = await disputedEscrow(app)
+  const tx = await buildResolveTx(
+    { db: app.db, chains: app.chains, contracts: app.contracts },
+    { escrow: { id: escrow.id, chain_id: escrow.chain_id, escrow_contract: null }, winner: 'creator', signer_user_id: 'irrelevant' },
+  )
+  assert.deepStrictEqual(tx, FAKE_UNSIGNED)
+})
+
 function executeBuild(app: FastifyInstance, resolutionId: string, token: string) {
   return app.inject({
     method: 'POST',
