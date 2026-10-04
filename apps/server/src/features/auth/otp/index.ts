@@ -52,6 +52,17 @@ export const OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR = 3
 export const OTP_MAX_SENDS_PER_USER_PER_DAY = 10
 export const OTP_CODE_DIGITS = 6
 
+/**
+ * The windows the send limits count over. NAMED because two things must agree on
+ * them: `sendOtp` (what it counts) and the retention prune (what it must keep).
+ * The limiter counts rows by `created_at` whether or not they were consumed or
+ * have expired, so a row is load-bearing until it is older than the LONGEST
+ * window; deleting sooner would quietly shrink the count and loosen the limit.
+ */
+export const OTP_IDENTIFIER_WINDOW_MS = 3_600_000
+export const OTP_USER_WINDOW_MS = 86_400_000
+export const OTP_RETENTION_MS = Math.max(OTP_IDENTIFIER_WINDOW_MS, OTP_USER_WINDOW_MS)
+
 /** True when `identifier` is well-formed for the channel (pre-send guard). */
 export function isValidOtpIdentifier(channel: OtpChannel, identifier: string): boolean {
   return channel === 'phone' ? isE164(identifier) : normalizeEmail(identifier) !== null
@@ -137,7 +148,7 @@ export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, `invalid ${input.channel} identifier`)
   }
   const now = deps.now()
-  const hourAgo = new Date(now.getTime() - 3_600_000)
+  const hourAgo = new Date(now.getTime() - OTP_IDENTIFIER_WINDOW_MS)
 
   const byIdentifier = await deps.store.countRecentByIdentifier(
     input.channel,
@@ -150,7 +161,7 @@ export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires
   // Per-user cap only applies to authenticated sends (a pre-account send has
   // no user to attribute; the per-identifier + per-IP limits carry that case).
   if (input.user_id !== null) {
-    const dayAgo = new Date(now.getTime() - 86_400_000)
+    const dayAgo = new Date(now.getTime() - OTP_USER_WINDOW_MS)
     const byUser = await deps.store.countRecentByUser(input.user_id, dayAgo)
     if (byUser >= OTP_MAX_SENDS_PER_USER_PER_DAY) {
       throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests, try again later')

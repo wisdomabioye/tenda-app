@@ -54,6 +54,8 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   'expire-fiat-quotes': 1,
   'update-price-stats': 1,
   'prune-notifications': 1,
+  'prune-stale-drafts': 1,
+  'prune-auth-otps': 1,
   // Two, not eight: the point of moving expansion off the verify-tx worker was
   // to stop one popular gig blocking a scarce slot, and a queue of its own does
   // that at concurrency 1. The second slot is so a 50,000-subscriber gig does
@@ -115,6 +117,10 @@ export const REPEATABLES = [
   repeatable({ name: 'update-price-stats', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
   // Daily retention sweep: prunes stale personal notifications (unbounded growth).
   repeatable({ name: 'prune-notifications', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
+  // Daily: a draft is abandoned over days, not minutes, and each tick is a bounded scan.
+  repeatable({ name: 'prune-stale-drafts', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
+  // Daily: spent codes only stop mattering once they are older than the send limits' longest window.
+  repeatable({ name: 'prune-auth-otps', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
   // Every 15 minutes: a hot wallet drains in claims, not in seconds, and the
   // ALERT's own dedup — keyed on the chain alone — is what decides how often an
   // operator actually hears about it, so a brisk tick costs one RPC read per

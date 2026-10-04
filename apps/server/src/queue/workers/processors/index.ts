@@ -51,6 +51,9 @@ import { drizzleSweepEscrowsStore, handleSweepEscrows } from '@server/queue/jobs
 import { drizzleTxAttemptsStore } from '@server/features/escrows/tx-attempts'
 import { getPlatformConfig } from '@server/lib/platform'
 import { handleNotificationRetention } from '@server/queue/workers/notification-retention'
+import { handlePruneStaleDrafts } from '@server/queue/jobs/prune-stale-drafts'
+import { handlePruneAuthOtps } from '@server/queue/jobs/prune-auth-otps'
+import { discardStaleDrafts } from '@server/features/escrows/creation/staleDrafts'
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/queue/jobs/reconcile-escrows'
 import { reconcileFiatIntentsHandler } from '@server/queue/jobs/reconcile-fiat-intents'
 import { expireFiatQuotesHandler } from '@server/queue/jobs/expire-fiat-quotes'
@@ -225,6 +228,17 @@ export function buildProcessors(
 
     'prune-notifications': () =>
       handleNotificationRetention({ db: fastify.db, log: fastify.log, now: () => new Date() }),
+
+    'prune-auth-otps': () =>
+      handlePruneAuthOtps({ db: fastify.db, now: () => new Date(), log: fastify.log }),
+
+    'prune-stale-drafts': () =>
+      handlePruneStaleDrafts({
+        discardStale: (args) => discardStaleDrafts(fastify.db, args),
+        retention_days: getConfig().DRAFT_RETENTION_DAYS,
+        now: () => new Date(),
+        log: fastify.log,
+      }),
 
     // The new-gig expansion, enqueued by step 3 of `fanOutEscrowEvent` instead
     // of being run inside it. A thin binding on purpose: everything about which

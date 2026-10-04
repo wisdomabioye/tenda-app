@@ -10,6 +10,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { loadConfig, REQUIRED_ENV_VARS } from '@server/config'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demo/demoDraftRing'
+import { DRAFT_RETENTION_DAYS_DEFAULT } from '@server/features/escrows/creation/staleDrafts'
 import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { knownSlackEnvKeys, slackEnvKey } from '@server/features/alerts/slack'
 import { buildOtpSenders, type OtpSenderHost } from '@server/features/auth/otp/onboarding-deps'
@@ -43,6 +44,7 @@ const OPTIONAL = [
   'OPENROUTER_MODERATION_TIMEOUT_MS',
   'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS',
   'AGENT_DEMO_DRAFT_CAP',
+  'DRAFT_RETENTION_DAYS',
   'PLATFORM_FEE_BPS',
 ]
 
@@ -113,6 +115,16 @@ test('AGENT_DEMO_DRAFT_CAP (#147): defaults to the ring module\'s constant, take
   for (const bad of ['0', '-1', '2.5', 'many']) {
     process.env.AGENT_DEMO_DRAFT_CAP = bad
     assert.match(loadError().message, /AGENT_DEMO_DRAFT_CAP must be a positive integer/, `'${bad}' must be refused`)
+  }
+})
+
+test('DRAFT_RETENTION_DAYS: defaults to the sweep module\'s constant, takes a positive integer, refuses anything else by name', () => {
+  assert.strictEqual(loadConfig().DRAFT_RETENTION_DAYS, DRAFT_RETENTION_DAYS_DEFAULT)
+  process.env.DRAFT_RETENTION_DAYS = '30'
+  assert.strictEqual(loadConfig().DRAFT_RETENTION_DAYS, 30)
+  for (const bad of ['0', '-1', '2.5', 'week']) {
+    process.env.DRAFT_RETENTION_DAYS = bad
+    assert.match(loadError().message, /DRAFT_RETENTION_DAYS must be a positive integer/, `'${bad}' must be refused`)
   }
 })
 
