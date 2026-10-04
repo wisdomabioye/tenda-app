@@ -77,7 +77,7 @@ test('codes older than the longest window go, in every state', { skip }, async (
     await insertCode({ created_at: old, consumed: true }),
     await insertCode({ created_at: old, expired: true }),
   ]
-  assert.deepStrictEqual(await prune(), { pruned: 3 })
+  assert.deepStrictEqual(await prune(), { pruned: 3, pruned_admin: 0 })
   assert.deepStrictEqual(await surviving(ids), [])
 })
 
@@ -89,7 +89,7 @@ test('codes still inside the window stay — consumed and expired ones INCLUDED,
     await insertCode({ created_at: young, consumed: true }),
     await insertCode({ created_at: young, expired: true }),
   ]
-  assert.deepStrictEqual(await prune(), { pruned: 0 })
+  assert.deepStrictEqual(await prune(), { pruned: 0, pruned_admin: 0 })
   assert.deepStrictEqual(await surviving(ids), ids.slice().sort())
 })
 
@@ -97,7 +97,7 @@ test('the cutoff is strict: a code created exactly one window ago is kept, one m
   await resetDb(getApp())
   const exact = await insertCode({ created_at: ago(OTP_RETENTION_MS) })
   const older = await insertCode({ created_at: ago(OTP_RETENTION_MS + 1) })
-  assert.deepStrictEqual(await prune(), { pruned: 1 })
+  assert.deepStrictEqual(await prune(), { pruned: 1, pruned_admin: 0 })
   assert.deepStrictEqual(await surviving([exact, older]), [exact])
 })
 
@@ -130,7 +130,7 @@ test('a prune does not loosen the per-user DAY limit: codes 23 hours old, long s
 
 test('nothing to prune: nothing happens, and an empty table is not an error', { skip }, async () => {
   await resetDb(getApp())
-  assert.deepStrictEqual(await prune(), { pruned: 0 })
+  assert.deepStrictEqual(await prune(), { pruned: 0, pruned_admin: 0 })
 })
 
 test('the processor binding prunes the real table against the real clock', { skip }, async () => {
@@ -138,6 +138,6 @@ test('the processor binding prunes the real table against the real clock', { ski
   await resetDb(app)
   const stale = await insertCode({ created_at: new Date(Date.now() - OTP_RETENTION_MS - HOUR) })
   const fresh = await insertCode({ created_at: new Date(Date.now() - HOUR) })
-  assert.deepStrictEqual(await buildProcessors(app)['prune-auth-otps']({ tick_id: 'test' }), { pruned: 1 })
+  assert.deepStrictEqual(await buildProcessors(app)['prune-auth-otps']({ tick_id: 'test' }), { pruned: 1, pruned_admin: 0 })
   assert.deepStrictEqual(await surviving([stale, fresh]), [fresh])
 })

@@ -11,10 +11,14 @@
  * sooner would lower the count and let someone request more than the limit. So
  * the cutoff is `now - OTP_RETENTION_MS` (the longest window) and nothing newer.
  *
- * Daily, one statement: the volume is small and the age cutoff keeps each run to
- * a day of rows.
+ * `email_otps` (the admin dashboard's codes) has the same shape and the same rule
+ * with its own windows, so the same run prunes it against ADMIN_OTP_RETENTION_MS.
+ *
+ * Daily, one statement per table: the volume is small and the age cutoff keeps
+ * each run to a day of rows.
  */
 import { OTP_RETENTION_MS } from '@server/features/auth/otp'
+import { ADMIN_OTP_RETENTION_MS, pruneAdminOtpsCreatedBefore } from '@server/features/auth/admin/admin-otp'
 import { pruneOtpsCreatedBefore } from '@server/features/auth/otp/store'
 import type { AppDatabase } from '@server/plugins/db'
 
@@ -24,8 +28,12 @@ export interface PruneAuthOtpsDeps {
   log: { info(obj: object, msg: string): void }
 }
 
-export async function handlePruneAuthOtps(deps: PruneAuthOtpsDeps): Promise<{ pruned: number }> {
-  const pruned = await pruneOtpsCreatedBefore(deps.db, new Date(deps.now().getTime() - OTP_RETENTION_MS))
-  if (pruned > 0) deps.log.info({ pruned }, 'prune-auth-otps: deleted codes older than the send limits')
-  return { pruned }
+export async function handlePruneAuthOtps(deps: PruneAuthOtpsDeps): Promise<{ pruned: number; pruned_admin: number }> {
+  const now = deps.now().getTime()
+  const pruned = await pruneOtpsCreatedBefore(deps.db, new Date(now - OTP_RETENTION_MS))
+  const pruned_admin = await pruneAdminOtpsCreatedBefore(deps.db, new Date(now - ADMIN_OTP_RETENTION_MS))
+  if (pruned > 0 || pruned_admin > 0) {
+    deps.log.info({ pruned, pruned_admin }, 'prune-auth-otps: deleted codes older than the send limits')
+  }
+  return { pruned, pruned_admin }
 }
