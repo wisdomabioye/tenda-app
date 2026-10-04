@@ -145,8 +145,16 @@ export interface SolanaGasSeedPort {
   sign(args: { to: PublicKey; lamports: bigint }): Promise<{ signature: string; raw: Uint8Array }>
   /** Put previously signed bytes on the cluster. Does not confirm. */
   send(raw: Uint8Array): Promise<void>
-  /** The cluster's status for a signature, or null when it has no record. */
-  signatureStatus(signature: string): Promise<SolanaSignatureStatus>
+  /**
+   * The cluster's status for a signature, or null when it has no record.
+   *
+   * `corroborate` is set once a null would be read as PROOF the transfer died
+   * (see `SOLANA_SEED_EXPIRY_MS`). Then one endpoint's null is not enough: a
+   * lagging primary answers "never heard of it" for a transfer that landed, and
+   * believing it releases the slot for a second payment. A null may only be
+   * returned when EVERY endpoint answered null.
+   */
+  signatureStatus(signature: string, opts: { corroborate: boolean }): Promise<SolanaSignatureStatus>
 }
 
 /**
@@ -203,8 +211,11 @@ export function solanaGasSeedSenderFromPort(
       return { tx_ref: signature, broadcast: () => port.send(raw) }
     },
     async checkStatus({ tx_ref, submitted_at }) {
-      const status = await port.signatureStatus(tx_ref)
-      return classifySolanaStatus(status, now().getTime() - submitted_at.getTime())
+      const age_ms = now().getTime() - submitted_at.getTime()
+      // The same boundary the classifier uses, so the extra read is spent exactly
+      // where a null would otherwise release the slot.
+      const status = await port.signatureStatus(tx_ref, { corroborate: age_ms > SOLANA_SEED_EXPIRY_MS })
+      return classifySolanaStatus(status, age_ms)
     },
   }
 }
@@ -272,16 +283,31 @@ export function solanaGasSeedSender(args: {
         { timeout_ms },
       )
     },
-    async signatureStatus(signature) {
+    async signatureStatus(signature, { corroborate }) {
       // `searchTransactionHistory`: the signature may have left the recent
       // status cache by the time the confirm job asks, which is exactly the
       // window this check has to cover.
-      const { value } = await withRpcFallback(
-        connections,
-        (c) => c.getSignatureStatus(signature, { searchTransactionHistory: true }),
-        { timeout_ms },
-      )
-      return value === null ? null : { err: value.err }
+      const read = (c: (typeof connections)[number]) =>
+        c.getSignatureStatus(signature, { searchTransactionHistory: true })
+      if (!corroborate) {
+        const { value } = await withRpcFallback(connections, read, { timeout_ms })
+        return value === null ? null : { err: value.err }
+      }
+      // Corroborating: ask every endpoint until one has a record. An endpoint
+      // that errors has not answered, so it cannot join a unanimous "no record" —
+      // the failure is rethrown (the confirm job retries it) rather than read as
+      // proof. With one endpoint configured this is the same single read as above.
+      let failure: unknown
+      for (const connection of connections) {
+        try {
+          const { value } = await withRpcFallback([connection], read, { timeout_ms })
+          if (value !== null) return { err: value.err }
+        } catch (e) {
+          failure ??= e
+        }
+      }
+      if (failure !== undefined) throw failure
+      return null
     },
   })
 }
