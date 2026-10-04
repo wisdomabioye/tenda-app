@@ -38,7 +38,7 @@
  * says. Everything else — every shape, and every value the server derived
  * rather than the harness chose — is what production sends.
  */
-import type { AgentTaskBody, AgentTaskCreated, AgentTaskPaymentRequired, GigDetail, RelayPaymentPayload, RelaySettlementResponse } from '@tenda/shared'
+import type { AgentTaskBody, AgentTaskCreated, AgentTaskPaymentRequired, AgentTaskValidated, GigDetail, RelayPaymentPayload, RelaySettlementResponse } from '@tenda/shared'
 import { X_PAYMENT_HEADER, apiRoutes } from '@tenda/shared'
 import { JSON_MEDIA_TYPE, type ExampleValue, type HttpStatus, type JsonContent, type OperationObject, type ResponseObject } from './paths'
 import { RECORDED_EXCHANGE } from './recorded-exchange'
@@ -147,6 +147,30 @@ function taskOperation(post: OperationObject, recorded: RecordedExchange): Opera
   }
 }
 
+/**
+ * What POST /v1/agent/tasks/validate answers. Not recorded: the schema pins both
+ * fields to constants (`ok` true, `moderation` 'not_run'), so there is only one
+ * body it can ever carry, and typing it as the wire type keeps it from drifting.
+ */
+const VALIDATED_EXAMPLE: AgentTaskValidated = { ok: true, moderation: 'not_run' }
+
+/** The validate-only operation: the SAME recorded request body as the one-shot, and its one possible 200. */
+function validateOperation(post: OperationObject, recorded: RecordedExchange): OperationObject {
+  const ok = post.responses['200']
+  return {
+    ...post,
+    ...(post.requestBody !== undefined
+      ? { requestBody: { ...post.requestBody, content: withExample(post.requestBody.content, recorded.request, 'request') } }
+      : {}),
+    responses: {
+      ...post.responses,
+      ...(ok?.content !== undefined
+        ? { '200': { ...ok, content: { [JSON_MEDIA_TYPE]: { ...ok.content[JSON_MEDIA_TYPE], example: { ...VALIDATED_EXAMPLE } } } } }
+        : {}),
+    },
+  }
+}
+
 /** The GET /v1/gigs/{id} operation with the polled task recorded on its 200. */
 function gigOperation(get: OperationObject, recorded: RecordedExchange): OperationObject {
   return { ...get, responses: { ...get.responses, ...recordedResponse(get.responses, '200', recorded.polled, 'polled') } }
@@ -174,15 +198,17 @@ export function withRecordedExamples(
   recorded: RecordedExchange = RECORDED_EXCHANGE,
 ): OpenApiDocument {
   const tasks = doc.paths[apiRoutes.agent.tasks]
+  const validate = doc.paths[apiRoutes.agent.tasksValidate]
   const gig = doc.paths[GIG_DETAIL_PATH]
   // Nothing to attach: hand back the very object, rather than an equal copy.
   // Cheap, and it keeps "this function did nothing" checkable by identity.
-  if (tasks?.post === undefined && gig?.get === undefined) return doc
+  if (tasks?.post === undefined && validate?.post === undefined && gig?.get === undefined) return doc
   return {
     ...doc,
     paths: {
       ...doc.paths,
       ...(tasks?.post !== undefined ? { [apiRoutes.agent.tasks]: { ...tasks, post: taskOperation(tasks.post, recorded) } } : {}),
+      ...(validate?.post !== undefined ? { [apiRoutes.agent.tasksValidate]: { ...validate, post: validateOperation(validate.post, recorded) } } : {}),
       ...(gig?.get !== undefined ? { [GIG_DETAIL_PATH]: { ...gig, get: gigOperation(gig.get, recorded) } } : {}),
     },
   }

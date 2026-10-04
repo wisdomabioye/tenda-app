@@ -106,3 +106,24 @@ test('the v1 schemas compile strictly and the closure bites on the task body and
   assert.ok(terms !== undefined)
   assert.strictEqual(terms({ scheme: 'exact' }), false)
 })
+
+test('POST /v1/agent/tasks/validate is documented as a bearer-scoped, body-taking check with a closed 200 that cannot be read as "cleared"', () => {
+  const op = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasksValidate]?.post
+  assert.ok(op !== undefined, 'the validate-only operation is in the document')
+  assert.deepStrictEqual(op.security, [{ bearer: [] }])
+  assert.strictEqual(op.requestBody?.required, true)
+  // The same body as the one-shot: a divergent schema would be a second contract.
+  const bodyRef = (path: string) => JSON.stringify(AGENT_API_DOCUMENT.paths[path]?.post?.requestBody)
+  assert.strictEqual(bodyRef(apiRoutes.agent.tasksValidate), bodyRef(apiRoutes.agent.tasks))
+  for (const status of ['200', '400', '401', '403', '422', '429'] as const) assert.ok(op.responses[status] !== undefined, `documents ${status}`)
+  // `moderation` is a CONSTANT in the schema, not a free string: "ok" can never be read as cleared.
+  const ok = components.schemas.AgentTaskValidated
+  assert.strictEqual(ok.properties?.moderation?.const, 'not_run')
+  assert.strictEqual(ok.properties?.ok?.const, true)
+  assert.match(op.description ?? '', /not cleared|does NOT run moderation/i)
+  const validate = agentApiAjv().getSchema(`${COMPONENT_REF_PREFIX}AgentTaskValidated`)
+  assert.ok(validate !== undefined)
+  assert.strictEqual(validate({ ok: true, moderation: 'not_run' }), true)
+  assert.strictEqual(validate({ ok: true, moderation: 'passed' }), false, 'a claim of passed moderation is refused')
+  assert.strictEqual(validate({ ok: true, moderation: 'not_run', extra: 1 }), false, 'closed')
+})

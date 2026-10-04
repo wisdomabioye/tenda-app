@@ -58,7 +58,7 @@ export const V0_COMPONENT_NAMES = [
 export const V1_COMPONENT_NAMES = [
   'AgentRegisterBody', 'AgentAccount', 'AgentRegisterResponse', 'AgentTaskBody', 'EvmCreateParamsWire',
   'ReceiveAuthorizationTypedData', 'EvmAuthorizationTerms', 'SolanaTransactionTerms', 'RelayTerms',
-  'AgentTaskPaymentRequired', 'AgentTaskCreated',
+  'AgentTaskPaymentRequired', 'AgentTaskCreated', 'AgentTaskValidated',
 ] as const
 /** The deployment-truth surface (#126): what `GET /v1/platform/chains` answers. */
 export const PLATFORM_COMPONENT_NAMES = ['ChainRegistryAsset', 'ChainRegistryEntry', 'ChainRegistry'] as const

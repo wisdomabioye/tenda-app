@@ -14,17 +14,14 @@
  * what makes it (and what makes a retried resend harmless).
  */
 import { randomUUID } from 'node:crypto'
-import { eq } from 'drizzle-orm'
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { ErrorCode, type AgentTaskBody, type RelayPaymentPayload } from '@tenda/shared'
-import { users } from '@tenda/shared/db/schema'
-import { AppError } from '@server/lib/errors'
+import type { AgentTaskBody, RelayPaymentPayload } from '@tenda/shared'
 import { getConfig } from '@server/config'
 import { getPlatformConfig } from '@server/lib/platform'
 import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { assertCallerWallet, readSignerPreference } from '@server/lib/escrow'
 import { normalizeContractAddress } from '@server/chains/contracts'
-import { validateCreateEscrow } from '@server/features/escrows/creation/validateCreateEscrow'
+import { checkAgentTaskTerms } from './checkAgentTaskTerms'
 import { findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
 import { attachGigDetails, prepareGigDetails, upsertGigDetails } from '@server/features/gigs/attachGigDetails'
 import { relayDraftFunding, type RelayDraftOutcome } from '@server/features/escrows/funding/relayDraftFunding'
@@ -42,41 +39,11 @@ export async function createAgentTask(
   },
 ): Promise<AgentTaskOutcome> {
   const { user_id, body } = args
-  const [account] = await fastify.db
-    .select({ is_agent: users.is_agent, is_seeker: users.is_seeker })
-    .from(users)
-    .where(eq(users.id, user_id))
-    .limit(1)
-  if (account === undefined) throw new AppError(401, ErrorCode.UNAUTHORIZED, 'user no longer exists')
-  // The one-shot is the AGENT surface: a human posts through the app, where
-  // every step is a screen. Keeping it agent-only is what keeps the badge
-  // honest — a task posted here is by an account every surface labels.
-  if (!account.is_agent) {
-    throw new AppError(403, ErrorCode.FORBIDDEN, 'POST /v1/agent/tasks is for agent accounts (POST /v1/agent/register)')
-  }
-  if (body.creation_operation_id === undefined) {
-    throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'creation_operation_id is required (it is what the 402 → resend round trip lands on)')
-  }
-  // An EIP-2612 permit only sets an ERC-20 allowance. The one-shot never
-  // needs one: the funds move by the EIP-3009 authorization the agent sends
-  // in X-PAYMENT. Refused rather than ignored, because the human create body
-  // this one mirrors DOES take a permit — dropping it silently would leave an
-  // agent that copied that shape with a signature spent on nothing.
-  if ('permit' in body) {
-    throw new AppError(
-      422,
-      ErrorCode.VALIDATION_ERROR,
-      'permit is not part of the one-shot: the task is funded by the EIP-3009 authorization sent in X-PAYMENT (no allowance is set, so a permit has nothing to do) — remove it',
-    )
-  }
-
-  // Escrow terms: the same validator POST /v1/escrows runs, with kind fixed.
   // ONE instant, shared with the draft's provisional accept deadline (#41).
   const now = new Date()
-  const input = validateCreateEscrow(
-    { hasChain: (chain_id) => fastify.chains.has(chain_id), now: () => now, caller_user_id: user_id },
-    { ...body, kind: 'gig' },
-  )
+  // Who may post and whether the terms are valid: the same checks, in one
+  // place, that POST /v1/agent/tasks/validate runs.
+  const { account, input } = await checkAgentTaskTerms(fastify, { user_id, body, now })
   const adapter = fastify.chains.get(input.chain_id)
   // Gates BEFORE any draft write, so a refused call leaves nothing behind.
   await assertCanTransact(fastify.db, user_id, adapter.namespace)

@@ -172,7 +172,7 @@ test('nothing is published by $ref — a truncated reader meets the payload wher
   const serialised = JSON.stringify(AGENT_API_DOCUMENT)
   assert.strictEqual(serialised.includes('"examples"'), false, 'OpenAPI `examples` (the $ref-able form) crept in')
   const inlineCount = [...serialised.matchAll(/"example":/g)].length
-  assert.strictEqual(inlineCount, 5, 'expected the request, 402, 201, X-PAYMENT and the POLLED gig')
+  assert.strictEqual(inlineCount, 7, 'expected the request, 402, 201, X-PAYMENT and the POLLED gig, plus the validate request and its 200')
 })
 
 /*
@@ -188,7 +188,7 @@ test('nothing is published by $ref — a truncated reader meets the payload wher
  */
 
 test('a document with NEITHER attachment point is returned untouched, not thrown at', () => {
-  const { [apiRoutes.agent.tasks]: _task, [GIG_DETAIL_PATH]: _gig, ...rest } = AGENT_API_DOCUMENT.paths
+  const { [apiRoutes.agent.tasks]: _task, [apiRoutes.agent.tasksValidate]: _validate, [GIG_DETAIL_PATH]: _gig, ...rest } = AGENT_API_DOCUMENT.paths
   const without = { ...AGENT_API_DOCUMENT, paths: rest }
   assert.strictEqual(withRecordedExamples(without), without, 'it should hand back the very same object')
 })
@@ -249,4 +249,19 @@ test('a parameter that is not X-PAYMENT is carried through untouched', () => {
   const resulting = withRecordedExamples(widened).paths[apiRoutes.agent.tasks]?.post?.parameters
   assert.strictEqual(resulting?.find((p) => p.name === 'x-request-id'), other, 'the untouched parameter should be the same object')
   assert.strictEqual(resulting?.find((p) => p.name === X_PAYMENT_HEADER)?.example, recordedPaymentHeader())
+})
+
+test('the validate-only operation carries the recorded request and its one possible 200, both valid against their closed schemas', () => {
+  const validate = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasksValidate]?.post
+  const request = validate?.requestBody?.content[JSON_MEDIA_TYPE]?.example
+  assert.deepStrictEqual(request, JSON.parse(JSON.stringify(RECORDED_EXCHANGE.request)), 'the same recorded body the one-shot shows')
+  const answer = validate?.responses['200']?.content?.[JSON_MEDIA_TYPE]?.example
+  assert.deepStrictEqual(answer, { ok: true, moderation: 'not_run' })
+  const check = (name: string, value: unknown) => {
+    const fn = ajv.getSchema(`#/components/schemas/${name}`)
+    assert.ok(fn !== undefined, `${name} is registered`)
+    assert.strictEqual(fn(value), true, `${name}: ${JSON.stringify(fn.errors)}`)
+  }
+  check('AgentTaskBody', request)
+  check('AgentTaskValidated', answer)
 })

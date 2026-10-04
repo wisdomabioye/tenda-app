@@ -66,11 +66,12 @@ test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.ok(AGENT_API_STABILITY.some((line) => /anonymous/i.test(line) && /bearer/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /never removed/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /is_agent/.test(line)))
-  // Pinned so a bump is never incidental. 2.0.0 is the first MAJOR: #41 renamed
+  // Pinned so a bump is never incidental. 2.0.0 was the first MAJOR: #41 renamed
   // and retyped a REQUEST field on POST /v1/agent/tasks (accept_deadline_unix →
   // accept_window_seconds), which the response-field promise below does not
-  // cover and which a caller must act on.
-  assert.strictEqual(AGENT_API_VERSION, '2.0.0')
+  // cover and which a caller must act on. 2.1.0 ADDED POST /v1/agent/tasks/validate
+  // — a new path, which the "new paths may be added" promise makes a MINOR.
+  assert.strictEqual(AGENT_API_VERSION, '2.1.0')
 })
 
 test('the public reads are GET-only and every agent write POST-only, all spelled from the route map', () => {
@@ -89,7 +90,7 @@ test('the public reads are GET-only and every agent write POST-only, all spelled
   // `/v1/auth/verify` joins them since #130: it takes the same wallet proof and
   // is how an existing agent signs back in, which registration has always told
   // readers to use.
-  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks, apiRoutes.auth.verify]
+  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks, apiRoutes.agent.tasksValidate, apiRoutes.auth.verify]
   const BODYLESS = [apiRoutes.agent.demoSession]
   // The nonce (#130) is a POST that takes nothing either, but it is NOT a door:
   // it hands out something to sign, not a bearer, and it has no 503 because a

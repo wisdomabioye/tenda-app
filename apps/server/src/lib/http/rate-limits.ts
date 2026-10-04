@@ -26,3 +26,12 @@ export const PUBLIC_FEED_RATE_LIMIT = { max: 60, timeWindow: '1 minute' } as con
  */
 export const AGENT_TASK_ACCOUNT_RATE_LIMIT = { max: 10, timeWindow: '1 minute' } as const
 export const AGENT_TASK_IP_RATE_LIMIT = { max: 30, timeWindow: '1 minute' } as const
+
+/**
+ * POST /v1/agent/tasks/validate: one account read and a pure check, no model
+ * call and no chain call, so it is allowed more than the one-shot it fronts —
+ * a bulk importer checks a batch of rows before any wallet signature. Same two
+ * layers as the one-shot, for the same reason.
+ */
+export const AGENT_VALIDATE_ACCOUNT_RATE_LIMIT = { max: 60, timeWindow: '1 minute' } as const
+export const AGENT_VALIDATE_IP_RATE_LIMIT = { max: 120, timeWindow: '1 minute' } as const

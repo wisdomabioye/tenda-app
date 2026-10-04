@@ -15,8 +15,14 @@ import { ErrorCode } from '@tenda/shared'
 import rateLimitPlugin from '@server/plugins/rate-limit'
 import tasksRoute from '@server/routes/v1/agent/tasks'
 import registerRoute from '@server/routes/v1/agent/register'
+import validateRoute from '@server/routes/v1/agent/tasks/validate'
 import { registerErrorHandlers } from '@server/lib/errors/http'
-import { AGENT_TASK_ACCOUNT_RATE_LIMIT, AGENT_TASK_IP_RATE_LIMIT } from '@server/lib/http/rate-limits'
+import {
+  AGENT_TASK_ACCOUNT_RATE_LIMIT,
+  AGENT_TASK_IP_RATE_LIMIT,
+  AGENT_VALIDATE_ACCOUNT_RATE_LIMIT,
+  AGENT_VALIDATE_IP_RATE_LIMIT,
+} from '@server/lib/http/rate-limits'
 
 const ACCOUNT_MAX = AGENT_TASK_ACCOUNT_RATE_LIMIT.max
 const IP_MAX = AGENT_TASK_IP_RATE_LIMIT.max
@@ -30,6 +36,7 @@ async function app() {
   await fastify.register(rateLimitPlugin)
   await fastify.register(tasksRoute, { prefix: '/v1/agent/tasks' })
   await fastify.register(registerRoute, { prefix: '/v1/agent/register' })
+  await fastify.register(validateRoute, { prefix: '/v1/agent/tasks/validate' })
   await fastify.ready()
   return fastify
 }
@@ -122,6 +129,25 @@ test('without the rate-limit plugin the route still registers and answers (the H
     for (let i = 0; i <= ACCOUNT_MAX; i++) {
       assert.notStrictEqual((await post(fastify, 'a', '10.0.4.1')).statusCode, 429)
     }
+  } finally {
+    await fastify.close()
+  }
+})
+
+test('validate-only has its own, larger allowance (60 an account, 120 an IP) and the same two layers', async () => {
+  assert.deepStrictEqual({ ...AGENT_VALIDATE_ACCOUNT_RATE_LIMIT }, { max: 60, timeWindow: '1 minute' })
+  assert.ok(AGENT_VALIDATE_IP_RATE_LIMIT.max > AGENT_VALIDATE_ACCOUNT_RATE_LIMIT.max)
+  assert.ok(AGENT_VALIDATE_ACCOUNT_RATE_LIMIT.max > ACCOUNT_MAX, 'cheaper call, larger allowance')
+  const fastify = await app()
+  const validate = (account: string, ip: string) =>
+    fastify.inject({ method: 'POST', url: '/v1/agent/tasks/validate', headers: { 'x-account': account }, remoteAddress: ip, payload: {} })
+  try {
+    for (let i = 0; i < AGENT_VALIDATE_ACCOUNT_RATE_LIMIT.max; i++) {
+      assert.notStrictEqual((await validate('v', '10.0.5.1')).statusCode, 429, `request ${i + 1}`)
+    }
+    assert.strictEqual((await validate('v', '10.0.5.1')).statusCode, 429)
+    // Its bucket is its own: the one-shot for the same account is untouched.
+    assert.notStrictEqual((await post(fastify, 'v', '10.0.5.1')).statusCode, 429)
   } finally {
     await fastify.close()
   }

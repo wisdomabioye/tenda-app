@@ -14,6 +14,7 @@ import {
   type AgentRegisterResponse,
   type AgentTaskBody,
   type AgentTaskCreated,
+  type AgentTaskValidated,
   type AgentTaskPaymentRequired,
   AMOUNT_RAW_PATTERN,
   type EvmAuthorizationTerms,
@@ -238,6 +239,19 @@ const agentTaskCreated = closedFor<AgentTaskCreated>(
   ['task_id', 'tx_ref', 'status', 'recorded', 'enqueued'],
 )
 
+const agentTaskValidated = closedFor<AgentTaskValidated>(
+  {
+    ok: { type: 'boolean', const: true, description: 'The body passed every rule the one-shot checks before it mints a draft' },
+    moderation: {
+      type: 'string',
+      const: 'not_run' satisfies AgentTaskValidated['moderation'],
+      description:
+        'Always `not_run`: the listing has NOT been through the content gate, so `ok` does not mean cleared. A later POST of the same body can still answer CONTENT_MODERATED.',
+    },
+  },
+  ['ok', 'moderation'],
+)
+
 export const AGENT_API_V1_SCHEMAS: Readonly<Record<V1ComponentName, SchemaObject>> = {
   AgentRegisterBody: agentRegisterBody,
   AgentAccount: agentAccount,
@@ -250,4 +264,5 @@ export const AGENT_API_V1_SCHEMAS: Readonly<Record<V1ComponentName, SchemaObject
   RelayTerms: relayTerms,
   AgentTaskPaymentRequired: agentTaskPaymentRequired,
   AgentTaskCreated: agentTaskCreated,
+  AgentTaskValidated: agentTaskValidated,
 }
