@@ -141,9 +141,14 @@ test('an untitled entry is still located', () => {
   assert.match(message(() => validateBook([untitled], TERMS)), /#1 \(untitled\): title is required/)
 })
 
-test('a geotag requirement with no pin is refused before it is funded', () => {
-  const seed = remote({ proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
+test('an on-site geotag requirement with no pin is refused before it is funded', () => {
+  const seed = remote({ remote: false, country: 'NG', city: 'Lagos', proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
   assert.match(message(() => validateBook([seed], TERMS)), /geotag proof requires the gig to have latitude and longitude/)
+})
+
+test('a remote gig asking for a geotag proof is refused as a remote-gig problem', () => {
+  const seed = remote({ proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
+  assert.match(message(() => validateBook([seed], TERMS)), /a geotag proof needs an on-site gig/)
 })
 
 test('a chain the manifest does not know is refused', () => {

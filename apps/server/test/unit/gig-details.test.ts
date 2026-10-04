@@ -89,6 +89,30 @@ test('remote gig is valid without any country, even when creator has none', () =
   assert.strictEqual(v.remote, true)
 })
 
+test('remote gig: coordinates are refused — a remote gig has no place to pin', () => {
+  expect400(body({ remote: true, country: undefined, city: undefined, latitude: 6.5, longitude: 3.4 }), 'NG', /remote gig .*latitude/)
+  expect400(body({ remote: true, country: undefined, city: undefined, latitude: 6.5 }), 'NG', /remote gig .*latitude/)
+  expect400(body({ remote: true, country: undefined, city: undefined, longitude: 3.4 }), 'NG', /remote gig .*latitude/)
+})
+
+test('remote gig: a geotag requirement is refused as a remote-gig problem, not as a missing pin', () => {
+  expect400(
+    body({ remote: true, country: undefined, city: undefined, proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 100 } } }),
+    'NG',
+    /geotag proof needs an on-site gig/,
+  )
+})
+
+test('an on-site gig keeps its coordinates (negative control for the remote rule)', () => {
+  const v = validateGigDetails(body({ latitude: 6.5, longitude: 3.4 }), 'NG')
+  assert.deepStrictEqual([v.latitude, v.longitude], [6.5, 3.4])
+})
+
+test('remote gig without coordinates stores none', () => {
+  const v = validateGigDetails(body({ remote: true, country: undefined, city: undefined }), 'NG')
+  assert.deepStrictEqual([v.latitude, v.longitude], [null, null])
+})
+
 test('city must belong to the provided country', () => {
   expect400(body({ city: 'Nairobi' }), 'NG', /is not in country/)
 })

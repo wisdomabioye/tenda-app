@@ -9,7 +9,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { getTableConfig } from 'drizzle-orm/pg-core'
+import { PgDialect, getTableConfig } from 'drizzle-orm/pg-core'
 import { gig_details } from '../../src/db/schema/escrow/gig'
 
 test('gig_details declares the remote-has-no-location constraint, exactly once', () => {
@@ -17,9 +17,12 @@ test('gig_details declares the remote-has-no-location constraint, exactly once',
   assert.deepEqual(names.filter((n) => n === 'gig_details_remote_no_location'), ['gig_details_remote_no_location'])
 })
 
-test('gig_details declares no other CHECK: coordinates on a remote gig are deliberately unconstrained', () => {
-  // The validator keeps latitude/longitude on a remote gig (a geotag proof
-  // needs a pin), so a second check over them would turn an accepted request
-  // into a constraint violation. A new rule belongs here only with its reason.
-  assert.deepEqual(getTableConfig(gig_details).checks.map((c) => c.name), ['gig_details_remote_no_location'])
+test('gig_details declares no other CHECK, and the one it has covers all four location columns', () => {
+  // A new rule belongs here only with its reason.
+  const checks = getTableConfig(gig_details).checks
+  assert.deepEqual(checks.map((c) => c.name), ['gig_details_remote_no_location'])
+  const text = new PgDialect().sqlToQuery(checks[0].value).sql
+  for (const column of ['country', 'city', 'latitude', 'longitude']) {
+    assert.ok(text.includes(column), `the remote CHECK no longer names ${column}`)
+  }
 })
