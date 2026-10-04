@@ -80,6 +80,11 @@ jobs:
       - name: Build contract artifacts for the anvil suite
         working-directory: contracts/evm
         run: forge build
+      # The server tests build their DB from the migration SQL, never from the
+      # schema expressions, so a schema edit with no migration passes every
+      # other step here. This runs `drizzle-kit generate` and fails if it writes.
+      - name: Schema / migration drift gate
+        run: node scripts/check-schema-drift.mjs
       - name: Typecheck (src + test)
         working-directory: apps/server
         run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
