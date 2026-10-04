@@ -11,7 +11,7 @@
  * shape differs, so a token added to mobile reaches both apps in one
  * regenerate.
  */
-import { colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
+import { buttonGeometry, colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
 import { kebab, omitted } from './naming'
 import { typeBlock } from './typography'
 
@@ -83,7 +83,7 @@ export function easingToCss(curve: readonly number[]): string {
 
 /**
  * Every theme-independent token as ordered [--custom-property, value] pairs:
- * radius, spacing, shadows, then motion — durations in ms, easings as
+ * radius, button geometry, spacing, shadows, then motion — durations in ms, easings as
  * cubic-bezier (the spring has no CSS form and stays mobile's). Both targets
  * emit exactly this list.
  */
@@ -92,6 +92,13 @@ export function geometryPairs(): Array<[string, string]> {
   for (const [key, value] of Object.entries(radius)) {
     pairs.push([`--radius-${kebab(key)}`, `${value}px`])
   }
+  for (const size of Object.keys(buttonGeometry.height) as Array<keyof typeof buttonGeometry.height>) {
+    pairs.push([`--button-h-${size}`, `${buttonGeometry.height[size]}px`])
+    pairs.push([`--button-px-${size}`, `${buttonGeometry.padX[size]}px`])
+    pairs.push([`--button-text-${size}`, `${buttonGeometry.label[size].fontSize}px`])
+    pairs.push([`--button-leading-${size}`, `${buttonGeometry.label[size].lineHeight}px`])
+  }
+  pairs.push(['--button-h-ghost', `${buttonGeometry.ghostHeight}px`])
   for (const [key, value] of Object.entries(spacing)) {
     pairs.push([`--space-${kebab(key)}`, `${value}px`])
   }

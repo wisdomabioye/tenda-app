@@ -51,25 +51,31 @@ describe('Button', () => {
     expect(buttonVariants({ variant: 'outline' })).toContain('text-content-primary')
   })
 
-  it('draws mobile’s geometry and label by size: md 48px 12px 14/18, lg 52px 14px and the atom’s 15/20', () => {
-    // apps/mobile/components/ui/Button.tsx: HEIGHTS 48/52, RADII 12/12/14/14
-    // and LABEL_BY_SIZE 14/18 for sm/md, 15/20 for lg/xl — the atom
-    // (`type-button`) carries 15/20, so only md overrides it. Boundary-anchored:
-    // the override must be exactly the two classes, lg must carry neither, and
-    // the height is a fixed box, not padding (34/44px measured before #59).
+  it('draws mobile’s geometry by size from its tokens: md 48px 12px 18 14/18, lg 52px 14px 22 15/20', () => {
+    // apps/mobile/theme/tokens.ts buttonGeometry, generated into --button-*
+    // (the values themselves are pinned in gen-web-tokens.test.ts). The height
+    // is a fixed box, not padding (34/44px measured before #59), and neither
+    // size may fall back to a Tailwind step.
     const md = buttonVariants({ size: 'md' })
     const lg = buttonVariants({ size: 'lg' })
-    for (const cls of [md, lg]) {
+    for (const [cls, size] of [[md, 'md'], [lg, 'lg']] as const) {
       expect(cls).toMatch(/(?:^| )type-button(?: |$)/)
       expect(cls).not.toMatch(/(?:^| )py-/)
+      expect(cls).toContain(`h-[var(--button-h-${size})]`)
+      expect(cls).toContain(`px-[var(--button-px-${size})]`)
+      expect(cls).toContain(`text-[length:var(--button-text-${size})]`)
+      expect(cls).toContain(`leading-[var(--button-leading-${size})]`)
+      expect(cls).not.toMatch(/(?:^| )(?:h-12|h-\[52px\]|px-5|px-6)(?: |$)/)
     }
-    expect(md).toMatch(/(?:^| )h-12(?: |$)/)
     expect(md).toMatch(/(?:^| )rounded-button(?: |$)/)
-    expect(md).toMatch(/(?:^| )text-\[14px\](?: |$)/)
-    expect(md).toMatch(/(?:^| )leading-\[18px\](?: |$)/)
-    expect(lg).toMatch(/(?:^| )h-\[52px\](?: |$)/)
     expect(lg).toMatch(/(?:^| )rounded-button-lg(?: |$)/)
-    expect(lg).not.toMatch(/text-\[|leading-\[/)
+  })
+
+  it('draws a ghost at mobile’s fixed 44px whatever the size, and no other variant', () => {
+    for (const size of ['md', 'lg'] as const) {
+      expect(buttonVariants({ variant: 'ghost', size })).toContain('h-[var(--button-h-ghost)]!')
+      expect(buttonVariants({ variant: 'primary', size })).not.toContain('--button-h-ghost')
+    }
   })
 })
 
