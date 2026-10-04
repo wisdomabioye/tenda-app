@@ -21,5 +21,19 @@ const DESIRED_PAGE_SIZE = 20
  */
 export const PAGE_SIZE = Math.min(DESIRED_PAGE_SIZE, MAX_PAGINATION_LIMIT)
 
+/**
+ * Conversations per inbox page, and the size of the FIRST one.
+ *
+ * Larger than `PAGE_SIZE` on purpose: the Messages tab sorts its threads into
+ * "Unread" and "Earlier" over whatever is LOADED, so the first page has to be
+ * big enough that an unread thread rarely sits beyond it. 50 is also what the
+ * list returned before it could page at all, so nothing changes for anyone with
+ * fewer. The server uses this as its default `limit` and the client sends it
+ * explicitly, which is what lets a full page mean "there may be more".
+ *
+ * Clamped to the server cap for the reason `PAGE_SIZE` is.
+ */
+export const INBOX_PAGE_SIZE = Math.min(50, MAX_PAGINATION_LIMIT)
+
 /** FlatList `onEndReachedThreshold` — screens of content before the end. */
 export const END_REACHED_THRESHOLD = 0.4

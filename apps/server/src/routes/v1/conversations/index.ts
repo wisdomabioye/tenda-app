@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq, or, ne, desc, inArray, isNull, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, users } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, INBOX_PAGE_SIZE } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
 import { messagePreview } from '@server/lib/http/chat'
@@ -11,9 +11,6 @@ import { isUuidLike } from '@server/lib/http/uuid'
 
 type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
-
-/** Page size when the client sends no `limit` — what the list always returned. */
-const CONVERSATIONS_LIMIT = 50
 
 /**
  * The rows AFTER a cursor, in the inbox's order: `last_message_at DESC` (rows
@@ -51,7 +48,7 @@ function canonicalPair(a: string, b: string): [string, string] {
 const conversationsRoute: FastifyPluginAsync = async (fastify) => {
   // GET /v1/conversations, list conversations for the authenticated user
   //   ?before_id=<id of the last conversation you hold>&limit=<page size>
-  // With neither, the newest page of CONVERSATIONS_LIMIT, exactly as before; a
+  // With neither, the newest INBOX_PAGE_SIZE, exactly as before; a
   // client that never pages is unaffected. A full page may be followed by more.
   fastify.get<{
     Querystring: ListRoute['query']
@@ -62,7 +59,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
     async (request, _reply) => {
       const userId = request.user.id
       const { before_id, limit } = request.query ?? {}
-      const pageSize = clampLimit(Number(limit) || CONVERSATIONS_LIMIT)
+      const pageSize = clampLimit(Number(limit) || INBOX_PAGE_SIZE)
 
       // The cursor must be one of the CALLER's conversations: anything else is
       // "not found" rather than a timestamp read off someone else's chat. A
