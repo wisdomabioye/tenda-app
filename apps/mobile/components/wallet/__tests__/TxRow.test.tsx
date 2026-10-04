@@ -19,7 +19,7 @@ jest.mock('react-native-unistyles', () => ({
       surface: { card: '#fff' }, border: { subtle: '#eee' },
       content: { primary: '#111', secondary: '#555', tertiary: '#999' },
       brand: { primary: '#0a0', primarySurface: '#efe' },
-      accent: { primary: '#a0a', primarySurface: '#fef' },
+      feedback: { warning: { base: '#a0a', surface: '#fef' } },
       numeric: { positive: '#080', negative: '#800' },
     } },
   }),

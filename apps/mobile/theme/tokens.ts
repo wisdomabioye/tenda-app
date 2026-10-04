@@ -134,12 +134,6 @@ export interface ColorScheme {
     digital: Tone
   }
 
-  accent: {
-    primary: string
-    primarySurface: string
-    primaryBorder: string
-  }
-
   numeric: {
     positive: string
     negative: string
@@ -257,12 +251,6 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       digital: tone('#E0579D', 'rgba(224,87,157,0.10)', '#9A3E6C', 'rgba(224,87,157,0.22)'),
     },
 
-    accent: {
-      primary: '#E08A3C',
-      primarySurface: '#FCEFDF',
-      primaryBorder: '#F3D1A8',
-    },
-
     numeric: {
       positive: '#197D55',
       negative: '#CB3A3A',
@@ -361,12 +349,6 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       errand: tone('#FBBF24', 'rgba(251,191,36,0.14)', '#FDE68A', 'rgba(251,191,36,0.32)'),
       service: tone('#34D399', 'rgba(52,211,153,0.14)', '#A7F3D0', 'rgba(52,211,153,0.32)'),
       digital: tone('#F472B6', 'rgba(244,114,182,0.14)', '#FBCFE8', 'rgba(244,114,182,0.32)'),
-    },
-
-    accent: {
-      primary: '#F0A365',
-      primarySurface: 'rgba(240,163,101,0.14)',
-      primaryBorder: 'rgba(240,163,101,0.32)',
     },
 
     numeric: {

@@ -6,16 +6,16 @@
  *
  * Two targets share this file: web (three theme blocks plus a Tailwind map,
  * `render` below) and tendahq (one light-dark() block, tendahq.ts). Every
- * transform, the whole geometry set, the omitted colour groups (naming.ts)
+ * transform (naming.ts)
  * and the type atoms (typography.ts) are shared; only the colour block's
  * shape differs, so a token added to mobile reaches both apps in one
  * regenerate.
  */
 import { buttonGeometry, colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
-import { kebab, omitted } from './naming'
+import { kebab } from './naming'
 import { typeBlock } from './typography'
 
-export { kebab, OMITTED_GROUPS } from './naming'
+export { kebab } from './naming'
 
 /**
  * Flattens the nested ColorScheme into ordered [--custom-property, value] pairs.
@@ -42,9 +42,9 @@ export function flattenScheme(scheme: ColorScheme): Array<[string, string]> {
   return pairs
 }
 
-/** The colour tokens a target actually receives: the flattened scheme minus the omitted groups. */
+/** The colour tokens a target actually receives: the flattened scheme. */
 export function schemePairs(scheme: ColorScheme): Array<[string, string]> {
-  return flattenScheme(scheme).filter(([property]) => !omitted(property))
+  return flattenScheme(scheme)
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
