@@ -204,14 +204,19 @@ export async function attachGigDetails(
   escrow_id: string,
   overrides: GigDetailsOverrides = {},
 ): Promise<void> {
+  const remote = overrides.remote ?? false
   await app.db.insert(gig_details).values({
     escrow_id,
     title: 'Test gig',
     description: 'Test description',
     category: 'service',
-    country: 'NG',
-    city: 'Lagos',
-    remote: false,
+    // A remote gig names no place: the validator drops both, and the database
+    // now refuses a row that keeps them (gig_details_remote_no_location). So the
+    // DEFAULT follows `remote` — a case that wants a located remote gig has to
+    // say so, and is told by the constraint that no such gig exists.
+    country: remote ? null : 'NG',
+    city: remote ? null : 'Lagos',
+    remote,
     cross_border: false,
     ...overrides,
   })

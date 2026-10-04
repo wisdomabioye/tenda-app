@@ -1,7 +1,7 @@
 /** Gig satellite: the human-facing listing fields + full-text search vector. */
 
 import { sql, type SQL } from 'drizzle-orm'
-import { boolean, customType, doublePrecision, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, customType, doublePrecision, index, jsonb, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 import type { ProofParams } from '../../../constants/proof-params'
 import { escrows } from './escrows'
 import { proofTypeEnum } from './enums'
@@ -57,5 +57,16 @@ export const gig_details = pgTable(
     index('gig_details_category_idx').on(t.category),
     index('gig_details_country_idx').on(t.country),
     index('gig_details_search_idx').using('gin', t.search_vector),
+    // A remote gig is location-agnostic: it names no country and no city. The
+    // validator already guarantees it (`validateGigDetails` nulls both when
+    // `remote`), so this holds the INVARIANT in the database as well, where a
+    // second writer, a backfill or a hand-run fix cannot break it quietly.
+    //
+    // COORDINATES ARE DELIBERATELY NOT IN THIS RULE: the validator keeps
+    // latitude/longitude on a remote gig (and requires them when it asks for a
+    // geotag proof), so constraining them here would turn an accepted request
+    // into a constraint violation. Whether that combination should exist at all
+    // is a product question, not a schema one.
+    check('gig_details_remote_no_location', sql`${t.remote} = false OR (${t.country} IS NULL AND ${t.city} IS NULL)`),
   ],
 )
