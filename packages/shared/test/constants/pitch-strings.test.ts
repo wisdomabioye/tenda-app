@@ -93,6 +93,12 @@ test('the landing’s static meta description is the shared one, exactly', () =>
     html.text.includes(`content="${APP_INFO.description}"`),
     'apps/tendahq/index.html meta description must equal APP_INFO.description verbatim',
   )
+  // The link-preview description is the same retyped line, so it is pinned to
+  // the same source rather than left to drift on its own.
+  assert.ok(
+    html.text.includes(`property="og:description" content="${APP_INFO.description}"`),
+    'apps/tendahq/index.html og:description must equal APP_INFO.description verbatim',
+  )
 })
 
 test('the three roles are distinct, and none is empty', () => {
@@ -138,4 +144,49 @@ test('a different window produces different copy — the number is not decorativ
   assert.notEqual(guaranteeAfter(24), guaranteeAfter(48))
   assert.match(guaranteeAfter(24), /24 hours/)
   assert.doesNotMatch(guaranteeAfter(24), /48/)
+})
+
+const DISPUTE_WORD = /\b(?:disput\w*|arbitrat\w*)/i
+const RESOLUTION_VERB = /\b(?:resolv\w*|decid\w*|settl\w*|review\w*|handl\w*|rul(?:e|ed|ing)\b|answer\w*)/i
+const WITHIN_DURATION = /\b(?:within|in|under|inside)\s+(?:a\s+|an\s+)?\d+\s?(?:h|hr|hrs|hours?|business days?|days?)\b/i
+
+/**
+ * A sentence that names a dispute, a way of dealing with it, AND a deadline.
+ * Sentence-scoped on purpose: "raise a third dispute inside 90 days" is a
+ * reputation window (no resolution verb), and "the review window is 24 hours"
+ * names no dispute — neither is a promise about how fast one gets decided.
+ */
+function promisesDisputeTime(text: string): boolean {
+  return text
+    .split(/[.\n]/)
+    .some((s) => DISPUTE_WORD.test(s) && RESOLUTION_VERB.test(s) && WITHIN_DURATION.test(s))
+}
+
+test('the dispute-promise pattern discriminates', () => {
+  // Without this, a regex that matches nothing passes the guard below forever.
+  for (const promise of [
+    'Disputes are resolved within 24 hours.',
+    'Every dispute is decided in 2 business days',
+    'Within 48h we review any dispute',
+    'A dispute is settled in 1 day',
+  ]) {
+    assert.ok(promisesDisputeTime(promise), promise)
+  }
+  for (const fine of [
+    'Disputes cost nothing to open today; the review window is 24 hours.',
+    'raise another dispute within the cooldown',
+    'limited to 3 disputes inside 90 days',
+  ]) {
+    assert.ok(!promisesDisputeTime(fine), fine)
+  }
+})
+
+test('nothing promises a dispute-resolution time', () => {
+  // Withdrawn 2026-10-04: disputes are decided by a human (the dispute
+  // authority signs the resolve tx), so no surface may commit to "resolved
+  // within 24 hours" — a promise the product cannot keep when the queue is
+  // long. The approval/review WINDOW is a different, contract-enforced number
+  // and is not matched: this looks for dispute and a duration in one sentence.
+  const found = FILES.filter((f) => promisesDisputeTime(f.text)).map((f) => f.path)
+  assert.deepEqual(found, [], 'a dispute-resolution time promise is on a user-facing surface')
 })
