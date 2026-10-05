@@ -37,6 +37,8 @@ export type {
   ClientPingBody,
   ClientPingResponse,
   GigsContract,
+  AdminContract,
+  AdminPage,
   AgentContract,
   AgentRegisterBody,
   AgentRegisterResponse,

@@ -97,6 +97,7 @@ export type {
   AgentTaskPaymentRequired,
   AgentTaskCreated,
 } from './agent.contract'
+export type { AdminContract, AdminPage } from './admin.contract'
 export type { DisputesContract } from './disputes.contract'
 export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'
 export type { UploadContract, UploadSignatureBody } from './upload.contract'

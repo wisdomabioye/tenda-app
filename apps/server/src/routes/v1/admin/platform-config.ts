@@ -15,7 +15,10 @@ import { ensureIntInRange } from '@server/lib/http/validation'
 import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
-import type { AdminPlatformConfig, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'
+import type { AdminContract, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
+
+type ConfigContract = AdminContract['platformConfig']
 
 /**
  * Editable tunables come from the shared contract, so the route, the admin
@@ -27,18 +30,18 @@ type PatchBody = UpdatePlatformConfigBody
 
 const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/platform-config
-  fastify.get('/', {
+  fastify.get<{ Reply: ConfigContract['GET']['response'] | ApiError }>('/', {
     preHandler: [requirePermission('config.read')]
   }, async () => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
     if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found, seed the database first')
-    return row
+    return toWire(row)
   })
 
   // PATCH /v1/admin/platform-config
   fastify.patch<{
     Body:  PatchBody
-    Reply: AdminPlatformConfig | ApiError
+    Reply: ConfigContract['PATCH']['response'] | ApiError
   }>('/', {
     preHandler: [requirePermission('config.write')]
   }, async (request) => {
@@ -130,7 +133,7 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       changes,
     })
 
-    return result
+    return toWire(result)
   })
 }
 
