@@ -246,6 +246,8 @@ export function useWalletScreen() {
     retryChains: ensureChains,
     balances,
     totalUsdc,
+    /** The asset id the total was scaled by (any USDC: they share one peg), for pricing it in fiat. */
+    usdcAssetId,
     earnedUsdc,
     spentUsdc,
     feed,

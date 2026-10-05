@@ -77,3 +77,17 @@ test('lifetime stats withhold both when neither can be scaled', () => {
 
   expect(screen.getAllByText(new RegExp(UNKNOWN_AMOUNT_DISPLAY))).toHaveLength(2)
 })
+
+test('the hero shows the fiat line under the total when it has one, and nothing when it does not', () => {
+  const { rerender } = render(<WalletHeroCard totalUsdc={100} isLoading={false} fiatLine="≈ ₦150,000" />)
+  expect(screen.getByText('≈ ₦150,000')).toBeTruthy()
+  rerender(<WalletHeroCard totalUsdc={100} isLoading={false} fiatLine={null} />)
+  expect(screen.queryByText(/≈/)).toBeNull()
+  rerender(<WalletHeroCard totalUsdc={100} isLoading={false} />)
+  expect(screen.queryByText(/≈/)).toBeNull()
+})
+
+test('the fiat line is never shown over the loading skeleton', () => {
+  render(<WalletHeroCard totalUsdc={100} isLoading fiatLine="≈ ₦150,000" />)
+  expect(screen.queryByText(/≈/)).toBeNull()
+})
