@@ -95,6 +95,21 @@ describe('WalletBalanceGrid', () => {
     expect(line?.textContent).toBe('1,500 cNGN')
   })
 
+  it('lists SEVERAL held assets on the one line, separated, in the order the read returned them', () => {
+    render(
+      <WalletBalanceGrid
+        balances={[{
+          ...ROW,
+          others: [
+            { assetId: 'cNGN', symbol: 'cNGN', amountRaw: '1500000000', decimals: 6, isStable: true },
+            { assetId: 'cUSD', symbol: 'cUSD', amountRaw: '2500000000000000000', decimals: 18, isStable: true },
+          ],
+        }]}
+      />,
+    )
+    expect(document.querySelector('[data-other-assets]')?.textContent).toBe('1,500 cNGN · 2.5 cUSD')
+  })
+
   it('has no other-assets line when the wallet holds nothing else', () => {
     const { container } = render(<WalletBalanceGrid balances={[ROW]} />)
     expect(container.querySelector('[data-other-assets]')).toBeNull()
