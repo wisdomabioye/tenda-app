@@ -64,4 +64,7 @@ test('CHAIN_PAUSED is its own error code, and the message names the chain withou
   const message = chainPausedMessage('eip155:84532')
   assert.match(message, /eip155:84532/)
   assert.match(message, /GET \/v1\/platform\/chains/)
+  // The way OUT is part of the message: a user holding an escrow on a paused chain must not read this as 'frozen'.
+  assert.match(message, /Existing escrows on it can still be settled/)
+  assert.match(message, /no new escrows or participants/)
 })

@@ -55,6 +55,14 @@ function sourcesUnder(dir: string): string[] {
 const READS_MANIFEST = /\bCHAIN_MANIFEST\b(?![`'"])|\bevmManifestEntries\b/
 const ASKS_HELPER = /\bisChainEnabled\b|\benabledChains\b/
 
+/**
+ * Whether the helper is USED, not merely imported: an `import { enabledChains }` left behind
+ * after a list went back to reading the manifest directly would otherwise satisfy the rule.
+ * Import statements (single- or multi-line) are blanked before looking.
+ */
+const IMPORT_STATEMENT = /^import\b[\s\S]*?\bfrom\s+['"][^'"]+['"]\s*;?[ \t]*$/gm
+const asksHelper = (code: string): boolean => ASKS_HELPER.test(code.replace(IMPORT_STATEMENT, ''))
+
 function scanned(): Array<{ rel: string; code: string }> {
   const dirs = (parent: string) => readdirSync(join(ROOT, parent), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
   const roots = [
@@ -76,7 +84,7 @@ test('the scan actually walks the tree (a scanner that finds nothing would pass 
 
 test('every file that lists the manifest asks isChainEnabled, or is listed with its reason', () => {
   const offenders = scanned()
-    .filter(({ code }) => READS_MANIFEST.test(code) && !ASKS_HELPER.test(code))
+    .filter(({ code }) => READS_MANIFEST.test(code) && !asksHelper(code))
     .map(({ rel }) => rel)
     .filter((rel) => !Object.hasOwn(NEEDS_EVERY_CHAIN, rel))
   assert.deepStrictEqual(
@@ -93,7 +101,7 @@ test('the exemption list is exact: no entry for a file that is gone, no longer r
     const code = byRel.get(rel)
     assert.ok(code !== undefined, `${rel} is listed but was not scanned (moved or deleted?)`)
     assert.ok(READS_MANIFEST.test(code), `${rel} is listed but no longer reads the manifest`)
-    assert.ok(!ASKS_HELPER.test(code), `${rel} is listed but now asks the helper: drop the exemption`)
+    assert.ok(!asksHelper(code), `${rel} is listed but now asks the helper: drop the exemption`)
   }
 })
 
@@ -105,6 +113,15 @@ test('the surfaces that DO list chains for users go through the helper', () => {
     'apps/server/src/features/fiat-rails/core/capabilities.ts',
     'packages/shared/src/chains/manifest-queries.ts',
   ]) {
-    assert.ok(ASKS_HELPER.test(byRel.get(rel) ?? ''), `${rel} must filter through isChainEnabled/enabledChains`)
+    assert.ok(asksHelper(byRel.get(rel) ?? ''), `${rel} must filter through isChainEnabled/enabledChains (an import alone does not count)`)
   }
+})
+
+test('the helper check discriminates: an import alone is not a use, a call is', () => {
+  const importOnly = "import { CHAIN_MANIFEST, enabledChains } from '@tenda/shared'\nexport const ALL = [...CHAIN_MANIFEST]\n"
+  const multiLineImportOnly = "import {\n  CHAIN_MANIFEST,\n  isChainEnabled,\n} from '@tenda/shared'\nexport const ALL = [...CHAIN_MANIFEST]\n"
+  const used = "import { enabledChains } from '@tenda/shared'\nexport const ALL = enabledChains()\n"
+  assert.equal(asksHelper(importOnly), false)
+  assert.equal(asksHelper(multiLineImportOnly), false)
+  assert.equal(asksHelper(used), true)
 })
