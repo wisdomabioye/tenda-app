@@ -301,4 +301,7 @@ module.exports = [
   // './test-support/' its own threshold, which SUBTRACTS these from the global
   // ones. The reasoning, and the measurement behind it, are recorded there.
   'test-support/*.ts',
+  // The wallet total's "≈ ₦…" line: a pure function over the rate cache,
+  // covered line for line by its own suite (measured 100% before listing).
+  'components/wallet/wallet-fiat.ts',
 ]

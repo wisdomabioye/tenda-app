@@ -14,11 +14,14 @@ import { formatAmountOrUnknown } from '@tenda/shared'
 export function WalletHeroCard({
   totalUsdc,
   isLoading,
+  fiatLine = null,
 }: {
   /** null when this build has no metadata for the balance's asset — see
    *  `amountRawToDisplay`. A total we cannot scale is not a total. */
   totalUsdc: number | null
   isLoading: boolean
+  /** "≈ ₦…" under the total, or null when the figure cannot be priced honestly (see walletFiatLine). */
+  fiatLine?: string | null
 }) {
   const { theme } = useUnistyles()
 
@@ -45,6 +48,9 @@ export function WalletHeroCard({
           </>
         )}
       </View>
+      {!isLoading && fiatLine !== null && (
+        <Text testID="hero-fiat" style={[s.fiat, { color: theme.colors.content.tertiary }]}>{fiatLine}</Text>
+      )}
     </View>
   )
 }
@@ -68,4 +74,5 @@ const s = StyleSheet.create({
     letterSpacing: -0.8,
   },
   unit: { fontFamily: typography.fonts.mono.medium, fontSize: 14, lineHeight: 18, fontWeight: '500' },
+  fiat: { fontFamily: typography.fonts.mono.regular, fontSize: 12, lineHeight: 16, marginTop: 4 },
 })
