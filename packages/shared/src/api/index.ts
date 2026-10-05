@@ -52,6 +52,7 @@ export type {
   UserStandingResponse,
   MyRestriction,
   MyStandingResponse,
+  MyOverviewResponse,
   CompletedWorkCategory,
   CompletedWorkResponse,
   UploadContract,

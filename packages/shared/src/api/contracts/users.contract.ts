@@ -79,6 +79,32 @@ export interface CompletedWorkResponse {
   data: CompletedWorkCategory[]
 }
 
+// ---------- overview (#17) --------------------------------------------------
+
+/**
+ * GET /v1/users/me/overview — the dashboard's database facts in ONE round trip.
+ *
+ * Each figure is the server-side COUNT the corresponding list call already
+ * reads off `total` (`?mine=…&status=…&limit=1`, `GET /v1/disputes?status=open`,
+ * `GET /v1/users/:id/reviews`), computed with the SAME predicates, so the
+ * overview and the lists can never disagree. Balances are NOT here: they live
+ * on the chain and stay client-read.
+ */
+export interface MyOverviewResponse {
+  stats: {
+    /** Gigs posted on-chain — every status except `draft`. */
+    posted: number
+    /** Posted gigs still in flight (open / accepted / submitted). */
+    active: number
+    /** Gigs the user worked through to completion. */
+    completed: number
+    /** Reviews left ABOUT the user. */
+    reviews: number
+  }
+  /** Disputes the user is a party to that are still actionable. */
+  open_disputes: number
+}
+
 // ---------- Stage 1: /v1/users/me (#38) -----------------------------------
 
 /**
@@ -133,6 +159,7 @@ export interface UsersContract {
   me:             Endpoint<'GET', undefined, undefined,        undefined,                  MeResponse>
   updateMe:       Endpoint<'PATCH', undefined, UpdateMeInput,  undefined,                  UpdateMeResponse>
   myStanding:     Endpoint<'GET', undefined, undefined,        undefined,                  MyStandingResponse>
+  myOverview:     Endpoint<'GET', undefined, undefined,        undefined,                  MyOverviewResponse>
   standing:       Endpoint<'GET', { id: string }, undefined,   undefined,                  UserStandingResponse>
   completedWork:  Endpoint<'GET', { id: string }, undefined,   undefined,                  CompletedWorkResponse>
   get:            Endpoint<'GET', { id: string }, undefined,        undefined,                  PublicUser>
