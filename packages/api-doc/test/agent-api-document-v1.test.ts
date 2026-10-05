@@ -29,6 +29,7 @@ import {
 } from '@tenda/shared'
 import { AGENT_API_DOCUMENT } from '../src'
 import { COMPONENT_REF_PREFIX, agentApiAjv } from '../src/testing/agent-api-validator'
+import { plainProse } from '../src/testing/document-prose'
 
 const { components } = AGENT_API_DOCUMENT
 
@@ -126,4 +127,14 @@ test('POST /v1/agent/tasks/validate is documented as a bearer-scoped, body-takin
   assert.strictEqual(validate({ ok: true, moderation: 'not_run' }), true)
   assert.strictEqual(validate({ ok: true, moderation: 'passed' }), false, 'a claim of passed moderation is refused')
   assert.strictEqual(validate({ ok: true, moderation: 'not_run', extra: 1 }), false, 'closed')
+})
+
+test('the validate operation states what an agent relies on: it writes nothing, skips moderation, and ok is not cleared', () => {
+  const description = plainProse(AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasksValidate]?.post?.description ?? '')
+  assert.ok(description.length > 0, 'the validate operation has no description')
+  // Full phrases, not fragments: each is a promise a client builds on.
+  assert.ok(description.includes('it writes nothing'), 'the document no longer says validate writes nothing')
+  assert.ok(description.includes('it does not run moderation'), 'the document no longer says moderation is skipped')
+  assert.ok(description.includes('ok is not cleared'), 'the document no longer warns that ok is not cleared')
+  assert.ok(description.includes('moderation: "not_run"'), 'the document no longer names the not_run answer')
 })

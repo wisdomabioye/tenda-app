@@ -18,7 +18,8 @@ import assert from 'node:assert'
 import { escrows, gig_details, tx_attempts } from '@tenda/shared/db/schema'
 import { moderation_verdicts } from '@tenda/shared/db/schema/moderation'
 import { apiRoutes, type AgentTaskValidated } from '@tenda/shared'
-import { TEST_DB_CONFIGURED, authHeader, capturedRelays, createTransactableUser, seedAltChain, useTestApp } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, authHeader, capturedRelays, createTransactableUser, createUser, seedAltChain, useTestApp } from '../helpers/test-app'
+import { validateListing } from '@server/features/gigs/attachGigDetails'
 import { agentTaskBody, registerAgent, type TaskPost } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED
@@ -120,4 +121,21 @@ test('a missing body is a 4xx envelope, not a 500', { skip }, async () => {
   const agent = await registerAgent(app)
   const res = await app.inject({ method: 'POST', url: VALIDATE, headers: authHeader(agent.token) })
   assert.ok(res.statusCode >= 400 && res.statusCode < 500, res.body)
+})
+
+test('the listing check reads the CREATOR\'s stored country: it decides cross_border and is handed back for moderation', { skip }, async () => {
+  const app = getApp()
+  const abroad = await createUser(app, { country: 'KE' })
+  const local = await createUser(app, { country: 'NG' })
+  const body: Parameters<typeof validateListing>[1]['body'] = {
+    title: 'Photograph the storefront', category: 'service', country: 'NG', city: 'Lagos', proof_requirements: ['image'],
+  }
+
+  const fromKenya = await validateListing(app, { user_id: abroad.row.id, body })
+  assert.strictEqual(fromKenya.creator_country, 'KE')
+  assert.strictEqual(fromKenya.details.cross_border, true, 'a Kenyan poster, work in Nigeria')
+
+  const fromNigeria = await validateListing(app, { user_id: local.row.id, body })
+  assert.strictEqual(fromNigeria.creator_country, 'NG')
+  assert.strictEqual(fromNigeria.details.cross_border, false)
 })
