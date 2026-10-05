@@ -136,9 +136,16 @@ describe('feature guards', () => {
   })
 
   it('produces a card for every policy a shipped chain actually uses', () => {
-    for (const policy of ['native-seed', 'feeCurrency', 'paymaster'] as const) {
+    for (const policy of ['native-seed', 'feeCurrency'] as const) {
       expect(featureFor(policy)).not.toBeNull()
     }
+  })
+
+  it('produces NO paymaster card while the only paymaster chains (Base) are paused', () => {
+    // featureFor reads the chains the landing talks about, and a paused chain
+    // is not one. The paymaster implementation is kept; its card returns with
+    // the chain.
+    expect(featureFor('paymaster')).toBeNull()
   })
 })
 
@@ -286,7 +293,10 @@ describe('gas-free start sentence', () => {
     // actually depends on. The testnet arm keeps its own coverage below.
     expect(featureFor('feeCurrency')?.status).not.toBe('roadmap')
     expect(gasFreeSentence(['feeCurrency'])).not.toBe('')
-    expect(featureFor('paymaster')?.status).toBe('roadmap')
+    // A rail that is not built is excluded, whichever chain it is on. native-seed
+    // is the unbuilt one in use; paymaster would be too, but Base is paused.
+    expect(featureFor('native-seed')?.status).toBe('roadmap')
+    expect(gasFreeSentence(['native-seed'])).toBe('')
     expect(gasFreeSentence(['paymaster'])).toBe('')
   })
 

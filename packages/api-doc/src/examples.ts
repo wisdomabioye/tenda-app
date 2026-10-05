@@ -25,11 +25,11 @@
  * WHAT THE VALUES ARE. A real EIP-3009 authorization over a real ERC-20's own
  * domain separator, a nonce the escrow contract itself computed, and a
  * transaction the relayer really broadcast — captured on a local node that
- * presents itself as eip155:84532.
+ * presents itself as eip155:16602 (0G Galileo, the harness's second chain).
  *
  * TWO OF THE PUBLISHED VALUES ARE THE HARNESS'S, and they are named here rather
  * than left for a reader to trip over. The ADDRESSES are that node's, so they
- * are not Base Sepolia contracts anyone can look up. And `created.enqueued` is
+ * are not 0G Galileo contracts anyone can look up. And `created.enqueued` is
  * FALSE, which is the degraded answer, not the normal one: the recorder runs
  * with no Redis (test/helpers/test-app/env.ts deletes REDIS_URL), so the
  * verify-tx enqueue throws and `recordTxAttempt` reports it — a deployment with

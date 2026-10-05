@@ -106,14 +106,19 @@ const WALLET_SPLIT = ['20.00', '16.20', '8.00', '4.00'] as const
 /** The example local-currency reading beside the balance. */
 export const WALLET_APPROX = { currency: 'NGN', amount: 75_000 } as const
 
+/** One row per landing chain; a chain with no example amount reads zero. */
+const WALLET_ROWS = LANDING_CHAINS.map((chain, i) => ({
+  chain,
+  amount: WALLET_SPLIT[i] ?? '0.00',
+}))
+
 export const WALLET_SCREEN = {
   title: 'Wallet',
-  amount: '48.20',
+  // DERIVED from the rows, so the headline sums the split by construction when
+  // the chain count changes (Base was paused 2026-10-02: four rows became three).
+  amount: WALLET_ROWS.reduce((sum, row) => sum + Number(row.amount), 0).toFixed(2),
   unit: GIG_ASSET_SYMBOL,
   approx: `≈ ${CURRENCIES[WALLET_APPROX.currency].symbol} ${WALLET_APPROX.amount.toLocaleString('en-US')} · across ${LANDING_CHAINS.length} chains`,
-  rows: LANDING_CHAINS.map((chain, i) => ({
-    chain,
-    amount: WALLET_SPLIT[i] ?? '0.00',
-  })),
+  rows: WALLET_ROWS,
   action: 'Sell for cash',
 } as const

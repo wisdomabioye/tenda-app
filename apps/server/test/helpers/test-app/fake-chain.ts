@@ -45,8 +45,20 @@ export const TEST_NATIVE_ASSET = 'SOL_DEVNET'
  * Its DB rows are opt-in via `seedAltChain`, keeping the single-chain
  * expectations of the DB-driven suites (e.g. platform-chains) untouched.
  */
-export const TEST_CHAIN_ID_ALT = 'eip155:84532'
-export const TEST_ASSET_ALT = 'USDC_BASE'
+// 0G Galileo, a real manifest EVM testnet with the same relay capabilities the
+// agent flows need (a gig asset carrying permit + EIP-3009). It was Base Sepolia
+// until Base was PAUSED (2026-10-02): a paused chain refuses the very creates
+// these fixtures exist to make, so the fixture moved to a chain users can use.
+export const TEST_CHAIN_ID_ALT = 'eip155:16602'
+export const TEST_ASSET_ALT = 'USDC_0G'
+
+/**
+ * A chain that is PAUSED (Base Sepolia, 2026-10-02) yet still carries an adapter.
+ * The registry keeps building a paused chain's adapter so an escrow already on it
+ * resolves, settles and is listened to, and the Alchemy webhook (the paymaster
+ * chain's) still reaches it. Registered LAST: nothing may displace Solana first.
+ */
+export const PAUSED_CHAIN_ID = 'eip155:84532'
 
 /** A well-formed CAIP-2 id that is NOT in the registry — the 400 path. */
 export const UNREGISTERED_CHAIN_ID = 'solana:mainnet'
@@ -131,7 +143,7 @@ function fakeRelay(chain_id: string): EscrowRelay {
           typed_data: {
             types: { EIP712Domain: [], ReceiveWithAuthorization: [] },
             primaryType: 'ReceiveWithAuthorization',
-            domain: { name: 'USDC', version: '2', chainId: 84532, verifyingContract: `0x${'a5'.repeat(20)}` },
+            domain: { name: 'USDC', version: '2', chainId: 16602, verifyingContract: `0x${'a5'.repeat(20)}` },
             message: {
               from: args.creator_address,
               to: FAKE_EVM_ESCROW,
@@ -193,6 +205,7 @@ export function fakeRegistry(substitute?: { chain_id: string; adapter: ChainAdap
   const adapters = new Map<string, ChainAdapter>([
     [TEST_CHAIN_ID, fakeAdapter(TEST_CHAIN_ID)],
     [TEST_CHAIN_ID_ALT, fakeAdapter(TEST_CHAIN_ID_ALT, 'eip155')],
+    [PAUSED_CHAIN_ID, fakeAdapter(PAUSED_CHAIN_ID, 'eip155')],
   ])
   // `set` on an existing key REPLACES the value and KEEPS the position, so a
   // substitution cannot reorder the map and break the rule just above.

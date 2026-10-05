@@ -34,7 +34,8 @@ import { test, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { createHmac } from 'node:crypto'
 import { resetChainSecretsCache } from '@server/chains/secrets'
-import { TEST_DB_CONFIGURED, TEST_CHAIN_ID_ALT, useTestApp } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, useTestApp } from '../helpers/test-app'
+import { PAUSED_CHAIN_ID } from '../helpers/test-app/fake-chain'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -229,7 +230,9 @@ test('alchemy webhook: a correctly signed payload is accepted and hashes counted
   // check and the enqueue.
   const app = getApp()
   withChainEnv(EVM_ENV)
-  assert.ok(getApp().chains.has(TEST_CHAIN_ID_ALT), 'the fake registry must carry the paymaster chain')
+  // The paymaster chain is Base, which is PAUSED (2026-10-02) but keeps its adapter
+  // so an escrow already on it still settles: the webhook must keep reaching it.
+  assert.ok(getApp().chains.has(PAUSED_CHAIN_ID), 'the fake registry must carry the paymaster chain')
 
   const raw = JSON.stringify({ event: { activity: [{ hash: TX_HASH }, { hash: 'not-a-hash' }] } })
   const res = await alchemyPost(app, raw, createHmac('sha256', EVM_SECRET).update(raw).digest('hex'))

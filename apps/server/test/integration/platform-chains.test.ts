@@ -21,6 +21,7 @@ import {
   FAKE_EVM_ESCROW,
   FAKE_APPROVAL_WINDOW_SECONDS,
   TEST_CHAIN_ID_ALT,
+  TEST_ASSET_ALT,
   fakeRegistryPlus,
 } from '../helpers/test-app'
 
@@ -99,13 +100,13 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
   // would drop out of the response entirely.
   const EVM_CHAIN = TEST_CHAIN_ID_ALT
   // Deliberately NOT the adapter's address: the column is not the source.
-  await app.db.insert(chains).values(enabledEvmChainRow(EVM_CHAIN, 'Base Sepolia', 5, `0x${'ab'.repeat(20)}`))
+  await app.db.insert(chains).values(enabledEvmChainRow(EVM_CHAIN, '0G Galileo', 5, `0x${'ab'.repeat(20)}`))
   await app.db.insert(assets).values({
-    id: 'USDC_BASE',
+    id: TEST_ASSET_ALT,
     chain_id: EVM_CHAIN,
     symbol: 'USDC',
     decimals: 6,
-    token_address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    token_address: '0x3780460189622E60cB7ec6e8e97038A386674B71',
     is_stable: true,
     is_enabled: true,
   })
@@ -114,8 +115,8 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
     const evm = res.json().data.find((c: { id: string }) => c.id === EVM_CHAIN)
     assert.ok(evm, 'EVM chain should be served')
     assert.strictEqual(evm.escrow_address, FAKE_EVM_ESCROW)
-    const usdc = evm.assets.find((a: { id: string }) => a.id === 'USDC_BASE')
-    // Manifest declares permit v2 for USDC_BASE → capability true on the wire.
+    const usdc = evm.assets.find((a: { id: string }) => a.id === TEST_ASSET_ALT)
+    // Manifest declares permit v2 for USDC_0G → capability true on the wire.
     assert.strictEqual(usdc.supports_permit, true)
     // …and EIP-3009 under that domain → it funds by signature (#146). Read
     // from the SAME predicate the relay refuses with, so this cannot advertise
@@ -124,7 +125,7 @@ test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip
     // shared's funds-by-signature.test.ts, over every EVM native asset.)
     assert.strictEqual(usdc.funds_by_signature, true)
   } finally {
-    await app.db.delete(assets).where(eq(assets.id, 'USDC_BASE'))
+    await app.db.delete(assets).where(eq(assets.id, TEST_ASSET_ALT))
     await app.db.delete(chains).where(eq(chains.id, EVM_CHAIN))
   }
 })
@@ -211,7 +212,7 @@ test('platform/chains: a chain with no adapter is omitted, not advertised', { sk
  */
 test('platform/chains: relayed_funding_available is the adapter\'s relay, per chain', { skip }, async () => {
   const app = getApp()
-  await app.db.insert(chains).values(enabledEvmChainRow(TEST_CHAIN_ID_ALT, 'Base Sepolia', 1))
+  await app.db.insert(chains).values(enabledEvmChainRow(TEST_CHAIN_ID_ALT, '0G Galileo', 1))
   try {
     const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
     assert.strictEqual(res.statusCode, 200)
@@ -222,12 +223,13 @@ test('platform/chains: relayed_funding_available is the adapter\'s relay, per ch
     assert.strictEqual(byId.get(TEST_CHAIN_ID)?.relayed_funding_available, false)
     // The EVM fake carries a relay, so this is the chain to choose.
     assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.relayed_funding_available, true)
-    // The public facts come from the manifest, per chain: Base Sepolia publishes
-    // an RPC, an explorer and Circle's faucet; a Solana cluster derives its RPC
-    // client-side and records no explorer, and Circle serves devnet USDC.
-    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.rpc_url, 'https://sepolia.base.org')
-    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.explorer_url, 'https://sepolia.basescan.org')
-    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.faucet_url, 'https://faucet.circle.com')
+    // The public facts come from the manifest, per chain: 0G Galileo publishes
+    // an RPC and an explorer but NO faucet (its gig token is the repo mock with
+    // an open mint()); a Solana cluster derives its RPC client-side and records
+    // no explorer, and Circle serves devnet USDC.
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.rpc_url, 'https://evmrpc-testnet.0g.ai')
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.explorer_url, 'https://chainscan-galileo.0g.ai')
+    assert.strictEqual(byId.get(TEST_CHAIN_ID_ALT)?.faucet_url, null)
     assert.strictEqual(byId.get(TEST_CHAIN_ID)?.rpc_url, null)
     assert.strictEqual(byId.get(TEST_CHAIN_ID)?.explorer_url, null)
     assert.strictEqual(byId.get(TEST_CHAIN_ID)?.faucet_url, 'https://faucet.circle.com')

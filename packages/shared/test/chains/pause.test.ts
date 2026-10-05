@@ -23,7 +23,8 @@ test('isChainEnabled: an entry is enabled unless it says paused', () => {
 })
 
 test('enabledChains drops exactly the paused entries and keeps manifest order', () => {
-  const [first, second, third] = CHAIN_MANIFEST
+  // From the ENABLED chains: the real manifest pauses Base, and this test is about the flag, not about Base.
+  const [first, second, third] = CHAIN_MANIFEST.filter((c) => c.paused !== true)
   const manifest = [first, paused(second), third]
   assert.deepEqual(enabledChains(manifest).map((c) => c.id), [first.id, third.id])
   assert.deepEqual(enabledChains().map((c) => c.id), CHAIN_MANIFEST.filter((c) => c.paused !== true).map((c) => c.id))
@@ -49,7 +50,7 @@ test('the pause refuses the ways IN and keeps every way OUT: it IS the takedown 
 })
 
 test('firstEvmChainIdByKind skips a paused chain: it would otherwise be stamped into new sign-in messages', () => {
-  const evmTestnets = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.kind === 'testnet')
+  const evmTestnets = CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155' && c.kind === 'testnet' && c.paused !== true)
   assert.ok(evmTestnets.length >= 2, 'precondition: two EVM testnets to choose between')
   const [lead, next] = evmTestnets
   assert.equal(firstEvmChainIdByKind('testnet', CHAIN_MANIFEST), lead.id)
@@ -64,4 +65,35 @@ test('CHAIN_PAUSED is its own error code, and the message names the chain withou
   const message = chainPausedMessage('eip155:84532')
   assert.match(message, /eip155:84532/)
   assert.match(message, /GET \/v1\/platform\/chains/)
+})
+
+// --- Base (paused 2026-10-02) -------------------------------------------------
+
+test('BASE is paused on BOTH entries, still deployed as data, and every Base fact is still in the manifest', () => {
+  const base = CHAIN_MANIFEST.filter((c) => c.family === 'base')
+  assert.deepEqual(base.map((c) => c.id).sort(), ['eip155:8453', 'eip155:84532'])
+  for (const entry of base) {
+    assert.equal(entry.paused, true, `${entry.id} must be paused`)
+    assert.equal(isChainEnabled(entry), false)
+    assert.equal(entry.gasPolicy, 'paymaster', `${entry.id}: the paymaster policy is KEPT`)
+    assert.ok(entry.assets.some((a) => a.id === 'USDC_BASE'), `${entry.id}: its assets are kept`)
+  }
+  // status is a separate fact: Sepolia stays 'live' (escrow deployed), mainnet 'planned'.
+  assert.equal(chainById('eip155:84532').status, 'live')
+  assert.equal(chainById('eip155:8453').status, 'planned')
+})
+
+test('with Base paused, no other chain is: only Base entries carry the flag', () => {
+  assert.deepEqual(CHAIN_MANIFEST.filter((c) => c.paused === true).map((c) => c.family), ['base', 'base'])
+  assert.ok(enabledChains().every((c) => c.family !== 'base'))
+})
+
+test('RE-ENABLING Base is one change: the same entry without its `paused` line is enabled and valid', () => {
+  const unpaused = CHAIN_MANIFEST.map((c) => {
+    const { paused: _removed, ...rest } = c
+    return c.family === 'base' ? rest : c
+  })
+  assert.doesNotThrow(() => assertManifestValid(unpaused))
+  assert.ok(enabledChains(unpaused).some((c) => c.id === 'eip155:84532'))
+  assert.equal(firstEvmChainIdByKind('testnet', unpaused), 'eip155:84532')
 })

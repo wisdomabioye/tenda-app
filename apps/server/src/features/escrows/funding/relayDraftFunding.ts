@@ -6,7 +6,7 @@
  * around it and how they shape the answer.
  */
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { ErrorCode, apiRoutes, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
+import { ErrorCode, apiRoutes, findChain, isChainEnabled, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/features/escrows/routes'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
@@ -61,8 +61,14 @@ export async function relayDraftFunding(
   })
   if (adapter.relay === undefined) {
     // The list is read from the same adapters the registry publishes — never
-    // from the manifest — so the 503 cannot name a chain the registry denies.
-    const relaying = fastify.chains.list().filter((a) => a.relay !== undefined).map((a) => a.chain_id)
+    // from the manifest — so the 503 cannot name a chain the registry denies. A
+    // PAUSED chain keeps its adapter (existing escrows settle) but is not
+    // published (GET /v1/platform/chains omits it) and refuses new funding, so
+    // it is not named either: the caller would be sent to a 422 CHAIN_PAUSED.
+    const relaying = fastify.chains
+      .list()
+      .filter((a) => a.relay !== undefined && isChainEnabled(findChain(a.chain_id) ?? {}))
+      .map((a) => a.chain_id)
     throw new AppError(503, ErrorCode.RELAY_UNAVAILABLE, relayUnavailableMessage(escrow.chain_id, relaying))
   }
   // The creator: the declared wallet, else the primary — which

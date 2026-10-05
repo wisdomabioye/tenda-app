@@ -224,7 +224,7 @@ export async function seedAltChain(app: FastifyInstance): Promise<void> {
   await app.db.insert(chains).values({
     id: TEST_CHAIN_ID_ALT,
     namespace: 'eip155',
-    display_name: 'Base Sepolia',
+    display_name: '0G Galileo',
     min_confirmations: 1,
     treasury_address: '',
     escrow_program: '',
@@ -234,7 +234,7 @@ export async function seedAltChain(app: FastifyInstance): Promise<void> {
     chain_id: TEST_CHAIN_ID_ALT,
     symbol: 'USDC',
     decimals: 6,
-    token_address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia USDC
+    token_address: '0x3780460189622E60cB7ec6e8e97038A386674B71', // 0G Galileo USDC (the repo mock)
     is_stable: true,
   })
 }

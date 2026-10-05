@@ -255,3 +255,14 @@ test('buildAdapters: a chain missing from the registry falls back to its current
 
   assert.strictEqual('failed' in verified ? verified.failed : undefined, false)
 })
+
+test('a PAUSED chain still builds its adapter and registers: the pause refuses new work, it does not unplug the chain', () => {
+  // Base is paused (2026-10-02). An escrow already on it must keep resolving,
+  // settling and being listened to, so the registry has to carry its adapter —
+  // and the paymaster set the sponsor reads has to keep the id, or a funded
+  // Base escrow could not be settled.
+  assert.strictEqual(chainById('eip155:84532').paused, true, 'precondition: Base Sepolia is paused')
+  const registry = buildChainRegistry(buildAdapters(baseSecrets(), STUB))
+  assert.strictEqual(registry.has('eip155:84532'), true)
+  assert.strictEqual(registry.get('eip155:84532').namespace, 'eip155')
+})

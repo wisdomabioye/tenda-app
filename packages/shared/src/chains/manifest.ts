@@ -263,6 +263,12 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     kind: 'mainnet',
     status: 'planned',
     displayName: 'BASE',
+    // PAUSED, NOT REMOVED (decision 2026-10-02): the strategy is Solana, 0G and
+    // Arc. Base takes no new work (no escrow, accept, assignment, apply, or gas
+    // seed) and appears on no user-facing list, but stays KNOWN so an escrow
+    // already on it resolves, settles and is listened to. The ERC-4337 paymaster,
+    // the ABIs and contracts/evm are kept. TO RE-ENABLE: delete this one line.
+    paused: true,
     // OP-stack L2 with a single sequencer: sub-sequencer reorgs are rare, so 2
     // keeps near-instant UX while retaining a small reorg margin for real
     // funds. reconcile re-verifies state regardless. (Was 5 — over-conservative
@@ -291,6 +297,12 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     kind: 'testnet',
     status: 'live',
     displayName: 'Base Sepolia',
+    // PAUSED, NOT REMOVED (decision 2026-10-02): the strategy is Solana, 0G and
+    // Arc. Base takes no new work (no escrow, accept, assignment, apply, or gas
+    // seed) and appears on no user-facing list, but stays KNOWN so an escrow
+    // already on it resolves, settles and is listened to. The ERC-4337 paymaster,
+    // the ABIs and contracts/evm are kept. TO RE-ENABLE: delete this one line.
+    paused: true,
     // Testnet: confirm at the first block (~Solana-instant UX for dev/device
     // smoke). Mainnet keeps a 2-block margin.
     minConfirmations: 1,
