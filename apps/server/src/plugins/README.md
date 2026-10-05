@@ -16,6 +16,7 @@ Autoloaded cross-cutting Fastify plugins (loaded before routes; most are
 | `websocket.ts` | Realtime WS channel (escrow events, chat) |
 | `cors.ts` | Browser allow-list, `CORS_ORIGIN` + `ADMIN_ORIGIN` union |
 | `rate-limit.ts` | Global + per-route rate limiting (trustProxy-aware) |
+| `platform-fee-check.ts` | `onReady` advisory check: every chain's contract fees vs `platform_config`; logs a mismatch, never writes, never blocks boot |
 | `audit.ts` | `admin_audit_log` writes for admin mutations |
 | `sensible.ts` | `@fastify/sensible` helpers |
 

@@ -52,6 +52,7 @@ const TX = `0x${'ab'.repeat(32)}` as const
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
     async readApprovalWindow() { return 172_800n },
+    async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
     async getTransactionReceipt() {
       return null
     },

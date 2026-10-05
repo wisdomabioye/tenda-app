@@ -1,7 +1,6 @@
 import { slackConfigProblems } from '@server/features/alerts/slack'
-import { integerRangeProblem, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
+import { optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
 import { moderationConfig } from '@server/features/moderation/core/config'
-import { ESCROW_LIMITS, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { DEMO_DRAFT_CAP_DEFAULT } from '@server/features/agent/demo/demoDraftRing'
 import { DRAFT_RETENTION_DAYS_DEFAULT } from '@server/features/escrows/creation/staleDrafts'
 import type { Config } from './types'
@@ -101,6 +100,16 @@ export function loadConfig(): Config {
   // whitespace-only required var is a misconfiguration, not a value.
   const missing = REQUIRED_ENV_VARS.filter((key) => optionalEnv(key) === null)
 
+  // PLATFORM_FEE_BPS used to seed the fee when platform_config had no row: a second source for
+  // a value that already has two (each contract's storage and the platform_config row), and
+  // the one nothing kept honest. It is RETIRED. A deployment still setting it is told, once,
+  // that it is ignored, rather than being left to believe it set the fee.
+  if (optionalEnv('PLATFORM_FEE_BPS') !== null) {
+    process.emitWarning(
+      'PLATFORM_FEE_BPS is retired and ignored. The fee is read from platform_config; change it with `pnpm --filter tenda-server fee:set`.',
+    )
+  }
+
   const problems = [
     ...(missing.length > 0
       ? [`missing required environment variables: ${missing.join(', ')}`]
@@ -108,12 +117,6 @@ export function loadConfig(): Config {
     ...urlEnvProblems(OPTIONAL_URL_ENV_VARS, BASE_URL_PROTOCOLS),
     ...slackConfigProblems(),
     ...POSITIVE_INTEGER_ENV_VARS.flatMap((key) => positiveIntegerProblem(key)),
-    // Its own line, not POSITIVE_INTEGER_ENV_VARS: zero is a legal fee, which
-    // `positiveIntegerProblem` refuses. The ceiling is the CONTRACT's
-    // (MAX_PLATFORM_FEE_BPS), which the admin route caps at too; the column's
-    // CHECK is the wider 0-10000, and taking that would let an env set a fee
-    // every other surface — and the contract itself — refuses.
-    ...integerRangeProblem('PLATFORM_FEE_BPS', 0, ESCROW_LIMITS.maxPlatformFeeBps),
     ...moderationModelProblem(),
   ]
 
@@ -146,10 +149,6 @@ export function loadConfig(): Config {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
     // Non-null: required, so the blank check above already threw.
     API_BASE_URL:          baseUrlEnv('API_BASE_URL')!,
-    // The default is the COLUMN's, from the shared constant, so the unseeded
-    // fallback and a freshly-seeded row cannot answer different fees; a SET
-    // value was checked above against the contract's ceiling, not the column's.
-    PLATFORM_FEE_BPS:      Number(optionalEnv('PLATFORM_FEE_BPS') ?? PLATFORM_CONFIG_DEFAULTS.fee_bps),
     JWT_EXPIRES_IN:        optionalEnv('JWT_EXPIRES_IN') ?? '7d',
     AGENT_DEMO_ADDRESS:    optionalEnv('AGENT_DEMO_ADDRESS'),
     AGENT_DEMO_DRAFT_CAP:  positiveIntegerEnv('AGENT_DEMO_DRAFT_CAP', DEMO_DRAFT_CAP_DEFAULT),

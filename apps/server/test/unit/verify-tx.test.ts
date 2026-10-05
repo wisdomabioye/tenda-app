@@ -94,6 +94,7 @@ function makeDeps(opts: {
     chain_id: 'solana:devnet',
     escrowAddress: 'FakeProgram1111111111111111111111111111111',
     approvalWindowSeconds: async () => 86_400,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     async buildTx() {
       throw new Error('not used')
     },

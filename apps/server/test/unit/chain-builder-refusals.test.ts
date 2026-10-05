@@ -52,6 +52,7 @@ function unreachableEvmRpc(): EvmRpc {
     readEscrow: never('readEscrow'),
     readPermitFacts: never('readPermitFacts'),
     readApprovalWindow: never('readApprovalWindow'),
+    readFees: never('readFees'),
   }
 }
 

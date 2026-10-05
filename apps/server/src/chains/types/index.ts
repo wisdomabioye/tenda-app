@@ -50,6 +50,7 @@ export type { EscrowSweep, SweepArgs, SweepableTransition } from './sweep'
 
 export type {
   ChainAdapter,
+  ChainFees,
   RpcProvider,
   ChainListener,
   PushService,

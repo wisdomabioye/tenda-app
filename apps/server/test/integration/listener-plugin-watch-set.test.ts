@@ -84,6 +84,7 @@ function adapterFor(chain_id: string): ChainAdapter {
     chain_id,
     escrowAddress: CURRENT,
     approvalWindowSeconds: async () => 86_400,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     buildTx: unused,
     verifyTx: unused,
     verifyAuthSig: async () => true,

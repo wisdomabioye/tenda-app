@@ -167,6 +167,7 @@ function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'
     // seeded `chains.escrow_program` column is no longer the source.
     escrowAddress: namespace === 'solana' ? FAKE_SOLANA_PROGRAM : FAKE_EVM_ESCROW,
     approvalWindowSeconds: async () => FAKE_APPROVAL_WINDOW_SECONDS,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     buildTx: async (args) => {
       capturedBuilds.push(args)
       return FAKE_UNSIGNED

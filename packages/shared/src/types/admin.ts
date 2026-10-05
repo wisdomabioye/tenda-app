@@ -268,8 +268,9 @@ export interface UpdateFeaturedSlotBody {
  * `routes/v1/admin/platform-config.ts`.
  */
 export interface UpdatePlatformConfigBody {
-  fee_bps?: number
-  seeker_fee_bps?: number
+  // NO fee_bps / seeker_fee_bps: the fee lives on each contract and is changed with
+  // `pnpm --filter tenda-server fee:set`, which writes this row only after every chain
+  // confirms it. The route refuses both by name.
   grace_period_seconds?: number
   max_pending_gigs?: number
   unassign_window_seconds?: number

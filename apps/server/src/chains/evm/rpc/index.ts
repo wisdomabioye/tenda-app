@@ -166,6 +166,15 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       })) as bigint
     },
 
+    async readFees(escrow_contract) {
+      const [feeBps, seekerFeeBps] = await Promise.all([
+        client.readContract({ address: escrow_contract, abi: ESCROW_EVM_ABI, functionName: 'feeBps', args: [] }),
+        client.readContract({ address: escrow_contract, abi: ESCROW_EVM_ABI, functionName: 'seekerFeeBps', args: [] }),
+      ])
+      // uint16 decodes as a number in viem; the cast names what the widened ABI cannot infer.
+      return { feeBps: Number(feeBps), seekerFeeBps: Number(seekerFeeBps) }
+    },
+
     async readEscrow(escrow_contract, escrow_id) {
       // `getEscrow` returns the NAMED struct. The auto-generated `escrows`
       // mapping getter flattens it into a positional tuple, which this used to
