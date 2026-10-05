@@ -8,8 +8,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { allKeys, closed, closedFor, nullable, ref } from '@tenda/api-doc'
-import { strictAjv } from '../helpers/agent-api-validator'
+import { allKeys, closed, closedFor, nullable, ref } from '../src'
+import { strictAjv } from '../src/testing/agent-api-validator'
 
 test('closed() admits exactly the documented keys, requires the listed ones, and carries the description', () => {
   const schema = closed({ a: { type: 'string' }, b: { type: 'integer' } }, ['a'], 'pair')

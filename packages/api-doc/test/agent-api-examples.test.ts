@@ -21,11 +21,11 @@ import {
   withRecordedExamples,
   RECORDED_EXCHANGE,
   JSON_MEDIA_TYPE,
-} from '@tenda/api-doc'
+} from '../src'
 
 /** The gig detail's key in the document — OpenAPI's spelling, not Fastify's. */
 const GIG_DETAIL_PATH = apiRoutes.gigs.get.replace(':id', '{id}')
-import { agentApiAjv } from '../helpers/agent-api-validator'
+import { agentApiAjv } from '../src/testing/agent-api-validator'
 
 const ajv = agentApiAjv()
 const tasks = AGENT_API_DOCUMENT.paths[apiRoutes.agent.tasks]?.post

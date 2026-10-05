@@ -28,7 +28,7 @@ import {
   useTestApp,
 } from '../helpers/test-app'
 import { agentTaskBody } from '../helpers/agent'
-import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
+import { COMPONENT_REF_PREFIX, agentApiAjv } from '@tenda/api-doc/testing'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
