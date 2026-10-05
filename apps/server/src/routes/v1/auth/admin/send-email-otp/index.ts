@@ -10,6 +10,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
+import type { AdminContract } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
 import { resolveAdminEmailSender, sendAdminLoginOtp } from '@server/features/auth/admin/admin-otp'
@@ -20,7 +21,7 @@ interface Body {
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: Body }>(
+  fastify.post<{ Body: Body; Reply: AdminContract['auth']['sendEmailOtp']['response'] }>(
     '/',
     { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (request) => {

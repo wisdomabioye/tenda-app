@@ -12,6 +12,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
+import type { AdminContract } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
@@ -23,7 +24,7 @@ interface Body {
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: Body }>(
+  fastify.post<{ Body: Body; Reply: AdminContract['auth']['verifyEmailOtp']['response'] }>(
     '/',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request) => {

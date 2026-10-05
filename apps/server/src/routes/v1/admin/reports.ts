@@ -5,7 +5,10 @@ import { reports } from '@tenda/shared/db/schema'
 import {
   ErrorCode, REPORT_STATUSES, REPORT_CONTENT_TYPES,
 } from '@tenda/shared'
-import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
+import type { AdminContract, ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
+
+type ReportsContract = AdminContract['reports']
 import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/errors/pg'
@@ -16,6 +19,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/reports
   fastify.get<{
     Querystring: { status?: ReportStatus; content_type?: string; limit?: number; offset?: number }
+    Reply: ReportsContract['list']['response'] | ApiError
   }>('/', { 
     preHandler: [requirePermission('reports.read')] 
   }, async (request) => {
@@ -66,7 +70,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
         .where(where),
     ])
 
-    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
+    return { data: data.map(toWire), total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
   // PATCH /v1/admin/reports/:id, action a report. Content takedown has no
@@ -75,7 +79,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Params: { id: string }
     Body:  { status: ReportStatus; admin_note?: string }
-    Reply: unknown | ApiError
+    Reply: ReportsContract['action']['response'] | ApiError
   }>('/:id', { 
     preHandler: [requirePermission('reports.action')] 
   }, async (request) => {
@@ -101,7 +105,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
       adminNote:   admin_note,
     })
 
-    return result
+    return toWire(result)
   })
 }
 
