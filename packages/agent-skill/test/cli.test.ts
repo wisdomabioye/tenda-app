@@ -2,7 +2,7 @@
  * npx @tenda/agent-skill: install the packaged skill into an agent's skills
  * folder. The last test spawns the real bin, because that is what npx runs.
  */
-import { test } from 'node:test'
+import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -18,6 +18,13 @@ function io() {
 }
 const tmp = () => mkdtempSync(join(tmpdir(), 'tenda-skill-'))
 
+// Every install that omits --dir targets ~/.claude/skills. A regression in the --dir guard (or a
+// mutation of it) would otherwise write the packaged skill into the REAL home of whoever runs the
+// tests, so the whole file runs under a throwaway HOME.
+const SANDBOX_HOME = tmp()
+process.env.HOME = SANDBOX_HOME
+after(() => rmSync(SANDBOX_HOME, { recursive: true, force: true }))
+
 test('install copies SKILL.md, generated.json and the scripts, byte for byte', () => {
   const dir = join(tmp(), 'skills', cli.SKILL_NAME)
   const h = io()
@@ -27,6 +34,26 @@ test('install copies SKILL.md, generated.json and the scripts, byte for byte', (
   }
   assert.match(h.out[0], /installed tenda-hire-a-human/)
   rmSync(dir, { recursive: true, force: true })
+})
+
+test('with no --dir the skill lands in ~/.claude/skills/tenda-hire-a-human, and the output says how to try it', () => {
+  // The default is what `npx @tenda/agent-skill install` does for nearly everyone. os.homedir()
+  // reads HOME at call time on POSIX, so a temp HOME stands in for the user's.
+  const home = tmp()
+  const previous = process.env.HOME
+  process.env.HOME = home
+  try {
+    const h = io()
+    assert.equal(cli.main(['install'], h.io), 0)
+    const target = join(home, '.claude', 'skills', cli.SKILL_NAME)
+    assert.ok(existsSync(join(target, 'SKILL.md')), 'SKILL.md is not under ~/.claude/skills/<name>')
+    assert.equal(h.out[0], `installed ${cli.SKILL_NAME} to ${target}`)
+    assert.equal(h.out[1], `try: node ${join(target, 'scripts', 'tenda.cjs')} chains   (set TENDA_API first)`)
+  } finally {
+    if (previous === undefined) delete process.env.HOME
+    else process.env.HOME = previous
+    rmSync(home, { recursive: true, force: true })
+  }
 })
 
 test('install refuses to overwrite without --force, and --force replaces it (stale files go)', () => {

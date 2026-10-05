@@ -183,6 +183,51 @@ test('watch gives up at its timeout with exit 2 and tells the caller to resend f
   assert.equal(JSON.parse(h.out[0]).timed_out, true)
 })
 
+test('watch with no task id is a usage error, not a request for "undefined"', async () => {
+  const h = harness([])
+  assert.equal(await lib.run(['watch'], h.deps), 1)
+  assert.match(h.err[0], /usage: pass the task id/)
+  assert.equal(h.calls.length, 0)
+})
+
+test('watch defaults: 15 seconds between reads, and a 30 minute horizon', async () => {
+  // Defaults are what an agent gets when it passes neither flag, and the skill's
+  // prose states them; a silent change would make `watch` poll a different way
+  // than the document promises.
+  const drafts = (n: number): Reply[] => Array.from({ length: n }, () => ({ status: 200, json: { status: 'draft' } }))
+  const h = harness([...drafts(2), { status: 200, json: { status: 'open' } }])
+  assert.equal(await lib.run(['watch', 'task-1'], h.deps), 0)
+  assert.deepEqual(h.sleeps, [15_000, 15_000])
+
+  // 1800s / 15s = 120 sleeps; the read AFTER the 120th sleep is at exactly the horizon and gives up.
+  const long = harness(drafts(130))
+  assert.equal(await lib.run(['watch', 'task-1'], long.deps), 2)
+  assert.equal(long.sleeps.length, 120)
+  assert.equal(long.calls.length, 121)
+})
+
+test('watch gives up AT the horizon, not one read after it', async () => {
+  // interval == timeout: after one sleep the clock sits exactly on the horizon.
+  const h = harness([{ status: 200, json: { status: 'draft' } }, { status: 200, json: { status: 'draft' } }, { status: 200, json: { status: 'draft' } }])
+  assert.equal(await lib.run(['watch', 'task-1', '--interval', '10', '--timeout', '10'], h.deps), 2)
+  assert.equal(h.calls.length, 2)
+})
+
+test('watch encodes the task id into the path', async () => {
+  const h = harness([{ status: 200, json: { status: 'open' } }])
+  await lib.run(['watch', 'a/b c'], h.deps)
+  assert.equal(h.calls[0].url, `https://api.example${FACTS.routes.gigGet.replace(':id', 'a%2Fb%20c')}`)
+})
+
+test('a --token flag beats TENDA_TOKEN, and either reaches the request as a bearer', async () => {
+  const flagged = harness([{ status: 200, json: { ok: true, moderation: 'not_run' } }], { TENDA_API: 'https://api.example', TENDA_TOKEN: 'from-env' }, { 'task.json': '{}' })
+  await lib.run(['validate', 'task.json', '--token', 'from-flag'], flagged.deps)
+  assert.equal(flagged.calls[0].headers.authorization, 'Bearer from-flag')
+  const fromEnv = harness([{ status: 200, json: { ok: true, moderation: 'not_run' } }], { TENDA_API: 'https://api.example', TENDA_TOKEN: 'from-env' }, { 'task.json': '{}' })
+  await lib.run(['validate', 'task.json'], fromEnv.deps)
+  assert.equal(fromEnv.calls[0].headers.authorization, 'Bearer from-env')
+})
+
 test('a non-2xx answer prints the ApiError envelope whole, with the status, and a 429 says how long to wait', async () => {
   const envelope = { statusCode: 429, error: 'Too Many Requests', message: 'Rate limit exceeded', code: 'RATE_LIMITED', details: { retry_after: 12 } }
   const h = harness([{ status: 429, json: envelope, headers: { 'retry-after': '12' } }], undefined, { 'task.json': '{}' })
