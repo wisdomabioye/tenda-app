@@ -309,6 +309,20 @@
       "when": 1791139803113,
       "tag": "0043_majestic_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791169116172,
+      "tag": "0044_lyrical_garia",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791169120380,
+      "tag": "0045_gray_valeria_richards",
+      "breakpoints": true
     }
   ]
 }

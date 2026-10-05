@@ -90,13 +90,13 @@ test('an exchange escrow has no category and is not counted', { skip }, async ()
   assert.deepEqual(data, [{ category: 'service', count: 1 }])
 })
 
-test('gig_details hanging off an EXCHANGE escrow is still not gig work', { skip }, async () => {
-  // What separates the route's `kind = 'gig'` from its join. The join alone
-  // drops an exchange because no satellite row exists — so the test above
-  // passes either way, and this one is what stops the guard being a line
-  // nothing can justify. POST /v1/gigs refuses to attach details to a
-  // non-gig escrow (409), so the row is written directly, which is the only
-  // way this state exists.
+test('gig_details can no longer hang off an EXCHANGE escrow: the database refuses the state this guard was written for', { skip }, async () => {
+  // This used to write the row directly, because it was "the only way this state
+  // exists", to justify the route's `kind = 'gig'` beside its join. The satellites
+  // now carry (escrow_id, kind) as a composite foreign key onto escrows, so the
+  // state cannot be created at all (satellite-kind.test.ts proves the constraint).
+  // The route's filter is therefore defence in depth, and what this pins is that
+  // the exclusion it was guarding is now enforced one layer down.
   const app = getApp()
   const worker = await createUser(app)
   const seller = await createUser(app)
@@ -106,8 +106,11 @@ test('gig_details hanging off an EXCHANGE escrow is still not gig work', { skip 
     kind: 'exchange',
     status: 'completed',
   })
-  await attachGigDetails(app, exchange.id, { category: 'delivery' })
-
+  await assert.rejects(attachGigDetails(app, exchange.id, { category: 'delivery' }), (err: unknown) => {
+    // Drizzle wraps the driver's error: the constraint name is on the cause.
+    const cause = typeof err === 'object' && err !== null && 'cause' in err ? err.cause : undefined
+    return cause instanceof Error && cause.message.includes('gig_details_escrow_kind_fk')
+  })
   assert.deepEqual(await completedWork(app, worker.row.id), [])
 })
 
