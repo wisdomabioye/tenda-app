@@ -5,12 +5,12 @@
  * assets, or payout markets flow through automatically; nothing is hardcoded.
  */
 
-import { CHAIN_MANIFEST, exchangeAssetsByChain, PAYOUT_CURRENCIES } from '@tenda/shared'
+import { enabledChains, exchangeAssetsByChain, PAYOUT_CURRENCIES } from '@tenda/shared'
 import type { ProviderCapabilities } from './types'
 
-/** Every exchange-tradable asset id across all chains (USDC + natives), deduped. */
+/** Every exchange-tradable asset id across every chain users may use (USDC + natives), deduped. */
 export const EXCHANGE_ASSET_IDS: string[] = [
-  ...new Set(CHAIN_MANIFEST.flatMap((c) => exchangeAssetsByChain(c.id))),
+  ...new Set(enabledChains().flatMap((c) => exchangeAssetsByChain(c.id))),
 ]
 
 /** The always-on internal P2P provider's capabilities. */

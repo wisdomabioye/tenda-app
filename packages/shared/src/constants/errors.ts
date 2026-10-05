@@ -131,6 +131,14 @@ export const ErrorCode = {
    * names which. Distinct from VALIDATION_ERROR (a malformed header).
    */
   RELAY_REJECTED:                'RELAY_REJECTED',
+  /**
+   * The chain is PAUSED (422): deployed and known, switched off by decision.
+   * Refused on the ways IN (a new escrow, a new accept or assignment); every
+   * way OUT stays open, so nothing already on the chain is stranded. Same
+   * family as RELAY_UNSUPPORTED_ASSET: this deployment will not take what the
+   * body asked for — choose another chain from GET /v1/platform/chains.
+   */
+  CHAIN_PAUSED:                  'CHAIN_PAUSED',
   /** Submit refused: the gig requires proof types the worker has not attached. */
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
   /**

@@ -20,7 +20,7 @@ import {
   type ApplyToGigBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertNotTakenDown } from '@server/lib/escrow'
+import { assertChainNotPaused, assertNotTakenDown } from '@server/lib/escrow'
 import { requireProfileComplete } from '@server/lib/http/guards'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -71,6 +71,7 @@ async function loadOpenForApplications(
     throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
   }
   assertNotTakenDown(escrow, 'apply')
+  assertChainNotPaused(escrow.chain_id, 'apply')
   if (!escrow.requires_approval) {
     throw new AppError(
       409,

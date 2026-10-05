@@ -43,3 +43,9 @@ export {
   evmAppKitNetworks,
   type EvmAppKitNetwork,
 } from './appkit-network'
+export {
+  isChainEnabled,
+  enabledChains,
+  isBlockedByChainPause,
+  chainPausedMessage,
+} from './pause'

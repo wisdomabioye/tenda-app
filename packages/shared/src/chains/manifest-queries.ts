@@ -11,6 +11,7 @@ import { isEvmChainId } from '../utils/address'
 import type { ChainNamespace } from '../db/schema/chains'
 import type { ChainRegistryEntry } from '../api/contracts/platform.contract'
 import { getAssetMeta } from '../constants/assets'
+import { isChainEnabled } from './pause'
 
 /** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
 export function chainById(id: string): ChainManifestEntry {
@@ -152,8 +153,14 @@ export function evmManifestEntries(): ChainManifestEntry[] {
  * an auth message (which the server verifies by namespace only, so the specific
  * chain is not load-bearing). Undefined when no EVM chain of that kind exists.
  */
-export function firstEvmChainIdByKind(kind: ChainManifestEntry['kind']): string | undefined {
-  return evmManifestEntries().find((c) => c.kind === kind)?.id
+export function firstEvmChainIdByKind(
+  kind: ChainManifestEntry['kind'],
+  manifest: readonly ChainManifestEntry[] = CHAIN_MANIFEST,
+): string | undefined {
+  // Skips a paused chain: this id is stamped into new sign-in messages, and a
+  // paused chain is not one a user should be asked to sign on. The manifest is
+  // a parameter (defaulted) so the skip can be shown against a paused entry.
+  return manifest.find((c) => c.namespace === 'eip155' && c.kind === kind && isChainEnabled(c))?.id
 }
 
 /**

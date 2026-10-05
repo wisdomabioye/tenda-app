@@ -10,7 +10,7 @@
 
 import {
   CHAIN_FALLBACK_GLYPH,
-  CHAIN_MANIFEST,
+  enabledChains,
   chainFamilyDisplay,
   gigAssetByChain,
   nativeCurrencyOf,
@@ -123,12 +123,13 @@ function landingRank(family: string): number {
 }
 
 /**
- * The chains the landing talks about: every MAINNET manifest entry, 0G first
+ * The chains the landing talks about: every MAINNET manifest entry users may
+ * use (a paused chain is not advertised, not even as planned), 0G first
  * (LANDING_FAMILY_ORDER), then manifest order — Array.prototype.sort is
  * stable, so equal ranks keep their manifest positions. Testnet entries never
  * surface in marketing.
  */
-export const LANDING_CHAINS: readonly LandingChain[] = [...CHAIN_MANIFEST]
+export const LANDING_CHAINS: readonly LandingChain[] = enabledChains()
   .filter((entry) => entry.kind === 'mainnet')
   .sort((a, b) => landingRank(a.family) - landingRank(b.family))
   .map((entry) => ({
@@ -267,7 +268,7 @@ export const CHAIN_STRENGTHS_PROSE = prose(
 export const EXCHANGE_ASSET_SYMBOLS_PROSE = prose(
   [
     ...new Map(
-      CHAIN_MANIFEST.filter((entry) => entry.kind === 'mainnet')
+      enabledChains().filter((entry) => entry.kind === 'mainnet')
         .flatMap((entry) => entry.assets.filter((asset) => asset.roles.includes('exchange')))
         .map((asset) => {
           const meta = registryAsset(asset.id, 'exchange assets')
