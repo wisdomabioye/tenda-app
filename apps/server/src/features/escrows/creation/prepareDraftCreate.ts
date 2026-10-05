@@ -16,7 +16,7 @@ import { and, eq } from 'drizzle-orm'
 import { ErrorCode, type SignerPreferenceBody } from '@tenda/shared'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
-import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
+import { assertCallerWallet, assertChainNotPaused, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
 import type { EscrowRow } from '@server/features/escrows/routes'
 import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { normalizeContractAddress } from '@server/chains/contracts'
@@ -53,6 +53,9 @@ export async function prepareDraftCreate(
   // hand. A hidden draft that published would lock the creator's money into
   // an escrow nobody is allowed to accept; deleting it still works.
   assertNotTakenDown(escrow, 'create')
+  // Funding a draft is also a way IN for the CHAIN: a pause refuses it, relayed
+  // (POST /v1/escrows/:id/fund, the agent one-shot) or built for the client alike.
+  assertChainNotPaused(escrow.chain_id, 'create')
 
   // A signed-and-broadcast create may still be verifying, building a second
   // create tx now would just fail on-chain (the PDA exists) and confuse the

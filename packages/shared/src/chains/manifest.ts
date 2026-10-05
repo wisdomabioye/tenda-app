@@ -198,6 +198,17 @@ export interface ChainManifestEntry {
    * wallet secret (`CHAIN_<id>_GAS_SEED_KEY`) at seed time, so the two can't drift.
    */
   gasSeedAmountRaw?: string
+  /**
+   * Switched off by decision, with no code removed. ORTHOGONAL to `status`:
+   * status says whether Tenda's escrow is deployed here, and a deployed chain
+   * that is paused is still deployed, so the two stay separate facts. A paused
+   * chain stays KNOWN (an escrow already on it must keep resolving, settling
+   * and being listened to) and refuses only new work: see `isChainEnabled` and
+   * `isBlockedByChainPause`. Anything that asks "can users use this chain?"
+   * goes through `isChainEnabled`, never a bare `entry.status === 'live'`.
+   * Re-enabling a chain is deleting this one line. Only `true` is meaningful.
+   */
+  paused?: true
   assets: ChainAsset[]
 }
 
@@ -600,6 +611,12 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
       throw new Error(
         `CHAIN_MANIFEST: '${entry.id}' must declare status 'live', 'launching' or 'planned'`,
       )
+    }
+    // `paused` is a literal `true` or absent. `paused: false` would read as "not
+    // paused" here and as a set flag to anything testing for the key, so it is
+    // refused rather than being allowed to mean two things.
+    if (entry.paused !== undefined && entry.paused !== true) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' paused must be \`true\` or omitted`)
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' must have exactly one native asset`)

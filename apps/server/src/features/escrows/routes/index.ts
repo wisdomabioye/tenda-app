@@ -29,6 +29,7 @@ import {
   type EscrowTransition,
   type TransitionContext,
   assertCanTransition,
+  assertChainNotPaused,
   assertNotTakenDown,
   takedownActionFor,
 } from '@server/lib/escrow'
@@ -221,6 +222,9 @@ export async function guardTransition(args: {
   // public accept resolves to `counterparty` for ANY stranger, so the caller
   // check would never have refused them anyway.
   assertNotTakenDown(escrow, takedownActionFor(args.transition))
+  // A paused CHAIN refuses the same entry actions, by the same table (new
+  // accepts and assignments); every exit still passes.
+  assertChainNotPaused(escrow.chain_id, takedownActionFor(args.transition))
   const caller = resolveTransitionCaller(args, escrow)
   const ctx = buildContext({
     escrow,
