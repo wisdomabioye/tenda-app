@@ -13,7 +13,7 @@
  *
  * Gated: skips when the anvil binary or forge artifacts are absent (CI runs
  * it always — the foundry toolchain is installed there for the drift guard).
- * Anvil runs with --chain-id 84532 so the manifest's Base Sepolia permit
+ * Anvil runs with the harness's second chain id (16602, 0G Galileo; it was Base Sepolia's until Base was PAUSED, 2026-10-02) so the manifest's permit
  * config (USDC version '2') applies verbatim; the mock token reproduces
  * Circle's v2 domain (test/mocks/MockUSDCPermitV2.sol).
  */
@@ -73,7 +73,7 @@ function createPayload(escrow_id: string, bond = '0') {
   return {
     escrow_id,
     kind: 'gig' as const,
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     amount_raw: AMOUNT,
     accept_deadline_unix: Math.floor(Date.now() / 1000) + 3_600,
     completion_duration_seconds: 7_200,
@@ -199,7 +199,7 @@ test('permit path: payload → signTypedData → createEscrowWithPermit lands wi
   const payload = await adapter.buildPermitPayload({
     user_id: 'creator',
     owner: fx.creator.address,
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     value_raw: AMOUNT,
   })
   // 2. Wallet signs it.
@@ -256,13 +256,13 @@ test('permit path: payload → signTypedData → createEscrowWithPermit lands wi
   assert.strictEqual(treasuryAfter - treasuryBefore, expectedFee)
 })
 
-test('Base refund: server calldata rejects early, then refunds after accept expiry', { skip }, async () => {
+test('0G refund: server calldata rejects early, then refunds after accept expiry', { skip }, async () => {
   const snapshot = await fx.node.snapshot()
   try {
     const escrow_id = randomUUID()
     assert.ok(adapter.buildPermitPayload)
     const permit = await adapter.buildPermitPayload({
-      user_id: 'creator', owner: fx.creator.address, asset: 'USDC_BASE', value_raw: AMOUNT,
+      user_id: 'creator', owner: fx.creator.address, asset: 'USDC_0G', value_raw: AMOUNT,
     })
     const signature = await signPermit(fx.creator, permit.typed_data)
     const create = await adapter.buildTx({
@@ -315,7 +315,7 @@ test('dispute bond via permit: disputeEscrowWithPermit collects the ERC-20 bond 
   const createPermit = await adapter.buildPermitPayload({
     user_id: 'creator',
     owner: fx.creator.address,
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     value_raw: AMOUNT,
   })
   const createSig = await signPermit(fx.creator, createPermit.typed_data)
@@ -338,7 +338,7 @@ test('dispute bond via permit: disputeEscrowWithPermit collects the ERC-20 bond 
   const bondPermit = await adapter.buildPermitPayload({
     user_id: 'worker',
     owner: fx.worker.address,
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     value_raw: BOND,
   })
   const bondSig = await signPermit(fx.worker, bondPermit.typed_data)

@@ -33,7 +33,7 @@ describe('chainStatus', () => {
     // The original defect in one assertion. Every landing chain IS a mainnet
     // entry, so if status were still derived from kind they would all be live.
     // While any is planned, that derivation is provably gone.
-    const mainnets = CHAIN_MANIFEST.filter((e) => e.kind === 'mainnet' && e.status === 'planned')
+    const mainnets = CHAIN_MANIFEST.filter((e) => e.kind === 'mainnet' && e.status === 'planned' && e.paused !== true)
     for (const entry of mainnets) {
       const chain = LANDING_CHAINS.find((c) => c.id === entry.id)
       expect(chain, `${entry.id} is a landing chain`).toBeDefined()

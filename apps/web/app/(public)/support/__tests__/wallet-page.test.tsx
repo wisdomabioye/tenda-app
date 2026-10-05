@@ -25,11 +25,15 @@ function cards(container: HTMLElement): HTMLDetailsElement[] {
   return Array.from(container.querySelectorAll('details'))
 }
 
-test('opens on the EVM card, with Celo named before Base', () => {
+test('opens on the EVM card, with Celo named first and paused Base not named at all', () => {
   const { container } = render(<WalletGuidePage />)
   const first = SUPPORT_WALLET_GUIDE[0]
   expect(first.network).toBe('evm')
-  expect(first.name.indexOf('Celo')).toBeLessThan(first.name.indexOf('Base'))
+  // Celo leads every EVM mention (support order). Base is PAUSED (2026-10-02),
+  // so it is not in the copy; re-enabling it brings it back, after Celo.
+  expect(first.name).toContain('Celo')
+  expect(first.name.indexOf('Celo')).toBeLessThan(first.name.indexOf('0G'))
+  expect(first.name).not.toContain('Base')
 
   const walletCards = cards(container).slice(0, SUPPORT_WALLET_GUIDE.length)
   expect(within(walletCards[0]).getByText(first.name)).toBeInTheDocument()

@@ -26,7 +26,10 @@ export interface EcosystemPanel {
 }
 
 // Panel order mirrors LANDING_CHAINS: 0G leads (launch positioning, 2026-08-27).
-export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
+// EVERY panel is authored here, including a PAUSED chain's (Base, 2026-10-02):
+// the exported list below keeps only the chains the landing talks about, so
+// re-enabling a chain brings its panel back with no copy to rewrite.
+const AUTHORED_PANELS: readonly EcosystemPanel[] = [
   {
     chainFamily: '0g',
     why: 'The AI-native chain — Tenda is building the rails for AI agents to hire humans, and 0G is where they live.',
@@ -76,6 +79,11 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     ],
   },
 ] as const
+
+/** The panels for chains users may use: a paused chain is not advertised, not even as a roadmap. */
+export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = AUTHORED_PANELS.filter((panel) =>
+  LANDING_CHAINS.some((chain) => chain.family === panel.chainFamily),
+)
 
 /**
  * Field labels for the per-chain reference facts, and the copy control's two

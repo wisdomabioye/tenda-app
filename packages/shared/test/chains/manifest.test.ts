@@ -680,11 +680,13 @@ test('evmManifestEntries returns only EVM chains, in manifest order', () => {
   )
 })
 
-test('firstEvmChainIdByKind picks Base per env kind; undefined when none', () => {
-  // Namespace-only for auth, but the value must stay stable: dev→Base Sepolia,
-  // prod→Base (manifest order defines the canonical pick).
-  assert.equal(firstEvmChainIdByKind('testnet'), 'eip155:84532')
-  assert.equal(firstEvmChainIdByKind('mainnet'), 'eip155:8453')
+test('firstEvmChainIdByKind picks the first ENABLED EVM chain per env kind', () => {
+  // Namespace-only for auth, but the value must stay stable: manifest order
+  // defines the canonical pick, and a PAUSED chain is skipped — Base is paused
+  // (2026-10-02), so dev -> Celo Sepolia and prod -> Celo. Re-enabling Base
+  // restores eip155:84532 / eip155:8453 here by deleting its one `paused` line.
+  assert.equal(firstEvmChainIdByKind('testnet'), 'eip155:11142220')
+  assert.equal(firstEvmChainIdByKind('mainnet'), 'eip155:42220')
 })
 
 // --- public RPC URL (client-side balance reads) ----------------------------

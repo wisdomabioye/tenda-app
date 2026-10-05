@@ -124,8 +124,8 @@ test('the copy stays multichain: no single-chain payment claims', () => {
  * (2) ORDER, which is a product decision (2026-09-10): EVM leads, Celo leads
  * within it, so Solana is never the chain a reader meets first.
  */
-test('the support chain list is every mainnet in the manifest, and only those', () => {
-  const mainnets = MANIFEST.filter((entry) => entry.kind === 'mainnet')
+test('the support chain list is every ENABLED mainnet in the manifest, and only those', () => {
+  const mainnets = MANIFEST.filter((entry) => entry.kind === 'mainnet' && entry.paused !== true)
   assert.equal(SUPPORT_CHAINS.length, mainnets.length)
   assert.deepEqual(
     [...new Set(SUPPORT_CHAINS.map((c) => c.family))].sort(),

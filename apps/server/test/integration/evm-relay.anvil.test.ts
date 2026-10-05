@@ -64,7 +64,7 @@ function payload(escrow_id: string, overrides: Partial<CreateEscrowPayload> = {}
   return {
     escrow_id,
     kind: 'gig',
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     amount_raw: AMOUNT,
     accept_deadline_unix: Math.floor(Date.now() / 1000) + 3_600,
     completion_duration_seconds: 7_200,

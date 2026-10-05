@@ -6,7 +6,7 @@
  * around it and how they shape the answer.
  */
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { ErrorCode, apiRoutes, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
+import { ErrorCode, apiRoutes, findChain, isChainEnabled, type ChainManifestEntry, type RelayPaymentPayload, type RelaySettlementResponse, type RelayTerms, type SignerPreferenceBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { EscrowRow } from '@server/features/escrows/routes'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
@@ -42,6 +42,21 @@ export function relayUnavailableMessage(chain_id: string, relaying: readonly str
   )
 }
 
+/**
+ * The chains a deployment can relay funding on, for the RELAY_UNAVAILABLE body: those whose
+ * adapter relays AND that are not paused. A chain the manifest does not know is NOT paused
+ * (whether it is known is the registry's question), so it is named. `lookup` is a parameter so a
+ * test can hand it a paused entry without editing the real manifest.
+ */
+export function relayCapableChainIds(
+  adapters: readonly { chain_id: string; relay?: unknown }[],
+  lookup: (id: string) => Pick<ChainManifestEntry, 'paused'> | undefined = findChain,
+): string[] {
+  return adapters
+    .filter((a) => a.relay !== undefined && isChainEnabled(lookup(a.chain_id) ?? {}))
+    .map((a) => a.chain_id)
+}
+
 export async function relayDraftFunding(
   fastify: FastifyInstance,
   args: {
@@ -61,8 +76,11 @@ export async function relayDraftFunding(
   })
   if (adapter.relay === undefined) {
     // The list is read from the same adapters the registry publishes — never
-    // from the manifest — so the 503 cannot name a chain the registry denies.
-    const relaying = fastify.chains.list().filter((a) => a.relay !== undefined).map((a) => a.chain_id)
+    // from the manifest — so the 503 cannot name a chain the registry denies. A
+    // PAUSED chain keeps its adapter (existing escrows settle) but is not
+    // published (GET /v1/platform/chains omits it) and refuses new funding, so
+    // it is not named either: the caller would be sent to a 422 CHAIN_PAUSED.
+    const relaying = relayCapableChainIds(fastify.chains.list())
     throw new AppError(503, ErrorCode.RELAY_UNAVAILABLE, relayUnavailableMessage(escrow.chain_id, relaying))
   }
   // The creator: the declared wallet, else the primary — which

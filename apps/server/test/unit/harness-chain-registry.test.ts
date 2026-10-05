@@ -25,6 +25,7 @@ import {
   FAKE_BAD_SIGNATURE,
   TEST_CHAIN_ID,
   TEST_CHAIN_ID_ALT,
+  PAUSED_CHAIN_ID,
   UNREGISTERED_CHAIN_ID,
   fakeRegistry,
   realEvmRegistry,
@@ -47,10 +48,11 @@ test('realEvmRegistry serves the given adapter on the eip155 chain', () => {
 
 test('the substitution does not reorder the registry — Solana stays list()[0]', () => {
   const adapters = realEvmRegistry(realAdapter).list()
-  assert.strictEqual(adapters.length, 2, 'a substitution must REPLACE the eip155 adapter, never add a third chain')
+  assert.strictEqual(adapters.length, 3, 'a substitution must REPLACE the eip155 adapter, never add a fourth chain (the third is the paused one)')
   assert.strictEqual(adapters[0]?.namespace, 'solana', 'reconcile-escrows and the listeners plugin read list()[0]')
   assert.strictEqual(adapters[0]?.chain_id, TEST_CHAIN_ID)
   assert.strictEqual(adapters[1], realAdapter)
+  assert.strictEqual(adapters[2]?.chain_id, PAUSED_CHAIN_ID, 'the paused chain keeps its fake adapter, registered last')
 })
 
 test('everything except that one adapter stays fake', () => {

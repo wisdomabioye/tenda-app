@@ -19,14 +19,15 @@ import {
 } from '../chains'
 import { ASSET_META } from '@tenda/shared/constants/assets'
 
-const mainnet = CHAIN_MANIFEST.filter((c) => c.kind === 'mainnet')
+// The chains the landing may talk about: mainnets users may use (Base is paused).
+const mainnet = CHAIN_MANIFEST.filter((c) => c.kind === 'mainnet' && c.paused !== true)
 
 describe('landing chain registry', () => {
   /**
    * Marketing must never name a testnet. This is the invariant that lets every
    * other derived string be printed without a second thought.
    */
-  it('surfaces mainnet entries only — 0G first, the rest in manifest order', () => {
+  it('surfaces ENABLED mainnet entries only — 0G first, the rest in manifest order', () => {
     // Same SET as the manifest's mainnet entries — nothing invented, nothing
     // dropped by the ordering pass.
     expect([...LANDING_CHAINS.map((c) => c.id)].sort()).toEqual(
@@ -238,5 +239,18 @@ describe('network reference accessors', () => {
       expect(explorerHost(chain.explorerUrl)).not.toBe(chain.explorerUrl)
       expect(explorerHost(chain.explorerUrl)).toContain('.')
     }
+  })
+})
+
+describe('a paused chain (Base, 2026-10-02) is not advertised, not even as planned', () => {
+  it('is absent from the landing registry, the ecosystem panels and the example trades', async () => {
+    const { ECOSYSTEM_PANELS } = await import('../ecosystems')
+    const { EXAMPLE_TRADES } = await import('../trades')
+    expect(LANDING_CHAINS.some((c) => c.family === 'base')).toBe(false)
+    expect(ECOSYSTEM_PANELS.some((p) => p.chainFamily === 'base')).toBe(false)
+    expect(EXAMPLE_TRADES.some((t) => t.asset.chainFamily === 'base')).toBe(false)
+    // …and the rest of the corridors survive, so the page is not emptied.
+    expect(EXAMPLE_TRADES.length).toBeGreaterThan(5)
+    expect(ECOSYSTEM_PANELS.map((p) => p.chainFamily).sort()).toEqual(['0g', 'celo', 'solana'])
   })
 })
