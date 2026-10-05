@@ -78,6 +78,18 @@ export interface AgentTaskCreated {
   enqueued: boolean
 }
 
+/**
+ * The answer to `POST /v1/agent/tasks/validate`: the body passed every rule the
+ * one-shot checks BEFORE it mints a draft. `moderation` is always `'not_run'` —
+ * the listing has NOT been through the content gate, and a later
+ * `POST /v1/agent/tasks` can still answer CONTENT_MODERATED. It is a field, not
+ * prose, so a client cannot read "ok" as "cleared".
+ */
+export interface AgentTaskValidated {
+  ok: true
+  moderation: 'not_run'
+}
+
 export interface AgentContract {
   register: Endpoint<'POST', undefined, AgentRegisterBody, undefined, AgentRegisterResponse>
   /**
@@ -89,4 +101,6 @@ export interface AgentContract {
   demoSession: Endpoint<'POST', undefined, undefined, undefined, AgentRegisterResponse>
   /** 402 AgentTaskPaymentRequired without X-PAYMENT; 201 AgentTaskCreated with it. */
   tasks: Endpoint<'POST', undefined, AgentTaskBody, undefined, AgentTaskCreated>
+  /** Same body as `tasks`; no draft, no payment, no moderation. */
+  tasksValidate: Endpoint<'POST', undefined, AgentTaskBody, undefined, AgentTaskValidated>
 }

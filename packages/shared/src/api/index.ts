@@ -45,6 +45,7 @@ export type {
   AgentTaskBody,
   AgentTaskPaymentRequired,
   AgentTaskCreated,
+  AgentTaskValidated,
   UsersContract,
   MeUser,
   MeResponse,

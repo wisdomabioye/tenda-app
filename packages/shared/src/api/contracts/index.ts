@@ -96,6 +96,7 @@ export type {
   AgentTaskBody,
   AgentTaskPaymentRequired,
   AgentTaskCreated,
+  AgentTaskValidated,
 } from './agent.contract'
 export type { AdminContract, AdminPage } from './admin.contract'
 export type { DisputesContract } from './disputes.contract'

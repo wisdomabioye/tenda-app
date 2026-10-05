@@ -34,6 +34,27 @@ export type GigDetailsBody = Partial<Omit<CreateGigDetailsBody, 'escrow_id'>>
 export type ListingSubject = Pick<EscrowRow, 'id' | 'asset' | 'amount_raw'>
 
 /**
+ * The listing's RULES, with no moderation and no draft: the creator's stored
+ * country, then `validateGigDetails`. Split out so the validate-only agent
+ * route (POST /v1/agent/tasks/validate) and `prepareGigDetails` below run the
+ * SAME check and cannot drift. The country is returned too, because moderation
+ * prices a remote listing against the poster's market.
+ */
+export async function validateListing(
+  fastify: FastifyInstance,
+  args: { user_id: string; body: GigDetailsBody },
+): Promise<{ details: ValidatedGigDetails; creator_country: string | null }> {
+  // Creator's stored country (JWT country can be up to 7 days stale).
+  const [creator] = await fastify.db
+    .select({ country: users.country })
+    .from(users)
+    .where(eq(users.id, args.user_id))
+    .limit(1)
+  const creator_country = creator?.country ?? null
+  return { details: validateGigDetails(args.body, creator_country), creator_country }
+}
+
+/**
  * Validate the listing body and run it through the Stage-6 gate. Pure over
  * the body and the subject's terms — nothing here reads or writes the draft,
  * which is what lets the one-shot refuse a listing before it mints one.
@@ -43,14 +64,7 @@ export async function prepareGigDetails(
   args: { escrow: ListingSubject; user_id: string; body: GigDetailsBody },
 ): Promise<ValidatedGigDetails> {
   const { escrow, user_id, body } = args
-  // Creator's stored country (JWT country can be up to 7 days stale).
-  const [creator] = await fastify.db
-    .select({ country: users.country })
-    .from(users)
-    .where(eq(users.id, user_id))
-    .limit(1)
-
-  const details = validateGigDetails(body, creator?.country ?? null)
+  const { details, creator_country } = await validateListing(fastify, { user_id, body })
 
   // The shared accessor, never a bracket read with `?.decimals ?? 0` behind it: a
   // prototype key ('toString') answered a FUNCTION there, its `.decimals` was
@@ -77,7 +91,7 @@ export async function prepareGigDetails(
       category: details.category,
       // Remote gigs persist no country; for price-sanity stats fall back to
       // the poster's market (moderation-only, never stored on the gig).
-      country: details.country ?? creator?.country ?? '',
+      country: details.country ?? creator_country ?? '',
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,
       asset_decimals: meta.decimals,
