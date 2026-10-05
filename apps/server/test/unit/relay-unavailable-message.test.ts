@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { apiRoutes } from '@tenda/shared'
-import { relayUnavailableMessage } from '@server/features/escrows/funding/relayDraftFunding'
+import { relayCapableChainIds, relayUnavailableMessage } from '@server/features/escrows/funding/relayDraftFunding'
 
 test('names the failing chain, every chain that CAN relay, and the registry field to read', () => {
   const message = relayUnavailableMessage('solana:devnet', ['eip155:84532', 'eip155:16602'])
@@ -32,4 +32,19 @@ test('the failing chain is never listed among the chains it can relay on', () =>
   // wrong source. Pinned here as the contract the caller relies on.
   const message = relayUnavailableMessage('solana:devnet', ['eip155:84532'])
   assert.doesNotMatch(message, /Chains it can relay on:.*solana:devnet/)
+})
+
+test('relayCapableChainIds: a chain that relays and is enabled is named; paused, non-relaying and (still) unknown ids behave as stated', () => {
+  const relays = {}
+  const adapters = [
+    { chain_id: 'live', relay: relays },
+    { chain_id: 'paused', relay: relays },
+    { chain_id: 'no-relay' },
+    { chain_id: 'unknown', relay: relays },
+  ]
+  const manifest: Record<string, { paused?: true }> = { live: {}, paused: { paused: true }, 'no-relay': {} }
+  const named = relayCapableChainIds(adapters, (id) => manifest[id])
+  // paused: the caller would be sent to a 422 CHAIN_PAUSED, so it is not offered. unknown: not a
+  // pause, so it stays (whether a chain is known is the registry's question).
+  assert.deepStrictEqual(named, ['live', 'unknown'])
 })
