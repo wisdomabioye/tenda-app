@@ -26,13 +26,14 @@ describe('swatchGroups', () => {
     for (const name of shown) expect(generated.has(name)).toBe(true)
   })
 
-  it('shows no swatch for a group the generator omits — a blank square is a lie', () => {
-    // The accent group is in the scheme and NOT in the sheet (#59e); listing
-    // it painted three squares with properties nothing defines — measured.
-    const omitted = flattenScheme(colors.light).filter(([name]) => name.startsWith('--accent-'))
-    expect(omitted.length).toBeGreaterThan(0)
-    const shown = new Set(swatchGroups().flatMap((group) => group.swatches.map((s) => s.name)))
-    for (const [name] of omitted) expect(shown.has(name)).toBe(false)
+  it('shows no swatch for the retired accent group — it is gone from the scheme AND from the page', () => {
+    // #18 retired the accent group from mobile's tokens. This test used to hold the
+    // sheet's OMISSION of it (a blank square is a lie); with the group gone, the
+    // property to keep is that nothing resurrects it on either side.
+    const inScheme = flattenScheme(colors.light).filter(([name]) => name.startsWith('--accent-'))
+    expect(inScheme).toEqual([])
+    const shown = swatchGroups().flatMap((group) => group.swatches.map((s) => s.name))
+    expect(shown.filter((name) => name.startsWith('--accent-'))).toEqual([])
     expect(swatchGroups().map((group) => group.title)).not.toContain('accent')
   })
 
