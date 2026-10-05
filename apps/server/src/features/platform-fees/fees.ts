@@ -65,6 +65,16 @@ export function compareFees(configured: ChainFees, reads: readonly ChainFeeRead[
   return result
 }
 
+/**
+ * `fee:check`'s process exit code: 0 every chain agrees, 1 at least one contract
+ * charges something else, 2 nothing disagrees but some chain could not be read.
+ * A mismatch outranks an unreadable chain: a known disagreement is the louder fact.
+ */
+export function feeCheckExitCode(comparison: FeeComparison): 0 | 1 | 2 {
+  if (comparison.mismatched.length > 0) return 1
+  return comparison.unknown.length > 0 ? 2 : 0
+}
+
 /** One human line per finding, for logs and the scripts. */
 export function describeComparison(comparison: FeeComparison): string[] {
   return [

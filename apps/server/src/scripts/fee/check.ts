@@ -15,7 +15,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '@tenda/shared/db/schema'
 import { loadConfig } from '@server/config'
 import { configuredFees } from '@server/features/platform-fees/boot-check'
-import { compareFees, describeComparison, readChainFees } from '@server/features/platform-fees/fees'
+import { compareFees, describeComparison, feeCheckExitCode, readChainFees } from '@server/features/platform-fees/fees'
 import { readOnlyAdapters } from './adapters'
 
 async function main(): Promise<number> {
@@ -27,8 +27,7 @@ async function main(): Promise<number> {
     console.log(`platform_config: fee ${configured.fee_bps} bps, seeker fee ${configured.seeker_fee_bps} bps`)
     const comparison = compareFees(configured, await readChainFees(readOnlyAdapters()))
     for (const line of describeComparison(comparison)) console.log(line)
-    if (comparison.mismatched.length > 0) return 1
-    return comparison.unknown.length > 0 ? 2 : 0
+    return feeCheckExitCode(comparison)
   } finally {
     await client.end()
   }

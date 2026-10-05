@@ -6,7 +6,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ESCROW_LIMITS } from '@tenda/shared'
-import { compareFees, describeComparison, feePairProblem, readChainFees } from '@server/features/platform-fees/fees'
+import { compareFees, describeComparison, feeCheckExitCode, feePairProblem, readChainFees } from '@server/features/platform-fees/fees'
 
 const CONFIGURED = { fee_bps: 250, seeker_fee_bps: 100 }
 const ok = (chain_id: string, fee_bps: number, seeker_fee_bps: number) => ({ chain_id, getFees: async () => ({ fee_bps, seeker_fee_bps }) })
@@ -67,4 +67,16 @@ test('a getFees that throws SYNCHRONOUSLY is still just that chain being unreada
   const sync = { chain_id: 'sync', getFees: (): Promise<never> => { throw new Error('thrown before a promise existed') } }
   const reads = await readChainFees([ok('a', 250, 100), sync])
   assert.deepEqual(reads, [{ chain_id: 'a', fees: { fee_bps: 250, seeker_fee_bps: 100 } }, { chain_id: 'sync', fees: null, error: 'thrown before a promise existed' }])
+})
+
+test('feeCheckExitCode: 0 all agree, 1 on a mismatch, 2 when only unreadable — a mismatch outranks unreadable', () => {
+  const configured = { fee_bps: 250, seeker_fee_bps: 100 }
+  const agree = { chain_id: 'a', fees: { fee_bps: 250, seeker_fee_bps: 100 } }
+  const differs = { chain_id: 'b', fees: { fee_bps: 300, seeker_fee_bps: 100 } }
+  const unreadable = { chain_id: 'c', fees: null, error: 'rpc down' }
+  assert.equal(feeCheckExitCode(compareFees(configured, [agree])), 0)
+  assert.equal(feeCheckExitCode(compareFees(configured, [])), 0)
+  assert.equal(feeCheckExitCode(compareFees(configured, [agree, differs])), 1)
+  assert.equal(feeCheckExitCode(compareFees(configured, [agree, unreadable])), 2)
+  assert.equal(feeCheckExitCode(compareFees(configured, [differs, unreadable])), 1)
 })
