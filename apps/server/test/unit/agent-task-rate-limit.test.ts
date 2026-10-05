@@ -17,6 +17,7 @@ import tasksRoute from '@server/routes/v1/agent/tasks'
 import registerRoute from '@server/routes/v1/agent/register'
 import { registerErrorHandlers } from '@server/lib/errors/http'
 import { AGENT_TASK_ACCOUNT_RATE_LIMIT, AGENT_TASK_IP_RATE_LIMIT } from '@server/lib/http/rate-limits'
+import { accountRateLimit } from '@server/lib/http/account-rate-limit'
 
 const ACCOUNT_MAX = AGENT_TASK_ACCOUNT_RATE_LIMIT.max
 const IP_MAX = AGENT_TASK_IP_RATE_LIMIT.max
@@ -122,6 +123,31 @@ test('without the rate-limit plugin the route still registers and answers (the H
     for (let i = 0; i <= ACCOUNT_MAX; i++) {
       assert.notStrictEqual((await post(fastify, 'a', '10.0.4.1')).statusCode, 429)
     }
+  } finally {
+    await fastify.close()
+  }
+})
+
+test('the bucket is per ROUTE as well as per account: exhausting one route leaves another open', async () => {
+  // Only one route uses the limiter today, so this builds two: the key's route
+  // segment is the only thing keeping a future second route from draining the first.
+  const fastify = Fastify()
+  registerErrorHandlers(fastify)
+  fastify.decorate('authenticate', async (request: { headers: Record<string, unknown>; user: unknown }) => {
+    request.user = { id: String(request.headers['x-account']) }
+  })
+  await fastify.register(rateLimitPlugin)
+  const limit = { max: 2, timeWindow: '1 minute' } as const
+  for (const path of ['/one', '/two']) {
+    fastify.get(path, { preHandler: [fastify.authenticate, accountRateLimit(fastify, limit)] }, async () => ({ ok: true }))
+  }
+  await fastify.ready()
+  try {
+    const hit = (url: string) => fastify.inject({ method: 'GET', url, headers: { 'x-account': 'a' }, remoteAddress: '10.0.0.9' })
+    assert.strictEqual((await hit('/one')).statusCode, 200)
+    assert.strictEqual((await hit('/one')).statusCode, 200)
+    assert.strictEqual((await hit('/one')).statusCode, 429)
+    assert.strictEqual((await hit('/two')).statusCode, 200, 'a second route has its own bucket')
   } finally {
     await fastify.close()
   }
