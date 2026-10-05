@@ -82,6 +82,23 @@ test('the satellite\'s own kind cannot be set to the OTHER kind, even beside an 
   )
 })
 
+test('the exchange satellite\'s own kind cannot be set to gig, even beside a GIG escrow', { skip }, async () => {
+  const { app, escrow } = await escrowOfKind('gig')
+  // Mirror of the gig case: the composite FK alone accepts (gig, gig) because the escrow IS a gig;
+  // the CHECK is what keeps the exchange satellite an exchange satellite.
+  await assert.rejects(
+    app.db.insert(exchange_details).values({
+      escrow_id: escrow.id,
+      kind: 'gig',
+      fiat_amount: '15000.0000',
+      fiat_currency: 'NGN',
+      rate: '1500.0000000000',
+      payment_window_seconds: 86_400,
+    }),
+    refusedBy(CHECK, 'exchange_details_kind_chk'),
+  )
+})
+
 test('an escrow\'s kind cannot be changed while a satellite depends on it', { skip }, async () => {
   const { app, escrow } = await escrowOfKind('gig')
   await attachGigDetails(app, escrow.id)
