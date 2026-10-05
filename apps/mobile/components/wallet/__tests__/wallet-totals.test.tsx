@@ -27,7 +27,8 @@ jest.mock('react-native-unistyles', () => ({
 }))
 jest.mock('@/components/ui', () => {
   const { Text } = require('react-native')
-  return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
+  // testID passes through: the fiat-line assertions below look the element up by it.
+  return { Text: ({ children, testID }: { children: React.ReactNode; testID?: string }) => <Text testID={testID}>{children}</Text> }
 })
 jest.mock('@/components/ui/Skeleton', () => {
   const { View } = require('react-native')
@@ -81,10 +82,14 @@ test('lifetime stats withhold both when neither can be scaled', () => {
 test('the hero shows the fiat line under the total when it has one, and nothing when it does not', () => {
   const { rerender } = render(<WalletHeroCard totalUsdc={100} isLoading={false} fiatLine="≈ ₦150,000" />)
   expect(screen.getByText('≈ ₦150,000')).toBeTruthy()
+  expect(screen.getByTestId('hero-fiat')).toBeTruthy()
   rerender(<WalletHeroCard totalUsdc={100} isLoading={false} fiatLine={null} />)
   expect(screen.queryByText(/≈/)).toBeNull()
+  // No empty element left behind either: an empty Text still takes its margin.
+  expect(screen.queryByTestId('hero-fiat')).toBeNull()
   rerender(<WalletHeroCard totalUsdc={100} isLoading={false} />)
   expect(screen.queryByText(/≈/)).toBeNull()
+  expect(screen.queryByTestId('hero-fiat')).toBeNull()
 })
 
 test('the fiat line is never shown over the loading skeleton', () => {

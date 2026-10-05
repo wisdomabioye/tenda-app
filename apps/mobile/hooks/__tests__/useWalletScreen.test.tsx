@@ -132,6 +132,18 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   expect(result.current.totalUsdc).toBe(50)
 })
 
+test('exposes the asset id the headline total was scaled by, so the screen can price it in fiat', async () => {
+  mockWallets = [{ chain_ns: 'eip155', address: '0xA' }]
+  mockChains = [{ id: 'eip155:8453', namespace: 'eip155', display_name: 'Base', assets: [] }]
+  mockRead.mockResolvedValue([
+    { chainId: 'eip155:8453', namespace: 'eip155', displayName: 'Base', address: '0xA',
+      usdc: { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
+  ])
+  const { result } = renderHook(() => useWalletScreen())
+  await waitFor(() => expect(result.current.balances).toHaveLength(1))
+  expect(result.current.usdcAssetId).toBe('USDC_BASE')
+})
+
 test('surfaces the failed-load section and its retry, so the screen can distinguish load states', async () => {
   mockWalletsStatus = 'error'
   const { result } = renderHook(() => useWalletScreen())
