@@ -917,6 +917,13 @@ test('ARC: the ERC-20 USDC is the gig asset (6 decimals, EIP-3009 under name USD
   }
 })
 
+test('ARC: finality is unmeasured, so the mainnet waits for 2 confirmations and the testnet for 1', () => {
+  // NOT MEASURED (see the manifest entry): the conservative number is a decision, and a quiet
+  // change to it would change when an Arc escrow is treated as final.
+  assert.equal(chainById('eip155:5042').minConfirmations, 2)
+  assert.equal(chainById('eip155:5042002').minConfirmations, 1)
+})
+
 test('ARC: the testnet carries Circle\'s faucet; the mainnet carries none', () => {
   assert.equal(chainById('eip155:5042002').faucetUrl, 'https://faucet.circle.com')
   assert.equal(chainById('eip155:5042').faucetUrl, undefined)
