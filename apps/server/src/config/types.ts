@@ -18,7 +18,6 @@ export interface Config {
    */
   API_BASE_URL: string
   // Optional, defaults applied here; do not re-read from process.env elsewhere
-  PLATFORM_FEE_BPS: number       // seed fallback only, runtime fee is read from platform_config table
   JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
   /**
    * Termii credentials for phone OTP (#32), regional (NG/Africa). Null = no

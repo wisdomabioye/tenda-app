@@ -40,7 +40,9 @@
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",
     "verify:relayed-funding-evm": "tsx src/scripts/verify-relayed-funding-evm.ts",
     "lint": "eslint .",
-    "verify:agent-hire": "tsx src/scripts/agent-hire-e2e/main.ts"
+    "verify:agent-hire": "tsx src/scripts/agent-hire-e2e/main.ts",
+    "fee:check": "tsx src/scripts/fee/check.ts",
+    "fee:set": "tsx src/scripts/fee/set.ts"
   },
   "keywords": [],
   "author": "",

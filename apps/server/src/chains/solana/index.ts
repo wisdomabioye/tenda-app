@@ -91,6 +91,11 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     escrowAddress: PROGRAM_ID.toBase58(),
     // platform_state.approval_window_seconds — the program's, read live (#148).
     approvalWindowSeconds: cachedApprovalWindow(async () => (await fetchPlatformState(builderDeps)).approvalWindowSeconds.toNumber()),
+    // platform_state.fee_bps / seeker_fee_bps, read live: the program's own stored fees.
+    getFees: async () => {
+      const state = await fetchPlatformState(builderDeps)
+      return { fee_bps: state.feeBps, seeker_fee_bps: state.seekerFeeBps }
+    },
     buildTx: builders.buildTx,
     ...(args.deps.relayer !== undefined
       ? { relay: solanaEscrowRelay(builderDeps, args.deps.relayer, args.chain_id) }

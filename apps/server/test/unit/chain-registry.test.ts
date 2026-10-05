@@ -192,6 +192,7 @@ function depsReturning(address: `0x${string}`): AdapterDepsFactory {
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
         async readApprovalWindow() { return 172_800n },
+        async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
         async getTransactionReceipt() {
           return { block_number: 1n, status: 'success' as const, logs: [createdLogFrom(address)] }
         },

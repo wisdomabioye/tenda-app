@@ -237,6 +237,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     escrowAddress: args.escrow_contract,
     // The CURRENT contract's window: it is the one new escrows are stamped with.
     approvalWindowSeconds: cachedApprovalWindow(async () => Number(await rpc.readApprovalWindow(args.escrow_contract))),
+    // The CURRENT contract's fees: the ones new escrows are charged under.
+    getFees: async () => {
+      const fees = await rpc.readFees(args.escrow_contract)
+      return { fee_bps: fees.feeBps, seeker_fee_bps: fees.seekerFeeBps }
+    },
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
     ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
