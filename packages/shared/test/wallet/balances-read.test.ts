@@ -185,6 +185,7 @@ test('a chain with only USDC and native has no `others`', async () => {
   ]]
   const [row] = await readWalletBalances([{ chain_ns: 'eip155', address: '0xabc' }], [evmChain('eip155:8453', 'Base')], readers)
   assert.deepStrictEqual(row.others, [])
+})
 
 test('ARC: the native token IS USDC at 18 decimals beside the 6-decimal ERC-20 — the headline reads the ERC-20 only and never adds the two', async () => {
   // The same dollars as an ERC-20 (6 decimals) and as the native gas balance (18)
