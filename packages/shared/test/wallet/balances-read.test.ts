@@ -154,3 +154,24 @@ test('toBigIntOrNull: exact integers pass; blank/NaN/decimal-strings are null, n
   assert.strictEqual(toBigIntOrNull(Number.NaN), null)
   assert.strictEqual(toBigIntOrNull(Number.POSITIVE_INFINITY), null)
 })
+
+test('ARC: the native token IS USDC at 18 decimals beside the 6-decimal ERC-20 — the headline reads the ERC-20 only and never adds the two', async () => {
+  // The same dollars as an ERC-20 (6 decimals) and as the native gas balance (18)
+  // under ONE ticker. Listed native FIRST on purpose: a symbol-only pick would take it.
+  const arc: ChainRegistryEntry = {
+    id: 'eip155:5042', namespace: 'eip155', display_name: 'Arc', escrow_address: '0xE', ...registryEntryDefaults('eip155:5042'),
+    assets: [
+      { id: 'USDC_ARC_NATIVE', symbol: 'USDC', decimals: 18, is_stable: true, token_address: null, supports_permit: false, funds_by_signature: false, roles: ['exchange'] },
+      { id: 'USDC_ARC', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0x3600000000000000000000000000000000000000', supports_permit: true, funds_by_signature: true, roles: ['gig', 'exchange'] },
+    ],
+  }
+  evmResults = [[
+    { assetId: 'USDC_ARC_NATIVE', symbol: 'USDC', amountRaw: '2000000000000000000', decimals: 18, isStable: true }, // 2 USDC of gas
+    { assetId: 'USDC_ARC', symbol: 'USDC', amountRaw: '5000000', decimals: 6, isStable: true }, // 5 USDC
+  ]]
+  const out = await readWalletBalances([{ chain_ns: 'eip155', address: '0xabc' }], [arc], readers)
+  assert.strictEqual(out[0].usdc?.assetId, 'USDC_ARC', 'the headline is the ERC-20')
+  assert.strictEqual(out[0].native?.assetId, 'USDC_ARC_NATIVE', 'the 18-decimal one is the gas figure')
+  // The total is the ERC-20 alone: 5 USDC, not 5 + 2 and not 2e18 + 5e6 base units.
+  assert.strictEqual(sumUsdcRaw(out), '5000000')
+})

@@ -100,7 +100,8 @@ describe('landing chain registry', () => {
       for (const chain of chainsByGasPolicy(policy)) expect(chain.gasPolicy).toBe(policy)
     }
     expect(chainsByGasPolicy('native-seed').map((c) => c.family).sort()).toEqual(['0g', 'solana'])
-    expect(chainsByGasPolicy('none')).toEqual([])
+    // 'none' is "the user pays gas in the native token": only Arc, where the native token IS USDC.
+    expect(chainsByGasPolicy('none').map((c) => c.family)).toEqual(['arc'])
   })
 
   it('finds a chain by manifest family, and nothing for an unknown one', () => {
@@ -251,6 +252,6 @@ describe('a paused chain (Base, 2026-10-02) is not advertised, not even as plann
     expect(EXAMPLE_TRADES.some((t) => t.asset.chainFamily === 'base')).toBe(false)
     // …and the rest of the corridors survive, so the page is not emptied.
     expect(EXAMPLE_TRADES.length).toBeGreaterThan(5)
-    expect(ECOSYSTEM_PANELS.map((p) => p.chainFamily).sort()).toEqual(['0g', 'celo', 'solana'])
+    expect(ECOSYSTEM_PANELS.map((p) => p.chainFamily).sort()).toEqual(['0g', 'arc', 'celo', 'solana'])
   })
 })

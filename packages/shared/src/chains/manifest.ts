@@ -558,6 +558,78 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       { id: 'OG', roles: ['exchange'], token: null },
     ],
   },
+  {
+    // Arc: Circle's L1, where USDC is BOTH the gas asset and the payment asset, so a
+    // poster or worker needs no separate gas token (decision 2026-10-02: Solana, 0G
+    // and Arc are the strategy). Chain ids VERIFIED 2026-10-05 via eth_chainId against
+    // the public RPCs: mainnet 0x13b2 = 5042, testnet 0x4cef52 = 5042002.
+    //
+    // 'planned' until a broadcast transaction with a receipt exists (the ChainStatus
+    // rule): nothing here is deployed, and `SECRET_SCHEMA.eip155` requires an
+    // ESCROW_ADDR, so the server cannot serve it before then. NOT MEASURED, and
+    // therefore conservative: finality (minConfirmations), the eth_getLogs range
+    // limit the listener must respect, and Circle's issuer powers over escrowed
+    // balances. NOT VERIFIED: a valid signed authorization actually moving funds on
+    // Arc: the Galileo-style agent-hire run is this chain's definition of done.
+    id: 'eip155:5042',
+    namespace: 'eip155',
+    family: 'arc',
+    kind: 'mainnet',
+    status: 'planned',
+    displayName: 'Arc',
+    minConfirmations: 2,
+    publicRpcUrl: 'https://rpc.mainnet.arc.io',
+    // UNVERIFIED: the mainnet explorer host was unreachable when this was written
+    // (explorer.mainnet.arc.io); this follows the testnet's pattern. Only the AppKit
+    // network definition reads it, and the chain is not served. Confirm before launch.
+    explorerUrl: 'https://explorer.mainnet.arc.io',
+    // The user pays gas in the native token, and the native token IS USDC, so the
+    // existing 'none' ("user pays gas in the native token") already fits: no new
+    // policy. See the two Arc assets below for the one trap this creates.
+    gasPolicy: 'none',
+    assets: [
+      // The ERC-20 interface of Circle's USDC: 6 decimals, name 'USDC', version '2'
+      // (VERIFIED by calling decimals()/name()/version() on the token, 2026-10-05).
+      // NOT an EIP-1967 proxy, so a bytecode scan for selectors proves nothing.
+      // TendaEscrow consumes only receiveWithAuthorization (IERC3009).
+      {
+        id: 'USDC_ARC',
+        roles: ['gig', 'exchange'],
+        token: '0x3600000000000000000000000000000000000000',
+        permit: { version: '2' },
+        eip3009: true,
+      },
+      // THE TRAP: the same dollars as a NATIVE balance (18 decimals). The wallet's USDC
+      // headline reads the ERC-20 only (it is the gig asset, and the one with a token
+      // address), and this native one is the gas figure; the two must never be summed.
+      { id: 'USDC_ARC_NATIVE', roles: ['exchange'], token: null },
+    ],
+  },
+  {
+    id: 'eip155:5042002',
+    namespace: 'eip155',
+    family: 'arc',
+    kind: 'testnet',
+    status: 'planned',
+    displayName: 'Arc Testnet',
+    // Testnet: confirm at the first block, like every other testnet entry.
+    minConfirmations: 1,
+    publicRpcUrl: 'https://rpc.testnet.arc.io',
+    explorerUrl: 'https://explorer.testnet.arc.io',
+    // Circle's faucet lists "Arc Testnet" (VERIFIED 2026-10-05 on the live page).
+    faucetUrl: 'https://faucet.circle.com',
+    gasPolicy: 'none',
+    assets: [
+      {
+        id: 'USDC_ARC',
+        roles: ['gig', 'exchange'],
+        token: '0x3600000000000000000000000000000000000000',
+        permit: { version: '2' },
+        eip3009: true,
+      },
+      { id: 'USDC_ARC_NATIVE', roles: ['exchange'], token: null },
+    ],
+  },
 ]
 
 /** True iff the asset is the chain's native gas token (no contract, no secret). */

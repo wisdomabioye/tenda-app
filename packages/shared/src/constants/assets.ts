@@ -39,6 +39,15 @@ export interface AssetMeta {
    * needs the long form; other assets omit it and callers fall back to `symbol`.
    */
   name?: string
+  /**
+   * The chain's NATIVE gas token, set only where it can be confused with an
+   * ERC-20 of the same ticker. Arc is the case: its native gas token IS USDC at
+   * 18 decimals while its ERC-20 USDC interface is 6, so the same dollars appear
+   * twice under one symbol. A native asset is NEVER a member of USDC_ASSET_IDS
+   * (the settlement unit the lifetime totals sum), whatever its ticker: summing
+   * an 18-decimal amount with 6-decimal ones is wrong by 10^12.
+   */
+  native?: true
 }
 
 export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
@@ -63,6 +72,13 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   // purpose: the symbol also keys USDC_ASSET_IDS membership and the
   // USDC_DECIMALS guard below, and both tokens are 6-decimal dollar pegs.
   USDC_0G: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
+  // Arc (Circle's L1): USDC is BOTH the gas asset and the payment asset, and it
+  // appears twice. VERIFIED ON-CHAIN 2026-10-05 against rpc.testnet.arc.io and
+  // rpc.mainnet.arc.io: the ERC-20 interface at 0x3600…0000 answers decimals() 6,
+  // name() and symbol() "USDC", version() "2"; native gas is 18 decimals. Two ids,
+  // one symbol — and the native one is flagged so it never joins USDC_ASSET_IDS.
+  USDC_ARC: { symbol: 'USDC', decimals: 6, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin' },
+  USDC_ARC_NATIVE: { symbol: 'USDC', decimals: 18, is_stable: true, peg: 'USD', coingeckoId: 'usd-coin', name: 'USDC', native: true },
 }
 
 /**
@@ -159,7 +175,7 @@ export function assetSymbol(asset: string): string {
  * this test, and a rationale nobody can check is how the drift starts.
  */
 export const USDC_ASSET_IDS: readonly string[] = Object.keys(ASSET_META).filter(
-  (id) => ASSET_META[id].symbol === 'USDC',
+  (id) => ASSET_META[id].symbol === 'USDC' && ASSET_META[id].native !== true,
 )
 
 /**

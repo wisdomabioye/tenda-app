@@ -17,9 +17,16 @@ export const DEFAULT_READERS: Record<ChainNamespace, BalanceReader> = {
   eip155: evmBalanceReader,
 }
 
-/** The chain's gig stablecoin (USDC) balance from a read result, if present. */
+/**
+ * The chain's gig stablecoin (USDC) balance from a read result, if present.
+ *
+ * The USDC that is an ERC-20 / SPL token, never the native gas token. On Arc the
+ * native token IS USDC (18 decimals) beside the 6-decimal ERC-20, under one
+ * ticker, so the symbol alone cannot say which is the headline. A token address
+ * can: the native asset has none.
+ */
 function pickUsdc(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance | null {
-  const usdcId = chain.assets.find((a) => a.symbol === 'USDC')?.id
+  const usdcId = chain.assets.find((a) => a.symbol === 'USDC' && a.token_address !== null)?.id
   return balances.find((b) => b.assetId === usdcId) ?? null
 }
 

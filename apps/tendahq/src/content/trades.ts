@@ -54,7 +54,7 @@ export interface ExampleTrade {
     /** Display amount, pre-formatted (kept as string for exact rendering). */
     amount: string
     /** Manifest family of the chain the asset moves on. */
-    chainFamily: '0g' | 'solana' | 'base' | 'celo'
+    chainFamily: '0g' | 'solana' | 'base' | 'celo' | 'arc'
   }
   /** What the counterparty receives. */
   fiat: {
@@ -95,6 +95,9 @@ const AUTHORED_TRADES: readonly ExampleTrade[] = [
   { id: 'x-08', asset: { symbol: 'USDC', amount: '300',  chainFamily: 'celo' },   fiat: { currency: 'NGN', amount: 470_000, rail: 'Bank transfer' } },
   { id: 'x-09', asset: { symbol: 'SOL',  amount: '2.00', chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 490_000, rail: 'Bank transfer' } },
   { id: 'x-10', asset: { symbol: 'USDC', amount: '90',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 13_000,  rail: 'Bank transfer' } },
+  // Arc is PLANNED: an illustrative corridor like every row here (rounded to 2 significant
+  // figures, never a quote), shown only because the landing lists the chain.
+  { id: 'x-13', asset: { symbol: 'USDC', amount: '200',  chainFamily: 'arc' },    fiat: { currency: 'GHS', amount: 3_100,   rail: 'Bank transfer' } },
 ] as const
 
 /** The corridors shown: only chains the landing talks about. */

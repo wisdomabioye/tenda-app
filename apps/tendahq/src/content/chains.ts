@@ -62,6 +62,10 @@ const FAMILY_MARKETING: Record<string, Pick<ChainDisplay, 'pitch' | 'strength'>>
     pitch: 'Mobile-first L2 where stablecoins pay their own gas.',
     strength: 'stablecoin-paid gas',
   },
+  arc: {
+    pitch: 'Circle’s L1 — USDC is the gas and the payment, nothing else to hold.',
+    strength: 'USDC as gas',
+  },
 }
 
 export interface LandingChain {

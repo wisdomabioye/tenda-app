@@ -29,6 +29,10 @@ const CHAIN_FAMILY_DISPLAY: Readonly<Record<string, ChainFamilyDisplay>> = {
   solana: { name: 'Solana', glyph: '◎', color: '#9945FF' },
   base: { name: 'Base', glyph: '●', color: '#0052FF' },
   celo: { name: 'Celo', glyph: '◍', color: '#FCFF52' },
+  // Arc runs on Circle's USDC, so its disc takes USDC's brand blue (#2775CA, the
+  // colour Circle publishes for USDC). A STAND-IN: confirm against Arc's own brand
+  // kit before launch, the way 0G's was read from 0g.ai's palette.
+  arc: { name: 'Arc', glyph: '◉', color: '#2775CA' },
 }
 
 /** The glyph drawn for a family with no display row. */
