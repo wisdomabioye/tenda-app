@@ -30,6 +30,7 @@ function balance(over: Partial<WalletChainBalance>): WalletChainBalance {
     chainId: 'solana:devnet', namespace: 'solana', displayName: chainLabel('solana:devnet'), address: SOL,
     usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '612200000', decimals: 6, isStable: true },
     native: { assetId: 'SOL', symbol: 'SOL', amountRaw: '840000000', decimals: 9, isStable: false },
+    others: [],
     ...over,
   }
 }

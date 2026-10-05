@@ -1,7 +1,7 @@
 /**
  * Wallet-screen balance fan-out (moved from apps/mobile/wallet/balances/
  * index.ts, 2026-08-15, parameterized on the reader registry): read every
- * linked wallet's USDC + native balance across the enabled chains matching
+ * linked wallet's USDC + native + other-asset balances across the enabled chains matching
  * its namespace. `DEFAULT_READERS` are the shared fetch-based ones; a client
  * with its own transport (mobile's web3.js Solana reader) injects overrides
  * — the pluggable-reader requirement, unchanged.
@@ -39,6 +39,13 @@ function pickNative(balances: AssetBalance[], chain: ChainRegistryEntry): AssetB
   return balances.find((b) => b.assetId === nativeId) ?? null
 }
 
+/** Every asset in the read that is neither the gig stablecoin nor the native token. */
+function pickOthers(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance[] {
+  const usdcId = chain.assets.find((a) => a.symbol === 'USDC')?.id
+  const nativeId = nativeAssetIdOf(chain)
+  return balances.filter((b) => b.assetId !== usdcId && b.assetId !== nativeId)
+}
+
 /**
  * Read every (wallet × matching chain) pair — an EVM address can hold USDC on
  * several EVM chains. `allSettled` so one chain's RPC failure never sinks the
@@ -63,6 +70,7 @@ export async function readWalletBalances(
         address: wallet.address,
         usdc: pickUsdc(balances, chain),
         native: pickNative(balances, chain),
+        others: pickOthers(balances, chain),
       }
     }),
   )

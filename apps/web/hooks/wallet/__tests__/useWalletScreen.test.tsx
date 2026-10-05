@@ -70,6 +70,7 @@ function balance(chainId: string, usdcRaw: string): WalletChainBalance {
     address: 'SoL1',
     usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: usdcRaw, decimals: 6, isStable: true },
     native: null,
+    others: [],
   }
 }
 
