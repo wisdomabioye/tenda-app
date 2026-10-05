@@ -12,6 +12,7 @@ Autoloaded cross-cutting Fastify plugins (loaded before routes; most are
 | `workers.ts` | BullMQ consumers + `REPEATABLES` schedule (in-process with the API, documented decision) |
 | `listeners.ts` | Chain event listeners (polling fallback; webhook routes complement) |
 | `notifications.ts` | App-event listeners → push/WS fan-out |
+| `cache-invalidation.ts` | Redis pub/sub so an admin mutation clears the platform-config + featured caches on every instance (local-only without `REDIS_URL`) |
 | `websocket.ts` | Realtime WS channel (escrow events, chat) |
 | `cors.ts` | Browser allow-list, `CORS_ORIGIN` + `ADMIN_ORIGIN` union |
 | `rate-limit.ts` | Global + per-route rate limiting (trustProxy-aware) |

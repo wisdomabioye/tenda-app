@@ -1,6 +1,7 @@
 import { platform_config } from '@tenda/shared/db/schema'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import { getConfig } from '@server/config'
+import { cacheBus } from '@server/lib/cache-invalidation'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**
@@ -12,16 +13,26 @@ export type PlatformConfig = typeof platform_config.$inferSelect
 
 let cache: PlatformConfig | null = null
 let cacheExpiry = 0
+// Bumped by every invalidation. A read that started before one must not store
+// its (possibly pre-mutation) row afterwards — a remote invalidation can land
+// while this process is mid-query.
+let generation = 0
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
-/**
- * Invalidate the in-process cache.
- * Call this after an admin updates platform_config so the next request
- * reads fresh values from the DB instead of serving stale config.
- */
-export function invalidatePlatformConfigCache(): void {
+function clearLocal(): void {
   cache = null
   cacheExpiry = 0
+  generation += 1
+}
+cacheBus.register('platform_config', clearLocal)
+
+/**
+ * Invalidate the cache on EVERY instance (#29): clears this process's copy and
+ * broadcasts so other pods drop theirs. Call after an admin updates
+ * platform_config so the next request reads fresh values from the DB.
+ */
+export function invalidatePlatformConfigCache(): void {
+  cacheBus.invalidate('platform_config')
 }
 
 /**
@@ -40,15 +51,19 @@ export async function getPlatformConfig(db: AppDatabase): Promise<PlatformConfig
     return cache
   }
 
+  const startedAt = generation
   const [row] = await db.select().from(platform_config).limit(1)
 
-  cache = row ?? {
+  const fresh = row ?? {
     id: 1,
     ...PLATFORM_CONFIG_DEFAULTS,
     fee_bps: getConfig().PLATFORM_FEE_BPS,
   }
 
-  cacheExpiry = now + CACHE_TTL_MS
-  return cache
+  if (startedAt === generation) {
+    cache = fresh
+    cacheExpiry = now + CACHE_TTL_MS
+  }
+  return fresh
 }
 

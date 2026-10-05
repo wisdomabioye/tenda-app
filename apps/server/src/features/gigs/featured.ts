@@ -1,14 +1,15 @@
 /**
  * CO8 featured rail, admin-curated, scheduled placements served separately
- * from the feed (GET /v1/gigs/featured). Single in-process cache (same
- * pattern as lib/platform.ts); admin CRUD invalidates so curation shows
- * immediately on the curating pod, and the short TTL bounds staleness on
- * the others.
+ * from the feed (GET /v1/gigs/featured). In-process cache (same pattern as
+ * lib/platform.ts); admin CRUD invalidates it on EVERY instance through the
+ * cache bus (#29), and the short TTL still bounds staleness if a message is
+ * lost.
  */
 import { and, asc, eq, gt, gte, isNull, lte, or, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users, featured_slots } from '@tenda/shared/db/schema'
 import { FEATURED_RAIL_LIMIT, type GigSummary } from '@tenda/shared'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
+import { cacheBus } from '@server/lib/cache-invalidation'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**
@@ -25,10 +26,19 @@ const CACHE_TTL_MS = 60_000
 let cache: GigSummary[] | null = null
 let cacheExpiry = 0
 
-/** Call after any featured_slots mutation. */
-export function invalidateFeaturedCache(): void {
+// See lib/platform: a read in flight across an invalidation must not store.
+let generation = 0
+
+function clearLocal(): void {
   cache = null
   cacheExpiry = 0
+  generation += 1
+}
+cacheBus.register('featured', clearLocal)
+
+/** Call after any featured_slots mutation; clears every instance's cache. */
+export function invalidateFeaturedCache(): void {
+  cacheBus.invalidate('featured')
 }
 
 /**
@@ -41,6 +51,7 @@ export async function getFeaturedGigs(db: AppDatabase): Promise<GigSummary[]> {
   const now = Date.now()
   if (cache !== null && now < cacheExpiry) return cache
 
+  const startedAt = generation
   const at = new Date(now)
   const rows = await db
     .select({ ...GIG_SUMMARY_COLS, slot_position: featured_slots.position })
@@ -69,7 +80,9 @@ export async function getFeaturedGigs(db: AppDatabase): Promise<GigSummary[]> {
     if (rail.length >= FEATURED_RAIL_LIMIT) break
   }
 
-  cache = rail
-  cacheExpiry = now + CACHE_TTL_MS
+  if (startedAt === generation) {
+    cache = rail
+    cacheExpiry = now + CACHE_TTL_MS
+  }
   return rail
 }
