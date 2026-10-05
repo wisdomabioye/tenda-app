@@ -18,7 +18,7 @@ import { FEE_PCT, SEEKER_FEE_PCT } from './fees'
 
 export interface EcosystemPanel {
   /** Manifest family — joins to LANDING_CHAINS for name/glyph/colour. */
-  chainFamily: '0g' | 'solana' | 'base' | 'celo'
+  chainFamily: '0g' | 'solana' | 'base' | 'celo' | 'arc'
   /** Why Tenda builds here — one sentence. */
   why: string
   /** Shipped integration proof points, most impressive first. */
@@ -67,6 +67,18 @@ const AUTHORED_PANELS: readonly EcosystemPanel[] = [
       { label: 'TendaEscrow Solidity contracts, deployed with a full Foundry test suite' },
       { label: 'Gasless USDC approvals via EIP-2612 permit' },
       { label: 'Sponsored gas for first-time users', roadmap: true },
+    ],
+  },
+  {
+    chainFamily: 'arc',
+    why: 'USDC is both the gas and the payment, so a poster or worker holds one token and nothing else.',
+    // NOTHING here is shipped: Arc is planned in the manifest (no escrow deployed, no
+    // broadcast transaction), so every proof carries the roadmap pill. The section's
+    // rule is shipped-or-says-so, and a panel for a chain with no deploy is exactly
+    // where it matters.
+    proofs: [
+      { label: 'TendaEscrow on Arc testnet, then mainnet', roadmap: true },
+      { label: 'A signed USDC authorization funds the escrow, with no separate gas token', roadmap: true },
     ],
   },
   {

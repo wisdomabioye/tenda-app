@@ -2,6 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { assetSymbol, formatAmountOrUnknown, UNKNOWN_AMOUNT_DISPLAY,
   ASSET_META,
+  USDC_ASSET_IDS,
+  USDC_DECIMALS,
   assertStablePegs,
   getAssetMeta,
   GIG_NATIVE_MAX_DISPLAY,
@@ -331,3 +333,13 @@ test('assetSymbol: the ticker for a registry id, the id itself otherwise — an 
   for (const key of INHERITED_OBJECT_KEYS) assert.equal(assetSymbol(key), key, key)
 })
 
+
+test('Arc: the native USDC (18 decimals) is flagged native and never joins USDC_ASSET_IDS; the ERC-20 does', () => {
+  assert.equal(ASSET_META.USDC_ARC_NATIVE.native, true)
+  assert.equal(ASSET_META.USDC_ARC_NATIVE.decimals, 18)
+  assert.equal(ASSET_META.USDC_ARC_NATIVE.symbol, 'USDC', 'same ticker as the ERC-20 — that is the trap')
+  assert.ok(USDC_ASSET_IDS.includes('USDC_ARC'))
+  assert.ok(!USDC_ASSET_IDS.includes('USDC_ARC_NATIVE'), 'summing an 18-decimal amount with 6-decimal ones is wrong by 10^12')
+  assert.equal(USDC_DECIMALS, 6, 'the settlement unit is still 6 decimals')
+  assert.equal(ASSET_META.USDC_ARC.decimals, 6)
+})

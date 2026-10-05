@@ -794,6 +794,8 @@ test('the testnets Circle serves carry its faucet; 0G Galileo, whose USDC is the
     'eip155:84532': 'https://faucet.circle.com',
     'eip155:11142220': 'https://faucet.circle.com',
     'eip155:16602': null,
+    // VERIFIED 2026-10-05: faucet.circle.com lists "Arc Testnet".
+    'eip155:5042002': 'https://faucet.circle.com',
   })
   for (const c of CHAIN_MANIFEST.filter((c) => c.kind === 'mainnet')) {
     assert.equal(c.faucetUrl, undefined, `${c.id} is a mainnet and declares a faucet`)
@@ -873,4 +875,56 @@ test('0G Galileo is the one open-mint testnet, and every other testnet gig asset
     assert.equal(gig.openMint === true, entry.id === 'eip155:16602', `${entry.id} openMint`)
     assert.equal(entry.faucetUrl !== undefined, entry.id !== 'eip155:16602', `${entry.id} faucetUrl`)
   }
+})
+
+// --- Arc ------------------------------------------------------------------------
+
+test('ARC: two planned entries, chain ids as VERIFIED on-chain, USDC as both gas and payment asset', () => {
+  const arc = CHAIN_MANIFEST.filter((c) => c.family === 'arc')
+  assert.deepEqual(arc.map((c) => c.id), ['eip155:5042', 'eip155:5042002'])
+  const [mainnet, testnet] = arc
+  assert.equal(mainnet.kind, 'mainnet')
+  assert.equal(testnet.kind, 'testnet')
+  // 'planned' until a broadcast transaction with a receipt exists (the ChainStatus rule).
+  for (const c of arc) {
+    assert.equal(c.status, 'planned', `${c.id}: nothing is deployed`)
+    assert.equal(c.namespace, 'eip155')
+    // The native token IS USDC, so the existing "user pays gas in the native token" policy already fits.
+    assert.equal(c.gasPolicy, 'none')
+    assert.equal(c.feeCurrency, undefined)
+  }
+  assert.equal(mainnet.publicRpcUrl, 'https://rpc.mainnet.arc.io')
+  assert.equal(testnet.publicRpcUrl, 'https://rpc.testnet.arc.io')
+  assert.equal(evmChainNumericId('eip155:5042'), 5042)
+  assert.equal(evmChainNumericId('eip155:5042002'), 5042002)
+})
+
+test('ARC: the ERC-20 USDC is the gig asset (6 decimals, EIP-3009 under name USDC / version 2); the native USDC (18) is gas and exchange-only', () => {
+  for (const id of ['eip155:5042', 'eip155:5042002']) {
+    const chain = chainById(id)
+    assert.equal(gigAssetByChain(id), 'USDC_ARC')
+    const erc20 = chain.assets.find((a) => a.id === 'USDC_ARC')
+    assert.equal(erc20?.token, '0x3600000000000000000000000000000000000000')
+    assert.deepEqual(erc20?.permit, { version: '2' })
+    assert.equal(erc20?.eip3009, true)
+    assert.equal(getAssetMeta('USDC_ARC')?.decimals, 6)
+    // The native asset is the chain's ONE native (token null) and carries 18 decimals.
+    assert.equal(nativeAssetOf(chain).id, 'USDC_ARC_NATIVE')
+    assert.equal(getAssetMeta('USDC_ARC_NATIVE')?.decimals, 18)
+    assert.deepEqual(nativeAssetOf(chain).roles, ['exchange'], 'never a gig asset')
+    // And the native currency a wallet is told to add the chain with is USDC at 18.
+    assert.deepEqual(nativeCurrencyOf(chain), { name: 'USDC', symbol: 'USDC', decimals: 18 })
+  }
+})
+
+test('ARC: finality is unmeasured, so the mainnet waits for 2 confirmations and the testnet for 1', () => {
+  // NOT MEASURED (see the manifest entry): the conservative number is a decision, and a quiet
+  // change to it would change when an Arc escrow is treated as final.
+  assert.equal(chainById('eip155:5042').minConfirmations, 2)
+  assert.equal(chainById('eip155:5042002').minConfirmations, 1)
+})
+
+test('ARC: the testnet carries Circle\'s faucet; the mainnet carries none', () => {
+  assert.equal(chainById('eip155:5042002').faucetUrl, 'https://faucet.circle.com')
+  assert.equal(chainById('eip155:5042').faucetUrl, undefined)
 })
