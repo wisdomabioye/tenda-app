@@ -1,21 +1,21 @@
 /**
- * Web port of apps/mobile/hooks/useProfileStats.ts: profile activity
- * counts read as server-side COUNTs (`?mine=…&status=…&limit=1`, answer
- * off `total`) — never derived from a capped page of rows.
+ * The signed-in user's profile activity counts, from ONE round trip
+ * (`GET /v1/users/me/overview`, #17) instead of four limit-1 list reads.
+ * The server computes each figure with the predicate its list route filters
+ * by, so these numbers equal the `total` those lists report.
  *
- * "Posted" excludes drafts (POSTED_ESCROW_STATUSES): a draft is a
- * pre-signature staging row nobody can see; counting it would inflate the
- * number the user reads as "gigs I posted". Mobile's focus refetch
- * becomes mount (web pages remount per navigation).
+ * "Posted" excludes drafts (POSTED_ESCROW_STATUSES, applied server-side): a
+ * draft is a pre-signature staging row nobody can see; counting it would
+ * inflate the number the user reads as "gigs I posted". Mobile's focus
+ * refetch becomes mount (web pages remount per navigation).
+ *
+ * All-or-nothing: one request, so a failure is `error` for every figure —
+ * the old per-call review swallow existed only because four calls could fail
+ * independently.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { POSTED_ESCROW_STATUSES, type EscrowStatus, type LoadStatus } from '@tenda/shared'
+import type { LoadStatus } from '@tenda/shared'
 import { api } from '@/api/client'
-
-/** Statuses that mean "this gig still needs the poster's attention". */
-const ACTIVE_STATUSES: EscrowStatus[] = ['open', 'accepted', 'submitted']
-
-const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
 
 export interface ProfileStats {
   /** Gigs the user has posted on-chain — every status except `draft`. */
@@ -40,30 +40,6 @@ export interface ProfileStats {
 }
 
 const EMPTY = { posted: 0, active: 0, completed: 0, reviews: 0 }
-
-/**
- * Reviews about this user, same convention: smallest page, read the total.
- *
- * Swallows its own failure. It rides the same `Promise.all` as the gig
- * counts, so a rejection here would reject the batch and blank Posted and
- * Completed as well — losing three good numbers because a supplementary
- * fourth was unavailable. A missing count reads as "no reviews yet", which is
- * also what a genuine zero reads as; the gig counts stay true either way.
- */
-async function reviewCountOf(userId: string): Promise<number> {
-  try {
-    const { total } = await api.users.reviews({ id: userId }, { limit: 1 })
-    return total
-  } catch {
-    return 0
-  }
-}
-
-/** One count: smallest legal page, answer read off `total`. */
-async function countOf(mine: 'created' | 'working', status?: EscrowStatus[]): Promise<number> {
-  const { total } = await api.gigs.list({ mine, status, limit: 1 })
-  return total
-}
 
 export function useProfileStats(userId: string | undefined): ProfileStats {
   const [stats, setStats] = useState(EMPTY)
@@ -91,14 +67,9 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
       }
       setStatus('loading')
       try {
-        const [posted, active, completed, reviews] = await Promise.all([
-          countOf('created', POSTED_STATUSES),
-          countOf('created', ACTIVE_STATUSES),
-          countOf('working', ['completed']),
-          reviewCountOf(userId),
-        ])
+        const overview = await api.users.myOverview()
         if (gen !== genRef.current) return
-        setStats({ posted, active, completed, reviews })
+        setStats(overview.stats)
         setStatus('ready')
       } catch {
         // The profile still renders — these counts are supplementary — but it

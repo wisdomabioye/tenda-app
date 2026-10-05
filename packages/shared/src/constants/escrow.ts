@@ -117,6 +117,13 @@ export type EscrowStatusName = (typeof ESCROW_STATUS_ORDER)[number]
 export const POSTED_ESCROW_STATUSES = ESCROW_STATUS_ORDER
 
 /**
+ * Posted gigs that still need the poster's attention — funded, not yet
+ * settled. Behind the profile's "N active" affordance and the overview
+ * endpoint's `active` count; web and mobile each hand-listed it before.
+ */
+export const ACTIVE_ESCROW_STATUSES = ['open', 'accepted', 'submitted'] as const satisfies readonly EscrowStatusName[]
+
+/**
  * Whether an escrow still has value held by the contract.
  *
  * `unsettled` means the on-chain balance has not been paid out or returned, so
