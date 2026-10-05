@@ -17,11 +17,11 @@ test('gig_details declares the remote-has-no-location constraint, exactly once',
   assert.deepEqual(names.filter((n) => n === 'gig_details_remote_no_location'), ['gig_details_remote_no_location'])
 })
 
-test('gig_details declares no other CHECK, and the one it has covers all four location columns', () => {
+test('gig_details declares no other CHECK than the kind pin and the remote rule, and the remote rule covers all four location columns', () => {
   // A new rule belongs here only with its reason.
   const checks = getTableConfig(gig_details).checks
-  assert.deepEqual(checks.map((c) => c.name), ['gig_details_remote_no_location'])
-  const text = new PgDialect().sqlToQuery(checks[0].value).sql
+  assert.deepEqual(checks.map((c) => c.name).sort(), ['gig_details_kind_chk', 'gig_details_remote_no_location'])
+  const text = new PgDialect().sqlToQuery(checks.find((c) => c.name === 'gig_details_remote_no_location')!.value).sql
   for (const column of ['country', 'city', 'latitude', 'longitude']) {
     assert.ok(text.includes(column), `the remote CHECK no longer names ${column}`)
   }
