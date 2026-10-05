@@ -14,7 +14,7 @@
 // nowhere and `pnpm --filter web type-check` was red with TS2304.
 import { vi } from 'vitest'
 import { buttonGeometry, colors, type ColorScheme } from '../../../mobile/theme/tokens'
-import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
+import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
 import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'
 import { TARGETS, targetFromArgv } from '../gen-web-tokens/targets'
 
@@ -142,18 +142,14 @@ describe('tendahq target', () => {
 
   it('pairs every colour token as light-dark(light, dark), in mobile order', () => {
     const dark = new Map(flattenScheme(colors.dark))
-    const kept = light.filter(([property]) => !OMITTED_GROUPS.some((g) => property.startsWith(`--${g}-`)))
-    expect(pairedScheme()).toEqual(kept.map(([property, value]) => [property, value, dark.get(property)]))
+    expect(pairedScheme()).toEqual(light.map(([property, value]) => [property, value, dark.get(property)]))
     expect(css).toContain('--surface-background: light-dark(#F7F5F0, #0D1018);')
     expect(css).toContain('--brand-on-primary: light-dark(#FFFFFF, #FFFFFF);')
   })
 
-  it('omits the dead accent group and nothing else', () => {
-    expect(OMITTED_GROUPS).toEqual(['accent'])
+  it('carries no accent group: the amber was retired from mobile and never reaches a page', () => {
     expect(css).not.toContain('--accent')
-    const omitted = light.filter(([property]) => property.startsWith('--accent-'))
-    expect(omitted.length).toBeGreaterThan(0)
-    expect(pairedScheme()).toHaveLength(light.length - omitted.length)
+    expect(light.some(([property]) => property.startsWith('--accent-'))).toBe(false)
   })
 
   it('refuses a light token with no dark counterpart, and ignores a dark-only one', () => {

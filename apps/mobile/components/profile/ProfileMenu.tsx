@@ -25,11 +25,11 @@ export function ProfileMenu({ items }: { items: MenuItem[] }) {
         const tone = item.tone ?? 'inset'
         const iconBg =
           tone === 'brand'  ? theme.colors.brand.primarySurface :
-          tone === 'accent' ? theme.colors.accent.primarySurface :
+          tone === 'accent' ? theme.colors.feedback.warning.surface :
                               theme.colors.surface.inset
         const iconFg =
           tone === 'brand'  ? theme.colors.brand.primary :
-          tone === 'accent' ? theme.colors.accent.primary :
+          tone === 'accent' ? theme.colors.feedback.warning.base :
                               theme.colors.content.primary
         return (
           <View key={item.label}>

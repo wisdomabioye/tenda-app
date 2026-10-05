@@ -33,8 +33,8 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
               <Star
                 key={i}
                 size={12}
-                color={theme.colors.accent.primary}
-                fill={i < review.score ? theme.colors.accent.primary : 'transparent'}
+                color={theme.colors.feedback.warning.base}
+                fill={i < review.score ? theme.colors.feedback.warning.base : 'transparent'}
                 strokeWidth={i < review.score ? 0 : 1.5}
               />
             ))}

@@ -17,7 +17,7 @@ import type { EscrowListRow } from '@tenda/shared'
 export function MyOfferRow({ offer, side }: { offer: EscrowListRow; side: 'selling' | 'buying' }) {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const sideColor = side === 'selling' ? theme.colors.brand.primary : theme.colors.accent.primary
+  const sideColor = side === 'selling' ? theme.colors.brand.primary : theme.colors.feedback.warning.base
   return (
     <Pressable
       onPress={() => router.push(`/exchange/${offer.id}` as never)}
