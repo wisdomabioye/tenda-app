@@ -10,6 +10,7 @@ export function rejectsFeeCurrency(error: unknown): boolean {
   if (isUserRejection(error) || error instanceof WalletError) return false
   if (typeof error !== 'object' || error === null || !('message' in error)) return false
   return typeof error.message === 'string'
-    && /invalid params feeCurrency\b/i.test(error.message)
+    // MetaMask separates "params" and the field with newlines, not spaces.
+    && /invalid\s+params\s+feeCurrency\b/i.test(error.message)
     && /Expected a value of type [`'"]?never\b/i.test(error.message)
 }

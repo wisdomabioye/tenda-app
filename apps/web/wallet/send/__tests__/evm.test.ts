@@ -70,6 +70,22 @@ beforeEach(() => {
 
 describe('sendEvmTransaction', () => {
   const unsupported = new Error('Invalid params feeCurrency - Expected a value of type `never`, but received: `"0xCUSD"`')
+  const metaMaskError = { code: -32602, message: unsupported.message.replace('Invalid params feeCurrency', 'Invalid params\n\nfeeCurrency') }
+
+  it.each([true, false])('requires consent for the captured MetaMask error: %s', async (approved) => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(approved)
+    request.mockRejectedValueOnce(metaMaskError).mockResolvedValueOnce('0xhash')
+    const pending = sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })
+    if (approved) {
+      await expect(pending).resolves.toBe('0xhash')
+      expect(request).toHaveBeenLastCalledWith({ method: 'eth_sendTransaction', params: [{
+        from: TX.from, to: TX.to, data: TX.data, value: '0xf4240',
+      }] })
+    } else await expect(pending).rejects.toMatchObject({ code: 'declined' })
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledTimes(approved ? 2 : 1)
+  })
 
   it('logs the caught feeCurrency error before propagating it unchanged', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
@@ -132,6 +148,8 @@ describe('sendEvmTransaction', () => {
     new Error('execution reverted'), new Error('RPC timeout'),
     { code: 4001, message: unsupported.message },
     new Error('Invalid params feeCurrency: invalid address'),
+    { code: -32602, message: 'Invalid params: invalid address' },
+    { code: 4001, message: metaMaskError.message },
   ])('never retries ambiguous, rejected or unrelated errors: %s', async (error) => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
     const confirm = vi.spyOn(window, 'confirm')

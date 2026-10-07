@@ -13,6 +13,7 @@ import { connectionSignal } from '../../reown/connection-signal'
 
 const tx = { from: '0xA', to: '0xB', data: '0x', value: '0', chainId: 'eip155:42220', feeCurrency: '0xAdapter' }
 const unsupported = new Error('Invalid params feeCurrency - Expected a value of type `never`, but received: `"0xAdapter"`')
+const metaMaskError = { code: -32602, message: unsupported.message.replace('Invalid params feeCurrency', 'Invalid params\n\nfeeCurrency') }
 const request = jest.fn()
 
 beforeEach(() => {
@@ -26,6 +27,20 @@ function consent(button: number) {
   jest.spyOn(useNativeGasConfirmation.getState(), 'request').mockImplementation(() =>
     button === 1 ? Promise.resolve() : Promise.reject({ code: 'declined' }))
 }
+
+test.each([true, false])('captured MetaMask error requires native gas consent: %s', async approved => {
+  consent(approved ? 1 : 0)
+  request.mockRejectedValueOnce(metaMaskError).mockResolvedValueOnce('0xhash')
+  const pending = sendEvmTransaction(tx)
+  if (approved) {
+    await expect(pending).resolves.toBe('0xhash')
+    expect(request).toHaveBeenLastCalledWith({
+      method: 'eth_sendTransaction', params: [{ from: tx.from, to: tx.to, data: tx.data, value: '0x0' }],
+    }, tx.chainId)
+  } else await expect(pending).rejects.toMatchObject({ code: 'declined' })
+  expect(useNativeGasConfirmation.getState().request).toHaveBeenCalledTimes(1)
+  expect(request).toHaveBeenCalledTimes(approved ? 2 : 1)
+})
 
 test('confirmed fallback delegates gas handling to the wallet without balance or fee RPC reads', async () => {
   consent(1)
@@ -62,6 +77,8 @@ test('wallet gas errors propagate without a further retry', async () => {
 test.each([
   new Error('timeout'), new Error('execution reverted'),
   { code: 4001, message: unsupported.message }, new Error('Invalid params feeCurrency: invalid address'),
+  { code: -32602, message: 'Invalid params: invalid address' },
+  { code: 4001, message: metaMaskError.message },
 ])('other failures never prompt or retry: %s', async error => {
   const prompt = jest.spyOn(useNativeGasConfirmation.getState(), 'request')
   request.mockRejectedValueOnce(error)
