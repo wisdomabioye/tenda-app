@@ -20,6 +20,7 @@ import {
   WalletError,
   connectThenSign,
   isUserRejection,
+  rejectsFeeCurrency,
   guardWalletRequest,
   type SignMessageResult,
   type WalletAccount,
@@ -29,6 +30,7 @@ import { connectionSignal, type EvmRequestProvider } from '../reown/connection-s
 import { reownConfigured } from '../reown/config'
 import { WALLET_CHAINS } from '../config'
 import type { WalletAdapter } from './types'
+import { confirmNativeGas } from './fee-currency'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
 function asScope(chainId: string | undefined): string {
@@ -174,8 +176,8 @@ async function getRestoredAccount(): Promise<WalletAccount | null> {
 
 /**
  * Send a prepared EVM transaction over the connected WC session. Targets
- * `input.chainId`'s scope directly. `feeCurrency` rides along for CELO, wallets
- * that support it show gas in cUSD; others ignore it. Returns the tx hash.
+ * `input.chainId`'s scope directly. Explicit rejection of CELO's USDC gas
+ * parameter offers native gas with consent. Other errors never retry.
  */
 export async function sendEvmTransaction(input: {
   from: string
@@ -187,22 +189,31 @@ export async function sendEvmTransaction(input: {
   chainId?: string
   feeCurrency?: string
 }): Promise<string> {
-  return requestStringOverSession(
-    {
-      method: 'eth_sendTransaction',
-      params: [
-        {
-          from: input.from,
-          to: input.to,
-          data: input.data,
-          value: `0x${BigInt(input.value).toString(16)}`,
-          ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
-        },
-      ],
-    },
-    asScope(input.chainId),
-    'tx hash',
-  )
+  const scope = asScope(input.chainId)
+  const transaction = {
+    from: input.from, to: input.to, data: input.data,
+    value: `0x${BigInt(input.value).toString(16)}`,
+  }
+  try {
+    return await requestStringOverSession(
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            ...transaction,
+            ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+          },
+        ],
+      },
+      scope,
+      'tx hash',
+    )
+  } catch (error) {
+    if (input.feeCurrency === undefined || !rejectsFeeCurrency(error)) throw error
+    await confirmNativeGas()
+    await ensureSessionChain(scope)
+    return requestStringOverSession({ method: 'eth_sendTransaction', params: [transaction] }, scope, 'tx hash')
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context'
 import { ToastProvider } from '@/components/ui/Toast'
 import { NotificationPrimerHost } from '@/components/notifications'
+import { NativeGasConfirmationHost } from '@/components/escrow/NativeGasConfirmationHost'
 import { ReownProvider } from '@/wallet/reown/bridge'
 import { configureNotifications } from '@/lib/notifications'
 import { initReporter, wrapApp } from '@/lib/reporter'
@@ -63,6 +64,7 @@ export default wrapApp(function RootLayout() {
         {/* Sits above the stack so the permission primer can follow the user
             across the tab and modal stacks from a single mount. */}
         <NotificationPrimerHost />
+        <NativeGasConfirmationHost />
       </ToastProvider>
       <StatusBar style="auto" />
       </ReownProvider>

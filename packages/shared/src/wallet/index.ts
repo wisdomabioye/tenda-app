@@ -3,6 +3,7 @@ export type { WalletAccount, SignMessageResult, AuthenticateResult } from './typ
 export { connectThenSign, isUserRejection, type ConnectSignParts } from './connect-then-sign'
 export { classifyConnectError, type ConnectErrorCopy } from './connect-error'
 export { transactionFailureMessage } from './provider-error'
+export { rejectsFeeCurrency } from './fee-currency'
 export * from './balances'
 export { evmRpc, evmRpcString, hexToDecimalString, addressWord, amountWord } from './evm-rpc'
 export {

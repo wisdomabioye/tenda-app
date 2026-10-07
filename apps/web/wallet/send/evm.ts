@@ -9,8 +9,9 @@
  * on — so a failed switch ABORTS with instructions instead of broadcasting a
  * transaction that is guaranteed to land on the wrong chain.
  */
-import { WalletError, isUserRejection, chainLabel } from '@tenda/shared'
+import { WalletError, isUserRejection, chainLabel, rejectsFeeCurrency } from '@tenda/shared'
 import { WALLET_CHAINS } from '../config'
+import { approveNativeGasFallback } from './fee-currency'
 import { requireTxModal, guardTxRequest, type EvmRequestProvider, type TxModal } from './session'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
@@ -61,8 +62,9 @@ async function requestString(
 
 /**
  * Send a prepared EVM transaction through the connected wallet. `feeCurrency`
- * rides along for CELO (wallets that support it show gas in cUSD; others
- * ignore it). Returns the tx hash. Signature-compatible with the shared
+ * requests USDC gas on CELO. Explicit schema rejection offers native gas
+ * with user consent; ambiguous failures never retry. Returns the tx hash.
+ * Signature-compatible with the shared
  * allowance module's `SendEvmTx` seam.
  */
 export async function sendEvmTransaction(input: {
@@ -79,22 +81,32 @@ export async function sendEvmTransaction(input: {
   // BEFORE the main request: a refused switch must abort with nothing queued
   // in the wallet, not leave a dangling wrong-chain tx prompt.
   await ensureEvmChain(modal, asScope(input.chainId))
-  return requestString(
-    modal,
-    {
-      method: 'eth_sendTransaction',
-      params: [
-        {
-          from: input.from,
-          to: input.to,
-          data: input.data,
-          value: `0x${BigInt(input.value).toString(16)}`,
-          ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
-        },
-      ],
-    },
-    'tx hash',
-  )
+  const transaction = {
+    from: input.from,
+    to: input.to,
+    data: input.data,
+    value: `0x${BigInt(input.value).toString(16)}`,
+  }
+  try {
+    return await requestString(
+      modal,
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            ...transaction,
+            ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+          },
+        ],
+      },
+      'tx hash',
+    )
+  } catch (error) {
+    if (input.feeCurrency === undefined || !rejectsFeeCurrency(error)) throw error
+    await approveNativeGasFallback(() => ensureEvmChain(modal, asScope(input.chainId)))
+    await ensureEvmChain(modal, asScope(input.chainId))
+    return requestString(modal, { method: 'eth_sendTransaction', params: [transaction] }, 'tx hash')
+  }
 }
 
 /**

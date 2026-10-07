@@ -46,6 +46,7 @@
  * stopped being true.
  */
 module.exports = [
+  'components/escrow/NativeGasConfirmationHost.tsx',
   ...require('./coverage-scope-profile'),
   // The notification centre: the feed store and the screen that reads it.
   // Added in #57 with the cases that fix the empty-state blink; measured

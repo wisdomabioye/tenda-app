@@ -60,6 +60,7 @@ let modal: FakeModal
 let request: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
+  vi.restoreAllMocks()
   modal = fakeModal()
   request = vi.fn(async () => '0xhash')
   modal.getProvider = vi.fn((ns: ChainNamespace) => (ns === 'eip155' ? { request } : undefined))
@@ -67,6 +68,68 @@ beforeEach(() => {
 })
 
 describe('sendEvmTransaction', () => {
+  const unsupported = new Error('Invalid params feeCurrency - Expected a value of type `never`, but received: `"0xCUSD"`')
+
+  it('offers native gas after explicit rejection without balance or fee RPC reads', async () => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    request.mockRejectedValueOnce(unsupported).mockResolvedValueOnce('0xhash')
+    await expect(sendEvmTransaction({ ...TX, value: '0', feeCurrency: '0xCUSD' })).resolves.toBe('0xhash')
+    expect(request).toHaveBeenLastCalledWith({
+      method: 'eth_sendTransaction', params: [{ from: TX.from, to: TX.to, data: TX.data, value: '0x0' }],
+    })
+    expect(request).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not send again when native gas consent is declined', async () => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    request.mockRejectedValueOnce(unsupported)
+    await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toMatchObject({ code: 'declined' })
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the target chain before retrying after consent', async () => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    vi.spyOn(window, 'confirm').mockImplementation(() => {
+      modal.getCaipNetwork.mockReturnValue({ caipNetworkId: 'eip155:8453' })
+      return true
+    })
+    const order: string[] = []
+    modal.switchNetwork.mockImplementation(async () => {
+      order.push('switch')
+      modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    })
+    request.mockRejectedValueOnce(unsupported).mockImplementation(async ({ method }: { method: string }) => {
+      order.push(method)
+      return method === 'eth_sendTransaction' ? '0xhash' : '0xffff'
+    })
+    await expect(sendEvmTransaction({ ...TX, value: '0', feeCurrency: '0xCUSD' })).resolves.toBe('0xhash')
+    expect(order[0]).toBe('switch')
+    expect(order.slice(1)).toEqual(['eth_sendTransaction'])
+  })
+
+  it('propagates wallet gas errors without a further retry', async () => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const error = new Error('insufficient funds for gas')
+    request.mockRejectedValueOnce(unsupported).mockRejectedValueOnce(error)
+    await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toBe(error)
+    expect(request).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    new Error('execution reverted'), new Error('RPC timeout'),
+    { code: 4001, message: unsupported.message },
+    new Error('Invalid params feeCurrency: invalid address'),
+  ])('never retries ambiguous, rejected or unrelated errors: %s', async (error) => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    const confirm = vi.spyOn(window, 'confirm')
+    request.mockRejectedValueOnce(error)
+    await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toBe(error)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(confirm).not.toHaveBeenCalled()
+  })
   it('sends the request with a hex-encoded wei value', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: 'eip155:84532' })
     await expect(sendEvmTransaction(TX)).resolves.toBe('0xhash')
