@@ -26,7 +26,7 @@ export { TEST_DB_CONFIGURED } from './env'
 // The leased test-database pool (#49): the URL derivation is asserted by
 // test/unit/test-db-slot.test.ts, which reaches it through this barrel like
 // every other suite reaches the rest of the harness.
-export { slotUrl, SLOT_COUNT } from './slot'
+export { slotUrl, SLOT_COUNT, leaseSlot, type SuiteLease } from './slot'
 
 export {
   FAKE_BAD_SIGNATURE,

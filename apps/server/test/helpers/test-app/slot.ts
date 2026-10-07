@@ -27,6 +27,7 @@ import { join } from 'node:path'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
+import { loadConfig } from '@server/config'
 
 /**
  * How many slot databases the pool may use.
@@ -134,6 +135,9 @@ export async function leaseSlot(baseUrl: string): Promise<SuiteLease> {
   await ensureDatabase(baseUrl, name)
   process.env.DATABASE_URL = url
   await migrateSlot(url)
+  // Config may have been read at module initialization, before the lease.
+  // The DB plugin must see the leased URL, never the cached base database.
+  loadConfig()
 
   return {
     async release() {
@@ -164,6 +168,7 @@ export async function lockBaseDatabase(baseUrl: string): Promise<SuiteLease> {
   await lock`select pg_advisory_lock(${BASE_DB_LOCK})`
   process.env.DATABASE_URL = baseUrl
   await migrateSlot(baseUrl)
+  loadConfig()
   return {
     async release() {
       await lock`select pg_advisory_unlock(${BASE_DB_LOCK})`

@@ -47,6 +47,8 @@ import {
   realEvmRegistry,
   resetDb,
   seedAltChain,
+  leaseSlot,
+  type SuiteLease,
 } from '../helpers/test-app'
 import { agentTaskBody, registerAgent, signRelayTerms } from '../helpers/agent'
 import { VOLATILE, sameShape, writeRecording } from '../helpers/x402-recording'
@@ -74,6 +76,7 @@ const agent = privateKeyToAccount(generatePrivateKey())
 
 let fx: AnvilFixture
 let app: FastifyInstance
+let lease: SuiteLease | undefined
 
 before(async () => {
   if (skip) return
@@ -107,12 +110,14 @@ before(async () => {
       }),
     },
   })
+  lease = await leaseSlot(process.env.TEST_DATABASE_URL!)
   app = await buildTestApp({ chains: realEvmRegistry(adapter) })
 })
 
 after(async () => {
   if (app !== undefined) await app.close()
   fx?.kill()
+  await lease?.release()
 })
 
 /**

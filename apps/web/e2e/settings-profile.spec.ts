@@ -71,6 +71,19 @@ test('the profile states the rating WITH the number of reviews behind it', async
   await expect(page.getByText('from 3 reviews')).toBeVisible()
 })
 
+test('the profile hides a score when the overview reports no reviews', async ({ page }) => {
+  await page.route('**/v1/users/me/overview', (route) => route.fulfill({
+    json: {
+      stats: { posted: 1, active: 1, completed: 1, reviews: 0 },
+      open_disputes: 0,
+    },
+  }))
+  await signInToHome(page)
+  await page.goto('/profile')
+  await expect(page.getByText('No reviews yet')).toBeVisible()
+  await expect(page.getByText('4.8', { exact: true })).toHaveCount(0)
+})
+
 test('the profile shows what the account has PROVED, not what it has attached', async ({ page }) => {
   await signInToHome(page)
   await page.goto('/profile')

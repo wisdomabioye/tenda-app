@@ -13,7 +13,8 @@
  * that it does NOT refuse a harmless retirement, and that the DB is left
  * untouched when it refuses — a guard that throws after writing is no guard.
  */
-import { test } from 'node:test'
+import '../helpers/boot-env'
+import { before, test } from 'node:test'
 import assert from 'node:assert'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
@@ -22,7 +23,7 @@ import { assets, chains } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
 import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot/seed'
 import { getChainSecrets, resetChainSecretsCache } from '@server/chains/secrets'
-import { buildSeedRows } from '@server/db/seed/seed-v2'
+import { buildSeedRows, runSeed } from '@server/db/seed/seed-v2'
 
 const skip = !TEST_DB_CONFIGURED
 
@@ -32,6 +33,11 @@ const skip = !TEST_DB_CONFIGURED
 // mid-test AND this file's registry writes collide with that suite's re-seed
 // INSERT. Both were observed in a full run; each file passes alone.
 useSuiteLock()
+// Asset-retirement cases need a genuinely seeded active chain, independent of
+// whether a preceding case happened to run the seed successfully.
+before(async () => {
+  if (!skip) await runSeed(process.env.TEST_DATABASE_URL)
+})
 const log = { info: () => {}, warn: () => {} }
 // Refuses instantly (ECONNREFUSED) — proves the flag gate without a timeout.
 const DEAD_DB_URL = 'postgresql://postgres:postgres@127.0.0.1:59999/nope'

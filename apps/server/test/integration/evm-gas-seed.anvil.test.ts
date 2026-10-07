@@ -89,13 +89,13 @@ after(() => {
 
 test('an UNFUNDED seed wallet cannot pay, and nothing half-succeeds', { skip }, async () => {
   // Runs before the wallet is funded, on purpose: this is the state every new
-  // deployment starts in. The failure surfaces from the BROADCAST, not from
-  // signing — signing only needs a nonce and a gas estimate — and the claim job
-  // pre-flights the balance precisely so this case is caught before a signature
-  // exists.
+  // deployment starts in. Nodes may refuse during gas estimation or broadcast;
+  // either way, an unfunded wallet must never deliver money.
   const recipient = freshRecipient()
-  const signed = await sender.sign({ to_address: recipient, amount_raw: SEED_AMOUNT })
-  await assert.rejects(() => signed.broadcast())
+  await assert.rejects(async () => {
+    const signed = await sender.sign({ to_address: recipient, amount_raw: SEED_AMOUNT })
+    await signed.broadcast()
+  }, /insufficient funds|exceeds the balance/i)
   assert.strictEqual(await fx.pub.getBalance({ address: recipient }), 0n)
 })
 

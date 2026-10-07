@@ -12,6 +12,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `solana.ts` | `fakeSolanaRpc()`, escrow/platform account encoders + event-log builders for verify-tx tests |
 | `stub-rpc.ts` | `startStubRpc()` — a throwaway JSON-RPC node on a REAL socket, for asserting what the server puts on the wire rather than what a mocked transport was told (EVM listeners, and both relayers' live calls — viem's transport and web3's `Connection`); `withEvmChainEnv()` points one chain's secrets at it and restores them |
 | `chains-boot.ts` | `withBootedChainsApp()`, `seedBootChain()`, `withNoChainsConfigured()` — an app carrying the REAL chains plugin, which no route suite has (the harness substitutes a fake registry), plus the no-chain environment its boot refusal needs |
+| `boot-env.ts` | Import-first, process-scoped deterministic chain configuration for boot/CLI suites and the root app test; removes inherited deployment chains and configures one fixture chain without contacting RPC |
 | `agent.ts` | `registerAgent()` (through the real POST /v1/agent/register with a nonce-signed proof on the eip155 harness chain), `agentTaskBody()`, `agentWalletAddress()`, `agentPaymentHeader()`, `signRelayTerms()` (sign 402 terms VERBATIM into the resend envelope — shared by the relay suite and #109's recorder so both sign identically), `TaskPost` (the body type the refusal cases post — a widened `category` plus the `permit` the one-shot refuses) — the Agent API v1 suites' fixtures, shared by `agent-tasks` and `agent-tasks-listing` |
 | `x402-recording.ts` | `sameShape()`, `VOLATILE`, `writeRecording()` — comparing the PUBLISHED x402 recording (`packages/api-doc/src/recorded-exchange.ts`, inlined into the Agent API document as #109's examples) against a fresh capture, and re-writing it via `pnpm record:x402`. Shape and stable values are both compared; the fields that differ every run are named one by one in `VOLATILE` rather than skipped by a loose match |
 | `agent-demo-env.ts` | `DEMO_ADDRESS`, `DEMO_DRAFT_CAP` — a side-effect module that sets `AGENT_DEMO_ADDRESS` for the demo-session suites (#108) and a draft-ring cap of three (#147) so a case can fill the ring in a handful of posts; **import it first**, since `getConfig()` memoises on first read and imports hoist above statements. The unconfigured case has its own suite because one process cannot hold both answers |
@@ -51,8 +52,9 @@ cost of an incomplete table here is not a stale doc: a reader who cannot find an
 existing helper writes a second one, which is the failure this directory exists to
 prevent.
 
-The fastify-cli `test/helper.ts` (`build()`) predates these and stays for the
-suites that use it; new helpers extend rather than replace it.
+`test/helper.ts` (`build()`) boots the production app directly, without the
+fastify-cli helper's unconditional `.env` loading. Its root-route suite uses
+`boot-env.ts` and a migrated, locked test database.
 
 ## Conventions
 
@@ -64,10 +66,14 @@ suites that use it; new helpers extend rather than replace it.
 - No `any` / `unknown` casts (project rule); fixtures expose narrow types.
 - `useTestApp()` DOES truncate every public table before each test (its
   `beforeEach` calls `resetDb()`, which then re-seeds the chain/asset rows).
-  The older fastify-cli `test/helper.ts` `build()` path does not — suites on
+  The production-app `test/helper.ts` `build()` path does not — suites on
   that one must use unique values (e.g. random category names) rather than
   relying on a clean slate. This line used to state the second half as a
   blanket rule, which stopped being true when `useTestApp` landed.
+- Leases refresh cached config after selecting/migrating their database, so
+  an eager `getConfig()` cannot pin an app to the base database. Custom app
+  lifecycles must acquire `leaseSlot()` before `buildTestApp()` and release it
+  after closing the app; `useTestApp()` does both automatically.
 
 ## Importing
 

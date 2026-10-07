@@ -3,7 +3,6 @@ import type {
   ChallengeBody,
   MeResponse,
   MyApplication,
-  MyOverviewResponse,
   PaginatedResponse,
   UpdateMeInput,
   UserEscrowTransaction,
@@ -20,6 +19,7 @@ import { createNotificationsWorld, handleNotifications, resetNotificationsWorld 
 import { ENABLED_CHAIN_IDS } from './chains'
 import { handleFiat, resetFiatWorld } from './fiat'
 import { handleReviews } from './reviews'
+import { handleOverview } from './overview'
 import { handleCompletedWork } from './completed-work'
 import { handleProfile } from './profiles'
 import { errorEnvelope, json, type StubResponse } from './reply'
@@ -66,18 +66,8 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     }
     return json(me)
   }
-  // Dashboard/profile counts (#17): one auth-gated read. Fixed figures — the
-  // stub models no ownership (see stub-api's `?mine=` note); specs that need a
-  // particular number stub it themselves.
-  if (url.pathname === '/v1/users/me/overview' && method === 'GET') {
-    const user = userForBearer(world, authorization)
-    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
-    const overview: MyOverviewResponse = {
-      stats: { posted: 1, active: 1, completed: 1, reviews: 0 },
-      open_disputes: 0,
-    }
-    return json(overview)
-  }
+  const overview = handleOverview(url, method, userForBearer(world, authorization) !== null)
+  if (overview !== null) return overview
   // Wallet screen (S3.5): lifetime totals are a server aggregate; the feed is
   // one page with a payout row credited to the signed-in worker.
   if (/^\/v1\/users\/[^/]+\/transactions\/summary$/.test(url.pathname) && method === 'GET') {
@@ -291,15 +281,9 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const input = JSON.parse(body) as UpdateMeInput
-    // Only the NAMES are persisted, though UpdateMeInput also carries country,
-    // city, bio, avatar_url and advanced_mode_enabled. Not an oversight: spec
-    // FILES run in parallel against this one stub process and all sign in as
-    // the same account, so every additional persisted field becomes state
-    // shared between tests that never agreed to share it. Persisting the CO4
-    // flag here was tried and immediately broke `wallet-sell`, which asserts
-    // what the P2P surface shows. A test that needs a persisted preference
-    // wants a `__e2e/reset-auth` control route first, like chat and
-    // notifications have.
+    // Persist only names: parallel specs share this account, and persisting
+    // preferences previously broke wallet-sell's P2P assertions. Preference
+    // round-trips need a reset-auth control route, like chat/notifications.
     if (input.first_name !== undefined) user.first_name = input.first_name
     if (input.last_name !== undefined) user.last_name = input.last_name
     // is_seeker is NOT patchable (Seeker device fee tier, signup-bootstrap

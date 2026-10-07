@@ -229,6 +229,8 @@ is authoritative and the README drift test fails if these rows diverge.
 | Celo Sepolia | Testnet | Live | Fee currency |
 | 0G Galileo | Testnet | Live | Native seed |
 | 0G | Mainnet | Live | Native seed |
+| Arc | Mainnet | Planned | None |
+| Arc Testnet | Testnet | Planned | None |
 
 “Live” means the manifest records a confirmed Tenda escrow deployment or program
 for that network. It does not mean every deployment of the API has enabled that

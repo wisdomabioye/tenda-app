@@ -19,6 +19,8 @@ const REVIEWS = [
   { id: 'rev-3', escrow_id: 'esc-3', reviewer_id: 'user-trader', reviewee_id: EXISTING_USER_ID, score: 4, comment: 'Good work, arrived a little late.', created_at: '2026-08-03T09:00:00Z' },
 ]
 
+export const REVIEW_COUNT = REVIEWS.length
+
 /**
  * Paginated, because the surface states the SERVER total rather than the size
  * of the page it happened to load — `null` when this is not a reviews URL.

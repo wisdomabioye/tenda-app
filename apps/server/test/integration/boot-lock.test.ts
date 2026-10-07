@@ -14,6 +14,7 @@
  *      unbounded hang, which is a container that never reports ready and never
  *      says why
  */
+import '../helpers/boot-env'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import postgres from 'postgres'
