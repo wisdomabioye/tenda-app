@@ -61,6 +61,7 @@ let request: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
   modal = fakeModal()
   request = vi.fn(async () => '0xhash')
   modal.getProvider = vi.fn((ns: ChainNamespace) => (ns === 'eip155' ? { request } : undefined))
@@ -69,6 +70,15 @@ beforeEach(() => {
 
 describe('sendEvmTransaction', () => {
   const unsupported = new Error('Invalid params feeCurrency - Expected a value of type `never`, but received: `"0xCUSD"`')
+
+  it('logs the caught feeCurrency error before propagating it unchanged', async () => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    const error = { code: -32602, message: 'Invalid params\n\nfeeCurrency' }
+    request.mockRejectedValueOnce(error)
+    await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toBe(error)
+    expect(console.warn).toHaveBeenCalledWith('[Tenda wallet] feeCurrency request failed', error)
+    expect(request).toHaveBeenCalledTimes(1)
+  })
 
   it('offers native gas after explicit rejection without balance or fee RPC reads', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
@@ -138,6 +148,7 @@ describe('sendEvmTransaction', () => {
       params: [{ from: '0xFrom', to: '0xTo', data: '0xdead', value: `0x${(1_000_000).toString(16)}` }],
     })
     expect(modal.switchNetwork).not.toHaveBeenCalled()
+    expect(console.warn).not.toHaveBeenCalled()
   })
 
   it('feeCurrency rides along only when present (CELO)', async () => {

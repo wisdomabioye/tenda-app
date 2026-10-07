@@ -12,6 +12,7 @@
 import { WalletError, isUserRejection, chainLabel, rejectsFeeCurrency } from '@tenda/shared'
 import { WALLET_CHAINS } from '../config'
 import { approveNativeGasFallback } from './fee-currency'
+import { logFeeCurrencyRequestFailure } from './diagnostic'
 import { requireTxModal, guardTxRequest, type EvmRequestProvider, type TxModal } from './session'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
@@ -102,6 +103,7 @@ export async function sendEvmTransaction(input: {
       'tx hash',
     )
   } catch (error) {
+    if (input.feeCurrency !== undefined) logFeeCurrencyRequestFailure(error)
     if (input.feeCurrency === undefined || !rejectsFeeCurrency(error)) throw error
     await approveNativeGasFallback(() => ensureEvmChain(modal, asScope(input.chainId)))
     await ensureEvmChain(modal, asScope(input.chainId))
