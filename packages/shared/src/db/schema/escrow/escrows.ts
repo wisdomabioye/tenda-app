@@ -16,6 +16,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
@@ -219,6 +220,11 @@ export const escrows = pgTable(
       sql`${t.creator_id} <> ${t.assigned_counterparty_id}`,
     ),
     check('escrows_amount_positive_chk', sql`${t.amount_raw} > 0`),
+    // The FK TARGET for the satellites' (escrow_id, kind) composite keys below:
+    // a satellite row can only exist beside an escrow of ITS kind. `id` alone is
+    // already unique, so this constraint adds no restriction of its own; it exists
+    // so the pair can be referenced.
+    unique('escrows_id_kind_uq').on(t.id, t.kind),
     foreignKey({
       name: 'escrows_asset_chain_fk',
       columns: [t.asset, t.chain_id],

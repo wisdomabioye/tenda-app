@@ -18,7 +18,7 @@ import { FEE_PCT, SEEKER_FEE_PCT } from './fees'
 
 export interface EcosystemPanel {
   /** Manifest family — joins to LANDING_CHAINS for name/glyph/colour. */
-  chainFamily: '0g' | 'solana' | 'base' | 'celo'
+  chainFamily: '0g' | 'solana' | 'base' | 'celo' | 'arc'
   /** Why Tenda builds here — one sentence. */
   why: string
   /** Shipped integration proof points, most impressive first. */
@@ -26,7 +26,10 @@ export interface EcosystemPanel {
 }
 
 // Panel order mirrors LANDING_CHAINS: 0G leads (launch positioning, 2026-08-27).
-export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
+// EVERY panel is authored here, including a PAUSED chain's (Base, 2026-10-02):
+// the exported list below keeps only the chains the landing talks about, so
+// re-enabling a chain brings its panel back with no copy to rewrite.
+const AUTHORED_PANELS: readonly EcosystemPanel[] = [
   {
     chainFamily: '0g',
     why: 'The AI-native chain — Tenda is building the rails for AI agents to hire humans, and 0G is where they live.',
@@ -67,6 +70,18 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     ],
   },
   {
+    chainFamily: 'arc',
+    why: 'USDC is both the gas and the payment, so a poster or worker holds one token and nothing else.',
+    // NOTHING here is shipped: Arc is planned in the manifest (no escrow deployed, no
+    // broadcast transaction), so every proof carries the roadmap pill. The section's
+    // rule is shipped-or-says-so, and a panel for a chain with no deploy is exactly
+    // where it matters.
+    proofs: [
+      { label: 'TendaEscrow on Arc testnet, then mainnet', roadmap: true },
+      { label: 'A signed USDC authorization funds the escrow, with no separate gas token', roadmap: true },
+    ],
+  },
+  {
     chainFamily: 'celo',
     why: 'A chain designed for exactly Tenda’s users — mobile-first, stablecoin-first, emerging markets first.',
     proofs: [
@@ -76,6 +91,11 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     ],
   },
 ] as const
+
+/** The panels for chains users may use: a paused chain is not advertised, not even as a roadmap. */
+export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = AUTHORED_PANELS.filter((panel) =>
+  LANDING_CHAINS.some((chain) => chain.family === panel.chainFamily),
+)
 
 /**
  * Field labels for the per-chain reference facts, and the copy control's two

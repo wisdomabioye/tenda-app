@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto'
 import { type Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { evmAdapter } from '@server/chains/evm'
-import { authorizationNonce, buildCreateParams } from '@server/chains/evm/create-params'
+import { authorizationNonce, buildCreateParams } from '@server/chains/evm/build/create-params'
 import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
 import { AppError } from '@server/lib/errors'
 import type { CreateEscrowPayload, RelayedCreateArgs } from '@server/chains/types'
@@ -64,7 +64,7 @@ function payload(escrow_id: string, overrides: Partial<CreateEscrowPayload> = {}
   return {
     escrow_id,
     kind: 'gig',
-    asset: 'USDC_BASE',
+    asset: 'USDC_0G',
     amount_raw: AMOUNT,
     accept_deadline_unix: Math.floor(Date.now() / 1000) + 3_600,
     completion_duration_seconds: 7_200,

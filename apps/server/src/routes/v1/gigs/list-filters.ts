@@ -10,7 +10,7 @@
  * filter parsing wrapped around two queries. Every function here maps the
  * QUERYSTRING to SQL and nothing else, which makes them readable in isolation
  * and reachable from a test without a request — `queryConditions` takes the
- * chain registry as a parameter (a structural type, see lib/chain-filter)
+ * chain registry as a parameter (a structural type, see lib/http/chain-filter)
  * precisely so that stays true. What is NOT here is anything needing the
  * REQUEST: the `mine` branch authenticates and reads `request.user`, so it
  * stays in the handler where the auth lives.
@@ -34,9 +34,9 @@ import {
 } from '@tenda/shared'
 import type { GigsContract, GigCategory, EscrowStatus } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
-import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/chain-filter'
-import { amountWindowConditions } from '@server/lib/amount-window'
+import { gigSearchCondition, gigSearchRank } from '@server/features/gigs/gig-search'
+import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/http/chain-filter'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
 
 type ListQuery = GigsContract['list']['query']
 

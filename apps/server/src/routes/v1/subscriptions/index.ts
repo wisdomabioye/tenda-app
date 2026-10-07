@@ -1,9 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { uuidParamGuard } from '@server/lib/http/guards'
 import { and, eq } from 'drizzle-orm'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
 import { AppError } from '@server/lib/errors'
 import type { SubscriptionsContract, ApiError } from '@tenda/shared'
 

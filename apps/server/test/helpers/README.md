@@ -26,11 +26,11 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `alert-fixtures.ts` | `disputeRaisedAlert()` — the fat, post-resolver alert a CHANNEL renders, as opposed to the thin `AlertRef` that rides the queue |
 | `alert-log.ts` | `alertLogSpy()` — the `AlertLogger` double; records info AND warn, because "warned and did not throw" is what most of the alerts tests actually assert |
 | `alert-channel-contract.ts` | `testChannelContract()` — REGISTERS the tests every alert channel must pass, one named test per property, so a failure names which property and which channel |
+| `fake-redis-pubsub.ts` | `createFakeRedisHub()` — in-memory Redis pub/sub shared by every client it makes, so a two-instance test ("pod A mutates, pod B sees it") runs without a Redis; `settle()` lets deliveries land |
 | `fetch-stub.ts` | `stubFetch()`, `stubFetchRejecting()`, `restoreFetch()`, `stubExpoPush()` — the outbound-HTTP double; returns a REAL `Response`, so no fixture can describe an impossible one like `{ ok: true, status: 500 }` |
 | `fiat-intents.ts` | `seedFiatIntent()`, `TEST_FIAT_PROVIDER` — insert one intent in a chosen status. No public route creates an intent in an arbitrary status, and the cases that need one are about the status a read or an override FINDS it in |
 | `route-table.ts` | `servedPaths(app)` — every URL the server actually serves, parsed back out of `printRoutes`. Split out of the drift suite in #121; the format is read from find-my-way's own pretty-printer, not guessed from a sample |
-| `agent-api-validator.ts` | `strictAjv()`, `agentApiAjv()`, `COMPONENT_REF_PREFIX` — the ONE strict-validator configuration the Agent API suites share (no coercion, no unknown-key stripping), with every component schema registered under its `$ref`; pinned here so a loosened copy cannot quietly weaken one suite |
-| `document-prose.ts` | `plainProse(text)` — an operation description with its `**`/`` ` `` taken off and case folded, for the guards that assert what the document SAYS. Those descriptions are CommonMark and are rendered as such; a guard written against the raw string decides the fact AND its typography, and fails the moment the prose is formatted. Used by `agent-api-example-capture` and `agent-api-lifecycle`; the phrases stay whole, so a fact going missing still fails. |
+| `pause-chain.ts` | `withChainPaused(chain_id, body)` — sets `paused` on a live manifest entry for the length of the body and restores it in `finally`, so a thrown assertion cannot leave a chain paused for every later suite in the process |
 | `source-scan.ts` | `stripComments()`, `tsFilesUnder()` — for the few invariants only a source read can catch; blanks comment bodies while preserving line numbers, so a scan cannot match the prose ABOUT the pattern it hunts, and walks a directory once so three guards do not each re-declare a recursive walk that could quietly stop descending |
 | `gas-seed-claim.ts` | `makeDeps()`, `MOBILE`, `ZEROG`, `SOLANA` — the claim surface's UNIT fixture: array-backed stores, funders that record whether their balance was actually READ (the two-phase proof), and a queue that can be made to fail or be absent. Shared by the availability and claiming suites, which exercise one `GasSeedClaimDeps` from two directions |
 | `slack-message.ts` | `sectionTexts()`, `contextTexts()`, `allText()` — read a `SlackMessage` back as strings. Four suites assert against the same message shape and one had already hand-rolled a character-for-character copy; four copies of "what does this message say" is four chances for one to stop looking at the context block. Read-only and assertion-free on purpose — the suites decide what is true |
@@ -42,6 +42,8 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `litesvm.ts` | `startLiteSvm()`, `litesvmRpc()`, `litesvmRelayer()`, `litesvmSkip` — the server's Solana read seam and relayer write path over LiteSVM running the REAL `tenda_escrow.so`, so a transaction the server built is proven to execute on the program the chain runs |
 | `cursor-store.ts` | `fakeCursorStore()` — in-memory `CursorStore` for the polling-listener suites, recording live, history and adoption writes IN ORDER so a test can assert that live is persisted before history runs, and that adoption is the ONE atomic write it has to be (#35) |
 | `redis.ts` / `chain.ts` | Type surfaces only — concrete impls live in the suites that need them |
+
+The Agent API suites' ajv configuration (`strictAjv`, `agentApiAjv`, `COMPONENT_REF_PREFIX`) and `plainProse` live in the package, as `@tenda/api-doc/testing`, so the suites that moved into `packages/api-doc/test` and the two that stayed here import one copy.
 
 Every file in this directory has a row, and `test/unit/test-helpers-readme.test.ts`
 fails if that stops being true in either direction. That guard exists because the
@@ -73,5 +75,5 @@ Tests use the `@server/*` alias exactly like runtime code — `test/tsconfig.jso
 maps it (paths resolve relative to the declaring config, hence `../src/*`):
 
 ```ts
-import { migrateOnBoot } from '@server/lib/boot-migrate'
+import { migrateOnBoot } from '@server/lib/boot/migrate'
 ```

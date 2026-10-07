@@ -1,5 +1,5 @@
 /**
- * `lib/fiat-routes` — the /v1/fiat/* feature gate and body narrowing (#105 T1).
+ * `features/fiat-rails/http/fiat-routes` — the /v1/fiat/* feature gate and body narrowing (#105 T1).
  *
  * Three of the sweep's refusals live here and none had run: the kill switch at
  * 14, `requireStr` at 20, and `optionalStr`'s delegation to it at 27. That last
@@ -22,7 +22,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
 import type { AppError } from '@server/lib/errors'
-import { requireFiatRails, requireStr, optionalStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr, optionalStr } from '@server/features/fiat-rails/http/fiat-routes'
 
 // Set before the first getConfig() call in this process — see the header.
 process.env.FIAT_RAILS_ENABLED = 'false'

@@ -54,7 +54,7 @@ export function DisputeMessageBubble({
   // rather than absent on the mediator's bubbles: a border participates in
   // layout, so dropping it would inset their text 3px against the party
   // bubbles it sits between.
-  const partyEdge = sender.role === null ? 'transparent' : theme.colors[partyAccent(sender.role)].primary
+  const partyEdge = sender.role === null ? 'transparent' : (partyAccent(sender.role) === 'brand' ? theme.colors.brand.primary : theme.colors.feedback.warning.base)
   const attachmentUrl = message.attachment_url
   const attachmentType = message.attachment_type
 

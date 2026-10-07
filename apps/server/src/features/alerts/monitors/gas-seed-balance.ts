@@ -22,7 +22,7 @@
  * silent monitoring gap.
  */
 
-import { enqueueAlert, type ChannelSelector } from '../enqueue-alert'
+import { enqueueAlert, type ChannelSelector } from '../pipeline/enqueue-alert'
 import {
   seedStanding,
   seededChainIds,
@@ -46,7 +46,7 @@ export interface GasSeedBalanceCheckDeps {
   /**
    * How few grants a wallet may be worth before it is worth waking someone.
    * Injected rather than read here so the number has ONE home (the shared
-   * `GAS_SEED_LOW_BALANCE_GRANTS`, wired in workers/processors.ts) and so a
+   * `GAS_SEED_LOW_BALANCE_GRANTS`, wired in queue/workers/processors.ts) and so a
    * test can drive the boundary without depending on today's policy.
    */
   low_balance_grants: number

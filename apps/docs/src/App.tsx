@@ -22,15 +22,16 @@ import { Operation } from '@/components/docs/Operation'
 const tags = operationsByTag()
 
 export function App() {
-  const { theme, toggle } = useTheme()
+  const { mode, theme, cycle } = useTheme()
 
   return (
     <>
       <Header
         title={apiDocument.info.title}
         version={apiDocument.info.version}
+        mode={mode}
         theme={theme}
-        onToggleTheme={toggle}
+        onCycleTheme={cycle}
       />
 
       <div className="mx-auto grid max-w-[var(--page-width)] gap-10 px-6 py-10 lg:grid-cols-[var(--rail-width)_minmax(0,1fr)]">

@@ -37,7 +37,7 @@ import {
   type AgentRegisterResponse,
   type AgentTaskPaymentRequired,
 } from '@tenda/shared'
-import { DEMO_SCOPE } from '@server/lib/auth/scope'
+import { DEMO_SCOPE } from '@server/features/auth/session/scope'
 import {
   TEST_DB_CONFIGURED,
   attachExchangeDetails,

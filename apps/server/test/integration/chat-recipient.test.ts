@@ -25,7 +25,7 @@
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader } from '../helpers/test-app'
 

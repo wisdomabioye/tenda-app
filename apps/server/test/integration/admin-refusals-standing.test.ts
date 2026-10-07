@@ -16,7 +16,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { standing_overrides } from '@tenda/shared/db/schema/reputation'
-import { resolveAdminEmailSender } from '@server/lib/admin-otp'
+import { resolveAdminEmailSender } from '@server/features/auth/admin/admin-otp'
 import { AppError } from '@server/lib/errors'
 import { TEST_DB_CONFIGURED, useTestApp, createAdmin, createUser, authHeader } from '../helpers/test-app'
 

@@ -12,7 +12,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { user_identities, users } from '@tenda/shared/db/schema'
-import { resolveOrLink } from '@server/lib/auth/orchestrator'
+import { resolveOrLink } from '@server/features/auth/strategies/orchestrator'
 import { TEST_DB_CONFIGURED, useTestApp, resetDb } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
@@ -133,7 +133,7 @@ test('concurrent LINKS of one identity to one account converge, with no second r
  * Both are `Promise.all` over two real orchestrator calls, so nothing forces
  * the interleave — the concern with such a case is that it quietly stops
  * exercising the recovery path and keeps passing. So it was measured rather
- * than assumed: with c8 over `lib/auth/orchestrator.ts`, THREE consecutive runs
+ * than assumed: with c8 over `features/auth/strategies/orchestrator.ts`, THREE consecutive runs
  * of this file each reported the same uncovered set, and in each one the
  * recovery paths were covered — `insertIdentity`'s lost-race arm (173-179) and
  * `createUserAndIdentity`'s orphan rollback (229-241). The full-suite lcov

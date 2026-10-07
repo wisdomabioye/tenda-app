@@ -21,8 +21,8 @@ export function TxRow({ tx, userId }: TxRowProps) {
 
   const isGig = tx.escrow.kind === 'gig'
   const Icon = isGig ? Briefcase : ArrowLeftRight
-  const iconBg = isGig ? theme.colors.brand.primarySurface : theme.colors.accent.primarySurface
-  const iconColor = isGig ? theme.colors.brand.primary : theme.colors.accent.primary
+  const iconBg = isGig ? theme.colors.brand.primarySurface : theme.colors.feedback.warning.surface
+  const iconColor = isGig ? theme.colors.brand.primary : theme.colors.feedback.warning.base
 
   // Derived once and threaded through: label, sign and amount all key off it.
   const role = viewerRole(tx, userId)

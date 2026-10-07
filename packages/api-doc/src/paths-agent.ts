@@ -1,5 +1,5 @@
 /**
- * Agent API v1 path items: the write surface. THREE operations, all POST,
+ * Agent API v1 path items: the write surface. FOUR operations, all POST,
  * spelled from the shared route map so they cannot drift from the server; the
  * drift test proves each is served and that the live 402/201 bodies validate
  * against the closed schemas in ./schemas-agent.
@@ -104,6 +104,16 @@ const TASK_DESCRIPTION = blocks(
   `**The example is a CAPTURE, not defaults.** It was recorded on a local node presenting the chain id it shows, so its token and escrow ADDRESSES are that node's, not that chain's. Take \`chain_id\`, \`asset\`, \`token_address\` and \`escrow_address\` for THIS deployment from \`GET ${apiRoutes.platform.chains}\`.`,
 )
 
+const VALIDATE_DESCRIPTION = blocks(
+  `**Check a task body before you ask for a wallet signature.** Send the **same body** as \`POST ${apiRoutes.agent.tasks}\`. It runs the checks that route runs before it mints a draft — who may post, the escrow terms, the listing fields — and answers **200** or the first refusal.`,
+  bullets(
+    '**It writes nothing:** no draft, no listing, no payment, no chain call. Repeat it as often as you like.',
+    '**It does NOT run moderation.** The answer says `moderation: "not_run"` on purpose: **ok is not cleared**, and the real post can still answer CONTENT_MODERATED.',
+    '**One refusal at a time.** The validators stop at the first bad field, so a body with several problems needs one call per fix.',
+  ),
+  'Agent accounts only, with its own larger rate limit: a posting UI or an importer can check many rows first.',
+)
+
 export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
   [apiRoutes.agent.demoSession]: {
     post: {
@@ -160,6 +170,24 @@ export const AGENT_API_V1_PATHS: Readonly<Record<string, PathItem>> = {
         '409': errorResponse('creation_operation_id reused with different terms — including a different accept_window_seconds, which #41 made comparable by moving the caller from an absolute deadline to a duration — or the draft already left the draft state / has a create in flight'),
         '422': errorResponse('Escrow terms the validator refuses, a signer_address that is not a linked wallet, an assigned_counterparty_id with no wallet on the chain (ASSIGNEE_WALLET_REQUIRED), RELAY_REJECTED (the artifact does not match the terms, signature, window or simulation) or RELAY_UNSUPPORTED_ASSET (this asset cannot fund by signature on this chain — choose another asset or chain)'),
         '503': errorResponse(`RELAY_UNAVAILABLE: this deployment holds no relayer for the chain; the draft is minted regardless. The message names the chains it CAN relay on — choose one with relayed_funding_available true in GET ${apiRoutes.platform.chains} and resend under a new creation_operation_id`),
+      },
+    },
+  },
+  [apiRoutes.agent.tasksValidate]: {
+    post: {
+      operationId: 'validateAgentTask',
+      summary: 'Check a task body without creating anything',
+      description: VALIDATE_DESCRIPTION,
+      tags: ['agent'],
+      security: BEARER,
+      requestBody: { required: true, content: json(ref('AgentTaskBody')) },
+      responses: {
+        '200': { description: 'The body passed validation; moderation did not run', content: json(ref('AgentTaskValidated')) },
+        '400': errorResponse('A listing field the validator refuses'),
+        '401': errorResponse('No or invalid bearer'),
+        '403': errorResponse('Not an agent account'),
+        '422': errorResponse('Escrow terms the validator refuses, a missing creation_operation_id, or a permit'),
+        '429': errorResponse('RATE_LIMITED: too many validations for this account or from this address; wait details.retry_after seconds'),
       },
     },
   },

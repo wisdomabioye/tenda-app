@@ -15,7 +15,7 @@ import { escrow_proofs, gig_details } from '@tenda/shared/db/schema'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
-import { guardTransition } from '@server/lib/escrow-routes'
+import { guardTransition } from '@server/features/escrows/routes'
 import { buildEscrowTx, partyCaller } from '@server/lib/escrow'
 import { assertEscrowProofRequirementsMet } from '@server/features/escrows/proofs/assertEscrowProofRequirementsMet'
 

@@ -96,6 +96,7 @@ export {
   formatConvoTime,
   formatRelativeDayWithTime,
   groupByDay,
+  MS_PER_DAY,
 } from './date'
 export type { DayGroupHeader, DayGroupItem } from './date'
 export {

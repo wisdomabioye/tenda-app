@@ -31,10 +31,10 @@ jest.mock('@/api/client', () => ({
 }))
 
 import { waitFor } from '@testing-library/react-native'
-import { ATTACHMENT_PREVIEW, type Message, type SendMessageInput, type User } from '@tenda/shared'
+import type { Message, SendMessageInput, User } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { conversation as conv, message as msg, resetChatStore } from '../__fixtures__/chat'
+import { message as msg, resetChatStore } from '../__fixtures__/chat'
 
 beforeEach(() => {
   resetChatStore()

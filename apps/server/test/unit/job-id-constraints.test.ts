@@ -2,8 +2,8 @@
  * Every BullMQ jobId this app produces must be one BullMQ will accept.
  *
  * Three modules mint keyed job ids, none of them aware of the others:
- * `dedupKey` (core/queue/idempotency), `verifyTxDedupKey` (jobs/verify-tx) and
- * `alertJobId` (features/alerts/identity). Each documents the constraint in
+ * `dedupKey` (queue/idempotency), `verifyTxDedupKey` (queue/jobs/verify-tx) and
+ * `alertJobId` (features/alerts/identity/identity). Each documents the constraint in
  * prose, and prose drifts — src/jobs/verify-tx.ts stated it flatly wrong
  * ("BullMQ rejects a jobId containing ':'") in two places until #33. This file
  * states the rule ONCE, executably, and runs every producer through it.
@@ -17,8 +17,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { dedupKey } from '@server/core/queue/idempotency'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { dedupKey } from '@server/queue/idempotency'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 import { ALERT_CHANNEL_NAMES, ALERT_KINDS, alertJobId } from '@server/features/alerts'
 import type { AlertKind, AlertRefOf } from '@server/features/alerts'
 import { ESCROW_EVENTS } from '@server/chains/types'

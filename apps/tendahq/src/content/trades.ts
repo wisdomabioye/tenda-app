@@ -38,6 +38,7 @@
  * EDIT THIS FILE to add or change showcased corridors, within those rules.
  */
 
+import { LANDING_CHAINS } from './chains'
 import type { CurrencyCode } from './currencies'
 
 export type TradeAssetSymbol = 'USDC' | 'SOL' | 'ETH' | '0G'
@@ -53,7 +54,7 @@ export interface ExampleTrade {
     /** Display amount, pre-formatted (kept as string for exact rendering). */
     amount: string
     /** Manifest family of the chain the asset moves on. */
-    chainFamily: '0g' | 'solana' | 'base' | 'celo'
+    chainFamily: '0g' | 'solana' | 'base' | 'celo' | 'arc'
   }
   /** What the counterparty receives. */
   fiat: {
@@ -74,7 +75,10 @@ export interface ExampleTrade {
   }
 }
 
-export const EXAMPLE_TRADES: readonly ExampleTrade[] = [
+// Every row is authored, including a PAUSED chain's (Base, 2026-10-02); the
+// exported list keeps the chains users may use, so re-enabling a chain brings its
+// rows back untouched.
+const AUTHORED_TRADES: readonly ExampleTrade[] = [
   // 0G leads the rows (launch positioning, 2026-08-27). Implied rates sit at
   // the same levels as the sibling rows (~146 KES/USDC; the 0G row prices the
   // token near its market level the day it was added — marketing copy, rounded
@@ -91,4 +95,12 @@ export const EXAMPLE_TRADES: readonly ExampleTrade[] = [
   { id: 'x-08', asset: { symbol: 'USDC', amount: '300',  chainFamily: 'celo' },   fiat: { currency: 'NGN', amount: 470_000, rail: 'Bank transfer' } },
   { id: 'x-09', asset: { symbol: 'SOL',  amount: '2.00', chainFamily: 'solana' }, fiat: { currency: 'NGN', amount: 490_000, rail: 'Bank transfer' } },
   { id: 'x-10', asset: { symbol: 'USDC', amount: '90',   chainFamily: 'solana' }, fiat: { currency: 'KES', amount: 13_000,  rail: 'Bank transfer' } },
+  // Arc is PLANNED: an illustrative corridor like every row here (rounded to 2 significant
+  // figures, never a quote), shown only because the landing lists the chain.
+  { id: 'x-13', asset: { symbol: 'USDC', amount: '200',  chainFamily: 'arc' },    fiat: { currency: 'GHS', amount: 3_100,   rail: 'Bank transfer' } },
 ] as const
+
+/** The corridors shown: only chains the landing talks about. */
+export const EXAMPLE_TRADES: readonly ExampleTrade[] = AUTHORED_TRADES.filter((trade) =>
+  LANDING_CHAINS.some((chain) => chain.family === trade.asset.chainFamily),
+)

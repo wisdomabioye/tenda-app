@@ -13,6 +13,12 @@ import type { EscrowSweep } from './sweep'
 
 // ---------- adapter -------------------------------------------------------
 
+/** What a chain's contract/program CHARGES, in basis points: the platform fee and the seeker fee. */
+export interface ChainFees {
+  fee_bps: number
+  seeker_fee_bps: number
+}
+
 export interface ChainAdapter {
   readonly namespace: ChainNamespace
   readonly chain_id: ChainId
@@ -57,6 +63,15 @@ export interface ChainAdapter {
    * decides a claim; this is what a surface with no escrow in hand may state.
    */
   approvalWindowSeconds(): Promise<number>
+
+  /**
+   * The fees the CONTRACT charges, read live (`feeBps()` / `seekerFeeBps()` on EVM,
+   * `platform_state` on Solana). Not cached and never written anywhere: the
+   * contract always charges its own stored value, and `platform_config` only
+   * DISPLAYS a copy of it, so the one thing worth asking is whether the two agree
+   * (`features/platform-fees`: the boot check, `fee:check` and `fee:set`).
+   */
+  getFees(): Promise<ChainFees>
 
   /** Build an unsigned transaction the client will sign. */
   buildTx(args: BuildTxArgs): Promise<UnsignedTx>

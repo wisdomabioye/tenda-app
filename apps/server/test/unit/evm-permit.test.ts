@@ -1,5 +1,5 @@
 /**
- * chains/evm/permit — pure EIP-2612 helpers: signature split, wire-body
+ * chains/evm/build/permit — pure EIP-2612 helpers: signature split, wire-body
  * validation, typed-data assembly, and the live-domain check. The domain
  * check is anchored to a REAL vector read from Base Sepolia USDC on-chain
  * (2026-07-03): name()='USDC', version()='2', DOMAIN_SEPARATOR() below — a
@@ -17,7 +17,7 @@ import {
   permitDomainMatches,
   validatePermitBody,
   validateWirePermit,
-} from '@server/chains/evm/permit'
+} from '@server/chains/evm/build/permit'
 
 const R = `0x${'11'.repeat(32)}`
 const S = `0x${'22'.repeat(32)}`

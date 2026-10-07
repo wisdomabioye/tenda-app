@@ -21,7 +21,7 @@
  *     escrow's private half for a week. Admins read escrows through the dossier.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { optionalUserId, uuidParamGuard } from '@server/lib/guards'
+import { optionalUserId, uuidParamGuard } from '@server/lib/http/guards'
 import { eq, inArray } from 'drizzle-orm'
 import { escrows, exchange_details, users, reviews, bank_accounts } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -32,11 +32,11 @@ import {
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
   scopeMySignerAddress,
-} from '@server/lib/escrow-detail-scope'
-import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
-import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
-import { toExchangePartyRef } from '@server/lib/exchange-read'
-import { USER_COLS } from '@server/lib/users'
+} from '@server/features/escrows/detail/scope'
+import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
+import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow/party'
+import { toExchangePartyRef } from '@server/features/fiat-rails/rates/exchange-read'
+import { USER_COLS } from '@server/lib/db/users'
 
 type GetRoute = ExchangeContract['get']
 

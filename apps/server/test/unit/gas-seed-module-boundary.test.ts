@@ -68,7 +68,7 @@ test('the feature is reached from exactly the places the removal recipe names', 
     // 3. the two registry lines that survive as imports (the third,
     //    WORKER_CONCURRENCY, is a bare map entry with no import)
     'plugins/queue/payloads.ts',
-    'workers/processors.ts',
+    'queue/workers/processors/index.ts',
     // 4. the seeder's funder derivation
     'db/seed/rows.ts',
     // 5. the hot-wallet monitor's balance reader (#53b). ONE file, and that is

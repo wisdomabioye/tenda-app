@@ -6,16 +6,16 @@
  *
  * Two targets share this file: web (three theme blocks plus a Tailwind map,
  * `render` below) and tendahq (one light-dark() block, tendahq.ts). Every
- * transform, the whole geometry set, the omitted colour groups (naming.ts)
+ * transform (naming.ts)
  * and the type atoms (typography.ts) are shared; only the colour block's
  * shape differs, so a token added to mobile reaches both apps in one
  * regenerate.
  */
-import { colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
-import { kebab, omitted } from './naming'
+import { buttonGeometry, colors, motion, radius, shadows, spacing, type ColorScheme } from '../../../mobile/theme/tokens'
+import { kebab } from './naming'
 import { typeBlock } from './typography'
 
-export { kebab, OMITTED_GROUPS } from './naming'
+export { kebab } from './naming'
 
 /**
  * Flattens the nested ColorScheme into ordered [--custom-property, value] pairs.
@@ -42,9 +42,9 @@ export function flattenScheme(scheme: ColorScheme): Array<[string, string]> {
   return pairs
 }
 
-/** The colour tokens a target actually receives: the flattened scheme minus the omitted groups. */
+/** The colour tokens a target actually receives: the flattened scheme. */
 export function schemePairs(scheme: ColorScheme): Array<[string, string]> {
-  return flattenScheme(scheme).filter(([property]) => !omitted(property))
+  return flattenScheme(scheme)
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
@@ -83,7 +83,7 @@ export function easingToCss(curve: readonly number[]): string {
 
 /**
  * Every theme-independent token as ordered [--custom-property, value] pairs:
- * radius, spacing, shadows, then motion — durations in ms, easings as
+ * radius, button geometry, spacing, shadows, then motion — durations in ms, easings as
  * cubic-bezier (the spring has no CSS form and stays mobile's). Both targets
  * emit exactly this list.
  */
@@ -92,6 +92,13 @@ export function geometryPairs(): Array<[string, string]> {
   for (const [key, value] of Object.entries(radius)) {
     pairs.push([`--radius-${kebab(key)}`, `${value}px`])
   }
+  for (const size of Object.keys(buttonGeometry.height) as Array<keyof typeof buttonGeometry.height>) {
+    pairs.push([`--button-h-${size}`, `${buttonGeometry.height[size]}px`])
+    pairs.push([`--button-px-${size}`, `${buttonGeometry.padX[size]}px`])
+    pairs.push([`--button-text-${size}`, `${buttonGeometry.label[size].fontSize}px`])
+    pairs.push([`--button-leading-${size}`, `${buttonGeometry.label[size].lineHeight}px`])
+  }
+  pairs.push(['--button-h-ghost', `${buttonGeometry.ghostHeight}px`])
   for (const [key, value] of Object.entries(spacing)) {
     pairs.push([`--space-${kebab(key)}`, `${value}px`])
   }

@@ -1,5 +1,5 @@
 /**
- * lib/otp — the OtpSender transports the main otp suite leaves uncovered
+ * features/auth/otp — the OtpSender transports the main otp suite leaves uncovered
  * (it injects a fake sender): termiiSender (fetch-stubbed POST + non-2xx
  * 502) and consoleSender (dev fallback that logs, never throws).
  */
@@ -17,9 +17,9 @@ import {
   TERMII_SMS_URL,
   TWILIO_API_BASE,
   type OtpSender,
-} from '@server/lib/otp'
-import { sendViaResend, RESEND_API_URL } from '@server/lib/email'
-import { resendSender } from '@server/lib/admin-otp'
+} from '@server/features/auth/otp'
+import { sendViaResend, RESEND_API_URL } from '@server/features/notifications/email'
+import { resendSender } from '@server/features/auth/admin/admin-otp'
 import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 import { AppError } from '@server/lib/errors'
 
@@ -212,7 +212,7 @@ test('sendViaResend: non-2xx → 502 AppError carrying the status', async () => 
   )
 })
 
-// ---------- admin login mail (lib/admin-otp) ---------------------------------
+// ---------- admin login mail (features/auth/admin/admin-otp) ---------------------------------
 
 test('admin resendSender: POSTs the login code to Resend with bearer auth', async () => {
   // The branch that actually sends admin login mail (#110). T5a covered which

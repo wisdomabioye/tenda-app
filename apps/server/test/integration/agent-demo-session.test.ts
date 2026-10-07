@@ -18,7 +18,7 @@ import assert from 'node:assert/strict'
 import { eq } from 'drizzle-orm'
 import { ErrorCode, apiRoutes, type AgentRegisterResponse, type AgentTaskPaymentRequired } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema'
-import { DEMO_AGENT_NAME } from '@server/features/agent/demoSession'
+import { DEMO_AGENT_NAME } from '@server/features/agent/demo/demoSession'
 import {
   TEST_DB_CONFIGURED,
   authHeader,
@@ -28,7 +28,7 @@ import {
   useTestApp,
 } from '../helpers/test-app'
 import { agentTaskBody } from '../helpers/agent'
-import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
+import { COMPONENT_REF_PREFIX, agentApiAjv } from '@tenda/api-doc/testing'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()

@@ -1,5 +1,5 @@
 /**
- * lib/gig-details — validation matrix for the gig create-detail body
+ * features/gigs/gig-details — validation matrix for the gig create-detail body
  * (POST /v1/gigs). Positive + negative cases per field. Invariant: remote
  * gigs carry no country/city; physical gigs require both. Cross-border is
  * derived by comparing the work country against the creator's country.
@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { MAX_GIG_TITLE_LENGTH, MAX_GIG_DESCRIPTION_LENGTH, MAX_PROOF_REQUIREMENTS } from '@tenda/shared'
 import type { CreateGigDetailsBody } from '@tenda/shared'
-import { validateGigDetails } from '@server/lib/gig-details'
+import { validateGigDetails } from '@server/features/gigs/gig-details'
 import { AppError } from '@server/lib/errors'
 
 function body(overrides: Partial<CreateGigDetailsBody> = {}): Partial<CreateGigDetailsBody> {
@@ -87,6 +87,30 @@ test('remote gig is valid without any country, even when creator has none', () =
   const v = validateGigDetails(body({ remote: true, country: undefined, city: undefined }), null)
   assert.strictEqual(v.country, null)
   assert.strictEqual(v.remote, true)
+})
+
+test('remote gig: coordinates are refused — a remote gig has no place to pin', () => {
+  expect400(body({ remote: true, country: undefined, city: undefined, latitude: 6.5, longitude: 3.4 }), 'NG', /remote gig .*latitude/)
+  expect400(body({ remote: true, country: undefined, city: undefined, latitude: 6.5 }), 'NG', /remote gig .*latitude/)
+  expect400(body({ remote: true, country: undefined, city: undefined, longitude: 3.4 }), 'NG', /remote gig .*latitude/)
+})
+
+test('remote gig: a geotag requirement is refused as a remote-gig problem, not as a missing pin', () => {
+  expect400(
+    body({ remote: true, country: undefined, city: undefined, proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 100 } } }),
+    'NG',
+    /geotag proof needs an on-site gig/,
+  )
+})
+
+test('an on-site gig keeps its coordinates (negative control for the remote rule)', () => {
+  const v = validateGigDetails(body({ latitude: 6.5, longitude: 3.4 }), 'NG')
+  assert.deepStrictEqual([v.latitude, v.longitude], [6.5, 3.4])
+})
+
+test('remote gig without coordinates stores none', () => {
+  const v = validateGigDetails(body({ remote: true, country: undefined, city: undefined }), 'NG')
+  assert.deepStrictEqual([v.latitude, v.longitude], [null, null])
 })
 
 test('city must belong to the provided country', () => {

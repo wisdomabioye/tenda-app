@@ -11,11 +11,11 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { PublicKey } from '@solana/web3.js'
 import { toHex } from 'viem'
-import { resolveSolanaSigner, type EscrowSignerFields } from '@server/chains/solana/signer'
+import { resolveSolanaSigner, type EscrowSignerFields } from '@server/chains/solana/build/signer'
 import { evmAdapter } from '@server/chains/evm'
-import type { PaymasterHttp } from '@server/chains/evm/paymaster'
+import type { PaymasterHttp } from '@server/chains/evm/sender/paymaster'
 import { ZERO_ADDRESS, type EvmRpc } from '@server/chains/evm/rpc'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { partyCaller, readSignerPreference } from '@server/lib/escrow'
 import { AppError } from '@server/lib/errors'
 
@@ -175,6 +175,7 @@ const WORKER = '0x2222222222222222222222222222222222222222'
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
     async readApprovalWindow() { return 172_800n },
+    async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
     async getTransactionReceipt() { return null },
     async getBlockNumber() { return 100n },
     async getLogRefs() { return [] },

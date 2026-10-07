@@ -14,8 +14,8 @@ import { withAttributionCode } from '../helpers/attribution-env'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
 import type { EvmRpc } from '@server/chains/evm/rpc'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
-import { EIP712_DOMAIN_FIELDS } from '@server/chains/evm/permit'
-import { authorizationNonce, buildCreateParams } from '@server/chains/evm/create-params'
+import { EIP712_DOMAIN_FIELDS } from '@server/chains/evm/build/permit'
+import { authorizationNonce, buildCreateParams } from '@server/chains/evm/build/create-params'
 import type { EvmRelayCall, EvmRelayer } from '@server/chains/evm/relay/relayer'
 import { AppError } from '@server/lib/errors'
 import type { CreateEscrowPayload, RelayedCreateArgs } from '@server/chains/types'
@@ -61,6 +61,7 @@ function args(overrides: Partial<RelayedCreateArgs> = {}): RelayedCreateArgs {
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
     async readApprovalWindow() { return 172_800n },
+    async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
     async getTransactionReceipt() { return null },
     async getBlockNumber() { return 100n },
     async getLogRefs() { return [] },

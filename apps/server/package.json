@@ -25,7 +25,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed-v2.ts",
+    "db:seed": "tsx src/db/seed/seed-v2.ts",
     "test:devnet:convergence": "set -a && . ./.env && set +a && RPC_URL=$CHAIN_SOLANA_DEVNET_RPC_URL node tests-devnet/convergence.mjs",
     "admin:bootstrap": "tsx src/scripts/bootstrap-super-admin.ts",
     "admin:grant-email": "tsx src/scripts/grant-admin-email.ts",
@@ -40,7 +40,9 @@
     "verify:relayed-funding": "tsx src/scripts/verify-relayed-funding.ts",
     "verify:relayed-funding-evm": "tsx src/scripts/verify-relayed-funding-evm.ts",
     "lint": "eslint .",
-    "verify:agent-hire": "tsx src/scripts/agent-hire-e2e/main.ts"
+    "verify:agent-hire": "tsx src/scripts/agent-hire-e2e/main.ts",
+    "fee:check": "tsx src/scripts/fee/check.ts",
+    "fee:set": "tsx src/scripts/fee/set.ts"
   },
   "keywords": [],
   "author": "",

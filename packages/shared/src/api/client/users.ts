@@ -5,6 +5,7 @@ import type {
   GetUserReviewsQuery,
   MeResponse,
   MyStandingResponse,
+  MyOverviewResponse,
   PaginatedResponse,
   PublicUser,
   Review,
@@ -27,6 +28,7 @@ export function createUsersApi(request: ApiRequest) {
     me: () => request<MeResponse>('GET', users.me),
     updateMe: (body: UpdateMeInput) => request<UpdateMeResponse>('PATCH', users.updateMe, { body }),
     myStanding: () => request<MyStandingResponse>('GET', users.myStanding),
+    myOverview: () => request<MyOverviewResponse>('GET', users.myOverview),
     standing: (params: { id: string }) =>
       request<UserStandingResponse>('GET', users.standing, { params }),
     // Categories delivered in, as a server-side GROUP BY — deliberately NOT

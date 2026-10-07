@@ -19,7 +19,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { P2P_PROVIDER_ID } from '@tenda/shared'
 import { fiat_providers, fiat_intents } from '@tenda/shared/db/schema/fiat'
-import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
+import { invalidateExchangeRatesCache } from '@server/features/fiat-rails/rates/exchange-rates'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,

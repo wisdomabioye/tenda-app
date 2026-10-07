@@ -13,7 +13,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { auth_otps, user_identities, user_wallets, users } from '@tenda/shared/db/schema'
-import { hashOtpCode, type OtpChannel } from '@server/lib/otp'
+import { hashOtpCode, type OtpChannel } from '@server/features/auth/otp'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,

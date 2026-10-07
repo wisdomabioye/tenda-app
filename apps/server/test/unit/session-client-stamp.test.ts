@@ -11,7 +11,7 @@ import { before, test } from 'node:test'
 import assert from 'node:assert'
 import { SESSION_CLIENT_HEADER, SESSION_CLIENTS, parseSessionClient } from '@tenda/shared'
 import type { User } from '@tenda/shared'
-import { mintAuthResponse, sessionClientFromHeaders, type TokenSigner } from '@server/lib/auth/session'
+import { mintAuthResponse, sessionClientFromHeaders, type TokenSigner } from '@server/features/auth/session/session'
 import { AppError } from '@server/lib/errors'
 
 /**

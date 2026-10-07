@@ -13,7 +13,7 @@
  * profile_complete = first_name AND last_name set, via the shared
  * `hasCompleteName` — the same predicate `requireProfileComplete` enforces on
  * the create/accept surface and mobile routes on, so the three cannot drift.
- * Names are trimmed on write (lib/validation's `optionalName`, shared with the
+ * Names are trimmed on write (lib/http/validation's `optionalName`, shared with the
  * other write path) so the stored value and the
  * predicate agree about what "set" means.
  */
@@ -24,7 +24,7 @@ import { ErrorCode, NAME_MAX_LENGTH, hasCompleteName } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
-import { optionalName, optionalString } from '@server/lib/validation'
+import { optionalName, optionalString } from '@server/lib/http/validation'
 
 interface PatchBody {
   first_name?: unknown

@@ -14,7 +14,7 @@
  */
 import { apiRoutes } from '@tenda/shared'
 import { withRecordedExamples } from './examples'
-import { ASKBOTS_REVIEW_ORIGIN, integrationGuide } from './guide'
+import { integrationGuide } from './guide'
 import { AGENT_API_PATHS, type PathItem, type SecuritySchemeName } from './paths'
 import { AGENT_API_V1_PATHS } from './paths-agent'
 import { AUTH_PATHS } from './paths-auth'
@@ -90,8 +90,12 @@ export const AGENT_API_AGENT_PATH = '/v1/agent/openapi.json'
  * refresh path is what #41 exists to delete, and it cannot go while the
  * absolute field still works. Pre-mainnet, with no external consumer bound to
  * the document, is when that costs least.
+ *
+ * 2.1.0 ADDED POST /v1/agent/tasks/validate: the one-shot's own validation with
+ * no draft, no payment and no moderation. A new path is a MINOR bump under the
+ * "new paths may be added" promise below; nothing 2.0.0 documented changed.
  */
-export const AGENT_API_VERSION = '2.0.0'
+export const AGENT_API_VERSION = '2.1.0'
 
 /** Seconds a fetched document may be cached — it changes only with a deploy. */
 export const AGENT_API_CACHE_SECONDS = 300
@@ -159,9 +163,7 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
     description: `The gig surface of Tenda for agents: ${AGENT_API_BROWSE}, and — from v1 — ${AGENT_API_POST}. Stability guarantees are listed under x-tenda-stability.\n\n${integrationGuide()}`,
     'x-tenda-stability': AGENT_API_STABILITY,
   },
-  // TEMPORARY #182: AskBots reviews the fixed production document. Restore the
-  // deployment-neutral relative origin after the 2026-09-21 deadline.
-  servers: [{ url: ASKBOTS_REVIEW_ORIGIN, description: 'Celo mainnet production API' }],
+  servers: [{ url: '/', description: 'The origin this document was fetched from' }],
   tags: [
     { name: 'gigs', description: 'Public, read-only gig listings' },
     { name: 'agent', description: 'The agent write surface: wallet-born registration and the one-shot task post (bearer)' },
@@ -175,6 +177,7 @@ export const AGENT_API_DOCUMENT: OpenApiDocument = withRecordedExamples({
     [apiRoutes.agent.demoSession]: AGENT_API_V1_PATHS[apiRoutes.agent.demoSession],
     [apiRoutes.agent.tasks]: AGENT_API_V1_PATHS[apiRoutes.agent.tasks],
     [apiRoutes.agent.register]: AGENT_API_V1_PATHS[apiRoutes.agent.register],
+    [apiRoutes.agent.tasksValidate]: AGENT_API_V1_PATHS[apiRoutes.agent.tasksValidate],
     ...AUTH_PATHS,
     ...AGENT_API_PLATFORM_PATHS,
     ...AGENT_API_PATHS,

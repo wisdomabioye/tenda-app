@@ -20,7 +20,7 @@ import {
   buildContext,
   loadEscrowOr404,
   requireCaller,
-} from '@server/lib/escrow-routes'
+} from '@server/features/escrows/routes'
 import { assertCanTransition, buildEscrowTx, partyCaller } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {

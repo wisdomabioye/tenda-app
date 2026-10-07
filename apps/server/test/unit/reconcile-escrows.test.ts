@@ -1,5 +1,5 @@
 /**
- * jobs/reconcile-escrows — the safety-net sweep: probe → enqueue / timeout /
+ * queue/jobs/reconcile-escrows — the safety-net sweep: probe → enqueue / timeout /
  * leave-pending, with RPC failures and queue failures both non-fatal.
  */
 
@@ -13,8 +13,8 @@ import {
   reconcileEscrowsHandler,
   type PendingAttempt,
   type ReconcileDeps,
-} from '@server/jobs/reconcile-escrows'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+} from '@server/queue/jobs/reconcile-escrows'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 import type { ChainAdapter, ChainRegistry } from '@server/chains/types'
 import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import { evmAdapter } from '@server/chains/evm'
@@ -54,6 +54,7 @@ function makeDeps(opts: {
     chain_id: 'solana:devnet',
     escrowAddress: 'FakeProgram1111111111111111111111111111111',
     approvalWindowSeconds: async () => 86_400,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     async buildTx() {
       throw new Error('not used')
     },
@@ -224,6 +225,7 @@ function evmReconcile(known: readonly string[]) {
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
         async readApprovalWindow() { return 172_800n },
+        async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
         async getTransactionReceipt() {
           return { block_number: 10n, status: 'success' as const, logs: [acceptedReceiptLog(OLD_CONTRACT)] }
         },

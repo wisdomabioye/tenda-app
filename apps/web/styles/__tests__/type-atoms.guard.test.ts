@@ -52,7 +52,6 @@ const OFF_SCALE: Record<string, { count: number; reason: string }> = {
   'components/public/NotFoundPanel.tsx': { count: 3, reason: 'responsive 32→44 display headline (two sizes); a 17/28 lede' },
   'components/public/support/SupportPage.tsx': { count: 3, reason: 'responsive 32→44 display headline (two sizes); a 17/28 lede' },
   'components/shared/ChainBadge.tsx': { count: 2, reason: '11px pill with leading-none and an 8px glyph in a 14px disc' },
-  'components/ui/Button.tsx': { count: 1, reason: 'the sm label is 14/18 — button geometry is #64, tokenised with the heights' },
   'components/ui/Kbd.tsx': { count: 1, reason: '10/16 key cap — smaller than the caption atom on purpose' },
   'components/wallet/WalletBalanceGrid.tsx': { count: 1, reason: '28/32 mono balance figure' },
   'components/wallet/intent/IntentStatusPanel.tsx': { count: 1, reason: '26/30 mono amount figure' },

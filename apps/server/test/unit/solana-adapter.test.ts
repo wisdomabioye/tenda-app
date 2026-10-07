@@ -20,9 +20,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@sol
 import { discriminatorFor, type InstructionName } from '@tenda/shared/idl'
 import { AppError } from '@server/lib/errors'
 import { solanaAdapter, verifyEd25519 } from '@server/chains/solana'
-import { ataProvisioningIx } from '@server/chains/solana/builder-internals'
+import { ataProvisioningIx } from '@server/chains/solana/build/builder-internals'
 import { escrowPdaFromUuid, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
-import { uuidToBytes, bytesToUuid } from '@server/chains/ids'
+import { uuidToBytes, bytesToUuid } from '@server/chains/shared/ids'
 import type { UnsignedTx } from '@server/chains/types'
 import {
   COUNTERPARTY,

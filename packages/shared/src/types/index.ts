@@ -75,6 +75,7 @@ export type {
   UpsertSubscriptionInput,
   RegisterDeviceTokenInput,
   MessagesQuery,
+  ConversationsQuery,
 } from './chat'
 export { ATTACHMENT_PREVIEW } from './chat'
 export type { CreateReportInput } from './moderation'
@@ -82,6 +83,18 @@ export { REPORT_STATUSES, REPORT_CONTENT_TYPES } from '../constants/moderation'
 export type {
   AdminEscrowRow,
   AdminEscrowListQuery,
+  Wire,
+  AdminUserListRow,
+  AdminUserDetail,
+  AdminUserStatusResult,
+  AdminUserRoleResult,
+  AdminSessionUser,
+  AdminSendEmailOtpResponse,
+  AdminVerifyEmailOtpResponse,
+  ModerationVerdictRow,
+  AdminFiatIntentRow,
+  AdminFiatProviderRow,
+  AdminMetrics,
   AdminPlatformConfig,
   AdminAuditEntry,
   Report,

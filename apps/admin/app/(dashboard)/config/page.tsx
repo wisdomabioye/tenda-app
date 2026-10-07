@@ -36,8 +36,6 @@ function parseIntStrict(raw: string): number | null {
 
 export default function ConfigPage() {
   const [config, setConfig] = useState<AdminPlatformConfig | null>(null)
-  const [feeBps, setFeeBps] = useState('')
-  const [seekerFeeBps, setSeekerFeeBps] = useState('')
   const [graceSeconds, setGraceSeconds] = useState('')
   const [maxPendingGigs, setMaxPendingGigs] = useState('')
   const [unassignWindow, setUnassignWindow] = useState('')
@@ -52,8 +50,6 @@ export default function ConfigPage() {
       .then((row) => {
         if (!alive) return
         setConfig(row)
-        setFeeBps(String(row.fee_bps))
-        setSeekerFeeBps(String(row.seeker_fee_bps))
         setGraceSeconds(String(row.grace_period_seconds))
         setMaxPendingGigs(String(row.max_pending_gigs))
         setUnassignWindow(String(row.unassign_window_seconds))
@@ -72,16 +68,12 @@ export default function ConfigPage() {
     e.preventDefault()
     // Number('') is 0 — a cleared field must BLOCK the save, not silently
     // zero the platform fee or the grace period.
-    const fee_bps = parseIntStrict(feeBps)
-    const seeker_fee_bps = parseIntStrict(seekerFeeBps)
     const grace_period_seconds = parseIntStrict(graceSeconds)
     const max_pending_gigs = parseIntStrict(maxPendingGigs)
     const unassign_window_seconds = parseIntStrict(unassignWindow)
     const max_open_applications = parseIntStrict(maxApplications)
     const application_ttl_seconds = parseIntStrict(applicationTtl)
     if (
-      fee_bps === null ||
-      seeker_fee_bps === null ||
       grace_period_seconds === null ||
       max_pending_gigs === null ||
       unassign_window_seconds === null ||
@@ -94,8 +86,6 @@ export default function ConfigPage() {
     setBusy(true)
     try {
       const updated = await adminApi.platformConfig.update({
-        fee_bps,
-        seeker_fee_bps,
         grace_period_seconds,
         max_pending_gigs,
         unassign_window_seconds,
@@ -120,13 +110,12 @@ export default function ConfigPage() {
         ) : (
           <>
             <form onSubmit={save} className="grid max-w-2xl gap-4 rounded-md border p-4 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="fee">Platform fee (bps)</Label>
-                <Input id="fee" type="number" min={0} max={ESCROW_LIMITS.maxPlatformFeeBps} value={feeBps} onChange={(e) => setFeeBps(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="seeker">Seeker fee (bps)</Label>
-                <Input id="seeker" type="number" min={0} max={ESCROW_LIMITS.maxPlatformFeeBps} value={seekerFeeBps} onChange={(e) => setSeekerFeeBps(e.target.value)} />
+              <div className="space-y-1 md:col-span-3" data-testid="fees-readonly">
+                <p className="text-sm font-medium">Platform fee</p>
+                <p className="text-sm text-muted-foreground">
+                  {config.fee_bps} bps standard, {config.seeker_fee_bps} bps seeker. Read-only: the fee lives on each contract and is
+                  changed with <code>pnpm --filter tenda-server fee:set</code>, which updates this value once every chain confirms.
+                </p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="grace">Grace period (seconds)</Label>

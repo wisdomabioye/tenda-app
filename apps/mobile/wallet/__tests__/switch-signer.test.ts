@@ -13,11 +13,8 @@ jest.mock('@/lib/secure-store', () => ({
   setWalletAddress: (...a: unknown[]) => mockSetWalletAddress(...a),
 }))
 
-// eslint-disable-next-line import/first
 import { useAuthStore } from '@/stores/auth.store'
-// eslint-disable-next-line import/first
 import { switchSignerWith } from '@/wallet/switch-signer'
-// eslint-disable-next-line import/first
 import type { SignerTransport } from '@/wallet/switch-signer'
 
 function wallet(over: Partial<LinkedWallet> = {}): LinkedWallet {

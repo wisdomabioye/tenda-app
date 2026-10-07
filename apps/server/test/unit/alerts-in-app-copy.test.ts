@@ -32,7 +32,7 @@ import {
   inAppExcludedIds,
   inAppNotice,
   inAppPartyIds,
-} from '@server/features/alerts/channels/in-app/copy'
+} from '@server/features/alerts/channels/in-app/render/copy'
 import { inAppAlertChannel } from '@server/features/alerts/channels/in-app'
 import { disputeRaisedAlert, gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { testChannelContract } from '../helpers/alert-channel-contract'

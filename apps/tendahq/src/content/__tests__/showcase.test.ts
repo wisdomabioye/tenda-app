@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GIG_CATEGORIES } from '@/content/categories'
+import { CHAIN_MANIFEST } from '@tenda/shared/chains'
 import { LANDING_CHAINS } from '../chains'
 import { ECOSYSTEMS_HEADER, ECOSYSTEM_PANELS } from '../ecosystems'
 import {
@@ -54,10 +55,19 @@ describe('ecosystem panels', () => {
     }
   })
 
-  it('gives every panel at least one shipped proof point', () => {
+  it('gives every panel at least one shipped proof point — except a PLANNED chain, whose panel is roadmap-only and says so on every row', () => {
+    // A chain that is only planned in the manifest (Arc: no escrow deployed, no broadcast
+    // transaction) has nothing shipped to point at. The rule that matters there is the
+    // other half: nothing may be phrased as shipped, so EVERY proof carries the pill.
     for (const panel of ECOSYSTEM_PANELS) {
       expect(panel.why).not.toBe('')
-      expect(panel.proofs.filter((p) => p.roadmap !== true).length).toBeGreaterThan(0)
+      // A FAMILY is planned when EVERY manifest entry of it is (Solana's mainnet is
+      // planned but its devnet is live, so it is deployed; Arc has nothing deployed).
+      const entries = CHAIN_MANIFEST.filter((c) => c.family === panel.chainFamily)
+      const planned = entries.length > 0 && entries.every((c) => c.status === 'planned')
+      const shipped = panel.proofs.filter((p) => p.roadmap !== true).length
+      if (planned) expect(shipped, `${panel.chainFamily} is planned: every proof must be roadmap`).toBe(0)
+      else expect(shipped, `${panel.chainFamily} is deployed: it needs a shipped proof`).toBeGreaterThan(0)
     }
   })
 

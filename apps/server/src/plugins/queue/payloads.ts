@@ -14,8 +14,8 @@
  * pays for it. The `AlertJob` import below depends on that.
  */
 
-import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
-import type { OtpMessage } from '@server/lib/otp'
+import type { VerifyTxJobPayload } from '@server/queue/jobs/verify-tx'
+import type { OtpMessage } from '@server/features/auth/otp'
 // TYPE-ONLY, and it must stay that way: features/alerts/types/channel.ts
 // imports `QueueService` back from this module's barrel, so the two reference
 // each other. Both directions are erased today (verified in the emitted JS —
@@ -87,7 +87,7 @@ export interface JobPayload {
   'sweep-escrows': {
     tick_id: string
   }
-  /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */
+  /** Imported from `queue/jobs/verify-tx.ts` so producer + handler share one shape. */
   'verify-tx': VerifyTxJobPayload
   reconcile: {
     /**
@@ -111,6 +111,10 @@ export interface JobPayload {
   'update-price-stats': { tick_id: string }
   /** Daily retention sweep of stale personal notifications, tick id for correlation. */
   'prune-notifications': { tick_id: string }
+  /** Daily discard of unfunded drafts past DRAFT_RETENTION_DAYS, tick id for correlation. */
+  'prune-stale-drafts': { tick_id: string }
+  /** Daily delete of one-time codes older than the OTP send limits can count, tick id for correlation. */
+  'prune-auth-otps': { tick_id: string }
   /**
    * Expand a new gig into one notification per matching subscriber.
    *

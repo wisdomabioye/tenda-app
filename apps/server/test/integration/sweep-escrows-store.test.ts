@@ -22,7 +22,7 @@ import {
   drizzleSweepEscrowsStore,
   SWEEP_BATCH_LIMIT,
   SWEEP_FIRST_REFUSAL_MS,
-} from '@server/jobs/sweep-escrows'
+} from '@server/queue/jobs/sweep-escrows'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,

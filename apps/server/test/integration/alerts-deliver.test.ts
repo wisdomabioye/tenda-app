@@ -1,5 +1,5 @@
 /**
- * features/alerts/deliver-alert — the worker body's failure posture.
+ * features/alerts/pipeline/deliver-alert — the worker body's failure posture.
  *
  * The whole point of this function is WHICH failures retry and which do not, so
  * every test here is about a branch that must NOT throw — plus the one that

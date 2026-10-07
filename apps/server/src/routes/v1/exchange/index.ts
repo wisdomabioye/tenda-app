@@ -19,7 +19,7 @@
  *            bank_accounts, revealed only inside an accepted intent).
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
@@ -35,13 +35,14 @@ import {
 } from '@tenda/shared'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
-import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
+import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/features/fiat-rails/rates/exchange-read'
 import { publicExchangeConditions } from './public-feed'
-import { chainFilterCondition } from '@server/lib/chain-filter'
-import { amountWindowConditions } from '@server/lib/amount-window'
+import { chainFilterCondition } from '@server/lib/http/chain-filter'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
+import { PUBLIC_FEED_RATE_LIMIT } from '@server/lib/http/rate-limits'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
@@ -55,7 +56,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', async (request) => {
+  }>('/', { config: { rateLimit: PUBLIC_FEED_RATE_LIMIT } }, async (request) => {
     const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))

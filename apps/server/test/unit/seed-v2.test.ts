@@ -1,5 +1,5 @@
 /**
- * db/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
+ * db/seed/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
  * manifest; the row VALUES are what need guarding here. The I/O wrapper
  * (applySeed — registry-fact upserts + enablement reconcile) is DB-tested in
  * integration/seed-upsert.test.ts. Secrets are built through the real loader.
@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ESCROW_IDL } from '@tenda/shared/idl'
-import { buildSeedRows, enablementDelta } from '@server/db/seed-v2'
+import { buildSeedRows, enablementDelta } from '@server/db/seed/seed-v2'
 import { loadChainSecrets } from '@server/chains/secrets'
 
 const SOL = 'So11111111111111111111111111111111111111112'

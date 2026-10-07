@@ -4,15 +4,15 @@
  * EvmAdapterArgs). Slots into the Stage-0 registry beside the Solana
  * adapter; verify-tx, reconcile and the routes are untouched.
  *
- * Sponsorship: when the paymaster is configured AND lib/sponsor.ts says
+ * Sponsorship: when the paymaster is configured AND lib/chain/sponsor.ts says
  * the user qualifies, buildTx returns an `evm-userop` skeleton (calldata +
  * paymaster fields); otherwise a plain `evm-tx`. The reservation /
- * decrement lifecycle stays in lib/sponsor.ts + verify-tx (Stage 0
+ * decrement lifecycle stays in lib/chain/sponsor.ts + verify-tx (Stage 0
  * pattern).
  */
 
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
 import {
   type AssetId,
   type BuildTxArgs,
@@ -23,17 +23,17 @@ import {
   type VerifyAuthSigArgs,
   type VerifyTxArgs,
 } from '@server/chains/types'
-import { buildEvmCall, approvalHint } from './builders'
+import { buildEvmCall, approvalHint } from './build/builders'
 import { tagCalldata } from '@server/features/attribution'
-import { verifyEvmReceipt } from './verify-receipt'
+import { verifyEvmReceipt } from './verify/verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
-import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
-import { cachedApprovalWindow } from '@server/chains/approval-window'
-import { resolveEvmSigner } from './signer'
-import { buildPermitPayload } from './permit-payload'
-import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
+import { buildContext, fetchEscrowState, type EvmAdapterContext } from './build/state'
+import { cachedApprovalWindow } from '@server/chains/shared/approval-window'
+import { resolveEvmSigner } from './sender/signer'
+import { buildPermitPayload } from './build/permit-payload'
+import { ENTRY_POINT_V06, type PaymasterHttp } from './sender/paymaster'
 import { evmEscrowRelay } from './relay'
-import { evmEscrowSweep } from './sweep'
+import { evmEscrowSweep } from './sender/sweep'
 import type { EvmRelayer } from './relay/relayer'
 
 export interface EvmAdapterDeps {
@@ -42,7 +42,7 @@ export interface EvmAdapterDeps {
   /** AssetId → ERC-20 address (`null` = native). Throws on unknown. */
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /**
-   * Should this user's next tx be sponsored? (lib/sponsor.ts policy,
+   * Should this user's next tx be sponsored? (lib/chain/sponsor.ts policy,
    * remaining quota etc.). A `true` result has ALREADY reserved (decremented)
    * a quota slot, see `releaseSponsorship`. Absent = never sponsor.
    */
@@ -237,6 +237,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     escrowAddress: args.escrow_contract,
     // The CURRENT contract's window: it is the one new escrows are stamped with.
     approvalWindowSeconds: cachedApprovalWindow(async () => Number(await rpc.readApprovalWindow(args.escrow_contract))),
+    // The CURRENT contract's fees: the ones new escrows are charged under.
+    getFees: async () => {
+      const fees = await rpc.readFees(args.escrow_contract)
+      return { fee_bps: fees.feeBps, seeker_fee_bps: fees.seekerFeeBps }
+    },
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
     ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
@@ -246,7 +251,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
-    // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
+    // lib/chain/wallet-signature; the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
     fetchEscrowState: (escrow_ref) => fetchEscrowState(context, escrow_ref),
     computeFee: (fee_args) => computePlatformFee(fee_args),

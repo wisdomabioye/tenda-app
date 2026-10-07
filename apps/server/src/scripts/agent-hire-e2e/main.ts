@@ -4,8 +4,8 @@
  *   pnpm --filter tenda-server verify:agent-hire [amount_raw=25000000]
  *
  * Needs a RUNNING server (the agent half is HTTP-only by design), E2E_AGENT_KEY
- * and E2E_WORKER_KEY in .env, and the log the server is writing so the dev OTP
- * can be read back.
+ * and E2E_WORKER_KEY in .env, and E2E_SERVER_LOG: the path of the log the server
+ * is writing, so the dev OTP can be read back.
  *
  * The loop, and who pays for each step:
  *   create   relayed  — the agent signs an EIP-3009 authorization, RELAYER pays gas
@@ -34,7 +34,6 @@ import {
 const CHAIN_ID = 'eip155:16602'
 const TOKEN = '0x3780460189622E60cB7ec6e8e97038A386674B71'
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000'
-const LOG_PATH = process.env.E2E_SERVER_LOG ?? '/home/abioye/.claude/jobs/348934df/tmp/e20-server.log'
 const AMOUNT = BigInt(process.argv[2] ?? '25000000')
 
 const req = (name: string): string => {
@@ -106,7 +105,7 @@ async function main(): Promise<void> {
   }
 
   phase('Worker signs in (OTP), names themselves, links their wallet')
-  const w = await onboardWorker(api, worker, CHAIN_ID, LOG_PATH, BASE_URL)
+  const w = await onboardWorker(api, worker, CHAIN_ID, req('E2E_SERVER_LOG'), BASE_URL)
   console.log(`   worker ${w.how} → ${w.id}`)
 
   phase('Agent posts the task — POST /v1/agent/tasks (no X-PAYMENT) → 402')

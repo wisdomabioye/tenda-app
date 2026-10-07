@@ -40,7 +40,7 @@ import {
   useTestApp,
 } from '../helpers/test-app'
 import { servedPaths } from '../helpers/route-table'
-import { COMPONENT_REF_PREFIX, agentApiAjv } from '../helpers/agent-api-validator'
+import { COMPONENT_REF_PREFIX, agentApiAjv } from '@tenda/api-doc/testing'
 import { agentTaskBody, registerAgent } from '../helpers/agent'
 
 const skip = !TEST_DB_CONFIGURED
@@ -442,6 +442,14 @@ test('v1: the live registration answer, the 402 terms and the 201 all validate a
   const agent = await registerAgent(app)
   assertValid(responseValidator(apiRoutes.agent.register, 'post'), agent.response, `POST ${apiRoutes.agent.register}`)
   const body = agentTaskBody()
+  // Validate-only (2.1.0): the live 200 is the closed schema, and a live refusal is the documented envelope.
+  const validated = await app.inject({ method: 'POST', url: apiRoutes.agent.tasksValidate, headers: authHeader(agent.token), payload: body })
+  assert.strictEqual(validated.statusCode, 200, validated.body)
+  assertValid(responseValidator(apiRoutes.agent.tasksValidate, 'post', '200'), validated.json(), `POST ${apiRoutes.agent.tasksValidate} → 200`)
+  const { creation_operation_id: _omitted, ...noOperation } = body
+  const refused = await app.inject({ method: 'POST', url: apiRoutes.agent.tasksValidate, headers: authHeader(agent.token), payload: noOperation })
+  assert.strictEqual(refused.statusCode, 422)
+  assertValid(responseValidator(apiRoutes.agent.tasksValidate, 'post', '422'), refused.json(), `POST ${apiRoutes.agent.tasksValidate} → 422`)
   const quote = await app.inject({ method: 'POST', url: apiRoutes.agent.tasks, headers: authHeader(agent.token), payload: body })
   assert.strictEqual(quote.statusCode, 402)
   assertValid(responseValidator(apiRoutes.agent.tasks, 'post', '402'), quote.json(), `POST ${apiRoutes.agent.tasks} → 402`)

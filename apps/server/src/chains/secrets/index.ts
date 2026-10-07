@@ -34,7 +34,7 @@
  */
 
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
-import { optionalEnv } from '@server/lib/env'
+import { optionalEnv } from '@server/config/env'
 import {
   chainEnvPrefix,
   describeKind,
@@ -80,7 +80,7 @@ export function loadChainSecrets(
     for (const spec of schema) {
       // Empty / whitespace-only is treated as ABSENT, not malformed, so a
       // commented-out or blank `VAR=` line leaves the chain inactive —
-      // `optionalEnv` (lib/env.ts) is where that rule lives for every reader.
+      // `optionalEnv` (config/env.ts) is where that rule lives for every reader.
       const value = optionalEnv(`${prefix}_${spec.envSuffix}`, env)
       if (value !== null) present.set(spec.key, value)
     }

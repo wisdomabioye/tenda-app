@@ -87,7 +87,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           {score != null && (
             <>
               <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
-                <Text style={{ color: theme.colors.accent.primary }}>★ </Text>
+                <Text style={{ color: theme.colors.feedback.warning.base }}>★ </Text>
                 {score.toFixed(1)}
               </Text>
               <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>

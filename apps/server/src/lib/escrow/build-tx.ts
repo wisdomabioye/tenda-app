@@ -18,11 +18,10 @@
  * transition gets both guards by construction rather than by review.
  */
 
-import { ErrorCode } from '@tenda/shared'
-import { AppError } from '@server/lib/errors'
 import { resolveEscrowContract, type ContractRegistry, type EscrowContractRef } from '@server/chains/contracts'
 import type { BuildTxAction, BuildTxSignerHints, ChainRegistry, UnsignedTx } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
+import { requireChainAdapter } from './chain-adapter'
 import { assertSignerLinked } from './signer'
 
 export interface BuildEscrowTxDeps {
@@ -44,16 +43,7 @@ export async function buildEscrowTx(
   escrow: EscrowContractRef,
   build: BuildTxAction & BuildTxSignerHints,
 ): Promise<UnsignedTx> {
-  // A chain can be deconfigured after an escrow was created (env removed,
-  // rollback). Surface it as a clean 503 rather than the registry's raw throw.
-  if (!deps.chains.has(escrow.chain_id)) {
-    throw new AppError(
-      503,
-      ErrorCode.SERVICE_UNAVAILABLE,
-      `chain '${escrow.chain_id}' is not currently available`,
-    )
-  }
-  const adapter = deps.chains.get(escrow.chain_id)
+  const adapter = requireChainAdapter(deps.chains, escrow.chain_id)
   const contract = resolveEscrowContract(escrow, deps.contracts)
   const unsigned = await adapter.buildTx({ ...build, contract })
   // resolveDispute is signed by the chain's dispute AUTHORITY, which is not

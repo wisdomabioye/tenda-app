@@ -1,5 +1,5 @@
 /**
- * lib/escrow-events — the event→DB application table. Every event maps to
+ * features/escrows/events — the event→DB application table. Every event maps to
  * its status guard, tx type, derived columns and actor; replays absorb via
  * the guard.
  */
@@ -13,7 +13,7 @@ import {
   type ApplyEscrowEventDeps,
   type EscrowEventStore,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import {
   ESCROW_EVENTS,
   EVENT_BY_TX_TYPE,

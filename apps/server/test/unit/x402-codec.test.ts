@@ -1,5 +1,5 @@
 /**
- * The x402 envelope codec (lib/x402): what the X-PAYMENT header must look
+ * The x402 envelope codec (lib/chain/x402): what the X-PAYMENT header must look
  * like to reach an adapter at all, and the X-PAYMENT-RESPONSE round trip.
  * Shape only — whether the artifact matches the terms is the adapters' job.
  */
@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { TENDA_RELAY_SCHEME, X402_VERSION } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertRelayEnvelope, decodePaymentHeader, encodeSettlementHeader } from '@server/lib/x402'
+import { assertRelayEnvelope, decodePaymentHeader, encodeSettlementHeader } from '@server/lib/chain/x402'
 
 const b64 = (v: unknown): string => Buffer.from(JSON.stringify(v)).toString('base64')
 

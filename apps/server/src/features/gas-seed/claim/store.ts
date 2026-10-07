@@ -14,7 +14,7 @@ import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { device_tokens, user_identities, users } from '@tenda/shared/db/schema'
 import { gas_grants, gas_seed_settings } from '@tenda/shared/db/schema/gas-seed'
 import type { AppDatabase } from '@server/plugins/db'
-import type { GrantForJob } from '../grants'
+import type { GrantForJob } from './grants'
 import type { ClaimantFacts, GrantFacts } from './eligibility'
 
 export interface GasSeedClaimStore {

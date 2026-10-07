@@ -15,7 +15,6 @@
  * press reaches which handler" is the wiring itself and a stubbed bar would
  * only prove the test presses its own button.
  */
-/* eslint-disable @typescript-eslint/no-require-imports, import/first -- Jest factories load dependencies after hoisting. */
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { RefreshControl, Share } from 'react-native'
 import { formatAssetAmount, txSuccessCopy, type ActiveSheet, type EscrowTxType, type GigDetail } from '@tenda/shared'

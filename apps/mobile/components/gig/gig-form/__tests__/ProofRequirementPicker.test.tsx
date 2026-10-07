@@ -6,7 +6,7 @@
  * indistinguishable.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import { FILE_PROOF_TYPES, PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
+import { PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
 
 interface Captured {
   label: string

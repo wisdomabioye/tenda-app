@@ -26,7 +26,7 @@ import { CHAIN_MANIFEST } from '@tenda/shared'
 import { OPTIONAL_URL_ENV_VARS, REQUIRED_ENV_VARS } from '@server/config'
 import { knownChainEnvKeys } from '@server/chains/secrets'
 import { chainEnvPrefix } from '@server/chains/secrets/schema'
-import { knownSlackEnvKeys } from '@server/lib/slack'
+import { knownSlackEnvKeys } from '@server/features/alerts/slack'
 import { ATTRIBUTION_FAMILIES, attributionEnvKey } from '@server/features/attribution'
 
 /** Env-var names documented in .env.example, commented-out lines included. */

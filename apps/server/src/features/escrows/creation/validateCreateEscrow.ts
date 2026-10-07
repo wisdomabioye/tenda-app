@@ -19,10 +19,10 @@ import {
   type PermitSignatureBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
-import { validateWirePermit } from '@server/chains/evm/permit'
+import { assertChainNotPaused, assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
+import { validateWirePermit } from '@server/chains/evm/build/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 export interface CreateEscrowBody {
   creation_operation_id?: unknown
@@ -97,6 +97,8 @@ export function validateCreateEscrow(
   if (!deps.hasChain(chain_id)) {
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, `unsupported chain_id '${chain_id}'`)
   }
+  // A KNOWN chain that is paused: no new escrow, human or agent (see lib/escrow/chain-pause).
+  assertChainNotPaused(chain_id, 'create')
 
   if (typeof body.asset !== 'string' || body.asset === '') fail('asset is required')
   const asset = body.asset

@@ -42,6 +42,7 @@ function chain(overrides: Partial<WalletChainBalance> = {}): WalletChainBalance 
     address: '0x1234567890abcdef1234567890abcdef12345678',
     usdc: { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '45000000', decimals: 6, isStable: true },
     native: { assetId: 'ETH_BASE', symbol: 'ETH', amountRaw: '10000000000000000', decimals: 18, isStable: false },
+    others: [],
     ...overrides,
   }
 }
@@ -134,4 +135,30 @@ test('the action slot imposes no minimum height — a row without an offer is un
   const line = screen.getByTestId('native-line')
   const flat = StyleSheet.flatten(line.props.style) as { minHeight?: number }
   expect(flat.minHeight).toBeUndefined()
+})
+
+test('a held cNGN or cUSD balance is shown beneath the native figure', () => {
+  render(
+    <WalletBalanceRows
+      balances={[chain({
+        others: [
+          { assetId: 'cNGN', symbol: 'cNGN', amountRaw: '1500000000', decimals: 6, isStable: true },
+          { assetId: 'cUSD', symbol: 'cUSD', amountRaw: '2500000000000000000', decimals: 18, isStable: true },
+        ],
+      })]}
+    />,
+  )
+  expect(screen.getByTestId('other-asset-cNGN')).toBeTruthy()
+  expect(screen.getByText('1,500 cNGN')).toBeTruthy()
+  expect(screen.getByText('2.5 cUSD')).toBeTruthy()
+})
+
+test('an asset the wallet holds NONE of is not listed — a row per empty asset would bury the figure', () => {
+  render(
+    <WalletBalanceRows
+      balances={[chain({ others: [{ assetId: 'cNGN', symbol: 'cNGN', amountRaw: '0', decimals: 6, isStable: true }] })]}
+    />,
+  )
+  expect(screen.queryByTestId('other-asset-cNGN')).toBeNull()
+  expect(screen.queryByText(/cNGN/)).toBeNull()
 })

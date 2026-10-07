@@ -31,8 +31,7 @@ import {
   signEvmTypedData,
 } from '../walletconnect'
 import { connectionSignal } from '../../reown/connection-signal'
-import { WC_REQUEST_TIMEOUT_MS } from '@tenda/shared'
-import { WalletError } from '@tenda/shared'
+import { WC_REQUEST_TIMEOUT_MS, WalletError } from '@tenda/shared'
 import type { WalletAccount } from '@tenda/shared'
 
 const mockConnect = connectionSignal.connect as jest.Mock

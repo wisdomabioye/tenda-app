@@ -14,7 +14,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { GAS_SEED_UNRESOLVED_AFTER_MS } from '@tenda/shared'
-import { RetryableError } from '@server/jobs/verify-tx'
+import { RetryableError } from '@server/queue/jobs/verify-tx'
 import {
   handleGasSeedConfirm,
   type GrantForJob,

@@ -93,7 +93,6 @@ jest.mock('../gig-action-sheets/DeleteDraftDialog', () => {
   }
 })
 
-// eslint-disable-next-line import/first
 import { GigActionSheets } from '../GigActionSheets'
 
 const GIG = {

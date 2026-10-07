@@ -8,7 +8,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native'
 type Chain = { id: string; namespace: string; display_name: string; assets: unknown[] }
 
 let mockUser: { id: string } | null = { id: 'u1' }
-let mockWallets: Array<{ chain_ns: string; address: string }> = []
+let mockWallets: { chain_ns: string; address: string }[] = []
 let mockWalletsStatus = 'ready'
 const mockRetry = jest.fn()
 let mockChains: Chain[] | null = []
@@ -122,7 +122,7 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   mockChains = [{ id: 'solana:devnet', namespace: 'solana', display_name: 'Solana', assets: [] }]
   mockRead.mockResolvedValue([
     { chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address: 'SoL',
-      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null },
+      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
   ])
   // The REAL sumUsdcRaw runs over the mocked read result → 50 USDC (6dp).
 
@@ -130,6 +130,18 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   expect(result.current.section).toBe('ready')
   await waitFor(() => expect(result.current.balances).toHaveLength(1))
   expect(result.current.totalUsdc).toBe(50)
+})
+
+test('exposes the asset id the headline total was scaled by, so the screen can price it in fiat', async () => {
+  mockWallets = [{ chain_ns: 'eip155', address: '0xA' }]
+  mockChains = [{ id: 'eip155:8453', namespace: 'eip155', display_name: 'Base', assets: [] }]
+  mockRead.mockResolvedValue([
+    { chainId: 'eip155:8453', namespace: 'eip155', displayName: 'Base', address: '0xA',
+      usdc: { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
+  ])
+  const { result } = renderHook(() => useWalletScreen())
+  await waitFor(() => expect(result.current.balances).toHaveLength(1))
+  expect(result.current.usdcAssetId).toBe('USDC_BASE')
 })
 
 test('surfaces the failed-load section and its retry, so the screen can distinguish load states', async () => {
@@ -404,6 +416,7 @@ test('a slower EARLIER read cannot overwrite the newer one it was superseded by'
     chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address,
     usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '1', decimals: 6, isStable: true },
     native: null,
+    others: [],
   })
   let releaseFirst: ((v: unknown[]) => void) | undefined
   mockRead.mockImplementationOnce(() => new Promise<unknown[]>((res) => { releaseFirst = res }))
@@ -437,7 +450,7 @@ test('a superseded run cannot write even when it FAILS or answers late', async (
   await waitFor(() => expect(mockRead).toHaveBeenCalledTimes(1))
 
   const fresh = [{ chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana',
-    address: 'NEW', usdc: null, native: null }]
+    address: 'NEW', usdc: null, native: null, others: [] }]
   mockRead.mockResolvedValue(fresh)
   mockSummary.mockResolvedValue({ earned_raw: '9000000', spent_raw: '0', asset: 'USDC_SOL' })
   mockWallets = [{ chain_ns: 'solana', address: 'NEW' }]

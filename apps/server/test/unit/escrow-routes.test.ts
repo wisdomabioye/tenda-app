@@ -1,5 +1,5 @@
 /**
- * Pure-helper tests for lib/escrow-routes.ts. `loadEscrowOr404` and
+ * Pure-helper tests for features/escrows/routes.ts. `loadEscrowOr404` and
  * `guardTransition` need a real Drizzle db so they're covered by route
  * integration tests once the v2 schema lands at #34.
  */
@@ -12,7 +12,7 @@ import {
   buildContext,
   deriveCaller,
   requireCaller,
-} from '@server/lib/escrow-routes'
+} from '@server/features/escrows/routes'
 
 const T0 = new Date('2026-05-20T12:00:00Z')
 const T_FUTURE = new Date('2026-06-20T12:00:00Z')

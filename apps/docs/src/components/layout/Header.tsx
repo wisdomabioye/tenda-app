@@ -4,21 +4,28 @@
  * The title and version come from the document — a docs site that typed its
  * own version would be the first thing on the page to be wrong.
  */
-import type { ThemeChoice } from '@/theme/useTheme'
+import { nextMode, type ResolvedTheme, type ThemeMode } from '@/theme/useTheme'
 import { apiBaseUrl } from '@/env'
 import { AGENT_API_DOCUMENT_PATH } from '@/lib/document'
 import { BrandLogo } from './BrandLogo'
 
+const MODE_LABEL: Record<ThemeMode, string> = { system: 'System', light: 'Light', dark: 'Dark' }
+const MODE_GLYPH: Record<ThemeMode, string> = { system: '◐', light: '☀', dark: '☾' }
+
 export function Header({
   title,
   version,
+  mode,
   theme,
-  onToggleTheme,
+  onCycleTheme,
 }: {
   title: string
   version: string
-  theme: ThemeChoice
-  onToggleTheme: () => void
+  /** What the reader chose — `system` means "follow my OS". */
+  mode: ThemeMode
+  /** What is showing: the mark swaps on this, not on the mode. */
+  theme: ResolvedTheme
+  onCycleTheme: () => void
 }) {
   return (
     <header
@@ -34,12 +41,12 @@ export function Header({
         <span className="flex-1" />
         <button
           type="button"
-          onClick={onToggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+          onClick={onCycleTheme}
+          aria-label={`Theme: ${MODE_LABEL[mode]}. Switch to ${MODE_LABEL[nextMode(mode)]}`}
           className="rounded-full border px-3 py-1.5 text-[12px] font-semibold"
           style={{ borderColor: 'var(--border-default)', color: 'var(--content-secondary)' }}
         >
-          {theme === 'dark' ? '☾ Dark' : '☀ Light'}
+          {MODE_GLYPH[mode]} {MODE_LABEL[mode]}
         </button>
         {/* The machine-readable half. An agent reading this page wants the
             JSON, and this is the path the document declares for itself. */}

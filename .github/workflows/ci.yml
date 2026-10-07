@@ -6,8 +6,10 @@
 #        - server → full c8 suite (unit + integration) against a postgres
 #          service; thresholds in apps/server/.c8rc.json (ratchets toward 90/85)
 #        - shared → c8 (apps-free); thresholds in packages/shared/.c8rc.json (100)
-#          (@tenda/api-doc has no suite of its own yet — the server's document
-#           tests exercise it; see #160)
+#        - api-doc → c8 over its own suites; thresholds in packages/api-doc/.c8rc.json
+#        - agent-skill → generated skill current (check:skill) + c8 in packages/agent-skill/.c8rc.json
+#          (the document-only suites live there; the two that read server
+#           constants stay in apps/server/test)
 #        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
 #        - web / tendahq / docs → vitest v8, thresholds in each vitest.config.ts
 #   2. contract tests   → live in the tenda-escrow repo's own CI
@@ -80,6 +82,11 @@ jobs:
       - name: Build contract artifacts for the anvil suite
         working-directory: contracts/evm
         run: forge build
+      # The server tests build their DB from the migration SQL, never from the
+      # schema expressions, so a schema edit with no migration passes every
+      # other step here. This runs `drizzle-kit generate` and fails if it writes.
+      - name: Schema / migration drift gate
+        run: node scripts/check-schema-drift.mjs
       - name: Typecheck (src + test)
         working-directory: apps/server
         run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
@@ -124,6 +131,20 @@ jobs:
       - run: pnpm --filter @tenda/shared build
       - name: Tests + coverage gate
         run: pnpm --filter @tenda/shared test:coverage
+      # api-doc builds against shared (built above). Same src+test typecheck
+      # split as shared, then its own coverage gate.
+      - name: Typecheck api-doc (src + test)
+        working-directory: packages/api-doc
+        run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
+      - name: Tests + coverage gate (api-doc)
+        run: pnpm --filter @tenda/api-doc test:coverage
+      # The agent skill is rendered FROM the api-doc build and shared's
+      # constants, so it needs both built. `check:skill` fails a change to the
+      # API that did not regenerate the committed skill the npm tarball ships.
+      - name: Build api-doc (the skill renders from it)
+        run: pnpm --filter @tenda/api-doc build
+      - name: Agent skill (generated files current, tests + coverage)
+        run: pnpm --filter @tenda/agent-skill check:skill && pnpm --filter @tenda/agent-skill test:coverage
 
   admin:
     runs-on: ubuntu-latest

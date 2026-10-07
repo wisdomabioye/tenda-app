@@ -12,7 +12,7 @@
  * a test that saw two would not be able to tell the atomic adoption apart from
  * the split one that lost 400,000 blocks to a crash between the writes.
  */
-import type { CursorStore } from '@server/chains/cursors'
+import type { CursorStore } from '@server/chains/listening/cursors'
 
 /** What a write log entry names: a live advance, a history advance, or adoption. */
 type CursorWrite = ['live' | 'backfill' | 'init', number]

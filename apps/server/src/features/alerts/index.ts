@@ -37,28 +37,28 @@ export type {
   AlertResolver,
 } from './types'
 
-export { ALERT_CHANNELS, alertChannelNames, channelByName, channelsFor } from './registry'
+export { ALERT_CHANNELS, alertChannelNames, channelByName, channelsFor } from './kinds/registry'
 
-export { resolveAlert } from './resolve-alert'
+export { resolveAlert } from './pipeline/resolve-alert'
 
-export { mediatorUserIds } from './recipients'
+export { mediatorUserIds } from './pipeline/recipients'
 
-export { alertPartyName, loadAlertPartyNames } from './identities'
-export type { AlertPartyNames } from './identities'
+export { alertPartyName, loadAlertPartyNames } from './identity/identities'
+export type { AlertPartyNames } from './identity/identities'
 
-export { alertIdentity, alertJobId } from './identity'
+export { alertIdentity, alertJobId } from './identity/identity'
 
 export {
   ALERT_JOB_ATTEMPTS,
   ALERT_REF_BY_EVENT,
   alertRefForEscrowEvent,
   enqueueAlert,
-} from './enqueue-alert'
-export type { ChannelSelector } from './enqueue-alert'
+} from './pipeline/enqueue-alert'
+export type { ChannelSelector } from './pipeline/enqueue-alert'
 
 /**
  * The gas-seed hot-wallet monitor (#53b item 4) — a repeatable, wired in
- * workers/processors.ts. Under alerts rather than under the seed so the
+ * queue/workers/processors.ts. Under alerts rather than under the seed so the
  * dependency between the two features runs one way; see the module for why.
  */
 export { handleGasSeedBalanceCheck } from './monitors/gas-seed-balance'
@@ -77,5 +77,5 @@ export {
 } from './kinds/gas-seed-low-balance'
 export type { FunderBalanceReader, SeedStanding } from './kinds/gas-seed-low-balance'
 
-export { deliverAlert } from './deliver-alert'
-export type { ChannelLookup } from './deliver-alert'
+export { deliverAlert } from './pipeline/deliver-alert'
+export type { ChannelLookup } from './pipeline/deliver-alert'

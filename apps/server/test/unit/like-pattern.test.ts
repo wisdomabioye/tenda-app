@@ -12,7 +12,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { containsPattern, escapeLike } from '@server/lib/like-pattern'
+import { containsPattern, escapeLike } from '@server/lib/http/like-pattern'
 
 test('escapeLike: each metacharacter is escaped, and nothing else is', () => {
   assert.strictEqual(escapeLike('%'), '\\%')

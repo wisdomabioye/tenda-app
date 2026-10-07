@@ -1,0 +1,39 @@
+name: Chore
+description: Maintenance, tooling, refactor, docs or operational work with no product change
+title: "[chore] "
+labels: ["kind:chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is public. Do not paste secrets, private keys, seed phrases, `.env` contents, or personal data.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - server
+        - mobile
+        - web
+        - admin
+        - contracts
+        - landing
+        - docs
+        - shared
+        - ops
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What does this unblock, de-risk or clean up?
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      placeholder: "- [ ] ..."
+    validations:
+      required: true

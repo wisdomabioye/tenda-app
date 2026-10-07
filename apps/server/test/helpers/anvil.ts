@@ -72,7 +72,10 @@ const ANVIL_SEEKER_FEE_BPS = 100
 const ANVIL_APPROVAL_WINDOW_SECONDS = 172_800
 
 /** Matches the manifest's Base Sepolia entry, so its permit/eip3009 config applies verbatim. */
-const ANVIL_CHAIN_NUMERIC_ID = 84532
+// 0G Galileo's id, the harness's second chain (TEST_CHAIN_ID_ALT). It was Base
+// Sepolia's (84532) until Base was PAUSED, 2026-10-02: the recorded x402 example
+// is published, and must show a chain a reader can actually post on.
+const ANVIL_CHAIN_NUMERIC_ID = 16602
 export const ANVIL_CHAIN_ID = `eip155:${ANVIL_CHAIN_NUMERIC_ID}`
 
 export interface Artifact {

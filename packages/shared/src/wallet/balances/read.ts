@@ -1,7 +1,7 @@
 /**
  * Wallet-screen balance fan-out (moved from apps/mobile/wallet/balances/
  * index.ts, 2026-08-15, parameterized on the reader registry): read every
- * linked wallet's USDC + native balance across the enabled chains matching
+ * linked wallet's USDC + native + other-asset balances across the enabled chains matching
  * its namespace. `DEFAULT_READERS` are the shared fetch-based ones; a client
  * with its own transport (mobile's web3.js Solana reader) injects overrides
  * — the pluggable-reader requirement, unchanged.
@@ -17,9 +17,16 @@ export const DEFAULT_READERS: Record<ChainNamespace, BalanceReader> = {
   eip155: evmBalanceReader,
 }
 
-/** The chain's gig stablecoin (USDC) balance from a read result, if present. */
+/**
+ * The chain's gig stablecoin (USDC) balance from a read result, if present.
+ *
+ * The USDC that is an ERC-20 / SPL token, never the native gas token. On Arc the
+ * native token IS USDC (18 decimals) beside the 6-decimal ERC-20, under one
+ * ticker, so the symbol alone cannot say which is the headline. A token address
+ * can: the native asset has none.
+ */
 function pickUsdc(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance | null {
-  const usdcId = chain.assets.find((a) => a.symbol === 'USDC')?.id
+  const usdcId = chain.assets.find((a) => a.symbol === 'USDC' && a.token_address !== null)?.id
   return balances.find((b) => b.assetId === usdcId) ?? null
 }
 
@@ -37,6 +44,13 @@ export function nativeAssetIdOf(chain: ChainRegistryEntry): string | null {
 function pickNative(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance | null {
   const nativeId = nativeAssetIdOf(chain)
   return balances.find((b) => b.assetId === nativeId) ?? null
+}
+
+/** Every asset in the read that is neither the gig stablecoin nor the native token. */
+function pickOthers(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance[] {
+  const usdcId = chain.assets.find((a) => a.symbol === 'USDC')?.id
+  const nativeId = nativeAssetIdOf(chain)
+  return balances.filter((b) => b.assetId !== usdcId && b.assetId !== nativeId)
 }
 
 /**
@@ -63,6 +77,7 @@ export async function readWalletBalances(
         address: wallet.address,
         usdc: pickUsdc(balances, chain),
         native: pickNative(balances, chain),
+        others: pickOthers(balances, chain),
       }
     }),
   )

@@ -20,9 +20,9 @@ import { AppError, requireBody } from '@server/lib/errors'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
-import { guardTransition } from '@server/lib/escrow-routes'
+import { guardTransition } from '@server/features/escrows/routes'
 import { assertCallerWallet, buildEscrowTx, partyCaller, readSignerPreference } from '@server/lib/escrow'
-import { validateWirePermit } from '@server/chains/evm/permit'
+import { validateWirePermit } from '@server/chains/evm/build/permit'
 import { isAmountRaw } from '@server/chains/types'
 
 interface Body {

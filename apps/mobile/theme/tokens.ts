@@ -134,12 +134,6 @@ export interface ColorScheme {
     digital: Tone
   }
 
-  accent: {
-    primary: string
-    primarySurface: string
-    primaryBorder: string
-  }
-
   numeric: {
     positive: string
     negative: string
@@ -257,12 +251,6 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       digital: tone('#E0579D', 'rgba(224,87,157,0.10)', '#9A3E6C', 'rgba(224,87,157,0.22)'),
     },
 
-    accent: {
-      primary: '#E08A3C',
-      primarySurface: '#FCEFDF',
-      primaryBorder: '#F3D1A8',
-    },
-
     numeric: {
       positive: '#197D55',
       negative: '#CB3A3A',
@@ -363,12 +351,6 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       digital: tone('#F472B6', 'rgba(244,114,182,0.14)', '#FBCFE8', 'rgba(244,114,182,0.32)'),
     },
 
-    accent: {
-      primary: '#F0A365',
-      primarySurface: 'rgba(240,163,101,0.14)',
-      primaryBorder: 'rgba(240,163,101,0.32)',
-    },
-
     numeric: {
       positive: '#3ACB8E',
       negative: '#F0706E',
@@ -420,6 +402,27 @@ export const radius = {
   button: 12,
   buttonLg: 14,
   full: 9999,
+} as const
+
+/**
+ * Button geometry by size. These were locals in Button.tsx (HEIGHTS, PAD_X,
+ * LABEL_BY_SIZE, GHOST_HEIGHT) that web re-typed as Tailwind steps, and the
+ * copies drifted: web drew 20/24 side padding against the phone's 18/22 and a
+ * ghost at the size's height against the phone's fixed 44. Read by Button.tsx
+ * and by the token generator (apps/web/scripts/gen-web-tokens), the way the
+ * radii above are.
+ */
+export const buttonGeometry = {
+  height: { sm: 40, md: 48, lg: 52, xl: 56 },
+  padX: { sm: 14, md: 18, lg: 22, xl: 24 },
+  label: {
+    sm: { fontSize: 14, lineHeight: 18 },
+    md: { fontSize: 14, lineHeight: 18 },
+    lg: { fontSize: 15, lineHeight: 20 },
+    xl: { fontSize: 15, lineHeight: 20 },
+  },
+  /** A ghost button is a text action: one height whatever its size. */
+  ghostHeight: 44,
 } as const
 
 const fontWeights = {

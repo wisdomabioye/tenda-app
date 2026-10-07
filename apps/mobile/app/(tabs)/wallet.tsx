@@ -15,6 +15,9 @@ import {
 } from '@/components/wallet'
 import { useGasClaimChip } from '@/features/gas-claim'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
+import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { walletFiatLine } from '@/components/wallet/wallet-fiat'
 import { END_REACHED_THRESHOLD } from '@tenda/shared'
 
 export default function WalletScreen() {
@@ -26,6 +29,7 @@ export default function WalletScreen() {
     retryChains,
     balances,
     totalUsdc,
+    usdcAssetId,
     earnedUsdc,
     spentUsdc,
     feed,
@@ -45,6 +49,9 @@ export default function WalletScreen() {
   // `enabled` on the ready branch only: the hook must be called unconditionally
   // (it is a hook), but there is nothing to offer a chip on until the balance
   // rows exist — and on `no-wallet` every answer would be `no_wallet` anyway.
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
+  const fiatLine = walletFiatLine(totalUsdc, rates, currency, usdcAssetId)
   const renderGasChip = useGasClaimChip({ enabled: section === 'ready' })
 
   // One branch per settled fact, resolved in the hook (resolveWalletSection).
@@ -54,7 +61,7 @@ export default function WalletScreen() {
   const walletSection =
     section === 'ready' ? (
       <>
-        <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
+        <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} fiatLine={fiatLine} />
         <WalletBalanceRows balances={balances} renderChainAction={renderGasChip} />
         <WalletActions />
         <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />

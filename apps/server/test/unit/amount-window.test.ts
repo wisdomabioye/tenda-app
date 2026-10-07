@@ -15,7 +15,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
 import type { AppError } from '@server/lib/errors'
-import { amountWindowConditions } from '@server/lib/amount-window'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
 
 /** Every refusal is the same 400 VALIDATION_ERROR; only the message differs. */
 function assertRefused(query: { min_amount_raw?: string; max_amount_raw?: string }, message: RegExp): void {

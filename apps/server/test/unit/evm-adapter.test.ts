@@ -18,11 +18,11 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
-import { buildEvmCall } from '@server/chains/evm/builders'
-import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify'
+import { buildEvmCall } from '@server/chains/evm/build/builders'
+import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify/verify'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS, type EvmReceipt, type EvmRpc } from '@server/chains/evm/rpc'
-import type { PaymasterHttp } from '@server/chains/evm/paymaster'
-import { uuidToBytes } from '@server/chains/ids'
+import type { PaymasterHttp } from '@server/chains/evm/sender/paymaster'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { decodeTag } from '@server/features/attribution'
 import { withAttributionCode } from '../helpers/attribution-env'
 import { AppError } from '@server/lib/errors'
@@ -32,7 +32,7 @@ import {
   type EscrowEventStore,
   type EscrowEventTransaction,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import type { EscrowStatus } from '@server/lib/escrow'
 import { encodeApprove } from '@tenda/shared'
 
@@ -52,6 +52,7 @@ const TX = `0x${'ab'.repeat(32)}` as const
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
     async readApprovalWindow() { return 172_800n },
+    async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
     async getTransactionReceipt() {
       return null
     },

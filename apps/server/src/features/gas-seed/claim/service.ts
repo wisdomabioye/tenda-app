@@ -6,7 +6,7 @@
  * lets both endpoints run one evaluator over one set of facts.
  */
 
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, findChain, isChainEnabled } from '@tenda/shared'
 import type {
   GasSeedAvailability,
   GasSeedAvailabilityResponse,
@@ -14,7 +14,7 @@ import type {
   SessionClient,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { GasSeedStore, SeedableChain } from '../grants'
+import type { GasSeedStore, SeedableChain } from './grants'
 import type { GasSeedFunder } from '../senders'
 import {
   claimRefusal,
@@ -59,6 +59,12 @@ export interface ClaimIdentity {
   client: SessionClient | null
 }
 
+/** A chain the manifest knows to be paused. An unknown id is not paused (the registry owns that question). */
+function isPaused(chain_id: string): boolean {
+  const entry = findChain(chain_id)
+  return entry !== undefined && !isChainEnabled(entry)
+}
+
 /**
  * Facts for one chain, WITHOUT the balance.
  *
@@ -81,7 +87,9 @@ async function factsFor(
     chain_id: chain.chain_id,
     amount_raw: chain.gas_seed_amount_raw,
     sender_configured: deps.funders.has(chain.chain_id),
-    claims_enabled: !disabled.has(chain.chain_id),
+    // Off for an operator-disabled chain AND for a paused one: a seed is a way
+    // IN (it onboards a new user onto the chain), which a pause refuses.
+    claims_enabled: !disabled.has(chain.chain_id) && !isPaused(chain.chain_id),
     funder_balance: null,
     wallet_address,
     grant,

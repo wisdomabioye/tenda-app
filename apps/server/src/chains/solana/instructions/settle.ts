@@ -21,7 +21,7 @@ import {
   isNativeSol,
   type FetchedEscrow,
   type SolanaBuilderDeps,
-} from '@server/chains/solana/builder-internals'
+} from '@server/chains/solana/build/builder-internals'
 
 /** The actions this module encodes. */
 export type SettleAction = Extract<

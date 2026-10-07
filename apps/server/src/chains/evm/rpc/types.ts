@@ -110,4 +110,6 @@ export interface EvmRpc {
   readPermitFacts(token: `0x${string}`, owner: `0x${string}`): Promise<EvmPermitFacts>
   /** The contract's `approvalWindowSeconds()` — the poster's review window, a uint64 (#148). */
   readApprovalWindow(escrow_contract: `0x${string}`): Promise<bigint>
+  /** The contract's `feeBps()` and `seekerFeeBps()`, both uint16 (basis points). */
+  readFees(escrow_contract: `0x${string}`): Promise<{ feeBps: number; seekerFeeBps: number }>
 }

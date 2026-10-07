@@ -36,7 +36,7 @@
  *      the registration for both endpoints);
  *   3. delete the registry lines for BOTH queues — `'gas-seed'` and
  *      `'gas-seed-confirm'` (#58 split broadcasting from confirming) — in
- *      `plugins/queue/payloads.ts`, `workers/processors.ts`, and
+ *      `plugins/queue/payloads.ts`, `queue/workers/processors/index.ts`, and
  *      `plugins/workers.ts`'s `WORKER_CONCURRENCY`; that last one is not
  *      optional, the map is `Record<JobName, number>` and omitting an entry
  *      fails the type check;
@@ -62,7 +62,7 @@
  *      in a generated migration. NOT required — an unread table costs nothing,
  *      and the grant history is worth keeping even after the feature stops.
  * Nothing else knows this feature exists. Three things deliberately stay behind
- * because they are NOT part of it: `chains/evm/hot-wallet.ts` (the relayer uses
+ * because they are NOT part of it: `chains/evm/sender/hot-wallet.ts` (the relayer uses
  * the same clients), `resolvePrimaryWalletAddress`'s deterministic ordering
  * (a fix to shared auth code, good on its own merits, and six modules depend on
  * it), and the session client stamp on the auth token (a generic session fact —
@@ -85,7 +85,7 @@ export {
   type GasSeedTransferStatus,
   type SeedableChain,
   type SignedGasSeedTransfer,
-} from './grants'
+} from './claim/grants'
 
 export {
   buildGasSeedSenders,

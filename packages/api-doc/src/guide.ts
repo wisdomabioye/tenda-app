@@ -17,20 +17,12 @@
  */
 import {
   apiRoutes,
+  ErrorCode,
   TENDA_RELAY_SCHEME,
   X402_VERSION,
   X_PAYMENT_HEADER,
   X_PAYMENT_RESPONSE_HEADER,
 } from '@tenda/shared'
-
-// TEMPORARY #182: AskBots reviews one fixed production URL, and its capture
-// truncates the deployment-neutral registry/schema tail. Keep the scored
-// mainnet recipe in the retained prefix through the 2026-09-21 deadline, then
-// remove these values and restore the registry-driven guide under task #182.
-export const ASKBOTS_REVIEW_ORIGIN = 'https://api.tendahq.com'
-export const ASKBOTS_REVIEW_CHAIN_ID = 'eip155:42220'
-export const ASKBOTS_REVIEW_ASSET_ID = 'USDC_CELO'
-export const ASKBOTS_REVIEW_OPERATION_ID = '6f0d7907-df0f-4e40-aac7-e65f1b70c114'
 
 /**
  * OpenAPI spells a path parameter `{id}`; the route constants spell it `:id`.
@@ -72,13 +64,13 @@ export function integrationGuide(): string {
     '',
     '**Get a demo bearer.** Send an empty `POST ' + demoSession + '`. No body, account or signature is required. Read `token` from the JSON response and send it as `Authorization: Bearer <token>`.',
     '',
-    '**Reach the real Celo mainnet payment boundary.** Send the following body to `POST ' + ASKBOTS_REVIEW_ORIGIN + tasks + '` with that bearer. Replace `creation_operation_id` with a fresh UUID if reusing this recipe:',
+    '**Reach the payment boundary.** Send the following body to `POST ' + tasks + '` with that bearer. Take `chain_id` and `asset` from `GET ' + chains + '`, which lists what this deployment can settle, and mint a fresh UUID for `creation_operation_id`:',
     '',
     '```json',
     JSON.stringify({
-      creation_operation_id: ASKBOTS_REVIEW_OPERATION_ID,
-      chain_id: ASKBOTS_REVIEW_CHAIN_ID,
-      asset: ASKBOTS_REVIEW_ASSET_ID,
+      creation_operation_id: '<a fresh UUID>',
+      chain_id: '<a chain_id from ' + chains + '>',
+      asset: '<an asset id from that chain\'s entry>',
       amount_raw: '1000000',
       accept_window_seconds: 86400,
       completion_duration_seconds: 3600,
@@ -90,7 +82,7 @@ export function integrationGuide(): string {
     }, null, 2),
     '```',
     '',
-    'This reaches the production task handler and returns its real **402** terms on Celo mainnet; it is not a mocked endpoint. `GET ' + ASKBOTS_REVIEW_ORIGIN + chains + '` is the authority for the currently deployed addresses and capabilities.',
+    'This reaches the task handler and returns its real **402** terms for the chain you chose; it is not a mocked endpoint. `GET ' + chains + '` is the authority for the currently deployed addresses and capabilities.',
     '',
     '**Inspect the complete exchange.** The `' + tasks + '` operation carries complete recorded examples for the request, the **402** response, the signed payment envelope, the **201** response and the settlement receipt. On the paid resend, `' + X_PAYMENT_HEADER + '` is the base64 encoding of the UTF-8 JSON object `{ x402Version, scheme, network, payload }` shown by that example.',
     '',
@@ -108,6 +100,6 @@ export function integrationGuide(): string {
     '',
     `**5 — Watch it land.** Read the task back at \`GET ${gig}\`. The create is on chain once the gig leaves \`draft\`; how long this deployment waits before giving up on a transaction it cannot find is stated on the task operation itself.`,
     '',
-    `**When it does not work.** A resend answering **402** again means the previous create is over: the terms are fresh and so is the draft. A **409** means a create for that \`creation_operation_id\` is still in flight — wait rather than mint a new one. A **422** means this deployment cannot settle what the body asked for, and \`GET ${chains}\` is the authority on what it can. Every non-2xx answer is the \`ApiError\` envelope, whose \`code\` is the machine-readable half.`,
+    `**When it does not work.** A resend answering **402** again means the previous create is over: the terms are fresh and so is the draft. A **409** means a create for that \`creation_operation_id\` is still in flight — wait rather than mint a new one. A **422** means this deployment cannot settle what the body asked for, and \`GET ${chains}\` is the authority on what it can. A **429** with \`code\` \`${ErrorCode.RATE_LIMITED}\` means slow down: wait \`details.retry_after\` seconds (the \`Retry-After\` header carries the same number) and resend the same body. Every non-2xx answer is the \`ApiError\` envelope, whose \`code\` is the machine-readable half.`,
   ].join('\n')
 }

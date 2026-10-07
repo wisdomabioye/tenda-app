@@ -1,5 +1,5 @@
 /**
- * features/alerts/enqueue-alert — the producer.
+ * features/alerts/pipeline/enqueue-alert — the producer.
  *
  * Three things this file is actually pinning, none of which are "the function
  * runs":
@@ -29,10 +29,10 @@ import {
 } from '@server/features/alerts'
 import type { AlertChannel, AlertKind, AlertRefOf } from '@server/features/alerts'
 import { DEFAULT_JOB_OPTIONS } from '@server/plugins/queue'
-import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
+import { INTERNAL_EVENT_BY_WIRE } from '@server/features/escrows/events'
+import type { InternalEscrowEvent } from '@server/features/escrows/events'
 import { ESCROW_EVENTS } from '@server/chains/types'
-import { slackEnvKey } from '@server/lib/slack'
+import { slackEnvKey } from '@server/features/alerts/slack'
 import { queueDouble } from '../helpers/queue-double'
 import { alertLogSpy } from '../helpers/alert-log'
 import { republishEvent } from '../helpers/republish-event'

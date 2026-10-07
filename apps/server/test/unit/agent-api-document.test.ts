@@ -38,9 +38,9 @@ import {
   PLATFORM_COMPONENT_NAMES,
   type SchemaObject,
 } from '@tenda/api-doc'
-import { FEATURED_RAIL_LIMIT } from '@server/lib/featured'
-import { GIG_SUMMARY_COLS } from '@server/lib/gig-read'
-import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '../helpers/agent-api-validator'
+import { FEATURED_RAIL_LIMIT } from '@server/features/gigs/featured'
+import { GIG_SUMMARY_COLS } from '@server/features/gigs/gig-read'
+import { COMPONENT_REF_PREFIX, agentApiAjv, strictAjv } from '@tenda/api-doc/testing'
 
 const { paths, components } = AGENT_API_DOCUMENT
 
@@ -66,11 +66,12 @@ test('the document names its own path and version, and is OpenAPI 3.1', () => {
   assert.ok(AGENT_API_STABILITY.some((line) => /anonymous/i.test(line) && /bearer/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /never removed/i.test(line)))
   assert.ok(AGENT_API_STABILITY.some((line) => /is_agent/.test(line)))
-  // Pinned so a bump is never incidental. 2.0.0 is the first MAJOR: #41 renamed
+  // Pinned so a bump is never incidental. 2.0.0 was the first MAJOR: #41 renamed
   // and retyped a REQUEST field on POST /v1/agent/tasks (accept_deadline_unix →
   // accept_window_seconds), which the response-field promise below does not
-  // cover and which a caller must act on.
-  assert.strictEqual(AGENT_API_VERSION, '2.0.0')
+  // cover and which a caller must act on. 2.1.0 ADDED POST /v1/agent/tasks/validate
+  // — a new path, which the "new paths may be added" promise makes a MINOR.
+  assert.strictEqual(AGENT_API_VERSION, '2.1.0')
 })
 
 test('the public reads are GET-only and every agent write POST-only, all spelled from the route map', () => {
@@ -89,7 +90,7 @@ test('the public reads are GET-only and every agent write POST-only, all spelled
   // `/v1/auth/verify` joins them since #130: it takes the same wallet proof and
   // is how an existing agent signs back in, which registration has always told
   // readers to use.
-  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks, apiRoutes.auth.verify]
+  const WRITES = [apiRoutes.agent.register, apiRoutes.agent.tasks, apiRoutes.agent.tasksValidate, apiRoutes.auth.verify]
   const BODYLESS = [apiRoutes.agent.demoSession]
   // The nonce (#130) is a POST that takes nothing either, but it is NOT a door:
   // it hands out something to sign, not a bearer, and it has no 503 because a
@@ -272,9 +273,7 @@ test('no description hand-writes a chain or asset id — those are per-deploymen
     // integration guide — the longest prose in the file, and the piece most
     // likely to reach for a concrete example. It was outside this scan while
     // it was one sentence.
-    // TEMPORARY #182: the fixed AskBots URL is scored against Celo mainnet, so
-    // its retained prefix deliberately carries that deployment's executable
-    // recipe. Every reusable schema and operation description remains neutral.
+    { where: 'info.description', text: AGENT_API_DOCUMENT.info.description },
   ]
   for (const [name, schema] of Object.entries(components.schemas)) {
     walk(schema, (node) => {

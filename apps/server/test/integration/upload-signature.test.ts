@@ -118,7 +118,7 @@ test('signature: escrow with no dispute yields 404', { skip }, async () => {
 })
 
 test('signature: a non-member is denied a CHAT upload (403) (#105 T3)', { skip }, async () => {
-  // The chat authorizer's own refusal, in lib/uploads/scoped.ts. The dispute
+  // The chat authorizer's own refusal, in features/uploads/scoped.ts. The dispute
   // authorizer's 403/404 above were covered; the chat one was not, so the two
   // scoped types were unevenly protected while looking symmetrical from here.
   //

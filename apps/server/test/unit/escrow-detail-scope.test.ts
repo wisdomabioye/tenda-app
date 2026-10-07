@@ -1,5 +1,5 @@
 /**
- * The detail-route-specific read gates (`lib/escrow-detail-scope`): the admin
+ * The detail-route-specific read gates (`features/escrows/detail/scope`): the admin
  * rung on top of party membership, and the private-half projection.
  *
  * The two party rungs themselves are NOT tested here — they live in
@@ -16,8 +16,8 @@ import {
   scopeMySignerAddress,
   type DetailViewer,
   type EscrowSignerAddressColumns,
-} from '@server/lib/escrow-detail-scope'
-import type { EscrowPartyColumns } from '@server/lib/escrow-party'
+} from '@server/features/escrows/detail/scope'
+import type { EscrowPartyColumns } from '@server/lib/escrow/party'
 
 const CREATOR = 'user-creator'
 const COUNTERPARTY = 'user-counterparty'

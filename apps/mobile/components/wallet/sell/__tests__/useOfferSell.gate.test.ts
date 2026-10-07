@@ -46,9 +46,7 @@ jest.mock('@/api/client', () => ({
   ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 
-// eslint-disable-next-line import/first
 import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
-// eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
 
 const ARGS = {

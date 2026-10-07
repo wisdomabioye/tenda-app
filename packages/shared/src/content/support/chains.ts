@@ -14,7 +14,7 @@
  * as two rules rather than a hand-written sequence — lead families first, then
  * EVM before Solana — so a new EVM chain slots in ahead of Solana on its own.
  */
-import { CHAIN_MANIFEST } from '../../chains/manifest'
+import { enabledChains } from '../../chains/pause'
 import { nativeCurrencyOf } from '../../chains/manifest-queries'
 import { chainFamilyDisplay } from '../../chains/display'
 import { prose } from '../../utils/prose'
@@ -44,11 +44,11 @@ export interface SupportChain {
 }
 
 /**
- * Every MAINNET chain, in support order. Testnets never surface in copy a
+ * Every MAINNET chain users may use (a paused chain is not one), in support order. Testnets never surface in copy a
  * reader follows — they would send someone to a network holding no real money.
  * `Array.prototype.sort` is stable, so equal ranks keep manifest order.
  */
-export const SUPPORT_CHAINS: readonly SupportChain[] = [...CHAIN_MANIFEST]
+export const SUPPORT_CHAINS: readonly SupportChain[] = enabledChains()
   .filter((entry) => entry.kind === 'mainnet')
   .sort((a, b) => leadRank(a.family) - leadRank(b.family) || namespaceRank(a) - namespaceRank(b))
   .map((entry) => ({

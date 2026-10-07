@@ -40,7 +40,7 @@ import {
 } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { SOLANA_BLOCKHASH_VALIDITY_SECONDS } from '@tenda/shared'
-import type { GasSeedSender, GasSeedTransferStatus } from '../grants'
+import type { GasSeedSender, GasSeedTransferStatus } from '../claim/grants'
 import type { GasSeedFunder } from './index'
 import {
   commitmentFor,
@@ -145,8 +145,16 @@ export interface SolanaGasSeedPort {
   sign(args: { to: PublicKey; lamports: bigint }): Promise<{ signature: string; raw: Uint8Array }>
   /** Put previously signed bytes on the cluster. Does not confirm. */
   send(raw: Uint8Array): Promise<void>
-  /** The cluster's status for a signature, or null when it has no record. */
-  signatureStatus(signature: string): Promise<SolanaSignatureStatus>
+  /**
+   * The cluster's status for a signature, or null when it has no record.
+   *
+   * `corroborate` is set once a null would be read as PROOF the transfer died
+   * (see `SOLANA_SEED_EXPIRY_MS`). Then one endpoint's null is not enough: a
+   * lagging primary answers "never heard of it" for a transfer that landed, and
+   * believing it releases the slot for a second payment. A null may only be
+   * returned when EVERY endpoint answered null.
+   */
+  signatureStatus(signature: string, opts: { corroborate: boolean }): Promise<SolanaSignatureStatus>
 }
 
 /**
@@ -203,40 +211,58 @@ export function solanaGasSeedSenderFromPort(
       return { tx_ref: signature, broadcast: () => port.send(raw) }
     },
     async checkStatus({ tx_ref, submitted_at }) {
-      const status = await port.signatureStatus(tx_ref)
-      return classifySolanaStatus(status, now().getTime() - submitted_at.getTime())
+      const age_ms = now().getTime() - submitted_at.getTime()
+      // The same boundary the classifier uses, so the extra read is spent exactly
+      // where a null would otherwise release the slot.
+      const status = await port.signatureStatus(tx_ref, { corroborate: age_ms > SOLANA_SEED_EXPIRY_MS })
+      return classifySolanaStatus(status, age_ms)
     },
   }
 }
 
 /**
- * STILL ONE ENDPOINT for the send, and now for a plainer reason than before.
+ * The chain-facing sender, over the configured endpoints.
  *
- * It used to be that `sendAndConfirmTransaction` signed INSIDE the call against
- * a blockhash it fetched itself, so a second endpoint meant re-signing against a
- * fresh blockhash — a different signature, a second distinct transfer, and a
- * user paid twice if the first had landed. That is no longer the shape: `sign`
- * below signs ONCE and `send` broadcasts those exact bytes, so a second endpoint
- * would be the same transaction with the same signature and the cluster would
- * de-duplicate it. Adding the fallback is now a parameter rather than a rework,
- * and it is tracked separately rather than smuggled into a change about not
- * losing money.
+ * Every call fails over, the broadcast included, and that is SAFE for the reason
+ * this file's header gives: `sign` signs ONCE and `send` broadcasts those exact
+ * bytes, so a second endpoint carries the same signature and the cluster
+ * de-duplicates it. (It used to be unsafe: `sendAndConfirmTransaction` signed
+ * inside the call against a blockhash it fetched itself, so a second endpoint
+ * meant re-signing — a different signature, a second transfer.) What a failed or
+ * timed-out broadcast MEANS is unchanged: the claim job records it as uncertain
+ * and ./confirm settles it against the chain, never against this return value.
+ *
+ * Each attempt is bounded by `timeout_ms`, because a degraded provider usually
+ * accepts the request and never answers, and a loop that only advances on
+ * rejection would wait on it forever.
  */
 export function solanaGasSeedSender(args: {
   rpc_url: string
+  /**
+   * Secondary endpoint, ideally a different provider. Present and DISTINCT makes
+   * the blockhash read, the broadcast and the status read fail over. A required
+   * key, like the funder's and every EVM builder's: optional is how the relayer
+   * ended up with no failover at all.
+   */
+  rpc_url_fallback: string | undefined
   chain_id: ChainId
   /** base58-encoded 64-byte secret key of the seed hot wallet. */
   secret_key_base58: string
+  /** Per-attempt budget override; production never passes it. */
+  timeout_ms?: number
 }): GasSeedSender {
   const commitment = commitmentFor(args.chain_id)
-  // `[0]` — the PRIMARY only, deliberately, and taken from the seam so the
-  // choice is visible rather than achieved by not asking. See the header.
-  const [connection] = solanaConnections({ chain_id: args.chain_id, rpc_url: args.rpc_url })
+  const connections = solanaConnections(args)
+  const timeout_ms = perEndpointTimeoutMs(args)
   const keypair = Keypair.fromSecretKey(bs58.decode(args.secret_key_base58))
 
   return solanaGasSeedSenderFromPort({
     async sign({ to, lamports }) {
-      const { blockhash } = await connection.getLatestBlockhash(commitment)
+      const { blockhash } = await withRpcFallback(
+        connections,
+        (c) => c.getLatestBlockhash(commitment),
+        { timeout_ms },
+      )
       const tx = new Transaction().add(
         SystemProgram.transfer({ fromPubkey: keypair.publicKey, toPubkey: to, lamports }),
       )
@@ -251,16 +277,37 @@ export function solanaGasSeedSender(args: {
       return { signature, raw }
     },
     async send(raw) {
-      await connection.sendRawTransaction(raw, { preflightCommitment: commitment })
+      await withRpcFallback(
+        connections,
+        (c) => c.sendRawTransaction(raw, { preflightCommitment: commitment }),
+        { timeout_ms },
+      )
     },
-    async signatureStatus(signature) {
+    async signatureStatus(signature, { corroborate }) {
       // `searchTransactionHistory`: the signature may have left the recent
       // status cache by the time the confirm job asks, which is exactly the
       // window this check has to cover.
-      const { value } = await connection.getSignatureStatus(signature, {
-        searchTransactionHistory: true,
-      })
-      return value === null ? null : { err: value.err }
+      const read = (c: (typeof connections)[number]) =>
+        c.getSignatureStatus(signature, { searchTransactionHistory: true })
+      if (!corroborate) {
+        const { value } = await withRpcFallback(connections, read, { timeout_ms })
+        return value === null ? null : { err: value.err }
+      }
+      // Corroborating: ask every endpoint until one has a record. An endpoint
+      // that errors has not answered, so it cannot join a unanimous "no record" —
+      // the failure is rethrown (the confirm job retries it) rather than read as
+      // proof. With one endpoint configured this is the same single read as above.
+      let failure: unknown
+      for (const connection of connections) {
+        try {
+          const { value } = await withRpcFallback([connection], read, { timeout_ms })
+          if (value !== null) return { err: value.err }
+        } catch (e) {
+          failure ??= e
+        }
+      }
+      if (failure !== undefined) throw failure
+      return null
     },
   })
 }

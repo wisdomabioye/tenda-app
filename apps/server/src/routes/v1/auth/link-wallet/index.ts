@@ -23,7 +23,7 @@ import { and, eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema'
 import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
+import { verifyWalletAuth } from '@server/features/auth/strategies/wallet'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 
 interface Body {

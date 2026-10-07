@@ -149,7 +149,7 @@ export async function leaseSlot(baseUrl: string): Promise<SuiteLease> {
  * Three files test boot-time code — `migrateOnBoot`, `seedOnBoot`, the boot lock
  * itself — which takes a database URL as an argument and therefore has to run
  * against the base database, not whatever `DATABASE_URL` happens to say. They
- * share that database, and `lib/boot-lock` uses ONE fixed key, so they also
+ * share that database, and `lib/boot/lock` uses ONE fixed key, so they also
  * contend on a lock that PostgreSQL scopes to the whole CLUSTER rather than to a
  * database. Running two of them at once is a data race and a lock fight at the
  * same time — measured: `boot-seed`'s "refuses to disable a chain holding

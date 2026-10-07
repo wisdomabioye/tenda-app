@@ -16,11 +16,11 @@ import { assets, user_wallets } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
 import type { EvmAdapterDeps } from '@server/chains/evm'
-import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
+import { fetchPaymasterHttp } from '@server/chains/evm/sender/paymaster'
 import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
 import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
 import { solanaSecret } from '@server/chains/secrets'
-import { assertChainRegistryInSync } from '@server/chains/registry-sync'
+import { assertChainRegistryInSync } from '@server/chains/registry/registry-sync'
 import {
   assertEscrowContractsKnown,
   contractSourcesFromSecrets,
@@ -28,7 +28,7 @@ import {
 } from '@server/chains/contracts'
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
-import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
+import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/chain/sponsor'
 import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 import { assertAttributionCodes } from '@server/features/attribution'
 
@@ -202,7 +202,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Refuse to serve a registry that disagrees with the chains we actually
   // transact on. The stored copy is what a stale `db:seed` leaves behind, and
-  // it used to be handed to mobile as fact — see chains/registry-sync.ts.
+  // it used to be handed to mobile as fact — see chains/registry/registry-sync.ts.
   await assertChainRegistryInSync(fastify.db, secrets, {
     warn: (msg) => fastify.log.warn(msg),
   })

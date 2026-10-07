@@ -1,0 +1,49 @@
+name: Fix
+description: Something behaves incorrectly
+title: "[fix] "
+labels: ["kind:fix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is public. Do not paste secrets, private keys, seed phrases, `.env` contents, or personal data.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - server
+        - mobile
+        - web
+        - admin
+        - contracts
+        - landing
+        - docs
+        - shared
+        - ops
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happens
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal steps, inputs and environment (chain, build, version).
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who is affected, and does it touch funds, auth or data integrity?

@@ -71,6 +71,8 @@ export const ErrorCode = {
    *  primary first. Distinct from WALLET_IN_USE so the client shows the right
    *  message (not the active-escrow copy). */
   WALLET_IS_PRIMARY:             'WALLET_IS_PRIMARY',
+  /** Any request refused by the per-IP / per-route rate limiter (429). OTP sends keep their own code below. */
+  RATE_LIMITED:                  'RATE_LIMITED',
   OTP_RATE_LIMITED:              'OTP_RATE_LIMITED',
   OTP_INVALID:                   'OTP_INVALID',
   OTP_EXPIRED:                   'OTP_EXPIRED',
@@ -129,6 +131,14 @@ export const ErrorCode = {
    * names which. Distinct from VALIDATION_ERROR (a malformed header).
    */
   RELAY_REJECTED:                'RELAY_REJECTED',
+  /**
+   * The chain is PAUSED (422): deployed and known, switched off by decision.
+   * Refused on the ways IN (a new escrow, a new accept or assignment); every
+   * way OUT stays open, so nothing already on the chain is stranded. Same
+   * family as RELAY_UNSUPPORTED_ASSET: this deployment will not take what the
+   * body asked for — choose another chain from GET /v1/platform/chains.
+   */
+  CHAIN_PAUSED:                  'CHAIN_PAUSED',
   /** Submit refused: the gig requires proof types the worker has not attached. */
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
   /**

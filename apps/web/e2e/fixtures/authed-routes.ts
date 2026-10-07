@@ -3,6 +3,7 @@ import type {
   ChallengeBody,
   MeResponse,
   MyApplication,
+  MyOverviewResponse,
   PaginatedResponse,
   UpdateMeInput,
   UserEscrowTransaction,
@@ -64,6 +65,18 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
       profile_complete: hasCompleteName(user.first_name, user.last_name),
     }
     return json(me)
+  }
+  // Dashboard/profile counts (#17): one auth-gated read. Fixed figures — the
+  // stub models no ownership (see stub-api's `?mine=` note); specs that need a
+  // particular number stub it themselves.
+  if (url.pathname === '/v1/users/me/overview' && method === 'GET') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const overview: MyOverviewResponse = {
+      stats: { posted: 1, active: 1, completed: 1, reviews: 0 },
+      open_disputes: 0,
+    }
+    return json(overview)
   }
   // Wallet screen (S3.5): lifetime totals are a server aggregate; the feed is
   // one page with a payout row credited to the signed-in worker.

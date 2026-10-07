@@ -10,14 +10,14 @@
 
 import {
   CHAIN_FALLBACK_GLYPH,
-  CHAIN_MANIFEST,
+  enabledChains,
   chainFamilyDisplay,
   gigAssetByChain,
   nativeCurrencyOf,
   type GasPolicy,
 } from '@tenda/shared/chains'
-import { ASSET_META } from '@tenda/shared/constants/assets'
 import { prose } from '@tenda/shared/utils/prose'
+import { registryAsset } from './registry-asset'
 
 export interface ChainDisplay {
   /** Marketing-cased name (manifest displayName is UPPER for some chains). */
@@ -61,6 +61,10 @@ const FAMILY_MARKETING: Record<string, Pick<ChainDisplay, 'pitch' | 'strength'>>
   celo: {
     pitch: 'Mobile-first L2 where stablecoins pay their own gas.',
     strength: 'stablecoin-paid gas',
+  },
+  arc: {
+    pitch: 'Circle’s L1 — USDC is the gas and the payment, nothing else to hold.',
+    strength: 'USDC as gas',
   },
 }
 
@@ -123,12 +127,13 @@ function landingRank(family: string): number {
 }
 
 /**
- * The chains the landing talks about: every MAINNET manifest entry, 0G first
+ * The chains the landing talks about: every MAINNET manifest entry users may
+ * use (a paused chain is not advertised, not even as planned), 0G first
  * (LANDING_FAMILY_ORDER), then manifest order — Array.prototype.sort is
  * stable, so equal ranks keep their manifest positions. Testnet entries never
  * surface in marketing.
  */
-export const LANDING_CHAINS: readonly LandingChain[] = [...CHAIN_MANIFEST]
+export const LANDING_CHAINS: readonly LandingChain[] = enabledChains()
   .filter((entry) => entry.kind === 'mainnet')
   .sort((a, b) => landingRank(a.family) - landingRank(b.family))
   .map((entry) => ({
@@ -259,7 +264,7 @@ export const CHAIN_STRENGTHS_PROSE = prose(
  * Celo's cUSD and CELO — an understatement rather than a lie, and exactly the
  * kind that grows into one when a chain is added.
  *
- * STABLECOINS LEAD, from ASSET_META's own `is_stable` flag rather than a
+ * STABLECOINS LEAD, from the registry's own `is_stable` flag rather than a
  * hand-kept order. Raw manifest order puts SOL first (Solana is the first
  * entry and lists its native asset before its USDC), which opens a sentence
  * about a USDC-denominated product with a volatile token.
@@ -267,9 +272,12 @@ export const CHAIN_STRENGTHS_PROSE = prose(
 export const EXCHANGE_ASSET_SYMBOLS_PROSE = prose(
   [
     ...new Map(
-      CHAIN_MANIFEST.filter((entry) => entry.kind === 'mainnet')
+      enabledChains().filter((entry) => entry.kind === 'mainnet')
         .flatMap((entry) => entry.assets.filter((asset) => asset.roles.includes('exchange')))
-        .map((asset) => [ASSET_META[asset.id].symbol, ASSET_META[asset.id].is_stable] as const),
+        .map((asset) => {
+          const meta = registryAsset(asset.id, 'exchange assets')
+          return [meta.symbol, meta.is_stable] as const
+        }),
     ),
   ]
     .sort(([, aStable], [, bStable]) => Number(bStable) - Number(aStable))

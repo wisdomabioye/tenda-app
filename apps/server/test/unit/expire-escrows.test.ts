@@ -1,5 +1,5 @@
 /**
- * jobs/expire-escrows — windowed nudge handler.
+ * queue/jobs/expire-escrows — windowed nudge handler.
  *
  * Idempotency model under test: bounded lookback window + deterministic
  * notification job_id. An unbounded scan would re-notify on every tick
@@ -17,7 +17,7 @@ import {
   type ExpireEscrowsDeps,
   type ExpiredOpenEscrow,
   type StalledAcceptedEscrow,
-} from '@server/jobs/expire-escrows'
+} from '@server/queue/jobs/expire-escrows'
 import type { JobPayload } from '@server/plugins/queue'
 import { queueDouble, type CapturedJob, type QueueDouble } from '../helpers/queue-double'
 

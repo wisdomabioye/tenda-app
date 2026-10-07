@@ -10,12 +10,15 @@ import * as assert from 'node:assert'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CHAIN_MANIFEST, gigAssetByChain, MAX_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
+import { ErrorCode, enabledChains, gigAssetByChain, MAX_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
 import { PER_RUN_KEYS, readBookFile, validateBook, writeBook, type RawSeed } from '@server/scripts/post-gigs/book'
 import { GIG_BOOK } from '@server/scripts/post-gigs/gigs'
 
 const dir = mkdtempSync(join(tmpdir(), 'post-gigs-book-'))
-const CHAIN = 'eip155:84532'
+// 0G Galileo: an enabled EVM testnet that declares a gig asset. (Base Sepolia
+// was the chain here until Base was PAUSED, 2026-10-02: a paused chain refuses
+// every create, which is exactly what the book's validation reports now.)
+const CHAIN = 'eip155:16602'
 const ASSET = gigAssetByChain(CHAIN)
 assert.ok(ASSET !== null, 'the test chain must declare a gig asset')
 const TERMS = { chain_id: CHAIN, asset: ASSET, amount: null }
@@ -108,11 +111,11 @@ test('the built-in book passes the server\'s own validators on a gig chain', () 
   assert.deepStrictEqual(book.map((g) => g.title), GIG_BOOK.map((g) => g.title))
 })
 
-test('the built-in book is valid on EVERY chain that declares a gig asset', () => {
+test('the built-in book is valid on EVERY enabled chain that declares a gig asset', () => {
   // Celo's asset is USDC_CELO, 0G's is USDC_0G: the same book has to pass the
   // asset rule on each, or a Celo run would fail at load for a book that is
-  // fine on Galileo.
-  const gigChains = CHAIN_MANIFEST.flatMap((c) => (gigAssetByChain(c.id) === null ? [] : [c.id]))
+  // fine on Galileo. A PAUSED chain is not one a book can be posted to.
+  const gigChains = enabledChains().flatMap((c) => (gigAssetByChain(c.id) === null ? [] : [c.id]))
   assert.ok(gigChains.length >= 2, 'the manifest should declare gig assets on several chains')
   for (const chain_id of gigChains) {
     const asset = gigAssetByChain(chain_id)
@@ -141,9 +144,14 @@ test('an untitled entry is still located', () => {
   assert.match(message(() => validateBook([untitled], TERMS)), /#1 \(untitled\): title is required/)
 })
 
-test('a geotag requirement with no pin is refused before it is funded', () => {
-  const seed = remote({ proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
+test('an on-site geotag requirement with no pin is refused before it is funded', () => {
+  const seed = remote({ remote: false, country: 'NG', city: 'Lagos', proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
   assert.match(message(() => validateBook([seed], TERMS)), /geotag proof requires the gig to have latitude and longitude/)
+})
+
+test('a remote gig asking for a geotag proof is refused as a remote-gig problem', () => {
+  const seed = remote({ proof_requirements: ['geotag'], proof_params: { geotag: { radius_m: 500 } } })
+  assert.match(message(() => validateBook([seed], TERMS)), /a geotag proof needs an on-site gig/)
 })
 
 test('a chain the manifest does not know is refused', () => {
@@ -204,4 +212,13 @@ test('the built-in book written to JSON reads back and validates to the same boo
   const path = join(dir, 'export.json')
   writeBook(path, GIG_BOOK)
   assert.deepStrictEqual(validateBook(readBookFile(path), TERMS), validateBook(GIG_BOOK, TERMS))
+})
+
+test('a book aimed at a PAUSED chain is refused in the server\'s words, before anything is funded', () => {
+  const PAUSED = 'eip155:84532'
+  const asset = gigAssetByChain(PAUSED)
+  assert.ok(asset !== null, 'Base Sepolia still declares its gig asset: it is paused, not removed')
+  const why = message(() => validateBook([remote()], { chain_id: PAUSED, asset, amount: null }))
+  assert.match(why, /is paused/)
+  assert.ok(ErrorCode.CHAIN_PAUSED)
 })

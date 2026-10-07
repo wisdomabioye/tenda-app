@@ -1,5 +1,5 @@
 /**
- * #85 — grantAdminEmail (lib/admin-auth.ts), the core shared by the
+ * #85 — grantAdminEmail (features/auth/admin/admin-auth.ts), the core shared by the
  * `pnpm admin:grant-email` bootstrap script and the #87 provisioning
  * surface. Grants LOGIN only — never touches users.role.
  */
@@ -8,7 +8,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { admin_users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '../../src/lib/errors'
-import { grantAdminEmail, normalizeAdminEmail } from '../../src/lib/admin-auth'
+import { grantAdminEmail, normalizeAdminEmail } from '../../src/features/auth/admin/admin-auth'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
@@ -98,7 +98,7 @@ test('grant: email already used by another admin → 409 EMAIL_IN_USE', { skip }
 })
 
 test('grantAdminEmail: a DB failure that is NOT the email collision is re-thrown as-is (#110)', { skip }, async () => {
-  // lib/admin-auth.ts's bare `throw err`, the last line of its catch. The catch
+  // features/auth/admin/admin-auth.ts's bare `throw err`, the last line of its catch. The catch
   // exists to turn ONE postgres error — the admin_users.email unique violation
   // — into a 409 EMAIL_IN_USE, and everything else must pass through untouched.
   //

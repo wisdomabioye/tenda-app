@@ -1,17 +1,17 @@
 /**
- * Wire serializers for the v2 read surfaces (lib/gig-read, lib/exchange-read):
+ * Wire serializers for the v2 read surfaces (features/gigs/gig-read, features/fiat-rails/rates/exchange-read):
  * Drizzle Date columns → ISO strings, byte-identical between listing and
  * detail responses.
  */
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { toGigSummary, type GigSummaryRow } from '@server/lib/gig-read'
+import { toGigSummary, type GigSummaryRow } from '@server/features/gigs/gig-read'
 import {
   toExchangePartyRef,
   toExchangeSummary,
   type ExchangeSummaryRow,
-} from '@server/lib/exchange-read'
+} from '@server/features/fiat-rails/rates/exchange-read'
 import type { UserRef } from '@tenda/shared'
 
 const creator: UserRef = {

@@ -114,6 +114,7 @@ export const UNGATED_WITH_TESTS: readonly string[] = [
   'components/shared/DeadlineCountdown.tsx',
   'components/shared/FeeSummary.tsx',
   'components/shared/ProofsGrid.tsx',
+  'components/ui/Button.tsx',
   'components/ui/ChipGroup.tsx',
   'components/ui/ConfirmDialog.tsx',
   'components/ui/DurationChips.tsx',

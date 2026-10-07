@@ -2,10 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { asc, eq } from 'drizzle-orm'
 import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
-import { getExchangeRates } from '@server/lib/exchange-rates'
+import { getExchangeRates } from '@server/features/fiat-rails/rates/exchange-rates'
 import {
   assetFundsBySignature,
   chainById,
+  isChainEnabled,
   chainPublicFacts,
   exchangeAssetsByChain,
   findChain,
@@ -101,7 +102,10 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
         .orderBy(asc(assets.id)),
     ])
 
-    const served = chainRows.filter((c) => fastify.chains.has(c.id))
+    // A chain is served when the registry holds its adapter AND it is enabled. A
+    // PAUSED chain keeps its adapter (existing escrows settle and are listened
+    // to) but is not offered: this listing is what every picker reads.
+    const served = chainRows.filter((c) => fastify.chains.has(c.id) && isChainEnabled(chainById(c.id)))
     const entries = await Promise.all(
       served.map(async (c): Promise<ChainRegistryEntry[]> => {
         const adapter = fastify.chains.get(c.id)

@@ -30,7 +30,8 @@ export interface WalletBalanceRowsProps {
 /**
  * Per-(wallet, chain) balance breakdown beneath the USDC hero. Each row: chain
  * name + truncated address, with USDC as the headline figure and the native gas
- * token as a secondary hint (e.g. "45.00 USDC · 0.01 ETH").
+ * token as a secondary hint (e.g. "45.00 USDC · 0.01 ETH"), then any other
+ * asset the wallet holds on that chain (cUSD, cNGN) as further small lines.
  */
 export function WalletBalanceRows({ balances, renderChainAction }: WalletBalanceRowsProps) {
   const { theme } = useUnistyles()
@@ -48,6 +49,12 @@ export function WalletBalanceRows({ balances, renderChainAction }: WalletBalance
         // inventing.
         const usdc = b.usdc ? formatAssetAmount(b.usdc.amountRaw, b.usdc.assetId) : NO_READING
         const native = b.native ? formatAssetAmount(b.native.amountRaw, b.native.assetId) : null
+        // Every other asset the read returned (cUSD, cNGN, …) that the wallet
+        // actually HOLDS. A zero is not listed: a row per empty asset would
+        // bury the one figure a holder came to see.
+        const others = b.others
+          .filter((o) => BigInt(o.amountRaw) > 0n)
+          .map((o) => ({ id: o.assetId, text: formatAssetAmount(o.amountRaw, o.assetId) }))
         return (
           <View
             key={`${b.chainId}:${b.address}`}
@@ -80,6 +87,16 @@ export function WalletBalanceRows({ balances, renderChainAction }: WalletBalance
                 )}
                 {renderChainAction?.(b.chainId)}
               </View>
+              {others.map((o) => (
+                <Text
+                  key={o.id}
+                  testID={`other-asset-${o.id}`}
+                  style={[s.native, { color: theme.colors.content.tertiary }]}
+                  numberOfLines={1}
+                >
+                  {o.text}
+                </Text>
+              ))}
             </View>
           </View>
         )

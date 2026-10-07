@@ -31,20 +31,22 @@ describe('§06 ecosystems', () => {
     )
   })
 
-  it('marks a roadmap proof as not shipped, and only those', () => {
+  it('marks a roadmap proof as not shipped, and only those — for EVERY panel', () => {
     // The section's honesty rule: every proof point is shipped or says it is
     // not. A pill on a shipped row overstates nothing but a missing pill on
     // a roadmap row is exactly the claim this section exists to avoid.
-    const withRoadmap = ECOSYSTEM_PANELS.find((p) => p.proofs.some((x) => x.roadmap))
-    const without = ECOSYSTEM_PANELS.find((p) => p.proofs.every((x) => !x.roadmap))
-    expect(withRoadmap).toBeDefined()
-    expect(without).toBeDefined()
-    if (withRoadmap === undefined || without === undefined) return
-    const flagged = panelHtml(withRoadmap.chainFamily)
-    const roadmapCount = withRoadmap.proofs.filter((x) => x.roadmap).length
-    expect(flagged.match(new RegExp(`>${PROOF_LABELS.roadmap}<`, 'g'))).toHaveLength(roadmapCount)
-    expect(panelHtml(without.chainFamily)).not.toContain(`>${PROOF_LABELS.roadmap}<`)
-    for (const proof of withRoadmap.proofs) expect(flagged).toContain(asText(proof.label))
+    //
+    // Asserted per panel, with the count taken from the data, because the only
+    // roadmap proof used to be Base's (paused 2026-10-02, so its panel is not
+    // shown) and a test that PICKED a roadmap panel would then pass nothing or
+    // fail for lack of one. Zero roadmap proofs now means zero pills; the day a
+    // panel gains one, its pill is required.
+    for (const panel of ECOSYSTEM_PANELS) {
+      const html = panelHtml(panel.chainFamily)
+      const roadmapCount = panel.proofs.filter((x) => x.roadmap).length
+      expect(html.match(new RegExp(`>${PROOF_LABELS.roadmap}<`, 'g')) ?? [], panel.chainFamily).toHaveLength(roadmapCount)
+      for (const proof of panel.proofs) expect(html).toContain(asText(proof.label))
+    }
   })
 
   it('prints the reference facts of the chain it shows, from the manifest', () => {

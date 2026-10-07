@@ -24,10 +24,10 @@
  *      server's own constants.
  */
 
-import { getAssetMeta } from '@tenda/shared/constants/assets'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared/constants/platform'
 import { ESCROW_LIMITS } from '@tenda/shared/constants/escrow'
 import { GIG_ASSET_IDS } from './chains'
+import { registryAsset } from './registry-asset'
 
 /** bps → a display percentage: 250 → '2.5', 100 → '1'. */
 function pct(bps: number): string {
@@ -71,9 +71,9 @@ const EXAMPLE_PRINCIPAL_USDC = 12
 /**
  * The registry entry for the asset gigs are actually escrowed in.
  *
- * Read through `getAssetMeta` (Object.hasOwn), never `ASSET_META[id]` — the
- * accessor the rest of the monorepo was swept onto after #116, because a plain
- * bracket read answers a prototype key ('toString', 'constructor') with a
+ * Read through `registryAsset` (`getAssetMeta`, Object.hasOwn), never by bracket —
+ * the accessor the rest of the monorepo was swept onto after #116, because a
+ * plain bracket read answers a prototype key ('toString', 'constructor') with a
  * truthy inherited FUNCTION whose `.decimals` is undefined. `10 ** undefined`
  * is NaN, and the whole worked example below would render as NaN with nothing
  * throwing. The key here comes from the manifest so it cannot be one of those
@@ -84,10 +84,7 @@ const EXAMPLE_PRINCIPAL_USDC = 12
  * asset the registry does not carry fails the landing's build rather than
  * shipping a fee example computed from nothing.
  */
-const GIG_ASSET = getAssetMeta(GIG_ASSET_IDS[0])
-if (GIG_ASSET === null) {
-  throw new Error(`landing fees: gig asset '${GIG_ASSET_IDS[0]}' is not in the shared asset registry`)
-}
+const GIG_ASSET = registryAsset(GIG_ASSET_IDS[0], 'fees')
 
 /**
  * Base units per whole token, from the DECIMALS of the asset gigs are actually

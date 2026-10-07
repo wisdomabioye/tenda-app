@@ -1,5 +1,5 @@
 /**
- * db/seed-v2 — the GAS-SEED columns specifically: `chains.gas_seed_amount_raw`
+ * db/seed/seed-v2 — the GAS-SEED columns specifically: `chains.gas_seed_amount_raw`
  * and `gas_seed_wallet_address`, which the paired CHECK constraint forces to be
  * set or NULL together.
  *
@@ -12,7 +12,7 @@ import * as assert from 'node:assert'
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { chainById } from '@tenda/shared'
-import { buildSeedRows } from '@server/db/seed-v2'
+import { buildSeedRows } from '@server/db/seed/seed-v2'
 import { gasSeedAddressFromSecret } from '@server/features/gas-seed/senders/solana'
 import { evmGasSeedAddressFromKey } from '@server/features/gas-seed/senders/evm'
 import { loadChainSecrets } from '@server/chains/secrets'

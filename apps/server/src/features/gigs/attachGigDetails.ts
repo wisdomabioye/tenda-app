@@ -20,11 +20,11 @@ import type { FastifyInstance } from 'fastify'
 import { ErrorCode, MAX_GIG_DESCRIPTION_LENGTH, getAssetMeta, type CreateGigDetailsBody } from '@tenda/shared'
 import { gig_details, users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
-import type { EscrowRow } from '@server/lib/escrow-routes'
-import { validateGigDetails, type ValidatedGigDetails } from '@server/lib/gig-details'
+import type { EscrowRow } from '@server/features/escrows/routes'
+import { validateGigDetails, type ValidatedGigDetails } from '@server/features/gigs/gig-details'
 import type { AppDatabase } from '@server/plugins/db'
-import { moderateGig } from '@server/features/moderation/service'
-import { buildModerationDeps } from '@server/features/moderation/store'
+import { moderateGig } from '@server/features/moderation/core/service'
+import { buildModerationDeps } from '@server/features/moderation/core/store'
 
 export type GigDetailsRow = typeof gig_details.$inferSelect
 
@@ -32,6 +32,27 @@ export type GigDetailsBody = Partial<Omit<CreateGigDetailsBody, 'escrow_id'>>
 
 /** What moderation prices a listing against: the draft's id (the verdict's subject) and its terms. */
 export type ListingSubject = Pick<EscrowRow, 'id' | 'asset' | 'amount_raw'>
+
+/**
+ * The listing's RULES, with no moderation and no draft: the creator's stored
+ * country, then `validateGigDetails`. Split out so the validate-only agent
+ * route (POST /v1/agent/tasks/validate) and `prepareGigDetails` below run the
+ * SAME check and cannot drift. The country is returned too, because moderation
+ * prices a remote listing against the poster's market.
+ */
+export async function validateListing(
+  fastify: FastifyInstance,
+  args: { user_id: string; body: GigDetailsBody },
+): Promise<{ details: ValidatedGigDetails; creator_country: string | null }> {
+  // Creator's stored country (JWT country can be up to 7 days stale).
+  const [creator] = await fastify.db
+    .select({ country: users.country })
+    .from(users)
+    .where(eq(users.id, args.user_id))
+    .limit(1)
+  const creator_country = creator?.country ?? null
+  return { details: validateGigDetails(args.body, creator_country), creator_country }
+}
 
 /**
  * Validate the listing body and run it through the Stage-6 gate. Pure over
@@ -43,16 +64,9 @@ export async function prepareGigDetails(
   args: { escrow: ListingSubject; user_id: string; body: GigDetailsBody },
 ): Promise<ValidatedGigDetails> {
   const { escrow, user_id, body } = args
-  // Creator's stored country (JWT country can be up to 7 days stale).
-  const [creator] = await fastify.db
-    .select({ country: users.country })
-    .from(users)
-    .where(eq(users.id, user_id))
-    .limit(1)
+  const { details, creator_country } = await validateListing(fastify, { user_id, body })
 
-  const details = validateGigDetails(body, creator?.country ?? null)
-
-  // The shared accessor, never `ASSET_META[escrow.asset]?.decimals ?? 0`: a
+  // The shared accessor, never a bracket read with `?.decimals ?? 0` behind it: a
   // prototype key ('toString') answered a FUNCTION there, its `.decimals` was
   // undefined, and the fallback quietly moderated the price at ZERO decimals —
   // a 1 USDC gig read as a million dollars. The create path pins `asset` to
@@ -77,7 +91,7 @@ export async function prepareGigDetails(
       category: details.category,
       // Remote gigs persist no country; for price-sanity stats fall back to
       // the poster's market (moderation-only, never stored on the gig).
-      country: details.country ?? creator?.country ?? '',
+      country: details.country ?? creator_country ?? '',
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,
       asset_decimals: meta.decimals,

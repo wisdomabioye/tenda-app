@@ -5,7 +5,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
-import { guardTransition } from '@server/lib/escrow-routes'
+import { guardTransition } from '@server/features/escrows/routes'
 import { buildEscrowTx, partyCaller } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {

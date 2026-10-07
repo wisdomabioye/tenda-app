@@ -34,7 +34,7 @@ jest.mock('@/api/client', () => ({
   ...jest.requireActual('@/api/client'),
   api: {
     conversations: {
-      list:         () => mockList(),
+      list:         (query?: ConversationsQuery) => mockList(query),
       findOrCreate: (body: { user_id: string }) => mockFindOrCreate(body),
       messages:     (params: { id: string }, query?: MessagesQuery) => mockMessages(params, query),
       close:        (params: { id: string }) => mockClose(params),
@@ -42,7 +42,7 @@ jest.mock('@/api/client', () => ({
   },
 }))
 
-import { ATTACHMENT_PREVIEW, type MessagesQuery, type User } from '@tenda/shared'
+import { ATTACHMENT_PREVIEW, type ConversationsQuery, type MessagesQuery, type User } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { conversation as conv, message as msg, localMessage, resetChatStore } from '../__fixtures__/chat'

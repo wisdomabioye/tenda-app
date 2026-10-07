@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { APPROVAL_WINDOW_TTL_MS, cachedApprovalWindow } from '@server/chains/approval-window'
+import { APPROVAL_WINDOW_TTL_MS, cachedApprovalWindow } from '@server/chains/shared/approval-window'
 
 function clock(start = 1_000_000) {
   let t = start

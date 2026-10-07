@@ -18,7 +18,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { AppError } from '@server/lib/errors'
 import { solanaAdapter } from '@server/chains/solana'
-import { fetchPlatformState } from '@server/chains/solana/builder-internals'
+import { fetchPlatformState } from '@server/chains/solana/build/builder-internals'
 import { PROGRAM_ID, platformPda } from '@server/chains/solana/pdas'
 import { evmAdapter } from '@server/chains/evm'
 import type { EvmRpc } from '@server/chains/evm/rpc/types'
@@ -52,6 +52,7 @@ function unreachableEvmRpc(): EvmRpc {
     readEscrow: never('readEscrow'),
     readPermitFacts: never('readPermitFacts'),
     readApprovalWindow: never('readApprovalWindow'),
+    readFees: never('readFees'),
   }
 }
 
@@ -242,7 +243,7 @@ test('buildPermitPayload: an asset the registry reports as native is 422', async
  *   Reaching it needs a third action the type does not permit, i.e. a cast at
  *   the call site — testing the cast, not the product.
  *
- *   lib/escrow-routes.ts:159  `assertEscrowStatus`'s default, 'schema drift'.
+ *   features/escrows/routes.ts:159  `assertEscrowStatus`'s default, 'schema drift'.
  *   The function is module-private and its only input is the `escrows.status`
  *   column, whose pg enum and the `EscrowStatus` union are 1:1 by design. It
  *   takes a plain `string` — so it WOULD be trivially testable if exported —

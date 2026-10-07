@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react'
-import { ActivityIndicator, Pressable, type PressableProps, type GestureResponderEvent, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
+import { ActivityIndicator, Pressable, type PressableProps, type GestureResponderEvent, View, StyleSheet, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as Haptics from 'expo-haptics'
-import { radius, shadows, typography } from '@/theme/tokens'
+import { buttonGeometry, radius, shadows, typography } from '@/theme/tokens'
 import { Text } from './Text'
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
@@ -17,16 +17,8 @@ interface ButtonProps extends Omit<PressableProps, 'children'> {
   children: string
 }
 
-const HEIGHTS: Record<Size, number> = { sm: 40, md: 48, lg: 52, xl: 56 }
-const PAD_X: Record<Size, number> = { sm: 14, md: 18, lg: 22, xl: 24 }
+const { height: HEIGHTS, padX: PAD_X, label: LABEL_BY_SIZE, ghostHeight: GHOST_HEIGHT } = buttonGeometry
 const RADII: Record<Size, number> = { sm: radius.button, md: radius.button, lg: radius.buttonLg, xl: radius.buttonLg }
-const LABEL_BY_SIZE: Record<Size, TextStyle> = {
-  sm: { fontSize: 14, lineHeight: 18 },
-  md: { fontSize: 14, lineHeight: 18 },
-  lg: { fontSize: 15, lineHeight: 20 },
-  xl: { fontSize: 15, lineHeight: 20 },
-}
-const GHOST_HEIGHT = 44
 
 const s = StyleSheet.create({
   base: {

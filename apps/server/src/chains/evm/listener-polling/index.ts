@@ -7,7 +7,7 @@
  * numbers each tick is bounded by.
  */
 
-import { createIntervalListener } from '@server/chains/interval-listener'
+import { createIntervalListener } from '@server/chains/listening/interval-listener'
 import type { ChainListener } from '@server/chains/types'
 import { EVM_LIVE_LAG_WARN_BLOCKS, EVM_POLL_INTERVAL_MS } from './constants'
 import { evmPollTick, type EvmPollTickDeps, type EvmPollTickResult } from './tick'

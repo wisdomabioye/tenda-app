@@ -8,15 +8,15 @@
  * Transitions live under /v1/escrows/:id/*.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { isEscrowCounterpartySide } from '@server/lib/escrow/party'
 import { eq, and, inArray, or, sql, lt, desc, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { attachGigDetails } from '@server/features/gigs/attachGigDetails'
 import {
   assertKnownCountry,

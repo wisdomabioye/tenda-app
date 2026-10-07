@@ -6,7 +6,7 @@
  *
  * ONE SWEEP ITEM HERE IS DELIBERATELY NOT TESTED (#105 T1). The refusal in
  * routes/v1/bank-accounts — "account did not resolve, check the number" —
- * sits behind `if (enquiry !== null)`, and `buildNameEnquiry()` in lib/nip.ts
+ * sits behind `if (enquiry !== null)`, and `buildNameEnquiry()` in features/fiat-rails/providers/nip.ts
  * is currently `return null` with no branch: the vendor HTTP implementation is
  * not wired yet. So the guard is unreachable from ANY input, not merely
  * unconfigured in tests, and reaching it would mean faking the module rather

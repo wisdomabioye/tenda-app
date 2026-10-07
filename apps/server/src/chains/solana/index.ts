@@ -17,10 +17,10 @@
 import { Program } from '@coral-xyz/anchor'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
-import { createSolanaBuilders } from '@server/chains/solana/builders'
-import { fetchPlatformState } from '@server/chains/solana/builder-internals'
-import { cachedApprovalWindow } from '@server/chains/approval-window'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
+import { createSolanaBuilders } from '@server/chains/solana/build/builders'
+import { fetchPlatformState } from '@server/chains/solana/build/builder-internals'
+import { cachedApprovalWindow } from '@server/chains/shared/approval-window'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import { createSolanaRpc, type SolanaRpc } from '@server/chains/solana/rpc'
 import { solanaConnections } from '@server/chains/rpc'
@@ -91,6 +91,11 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     escrowAddress: PROGRAM_ID.toBase58(),
     // platform_state.approval_window_seconds — the program's, read live (#148).
     approvalWindowSeconds: cachedApprovalWindow(async () => (await fetchPlatformState(builderDeps)).approvalWindowSeconds.toNumber()),
+    // platform_state.fee_bps / seeker_fee_bps, read live: the program's own stored fees.
+    getFees: async () => {
+      const state = await fetchPlatformState(builderDeps)
+      return { fee_bps: state.feeBps, seeker_fee_bps: state.seekerFeeBps }
+    },
     buildTx: builders.buildTx,
     ...(args.deps.relayer !== undefined
       ? { relay: solanaEscrowRelay(builderDeps, args.deps.relayer, args.chain_id) }
@@ -98,7 +103,7 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 
-    // Namespace-level crypto (ed25519), single source in lib/wallet-signature;
+    // Namespace-level crypto (ed25519), single source in lib/chain/wallet-signature;
     // the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('solana', a),
 
@@ -109,4 +114,4 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
 }
 
 /** Ed25519 auth-sig check, re-exported from the single source for callers/tests. */
-export { verifyEd25519 } from '@server/lib/wallet-signature'
+export { verifyEd25519 } from '@server/lib/chain/wallet-signature'

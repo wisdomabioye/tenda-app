@@ -27,7 +27,7 @@
  * moment it finishes, the chain does not know either.
  */
 
-import type { GasSeedSender, GasSeedStore } from '../grants'
+import type { GasSeedSender, GasSeedStore } from './grants'
 import type { GasSeedFunder } from '../senders'
 import type { GasSeedClaimStore } from './store'
 import type { GasSeedClaimJob } from './service'

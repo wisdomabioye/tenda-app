@@ -26,15 +26,15 @@ import { sql } from 'drizzle-orm'
 import { chains, assets, platform_config } from '@tenda/shared/db/schema'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { PAYOUT_CURRENCIES } from '@tenda/shared'
-import { registerErrorHandlers } from '@server/lib/http-errors'
-import { invalidateFeaturedCache } from '@server/lib/featured'
-import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
+import { registerErrorHandlers } from '@server/lib/errors/http'
+import { invalidateFeaturedCache } from '@server/features/gigs/featured'
+import { invalidateExchangeRatesCache } from '@server/features/fiat-rails/rates/exchange-rates'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
 import queuePlugin from '@server/plugins/queue'
 import websocketPlugin from '@server/plugins/websocket'
-import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
+import { inMemoryQuoteCache } from '@server/features/fiat-rails/core/quote-cache'
 import { buildContractRegistry } from '@server/chains/contracts'
 import type { ChainRegistry } from '@server/chains/types'
 import { TEST_DB_CONFIGURED } from './env'
@@ -224,7 +224,7 @@ export async function seedAltChain(app: FastifyInstance): Promise<void> {
   await app.db.insert(chains).values({
     id: TEST_CHAIN_ID_ALT,
     namespace: 'eip155',
-    display_name: 'Base Sepolia',
+    display_name: '0G Galileo',
     min_confirmations: 1,
     treasury_address: '',
     escrow_program: '',
@@ -234,7 +234,7 @@ export async function seedAltChain(app: FastifyInstance): Promise<void> {
     chain_id: TEST_CHAIN_ID_ALT,
     symbol: 'USDC',
     decimals: 6,
-    token_address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia USDC
+    token_address: '0x3780460189622E60cB7ec6e8e97038A386674B71', // 0G Galileo USDC (the repo mock)
     is_stable: true,
   })
 }

@@ -29,17 +29,20 @@ export const buttonVariants = cva(
           'bg-feedback-danger-solid text-brand-on-primary hover:bg-feedback-danger-solid/90 disabled:bg-control-disabled-background disabled:text-control-disabled-text',
         'danger-outline':
           'border-[1.5px] border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base disabled:border-control-disabled-border disabled:text-control-disabled-text',
-        ghost: 'text-content-secondary hover:text-content-primary disabled:text-control-disabled-text',
+        // A ghost is a text action: mobile gives it one fixed height whatever the
+        // size, so the `!` lets it win over the size's height.
+        ghost:
+          'h-[var(--button-h-ghost)]! text-content-secondary hover:text-content-primary disabled:text-control-disabled-text',
       },
-      // Mobile's Button.tsx by size — HEIGHTS 48/52, PAD_X 18/22 (the nearest
-      // Tailwind steps, 20/24), RADII 12/14 — and its LABEL_BY_SIZE override
-      // of the button atom: md reads 14/18, lg keeps the atom's 15/20. The md
-      // override is written here for the same reason it is a literal on
-      // mobile — it is not a token style. Fixed heights, not padding: a
+      // Mobile's Button.tsx by size, read from its geometry tokens (heights
+      // 48/52, side padding 18/22, label 14/18 and 15/20 — `buttonGeometry`
+      // in apps/mobile/theme/tokens.ts, generated into styles/tokens.css) and
+      // the RADII 12/14. Web used to re-type these as Tailwind steps and drew
+      // 20/24 padding against the phone's 18/22. Fixed heights, not padding: a
       // padded box drew md at 34px and lg at 44px against the phone's 48/52.
       size: {
-        md: 'h-12 rounded-button px-5 text-[14px] leading-[18px]',
-        lg: 'h-[52px] rounded-button-lg px-6',
+        md: 'h-[var(--button-h-md)] rounded-button px-[var(--button-px-md)] text-[length:var(--button-text-md)] leading-[var(--button-leading-md)]',
+        lg: 'h-[var(--button-h-lg)] rounded-button-lg px-[var(--button-px-lg)] text-[length:var(--button-text-lg)] leading-[var(--button-leading-lg)]',
       },
       fullWidth: {
         true: 'w-full',

@@ -1,5 +1,5 @@
 /**
- * chains/cursors `drizzleCursorStore` against a REAL database.
+ * chains/listening/cursors `drizzleCursorStore` against a REAL database.
  *
  * The store had no DB-backed test at all, so every claim the two-cursor tick
  * rests on was verified only against an in-memory fake: that a NULL
@@ -17,7 +17,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { chain_cursors } from '@tenda/shared/db/schema/ops'
 import { TEST_CHAIN_ID, TEST_DB_CONFIGURED, useTestApp } from '../helpers/test-app'
-import { drizzleCursorStore } from '@server/chains/cursors'
+import { drizzleCursorStore } from '@server/chains/listening/cursors'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()

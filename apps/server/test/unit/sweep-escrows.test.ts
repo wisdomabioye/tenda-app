@@ -12,10 +12,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ChainAdapter, ChainRegistry, SweepArgs } from '@server/chains/types'
-import type { SweepableEscrow, SweepEscrowsStore } from '@server/jobs/sweep-escrows'
-import { handleSweepEscrows, SWEEP_BATCH_LIMIT, SWEEP_FIRST_REFUSAL_MS } from '@server/jobs/sweep-escrows'
-import type { TxAttemptRow } from '@server/lib/tx-attempts'
-import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
+import type { SweepableEscrow, SweepEscrowsStore } from '@server/queue/jobs/sweep-escrows'
+import { handleSweepEscrows, SWEEP_BATCH_LIMIT, SWEEP_FIRST_REFUSAL_MS } from '@server/queue/jobs/sweep-escrows'
+import type { TxAttemptRow } from '@server/features/escrows/tx-attempts'
+import type { VerifyTxJobPayload } from '@server/queue/jobs/verify-tx'
 import type { JobName, JobPayload } from '@server/plugins/queue'
 import { REPEATABLES } from '@server/plugins/workers'
 
@@ -67,7 +67,7 @@ function run(rows: SweepableEscrow[], sweepImpl?: (a: SweepArgs) => Promise<{ tx
   const warnings: Record<string, unknown>[] = []
   const findArgs: Harness['findArgs'] = []
 
-  // Fully typed rather than cast: `jobs/reconcile-escrows`' test builds its
+  // Fully typed rather than cast: `queue/jobs/reconcile-escrows`' test builds its
   // registry the same way, and a cast fake would keep compiling — and keep
   // passing — against a ChainAdapter the production adapters no longer have.
   const adapter: ChainAdapter = {
@@ -75,6 +75,7 @@ function run(rows: SweepableEscrow[], sweepImpl?: (a: SweepArgs) => Promise<{ tx
     chain_id: CHAIN,
     escrowAddress: CONTRACT,
     approvalWindowSeconds: async () => 86_400,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     async buildTx() {
       throw new Error('the sweeper builds nothing itself')
     },

@@ -13,7 +13,6 @@ import type { BankAccountSummary } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 const NOW_MS = 1_700_000_000_000
-const NOW_S = Math.floor(NOW_MS / 1000)
 
 const mockCreate = jest.fn()
 const mockDelete = jest.fn().mockResolvedValue(undefined)
@@ -55,9 +54,7 @@ jest.mock('@/wallet/balances', () => ({
   ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
 }))
 // Imports stay below mock declarations so their modules observe the test doubles.
-// eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
-// eslint-disable-next-line import/first
 import { ApiClientError, InsufficientBalanceError } from '@tenda/shared'
 
 const OPTION = {

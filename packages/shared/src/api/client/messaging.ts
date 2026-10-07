@@ -6,6 +6,7 @@
 import { apiRoutes } from '../routes'
 import type {
   Conversation,
+  ConversationsQuery,
   GigSubscription,
   Message,
   MessagesQuery,
@@ -21,7 +22,8 @@ const { conversations, notifications, subscriptions } = apiRoutes
 
 export function createConversationsApi(request: ApiRequest) {
   return {
-    list: () => request<Conversation[]>('GET', conversations.list),
+    list: (query?: ConversationsQuery) =>
+      request<Conversation[]>('GET', conversations.list, { query }),
     findOrCreate: (body: { user_id: string }) =>
       request<Conversation>('POST', conversations.findOrCreate, { body }),
     messages: (params: { id: string }, query?: MessagesQuery) =>

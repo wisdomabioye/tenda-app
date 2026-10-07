@@ -11,6 +11,7 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { gasSeedAvailability } from '@server/features/gas-seed'
 import { makeDeps, MOBILE, SOLANA, ZEROG } from '../helpers/gas-seed-claim'
+import { withChainPaused } from '../helpers/pause-chain'
 
 // ---------- availability ---------------------------------------------------------
 
@@ -71,4 +72,16 @@ test('a chain whose balance read THROWS is reported, not propagated', async () =
   const res = await gasSeedAvailability({ ...deps, funders }, MOBILE)
   assert.strictEqual(res.chains[0]?.reason, 'funder_empty')
   assert.strictEqual(res.chains[1]?.available, true)
+})
+
+test('a PAUSED chain offers no seed — a seed onboards a new user onto the chain, which a pause refuses', async () => {
+  const { deps } = makeDeps({ chains: [SOLANA, ZEROG], wallets: { solana: 'W1', eip155: '0xE' } })
+  const during = await withChainPaused(ZEROG.chain_id, () => gasSeedAvailability(deps, MOBILE))
+  const byChain = Object.fromEntries(during.chains.map((c) => [c.chain_id, c]))
+  assert.strictEqual(byChain[ZEROG.chain_id]?.available, false)
+  assert.strictEqual(byChain[ZEROG.chain_id]?.reason, 'claims_disabled')
+  assert.strictEqual(byChain[SOLANA.chain_id]?.available, true, 'only the paused chain is switched off')
+  // And it comes back with the flag.
+  const after = await gasSeedAvailability(deps, MOBILE)
+  assert.ok(after.chains.every((c) => c.available))
 })

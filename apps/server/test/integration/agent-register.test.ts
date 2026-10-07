@@ -96,7 +96,7 @@ test('register: refusals — bad signature 401, replayed nonce 409, missing/over
   const p = await proof()
   assert.strictEqual((await post({ ...p, signature: 'sig', name: 'Bot' })).statusCode, 200)
   const replay = await post({ ...p, signature: 'sig', name: 'Bot' })
-  assert.strictEqual(replay.statusCode, 409, 'a spent nonce is a conflict (lib/nonce), the same answer every wallet route gives')
+  assert.strictEqual(replay.statusCode, 409, 'a spent nonce is a conflict (features/auth/session/nonce), the same answer every wallet route gives')
   assert.strictEqual(replay.json().code, 'AUTH_NONCE_REPLAY')
   const agents = await app.db.select({ id: users.id }).from(users).where(eq(users.is_agent, true))
   assert.strictEqual(agents.length, 1, 'only the one successful registration')

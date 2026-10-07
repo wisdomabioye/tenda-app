@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
+import { inboxActions, totalUnread } from '@/stores/chat-inbox'
 import {
   accountGeneration,
   ATTACHMENT_PREVIEW,
@@ -22,12 +23,18 @@ export interface EscrowContext {
   kind: 'gig' | 'exchange' | null
 }
 
-interface ChatState {
+export interface ChatState {
   conversations:    Conversation[]
   messages:         Record<string, LocalMessage[]>   // conversationId → messages (oldest first)
-  unread:           number                           // total unread across all conversations
+  unread:           number                           // total unread across the LOADED conversations
+  /** False once a page came back short: nothing older is left to ask for. */
+  hasMoreConversations:     boolean
+  loadingMoreConversations: boolean
 
+  /** Refresh the newest page. Pages already scrolled to are KEPT (see chat-inbox). */
   fetchConversations: () => Promise<void>
+  /** The next older page, after the last conversation held. */
+  loadMoreConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
   sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: UploadedAttachment) => Promise<void>
@@ -46,6 +53,10 @@ const INITIAL = {
   conversations: [] as Conversation[],
   messages:      {} as Record<string, LocalMessage[]>,
   unread:        0,
+  // Optimistic: one load decides it. A fresh store has loaded nothing, so there
+  // is no page that came back short.
+  hasMoreConversations:     true,
+  loadingMoreConversations: false,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -53,33 +64,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   reset: () => set({ ...INITIAL }),
 
-  fetchConversations: async () => {
-    // Snapshot BEFORE the await. Emptying the store is a moment; this request
-    // is already on its way and would otherwise write the previous account's
-    // threads — and their unread badge — back in after the clear (#65).
-    const gen = accountGeneration()
-    const convs = await api.conversations.list()
-    if (!isSameAccount(gen)) return
-    const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
-    set({ conversations: convs, unread })
-  },
-
-  findOrCreate: async (userId) => {
-    const gen = accountGeneration()
-    const conv = await api.conversations.findOrCreate({ user_id: userId })
-    // The caller still gets its conversation — the screen that asked is gone
-    // either way — but it must not be filed into the next account's inbox.
-    if (!isSameAccount(gen)) return conv
-    set((s) => {
-      const exists = s.conversations.find((c) => c.id === conv.id)
-      return {
-        conversations: exists
-          ? s.conversations.map((c) => (c.id === conv.id ? conv : c))
-          : [conv, ...s.conversations],
-      }
-    })
-    return conv
-  },
+  ...inboxActions(set, get),
 
   fetchMessages: async (conversationId, beforeId) => {
     const gen = accountGeneration()
@@ -103,7 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const conversations = s.conversations.map((c) =>
         c.id === conversationId ? { ...c, unread_count: 0 } : c
       )
-      const unread = conversations.reduce((sum, c) => sum + c.unread_count, 0)
+      const unread = totalUnread(conversations)
       return {
         messages:      { ...s.messages, [conversationId]: [...ordered, ...optimistic] },
         conversations,
@@ -210,17 +195,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       message.escrow_id !== null ? { escrowId: message.escrow_id, kind: message.escrow_kind } : undefined,
       attachment,
     )
-  },
-
-  // No generation guard, unlike every other async writer here: this one only
-  // REMOVES a row by id, and a conversation uuid belonging to the previous
-  // account cannot match anything in the next account's list. The write is a
-  // no-op after a switch rather than a leak (#65).
-  closeConversation: async (conversationId) => {
-    await api.conversations.close({ id: conversationId })
-    set((s) => ({
-      conversations: s.conversations.filter((c) => c.id !== conversationId),
-    }))
   },
 
   appendMessage: (conversationId, message) => {

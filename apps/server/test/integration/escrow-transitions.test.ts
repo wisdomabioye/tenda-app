@@ -1,6 +1,6 @@
 /**
  * #98 gap-fill — escrow state-transition routes (build-unsigned-tx happy
- * paths + caller/status guards), exercising lib/escrow-routes + lib/escrow:
+ * paths + caller/status guards), exercising features/escrows/routes + lib/escrow:
  *   accept / decline / submit / approve / cancel / refund
  *
  * `accept` is kind-agnostic (gig vs exchange/p2p-order share the same

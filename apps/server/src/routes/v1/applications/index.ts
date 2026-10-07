@@ -7,16 +7,16 @@
  * whether they won, which lives on the application.
  *
  * The gig is nested as the standard `GigSummary` so the client reuses the same
- * card it renders everywhere else (lib/gig-read's stated purpose).
+ * card it renders everywhere else (features/gigs/gig-read's stated purpose).
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { desc, eq, sql } from 'drizzle-orm'
 import { escrows, gig_applications, gig_details, users } from '@tenda/shared/db/schema'
 import type { MyApplication, PaginatedResponse } from '@tenda/shared'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
 import { toApplicationWire } from '@server/features/applications/wire'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: number; offset?: number } }>(

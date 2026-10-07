@@ -13,8 +13,8 @@
 // in this package, `vi` does not — so the six `vi.spyOn` calls below compiled
 // nowhere and `pnpm --filter web type-check` was red with TS2304.
 import { vi } from 'vitest'
-import { colors, type ColorScheme } from '../../../mobile/theme/tokens'
-import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, OMITTED_GROUPS, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
+import { buttonGeometry, colors, type ColorScheme } from '../../../mobile/theme/tokens'
+import { easingToCss, flattenScheme, geometryPairs, hexToRgb, kebab, render, schemePairs, shadowToCss } from '../gen-web-tokens/core'
 import { pairedScheme, renderTendahq } from '../gen-web-tokens/tendahq'
 import { TARGETS, targetFromArgv } from '../gen-web-tokens/targets'
 
@@ -94,6 +94,19 @@ describe('geometryPairs', () => {
     expect(names.get('--radius-button-lg')).toBe('14px')
   })
 
+  it('emits mobile’s button geometry for every size, and the fixed ghost height', () => {
+    for (const size of ['sm', 'md', 'lg', 'xl'] as const) {
+      expect(names.get(`--button-h-${size}`)).toBe(`${buttonGeometry.height[size]}px`)
+      expect(names.get(`--button-px-${size}`)).toBe(`${buttonGeometry.padX[size]}px`)
+      expect(names.get(`--button-text-${size}`)).toBe(`${buttonGeometry.label[size].fontSize}px`)
+      expect(names.get(`--button-leading-${size}`)).toBe(`${buttonGeometry.label[size].lineHeight}px`)
+    }
+    expect(names.get('--button-h-ghost')).toBe('44px')
+    // The values web and the phone agreed on in the decision that tokenised
+    // them: side padding 18/22 (not web's old 20/24), ghost 44.
+    expect([names.get('--button-px-md'), names.get('--button-px-lg')]).toEqual(['18px', '22px'])
+  })
+
   it('emits motion as ms and cubic-bezier', () => {
     expect(names.get('--duration-fast')).toBe('150ms')
     expect(names.get('--easing-standard')).toBe('cubic-bezier(0.2, 0, 0, 1)')
@@ -129,18 +142,14 @@ describe('tendahq target', () => {
 
   it('pairs every colour token as light-dark(light, dark), in mobile order', () => {
     const dark = new Map(flattenScheme(colors.dark))
-    const kept = light.filter(([property]) => !OMITTED_GROUPS.some((g) => property.startsWith(`--${g}-`)))
-    expect(pairedScheme()).toEqual(kept.map(([property, value]) => [property, value, dark.get(property)]))
+    expect(pairedScheme()).toEqual(light.map(([property, value]) => [property, value, dark.get(property)]))
     expect(css).toContain('--surface-background: light-dark(#F7F5F0, #0D1018);')
     expect(css).toContain('--brand-on-primary: light-dark(#FFFFFF, #FFFFFF);')
   })
 
-  it('omits the dead accent group and nothing else', () => {
-    expect(OMITTED_GROUPS).toEqual(['accent'])
+  it('carries no accent group: the amber was retired from mobile and never reaches a page', () => {
     expect(css).not.toContain('--accent')
-    const omitted = light.filter(([property]) => property.startsWith('--accent-'))
-    expect(omitted.length).toBeGreaterThan(0)
-    expect(pairedScheme()).toHaveLength(light.length - omitted.length)
+    expect(light.some(([property]) => property.startsWith('--accent-'))).toBe(false)
   })
 
   it('refuses a light token with no dark counterpart, and ignores a dark-only one', () => {

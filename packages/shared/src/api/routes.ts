@@ -73,11 +73,18 @@ export const apiRoutes: {
      */
     demoSession: '/v1/agent/demo-session',
     tasks: '/v1/agent/tasks',
+    /**
+     * Check a task body against the rules `tasks` applies, with no draft, no
+     * payment and no moderation. Answers `{ ok: true, moderation: 'not_run' }`
+     * or the first refusal, in the ApiError envelope.
+     */
+    tasksValidate: '/v1/agent/tasks/validate',
   },
   users: {
     me: '/v1/users/me',
     updateMe: '/v1/users/me',
     myStanding: '/v1/users/me/standing',
+    myOverview: '/v1/users/me/overview',
     standing: '/v1/users/:id/standing',
     completedWork: '/v1/users/:id/completed-work',
     get: '/v1/users/:id',
