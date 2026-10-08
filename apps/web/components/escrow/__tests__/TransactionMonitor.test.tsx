@@ -20,6 +20,7 @@ vi.mock('@/hooks/escrow/sync/useEscrowTransactionSync', async () => ({
 }))
 
 import { TransactionMonitor } from '@/components/escrow/TransactionMonitor'
+import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
 
 const noop = () => {}
 const notApplied = async () => false
@@ -34,6 +35,16 @@ afterEach(() => {
 })
 
 describe('phase display', () => {
+  it('yields to fee confirmation and resumes progress after consent', async () => {
+    render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    let pending = Promise.resolve()
+    act(() => { pending = useNativeGasConfirmation.getState().request() })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    act(() => useNativeGasConfirmation.getState().settle(true))
+    await pending
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
   it('idle phase with no signature renders nothing', () => {
     const { container } = render(
       <TransactionMonitor checkApplied={notApplied} signature={null} phase="idle" onConfirmed={noop} onFailed={noop} />,

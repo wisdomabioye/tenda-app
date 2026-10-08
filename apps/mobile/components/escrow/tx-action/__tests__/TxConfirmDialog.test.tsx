@@ -39,9 +39,17 @@ jest.mock('@/components/wallet/SigningWalletRow', () => {
 })
 
 import { TxConfirmDialog } from '@/components/escrow/tx-action/TxConfirmDialog'
+import { NATIVE_GAS_COPY } from '@tenda/shared'
 
 const GIG = { amount: '50 USDC', kind: 'gig' as const }
 const noop = () => {}
+
+test('Celo fee note is shown before signing and omitted on other chains', () => {
+  const ui = render(<TxConfirmDialog action="cancel" ctx={GIG} chainId="eip155:42220" onConfirm={noop} onCancel={noop} />)
+  expect(screen.getByText(new RegExp(NATIVE_GAS_COPY.feeNote))).toBeTruthy()
+  ui.rerender(<TxConfirmDialog action="cancel" ctx={GIG} chainId="eip155:84532" onConfirm={noop} onCancel={noop} />)
+  expect(screen.queryByText(new RegExp(NATIVE_GAS_COPY.feeNote))).toBeNull()
+})
 
 test('renders the gated action copy + wallet note and wires confirm/cancel', () => {
   const onConfirm = jest.fn()

@@ -1,4 +1,4 @@
-import { txConfirmCopy, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
+import { txConfirmCopy, networkFeeNote, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 
@@ -47,7 +47,7 @@ export function TxConfirmDialog({
     <ConfirmDialog
       visible={copy !== null}
       title={copy?.title ?? ''}
-      message={copy?.body}
+      message={copy !== null ? [copy.body, networkFeeNote(chainId)].filter(Boolean).join('\n\n') : undefined}
       {...(chainId !== undefined
         ? {
             extra: (

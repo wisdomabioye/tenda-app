@@ -4,6 +4,8 @@ export { connectThenSign, isUserRejection, type ConnectSignParts } from './conne
 export { classifyConnectError, type ConnectErrorCopy } from './connect-error'
 export { transactionFailureMessage } from './provider-error'
 export { rejectsFeeCurrency } from './fee-currency'
+export { NATIVE_GAS_COPY, networkFeeNote } from './gas-copy'
+export { createNativeGasConfirmationState, type NativeGasConfirmationState } from './native-gas-confirmation'
 export * from './balances'
 export { evmRpc, evmRpcString, hexToDecimalString, addressWord, amountWord } from './evm-rpc'
 export {

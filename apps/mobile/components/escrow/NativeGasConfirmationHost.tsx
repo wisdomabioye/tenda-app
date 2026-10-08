@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { NATIVE_GAS_COPY } from '@tenda/shared'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
 
@@ -9,9 +10,9 @@ export function NativeGasConfirmationHost() {
   return (
     <ConfirmDialog
       visible={visible}
-      title="Pay network fees in CELO"
-      message="Your wallet requires CELO for network fees. Continue using CELO?"
-      confirmLabel="Continue"
+      title={NATIVE_GAS_COPY.title}
+      message={NATIVE_GAS_COPY.message}
+      confirmLabel={NATIVE_GAS_COPY.confirmLabel}
       onConfirm={() => settle(true)}
       onCancel={() => settle(false)}
     />

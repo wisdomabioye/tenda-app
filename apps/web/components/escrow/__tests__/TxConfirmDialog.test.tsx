@@ -5,7 +5,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { WALLET_OPEN_NOTE } from '@tenda/shared'
+import { WALLET_OPEN_NOTE, NATIVE_GAS_COPY } from '@tenda/shared'
 
 vi.mock('@/components/wallet/SigningWalletRow', () => ({
   SigningWalletRow: ({
@@ -47,6 +47,12 @@ describe('visibility', () => {
 })
 
 describe('gated copy', () => {
+  it('explains Celo gas before opening the wallet, but not for other chains', () => {
+    const ui = render(<TxConfirmDialog action="cancel" ctx={CTX} chainId="eip155:42220" onConfirm={noop} onCancel={noop} />)
+    expect(screen.getByText(new RegExp(NATIVE_GAS_COPY.feeNote))).toBeInTheDocument()
+    ui.rerender(<TxConfirmDialog action="cancel" ctx={CTX} chainId="eip155:84532" onConfirm={noop} onCancel={noop} />)
+    expect(screen.queryByText(new RegExp(NATIVE_GAS_COPY.feeNote))).toBeNull()
+  })
   it('create (gig) shows the fund copy, the amount, and the wallet note', () => {
     const { container } = render(
       <TxConfirmDialog action="create" ctx={CTX} onConfirm={noop} onCancel={noop} />,

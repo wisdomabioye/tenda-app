@@ -8,7 +8,7 @@
  * only own the `pendingAction` state and the confirm handler. Renders
  * nothing for a null action or one that isn't gated (see txConfirmCopy).
  */
-import { txConfirmCopy, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
+import { txConfirmCopy, networkFeeNote, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
 import { ConfirmDialog } from '@/components/ui/overlay/ConfirmDialog'
 import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 import type { SpendPreview } from '@/hooks/wallet/useSignerBalance'
@@ -57,7 +57,7 @@ export function TxConfirmDialog({
     <ConfirmDialog
       open={copy !== null}
       title={copy?.title ?? ''}
-      message={copy?.body}
+      message={copy !== null ? [copy.body, networkFeeNote(chainId)].filter(Boolean).join('\n\n') : undefined}
       {...(chainId !== undefined
         ? {
             extra: (

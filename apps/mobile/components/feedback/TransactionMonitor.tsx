@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button'
 import type { TxPhase } from '@/hooks/useEscrowActions'
 import { ESCROW_CONFIRM_DISMISS_MS, useEscrowTransactionSync } from '@/hooks/escrow-sync'
 import { useSlowOperation } from '@/hooks/useSlowOperation'
+import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
 
 interface TransactionMonitorProps {
   signature: string | null
@@ -60,6 +61,7 @@ type Display = 'preparing' | 'signing' | 'broadcasting' | 'confirming' | 'confir
 
 export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel, preparingCaption, checkApplied }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
+  const choosingGas = useNativeGasConfirmation(state => state.pending !== null)
   const network = useNetInfo()
   const broadcasting = phase === 'broadcasting'
   const slowBroadcast = useSlowOperation(broadcasting, TRANSACTION_RESILIENCE.slowOperationNoticeMs)
@@ -89,7 +91,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
   // (when supplied) drives the pre-signature messaging.
   const phaseActive = phase !== undefined && phase !== 'idle'
   const open = phaseActive || !!signature
-  if (!open) return null
+  if (!open || choosingGas) return null
 
   const display: Display =
     confirmation.state === 'applied'

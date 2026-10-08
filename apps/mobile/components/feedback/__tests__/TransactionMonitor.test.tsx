@@ -8,6 +8,17 @@
  */
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react-native'
 import { ESCROW_RPC_POLL_MS, ESCROW_SYNC_TIMEOUT_MS } from '@/hooks/escrow-sync/constants'
+import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
+
+test('progress yields to fee consent and resumes after approval', async () => {
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  let pending = Promise.resolve()
+  act(() => { pending = useNativeGasConfirmation.getState().request() })
+  expect(screen.queryByText('Approve in your wallet')).toBeNull()
+  act(() => useNativeGasConfirmation.getState().settle(true))
+  await pending
+  expect(screen.getByText('Approve in your wallet')).toBeTruthy()
+})
 
 let mockNetwork = { isConnected: true, isInternetReachable: true }
 jest.mock('@react-native-community/netinfo', () => ({

@@ -31,6 +31,17 @@ import { amountRawToDisplay, hasPermission } from '@tenda/shared'
 import { escrows, users, escrow_proofs } from '@tenda/shared/db/schema'
 ```
 
+## Wallet consent
+
+`src/wallet/native-gas-confirmation.ts` owns the one-pending-request and
+consent-settlement policy through `createNativeGasConfirmationState`. Each client
+supplies synchronous state read/write bindings and creates its own instance;
+shared has no React or Zustand dependency. Platform dialog hosts own rendering
+and call `settle(false)` on cancellation or unmount. Wallet maintainers own this
+policy; it needs no configuration.
+
+Focused test: `node --test -r ts-node/register test/wallet/native-gas-confirmation.test.ts`.
+
 ## Scripts
 
 | Command | Description |

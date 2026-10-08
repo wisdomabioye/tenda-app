@@ -4,7 +4,11 @@
  * The networks module is mocked at its lazy-import seam.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChainNamespace } from '@tenda/shared'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { createElement } from 'react'
+import { NativeGasConfirmationHost } from '@/components/escrow/NativeGasConfirmationHost'
+import { WalletError, type ChainNamespace } from '@tenda/shared'
+import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
 
 interface FakeModal {
   getAddress: (ns: ChainNamespace) => string | undefined
@@ -72,9 +76,29 @@ describe('sendEvmTransaction', () => {
   const unsupported = new Error('Invalid params feeCurrency - Expected a value of type `never`, but received: `"0xCUSD"`')
   const metaMaskError = { code: -32602, message: unsupported.message.replace('Invalid params feeCurrency', 'Invalid params\n\nfeeCurrency') }
 
+  it.each(['Continue with CELO', 'Cancel'])('real dialog controls the wallet retry: %s', async label => {
+    modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
+    request.mockRejectedValueOnce(metaMaskError).mockResolvedValueOnce('0xhash')
+    render(createElement(NativeGasConfirmationHost))
+    const pending = sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })
+    const outcome = label === 'Cancel'
+      ? expect(pending).rejects.toMatchObject({ code: 'declined' })
+      : expect(pending).resolves.toBe('0xhash')
+    await screen.findByRole('alertdialog', { name: 'Pay network fees in CELO' })
+    expect(request).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: label })); await outcome })
+    expect(request).toHaveBeenCalledTimes(label === 'Cancel' ? 1 : 2)
+    expect(useNativeGasConfirmation.getState().pending).toBeNull()
+    if (label !== 'Cancel') expect(request.mock.calls[1]?.[0].params[0]).toEqual({
+      from: TX.from, to: TX.to, data: TX.data, value: '0xf4240',
+    })
+  })
+
   it.each([true, false])('requires consent for the captured MetaMask error: %s', async (approved) => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(approved)
+    const confirm = vi.spyOn(useNativeGasConfirmation.getState(), 'request').mockImplementation(async () => {
+      if (!approved) throw new WalletError('declined', 'Declined')
+    })
     request.mockRejectedValueOnce(metaMaskError).mockResolvedValueOnce('0xhash')
     const pending = sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })
     if (approved) {
@@ -98,7 +122,7 @@ describe('sendEvmTransaction', () => {
 
   it('offers native gas after explicit rejection without balance or fee RPC reads', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(useNativeGasConfirmation.getState(), 'request').mockResolvedValue()
     request.mockRejectedValueOnce(unsupported).mockResolvedValueOnce('0xhash')
     await expect(sendEvmTransaction({ ...TX, value: '0', feeCurrency: '0xCUSD' })).resolves.toBe('0xhash')
     expect(request).toHaveBeenLastCalledWith({
@@ -109,7 +133,7 @@ describe('sendEvmTransaction', () => {
 
   it('does not send again when native gas consent is declined', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.spyOn(useNativeGasConfirmation.getState(), 'request').mockRejectedValue(new WalletError('declined', 'Declined'))
     request.mockRejectedValueOnce(unsupported)
     await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toMatchObject({ code: 'declined' })
     expect(request).toHaveBeenCalledTimes(1)
@@ -117,9 +141,8 @@ describe('sendEvmTransaction', () => {
 
   it('restores the target chain before retrying after consent', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    vi.spyOn(window, 'confirm').mockImplementation(() => {
+    vi.spyOn(useNativeGasConfirmation.getState(), 'request').mockImplementation(async () => {
       modal.getCaipNetwork.mockReturnValue({ caipNetworkId: 'eip155:8453' })
-      return true
     })
     const order: string[] = []
     modal.switchNetwork.mockImplementation(async () => {
@@ -137,7 +160,7 @@ describe('sendEvmTransaction', () => {
 
   it('propagates wallet gas errors without a further retry', async () => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(useNativeGasConfirmation.getState(), 'request').mockResolvedValue()
     const error = new Error('insufficient funds for gas')
     request.mockRejectedValueOnce(unsupported).mockRejectedValueOnce(error)
     await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toBe(error)
@@ -152,7 +175,7 @@ describe('sendEvmTransaction', () => {
     { code: 4001, message: metaMaskError.message },
   ])('never retries ambiguous, rejected or unrelated errors: %s', async (error) => {
     modal.getCaipNetwork.mockReturnValue({ caipNetworkId: TX.chainId })
-    const confirm = vi.spyOn(window, 'confirm')
+    const confirm = vi.spyOn(useNativeGasConfirmation.getState(), 'request')
     request.mockRejectedValueOnce(error)
     await expect(sendEvmTransaction({ ...TX, feeCurrency: '0xCUSD' })).rejects.toBe(error)
     expect(request).toHaveBeenCalledTimes(1)

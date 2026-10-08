@@ -24,6 +24,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { ModalBackdrop } from '@/components/ui/overlay/ModalBackdrop'
 import { useOnlineStatus } from '@/hooks/connectivity/useOnlineStatus'
 import { useSlowOperation } from '@/hooks/timing/useSlowOperation'
+import { useNativeGasConfirmation } from '@/wallet/native-gas-confirmation'
 import {
   ESCROW_CONFIRM_DISMISS_MS,
   useEscrowTransactionSync,
@@ -71,6 +72,7 @@ export function TransactionMonitor({
   checkApplied,
 }: TransactionMonitorProps) {
   const online = useOnlineStatus()
+  const choosingGas = useNativeGasConfirmation(state => state.pending !== null)
   const broadcasting = phase === 'broadcasting'
   const slowBroadcast = useSlowOperation(broadcasting, TRANSACTION_RESILIENCE.slowOperationNoticeMs)
   const confirmation = useEscrowTransactionSync({ signature, escrowId, chainId, checkApplied })
@@ -117,7 +119,7 @@ export function TransactionMonitor({
   // (when supplied) drives the pre-signature messaging.
   const phaseActive = phase !== undefined && phase !== 'idle'
   const open = phaseActive || (signature !== null && signature !== '')
-  if (!open) return null
+  if (!open || choosingGas) return null
 
   const display: Display =
     confirmation.state === 'applied'

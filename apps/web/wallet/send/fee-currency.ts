@@ -1,10 +1,8 @@
-import { WalletError } from '@tenda/shared'
+import { useNativeGasConfirmation } from '../native-gas-confirmation'
 
 export async function approveNativeGasFallback(
   ensureChain: () => Promise<void>,
 ): Promise<void> {
-  if (!window.confirm('Your wallet requires CELO for network fees. Continue using CELO?')) {
-    throw new WalletError('declined', 'CELO network fee payment was declined')
-  }
+  await useNativeGasConfirmation.getState().request()
   await ensureChain()
 }

@@ -4,6 +4,7 @@ import { APP_INFO } from '@tenda/shared'
 import { siteUrl } from '@/lib/config/site-url'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import { ToastHost } from '@/components/ui/Toast'
+import { NativeGasConfirmationHost } from '@/components/escrow/NativeGasConfirmationHost'
 import './globals.css'
 
 // The three faces are MOBILE's (apps/mobile/theme/tokens.ts `typography.fonts`,
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         {/* Global: toasts must survive route changes AND fire from the public
             group (the gig detail island toasts there). */}
         <ToastHost />
+        <NativeGasConfirmationHost />
       </body>
     </html>
   )
